@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+generated
+prisma/*.db
+prisma/*.db-journal
+tsconfig.tsbuildinfo
+**/*.d.ts
+
+
