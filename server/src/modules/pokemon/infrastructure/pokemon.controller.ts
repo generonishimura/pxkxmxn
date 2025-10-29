@@ -10,7 +10,7 @@ import { GetAbilityEffectUseCase } from '../application/use-cases/get-ability-ef
 export class PokemonController {
   constructor(
     private readonly getPokemonByIdUseCase: GetPokemonByIdUseCase,
-    private readonly getAbilityEffectUseCase: GetAbilityEffectUseCase,
+    private readonly getAbilityEffectUseCase: GetAbilityEffectUseCase
   ) {}
 
   /**
@@ -52,4 +52,3 @@ export class PokemonController {
     };
   }
 }
-

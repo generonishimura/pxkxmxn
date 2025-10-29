@@ -1,6 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { Pokemon } from '../../domain/entities/pokemon.entity';
-import { IPokemonRepository, POKEMON_REPOSITORY_TOKEN } from '../../domain/pokemon.repository.interface';
+import {
+  IPokemonRepository,
+  POKEMON_REPOSITORY_TOKEN,
+} from '../../domain/pokemon.repository.interface';
 
 /**
  * ポケモン取得ユースケース
@@ -10,7 +13,7 @@ import { IPokemonRepository, POKEMON_REPOSITORY_TOKEN } from '../../domain/pokem
 export class GetPokemonByIdUseCase {
   constructor(
     @Inject(POKEMON_REPOSITORY_TOKEN)
-    private readonly pokemonRepository: IPokemonRepository,
+    private readonly pokemonRepository: IPokemonRepository
   ) {}
 
   /**
@@ -22,4 +25,3 @@ export class GetPokemonByIdUseCase {
     return await this.pokemonRepository.findById(id);
   }
 }
-

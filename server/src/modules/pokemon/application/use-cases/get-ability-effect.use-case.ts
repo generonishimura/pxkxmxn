@@ -1,5 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { IAbilityRepository, ABILITY_REPOSITORY_TOKEN } from '../../domain/pokemon.repository.interface';
+import {
+  IAbilityRepository,
+  ABILITY_REPOSITORY_TOKEN,
+} from '../../domain/pokemon.repository.interface';
 import { AbilityRegistry } from '../../domain/abilities/ability-registry';
 import { IAbilityEffect } from '../../domain/abilities/ability-effect.interface';
 
@@ -15,7 +18,7 @@ import { IAbilityEffect } from '../../domain/abilities/ability-effect.interface'
 export class GetAbilityEffectUseCase {
   constructor(
     @Inject(ABILITY_REPOSITORY_TOKEN)
-    private readonly abilityRepository: IAbilityRepository,
+    private readonly abilityRepository: IAbilityRepository
   ) {}
 
   /**
@@ -51,4 +54,3 @@ export class GetAbilityEffectUseCase {
     return effect || null;
   }
 }
-
