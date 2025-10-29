@@ -6,5 +6,3 @@ prisma/*.db
 prisma/*.db-journal
 tsconfig.tsbuildinfo
 **/*.d.ts
-
-
