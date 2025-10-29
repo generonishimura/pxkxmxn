@@ -35,10 +35,6 @@ import { AbilityRegistry } from './domain/abilities/ability-registry';
       provide: ABILITY_REPOSITORY_TOKEN,
       useClass: AbilityPrismaRepository,
     },
-
-    // Prismaリポジトリ実装も直接提供（必要に応じて使用可能）
-    PokemonPrismaRepository,
-    AbilityPrismaRepository,
   ],
   exports: [GetPokemonByIdUseCase, GetAbilityEffectUseCase],
 })

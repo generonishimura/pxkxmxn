@@ -38,8 +38,8 @@ model Type {
 model Pokemon {
   id              Int    @id @default(autoincrement())
   nationalDex     Int    @unique @map("national_dex") // 図鑑番号
-  name            String @unique // 例: "カイリー"
-  nameEn          String @unique @map("name_en") // 例: "Dragonite"
+  name            String @unique // 例: "ピカチュウ"
+  nameEn          String @unique @map("name_en") // 例: "Pikachu"
   primaryTypeId   Int    @map("primary_type_id")
   secondaryTypeId Int?   @map("secondary_type_id") // null許可（単タイプの場合）
 
