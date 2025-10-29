@@ -14,6 +14,7 @@
 - 生成: `npm run prisma:generate`
 - マイグレーション: `npm run prisma:migrate`
 - Studio: `npm run prisma:studio`
+- ER図生成: `npm run prisma:generate` を実行すると自動的に `docs/ERD.md` にER図が生成されます（Mermaid形式）
 
 ## 開発コマンド
 
