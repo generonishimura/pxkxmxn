@@ -51,4 +51,3 @@ export class AbilityRegistry {
     return Array.from(this.registry.keys());
   }
 }
-

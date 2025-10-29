@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
-import {
-  IPokemonRepository,
-  IAbilityRepository,
-} from '../../domain/pokemon.repository.interface';
+import { IPokemonRepository, IAbilityRepository } from '../../domain/pokemon.repository.interface';
 import { Pokemon } from '../../domain/entities/pokemon.entity';
 import { Type } from '../../domain/entities/type.entity';
 import { Ability, AbilityTrigger, AbilityCategory } from '../../domain/entities/ability.entity';
@@ -71,14 +68,14 @@ export class PokemonPrismaRepository implements IPokemonRepository {
     const primaryType = new Type(
       pokemonData.primaryType.id,
       pokemonData.primaryType.name,
-      pokemonData.primaryType.nameEn,
+      pokemonData.primaryType.nameEn
     );
 
     const secondaryType = pokemonData.secondaryType
       ? new Type(
           pokemonData.secondaryType.id,
           pokemonData.secondaryType.name,
-          pokemonData.secondaryType.nameEn,
+          pokemonData.secondaryType.nameEn
         )
       : null;
 
@@ -94,7 +91,7 @@ export class PokemonPrismaRepository implements IPokemonRepository {
       pokemonData.baseDefense,
       pokemonData.baseSpecialAttack,
       pokemonData.baseSpecialDefense,
-      pokemonData.baseSpeed,
+      pokemonData.baseSpeed
     );
   }
 }
@@ -151,8 +148,7 @@ export class AbilityPrismaRepository implements IAbilityRepository {
       abilityData.nameEn,
       abilityData.description,
       abilityData.triggerEvent as AbilityTrigger,
-      abilityData.effectCategory as AbilityCategory,
+      abilityData.effectCategory as AbilityCategory
     );
   }
 }
-
