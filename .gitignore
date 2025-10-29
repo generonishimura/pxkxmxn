@@ -1,1 +1,28 @@
 .cursor/*
+
+# OS
+.DS_Store
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node
+node_modules/
+
+# Build outputs
+dist/
+coverage/
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Prisma local files
+server/prisma/*.db
+server/prisma/*.db-journal

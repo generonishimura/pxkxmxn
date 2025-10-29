@@ -35,6 +35,8 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "prettier": "^3.3.3",
+    "prisma-erd-generator": "^1.10.1",
     "@eslint/js": "^9.38.0",
     "@nestjs/cli": "^11.0.10",
     "@nestjs/testing": "^11.1.8",
