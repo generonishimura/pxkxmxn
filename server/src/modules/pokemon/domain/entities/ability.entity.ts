@@ -38,7 +38,6 @@ export class Ability {
     public readonly nameEn: string,
     public readonly description: string,
     public readonly triggerEvent: AbilityTrigger, // ロジックの発動タイミング（補助フラグ）
-    public readonly effectCategory: AbilityCategory, // 効果の大まかな分類（補助フラグ）
+    public readonly effectCategory: AbilityCategory // 効果の大まかな分類（補助フラグ）
   ) {}
 }
-

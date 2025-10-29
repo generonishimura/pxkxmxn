@@ -17,7 +17,6 @@ export class Pokemon {
     public readonly baseDefense: number,
     public readonly baseSpecialAttack: number,
     public readonly baseSpecialDefense: number,
-    public readonly baseSpeed: number,
+    public readonly baseSpeed: number
   ) {}
 }
-
