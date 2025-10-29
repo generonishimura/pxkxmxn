@@ -11,7 +11,7 @@ export interface IAbilityEffect {
    * @param pokemon 対象のポケモン
    * @param battleContext バトルコンテキスト（必要に応じて拡張）
    */
-  onEntry?(pokemon: any, battleContext?: any): void | Promise<void>;
+  onEntry?(_pokemon: any, _battleContext?: any): void | Promise<void>;
 
   /**
    * ダメージを受けるとき（OnTakingDamage）に発動する効果
@@ -20,7 +20,7 @@ export interface IAbilityEffect {
    * @param battleContext バトルコンテキスト
    * @returns 修正後のダメージ
    */
-  modifyDamage?(pokemon: any, damage: number, battleContext?: any): number;
+  modifyDamage?(_pokemon: any, _damage: number, _battleContext?: any): number;
 
   /**
    * ダメージを与えるとき（OnDealingDamage）に発動する効果
@@ -29,26 +29,25 @@ export interface IAbilityEffect {
    * @param battleContext バトルコンテキスト
    * @returns 修正後のダメージ
    */
-  modifyDamageDealt?(pokemon: any, damage: number, battleContext?: any): number;
+  modifyDamageDealt?(_pokemon: any, _damage: number, _battleContext?: any): number;
 
   /**
    * ターン終了時（OnTurnEnd）に発動する効果
    * @param pokemon 対象のポケモン
    * @param battleContext バトルコンテキスト
    */
-  onTurnEnd?(pokemon: any, battleContext?: any): void | Promise<void>;
+  onTurnEnd?(_pokemon: any, _battleContext?: any): void | Promise<void>;
 
   /**
    * 場から下がるとき（OnSwitchOut）に発動する効果
    * @param pokemon 対象のポケモン
    * @param battleContext バトルコンテキスト
    */
-  onSwitchOut?(pokemon: any, battleContext?: any): void | Promise<void>;
+  onSwitchOut?(_pokemon: any, _battleContext?: any): void | Promise<void>;
 
   /**
    * 常時発動（Passive）の効果
    * 必要に応じて様々なメソッドで呼び出される
    */
-  passiveEffect?(pokemon: any, battleContext?: any): void | Promise<void>;
+  passiveEffect?(_pokemon: any, _battleContext?: any): void | Promise<void>;
 }
-
