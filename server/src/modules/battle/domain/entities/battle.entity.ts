@@ -13,7 +13,7 @@ export class Battle {
     public readonly weather: Weather | null,
     public readonly field: Field | null,
     public readonly status: BattleStatus,
-    public readonly winnerTrainerId: number | null
+    public readonly winnerTrainerId: number | null,
   ) {}
 }
 
@@ -38,4 +38,3 @@ export enum BattleStatus {
   Completed = 'Completed',
   Abandoned = 'Abandoned',
 }
-

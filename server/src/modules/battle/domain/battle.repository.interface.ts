@@ -45,14 +45,17 @@ export interface IBattleRepository {
   /**
    * バトル中のポケモン状態を更新
    */
-  updateBattlePokemonStatus(id: number, data: Partial<BattlePokemonStatus>): Promise<BattlePokemonStatus>;
+  updateBattlePokemonStatus(
+    id: number,
+    data: Partial<BattlePokemonStatus>,
+  ): Promise<BattlePokemonStatus>;
 
   /**
    * アクティブなポケモンを取得（バトル中で場に出ているポケモン）
    */
   findActivePokemonByBattleIdAndTrainerId(
     battleId: number,
-    trainerId: number
+    trainerId: number,
   ): Promise<BattlePokemonStatus | null>;
 }
 
@@ -60,4 +63,3 @@ export interface IBattleRepository {
  * DIトークン（Nest.jsでインターフェースを注入するために使用）
  */
 export const BATTLE_REPOSITORY_TOKEN = Symbol('IBattleRepository');
-
