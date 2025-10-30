@@ -210,6 +210,7 @@ export class StartBattleUseCase {
     // 特性効果を発動
     await abilityEffect.onEntry(status, {
       battle,
+      battleRepository: this.battleRepository,
     });
   }
 }

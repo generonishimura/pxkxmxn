@@ -1,5 +1,6 @@
 import { IAbilityEffect } from './ability-effect.interface';
 import { IntimidateEffect } from './effects/intimidate-effect';
+import { MultiscaleEffect } from './effects/multiscale-effect';
 
 /**
  * 特性レジストリ
@@ -21,9 +22,10 @@ export class AbilityRegistry {
     // 特性ロジックを登録
     // DBのnameをキーとして、対応するロジッククラスを登録
     this.registry.set('いかく', new IntimidateEffect());
+    this.registry.set('マルチスケイル', new MultiscaleEffect());
     // 将来的に他の特性も追加可能:
     // this.registry.set('ふみん', new InsomniaEffect());
-    // this.registry.set('マルチスケイル', new MultiscaleEffect());
+    // this.registry.set('ふゆう', new LevitateEffect());
   }
 
   /**

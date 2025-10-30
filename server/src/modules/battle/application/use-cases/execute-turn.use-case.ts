@@ -121,17 +121,13 @@ export class ExecuteTurnUseCase {
             winnerTrainerId: winner,
           });
           return {
-            battle: await this.battleRepository.findById(battle.id) as Battle,
+            battle: (await this.battleRepository.findById(battle.id)) as Battle,
             actions: actionResults,
             winnerTrainerId: winner,
           };
         }
       } else if (action.action === 'switch' && action.switchPokemonId) {
-        await this.executeSwitch(
-          battle,
-          action.trainerId,
-          action.switchPokemonId,
-        );
+        await this.executeSwitch(battle, action.trainerId, action.switchPokemonId);
         actionResults.push({
           trainerId: action.trainerId,
           action: 'switch',
@@ -163,11 +159,23 @@ export class ExecuteTurnUseCase {
     trainer2Action: ExecuteTurnParams['trainer2Action'],
     trainer1Active: BattlePokemonStatus,
     trainer2Active: BattlePokemonStatus,
-  ): Promise<Array<{ trainerId: number; action: 'move' | 'switch'; moveId?: number; switchPokemonId?: number }>> {
+  ): Promise<
+    Array<{
+      trainerId: number;
+      action: 'move' | 'switch';
+      moveId?: number;
+      switchPokemonId?: number;
+    }>
+  > {
     // 簡易実装: ポケモン交代は常に先に実行
     // 実際の実装では、優先度と速度を考慮する必要がある
 
-    const actions: Array<{ trainerId: number; action: 'move' | 'switch'; moveId?: number; switchPokemonId?: number }> = [];
+    const actions: Array<{
+      trainerId: number;
+      action: 'move' | 'switch';
+      moveId?: number;
+      switchPokemonId?: number;
+    }> = [];
 
     // ポケモン交代を先に処理
     if (trainer1Action.switchPokemonId) {
@@ -387,6 +395,7 @@ export class ExecuteTurnUseCase {
       defenderAbilityName: defenderTrainedPokemon.ability?.name,
       attackerStats: attackerStats,
       defenderStats: defenderStats,
+      battle,
     });
 
     // ダメージを適用
@@ -421,7 +430,7 @@ export class ExecuteTurnUseCase {
     // 新しいポケモンをアクティブにする
     const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
     const targetStatus = battleStatuses.find(
-      (s) => s.trainedPokemonId === trainedPokemonId && s.trainerId === trainerId,
+      s => s.trainedPokemonId === trainedPokemonId && s.trainerId === trainerId,
     );
 
     if (targetStatus) {
@@ -438,7 +447,10 @@ export class ExecuteTurnUseCase {
       if (trainedPokemon?.ability) {
         const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
         if (abilityEffect?.onEntry) {
-          await abilityEffect.onEntry(targetStatus, { battle });
+          await abilityEffect.onEntry(targetStatus, {
+            battle,
+            battleRepository: this.battleRepository,
+          });
         }
       }
     }
@@ -449,7 +461,7 @@ export class ExecuteTurnUseCase {
    */
   private async processTurnEndAbilities(battle: Battle): Promise<void> {
     const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
-    const activePokemon = battleStatuses.filter((s) => s.isActive);
+    const activePokemon = battleStatuses.filter(s => s.isActive);
 
     for (const status of activePokemon) {
       const trainedPokemon = await this.prisma.trainedPokemon.findUnique({
@@ -460,7 +472,10 @@ export class ExecuteTurnUseCase {
       if (trainedPokemon?.ability) {
         const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
         if (abilityEffect?.onTurnEnd) {
-          await abilityEffect.onTurnEnd(status, { battle });
+          await abilityEffect.onTurnEnd(status, {
+            battle,
+            battleRepository: this.battleRepository,
+          });
         }
       }
     }
@@ -493,9 +508,10 @@ export class ExecuteTurnUseCase {
     // トレーナー1のポケモンが倒れている場合
     if (!trainer1Active || trainer1Active.isFainted()) {
       // トレーナー1の他のポケモンがいるか確認
-      const trainer1Statuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
+      const trainer1Statuses =
+        await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
       const trainer1Alive = trainer1Statuses.filter(
-        (s) => s.trainerId === battle.trainer1Id && !s.isFainted(),
+        s => s.trainerId === battle.trainer1Id && !s.isFainted(),
       );
 
       if (trainer1Alive.length === 0) {
@@ -506,9 +522,10 @@ export class ExecuteTurnUseCase {
     // トレーナー2のポケモンが倒れている場合
     if (!trainer2Active || trainer2Active.isFainted()) {
       // トレーナー2の他のポケモンがいるか確認
-      const trainer2Statuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
+      const trainer2Statuses =
+        await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
       const trainer2Alive = trainer2Statuses.filter(
-        (s) => s.trainerId === battle.trainer2Id && !s.isFainted(),
+        s => s.trainerId === battle.trainer2Id && !s.isFainted(),
       );
 
       if (trainer2Alive.length === 0) {
@@ -576,4 +593,3 @@ export class ExecuteTurnUseCase {
     return map;
   }
 }
-
