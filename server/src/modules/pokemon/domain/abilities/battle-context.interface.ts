@@ -1,6 +1,6 @@
-import { Battle } from '../../../battle/domain/entities/battle.entity';
-import { IBattleRepository } from '../../../battle/domain/battle.repository.interface';
-import { Weather, Field } from '../../../battle/domain/entities/battle.entity';
+import { Battle } from '@/modules/battle/domain/entities/battle.entity';
+import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
+import { Weather, Field } from '@/modules/battle/domain/entities/battle.entity';
 
 /**
  * バトルコンテキスト

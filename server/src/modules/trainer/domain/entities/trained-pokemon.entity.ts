@@ -1,6 +1,6 @@
-import { Pokemon } from '../../../pokemon/domain/entities/pokemon.entity';
-import { Ability } from '../../../pokemon/domain/entities/ability.entity';
-import { Nature } from '../../../battle/domain/logic/stat-calculator';
+import { Pokemon } from '@/modules/pokemon/domain/entities/pokemon.entity';
+import { Ability } from '@/modules/pokemon/domain/entities/ability.entity';
+import { Nature } from '@/modules/battle/domain/logic/stat-calculator';
 
 /**
  * Gender: 性別
@@ -39,4 +39,3 @@ export class TrainedPokemon {
     public readonly evSpeed: number,
   ) {}
 }
-

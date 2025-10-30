@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../../shared/prisma/prisma.service';
+import { PrismaService } from '@/shared/prisma/prisma.service';
+import { Prisma } from '@generated/prisma/client';
 import {
   ITrainerRepository,
   ITrainedPokemonRepository,
@@ -8,58 +9,37 @@ import {
 } from '../../domain/trainer.repository.interface';
 import { Trainer } from '../../domain/entities/trainer.entity';
 import { TrainedPokemon, Gender } from '../../domain/entities/trained-pokemon.entity';
-import { Pokemon } from '../../../pokemon/domain/entities/pokemon.entity';
-import { Type } from '../../../pokemon/domain/entities/type.entity';
-import { Ability } from '../../../pokemon/domain/entities/ability.entity';
-import { AbilityTrigger, AbilityCategory } from '../../../pokemon/domain/entities/ability.entity';
-import { Nature } from '../../../battle/domain/logic/stat-calculator';
+import { Pokemon } from '@/modules/pokemon/domain/entities/pokemon.entity';
+import { Type } from '@/modules/pokemon/domain/entities/type.entity';
+import { Ability } from '@/modules/pokemon/domain/entities/ability.entity';
+import { AbilityTrigger, AbilityCategory } from '@/modules/pokemon/domain/entities/ability.entity';
+import { Nature } from '@/modules/battle/domain/logic/stat-calculator';
+
+/**
+ * TrainerのPrismaクエリ結果型
+ */
+type TrainerData = Prisma.TrainerGetPayload<{}>;
+
+/**
+ * Trainer更新用の型
+ */
+type TrainerUpdateInput = Prisma.TrainerUpdateInput;
 
 /**
  * TrainedPokemonのPrismaクエリ結果型（include付き）
  * 実際のクエリ結果から推論される型
  */
-type TrainedPokemonWithRelations = {
-  id: number;
-  trainerId: number;
-  pokemon: {
-    id: number;
-    nationalDex: number;
-    name: string;
-    nameEn: string;
-    primaryType: { id: number; name: string; nameEn: string };
-    secondaryType: { id: number; name: string; nameEn: string } | null;
-    baseHp: number;
-    baseAttack: number;
-    baseDefense: number;
-    baseSpecialAttack: number;
-    baseSpecialDefense: number;
-    baseSpeed: number;
+type TrainedPokemonWithRelations = Prisma.TrainedPokemonGetPayload<{
+  include: {
+    pokemon: {
+      include: {
+        primaryType: true;
+        secondaryType: true;
+      };
+    };
+    ability: true;
   };
-  nickname: string | null;
-  level: number;
-  gender: string | null;
-  nature: string | null;
-  ability: {
-    id: number;
-    name: string;
-    nameEn: string;
-    description: string;
-    triggerEvent: string;
-    effectCategory: string;
-  } | null;
-  ivHp: number;
-  ivAttack: number;
-  ivDefense: number;
-  ivSpecialAttack: number;
-  ivSpecialDefense: number;
-  ivSpeed: number;
-  evHp: number;
-  evAttack: number;
-  evDefense: number;
-  evSpecialAttack: number;
-  evSpecialDefense: number;
-  evSpeed: number;
-};
+}>;
 
 /**
  * PrismaのTrainedPokemonデータをDomain層のTrainedPokemonエンティティに変換（共通ヘルパー関数）
@@ -187,7 +167,7 @@ export class TrainerPrismaRepository implements ITrainerRepository {
   }
 
   async update(id: number, data: Partial<Trainer>): Promise<Trainer> {
-    const updateData: any = {};
+    const updateData: TrainerUpdateInput = {};
 
     if (data.name !== undefined) updateData.name = data.name;
     if (data.email !== undefined) updateData.email = data.email;
@@ -217,7 +197,7 @@ export class TrainerPrismaRepository implements ITrainerRepository {
   /**
    * PrismaのTrainerモデルをDomain層のTrainerエンティティに変換
    */
-  private toTrainerEntity(trainerData: any): Trainer {
+  private toTrainerEntity(trainerData: TrainerData): Trainer {
     return new Trainer(
       trainerData.id,
       trainerData.name,

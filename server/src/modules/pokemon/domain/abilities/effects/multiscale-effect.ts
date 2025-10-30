@@ -1,5 +1,5 @@
 import { IAbilityEffect } from '../ability-effect.interface';
-import { BattlePokemonStatus } from '../../../../battle/domain/entities/battle-pokemon-status.entity';
+import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../battle-context.interface';
 
 /**

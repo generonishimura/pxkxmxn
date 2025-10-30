@@ -1,5 +1,5 @@
 import { BattleContext } from './battle-context.interface';
-import { BattlePokemonStatus } from '../../../battle/domain/entities/battle-pokemon-status.entity';
+import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 
 /**
  * 特性効果のインターフェース

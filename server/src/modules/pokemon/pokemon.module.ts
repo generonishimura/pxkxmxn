@@ -14,7 +14,7 @@ import {
   MOVE_REPOSITORY_TOKEN,
   TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
 } from './domain/pokemon.repository.interface';
-import { PrismaModule } from '../../shared/prisma/prisma.module';
+import { PrismaModule } from '@/shared/prisma/prisma.module';
 import { AbilityRegistry } from './domain/abilities/ability-registry';
 
 /**

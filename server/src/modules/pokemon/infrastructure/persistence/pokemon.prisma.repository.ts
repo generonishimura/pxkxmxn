@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../../shared/prisma/prisma.service';
+import { PrismaService } from '@/shared/prisma/prisma.service';
+import { Prisma } from '@generated/prisma/client';
 import {
   IPokemonRepository,
   IAbilityRepository,
@@ -13,20 +14,28 @@ import { Ability, AbilityTrigger, AbilityCategory } from '../../domain/entities/
 import { Move, MoveCategory } from '../../domain/entities/move.entity';
 
 /**
+ * PokemonのPrismaクエリ結果型（include付き）
+ */
+type PokemonWithTypes = Prisma.PokemonGetPayload<{
+  include: {
+    primaryType: true;
+    secondaryType: true;
+  };
+}>;
+
+/**
  * MoveのPrismaクエリ結果型（include付き）
  */
-type MoveWithRelations = {
-  id: number;
-  name: string;
-  nameEn: string;
-  type: { id: number; name: string; nameEn: string };
-  category: string;
-  power: number | null;
-  accuracy: number | null;
-  pp: number;
-  priority: number;
-  description: string | null;
-};
+type MoveWithRelations = Prisma.MoveGetPayload<{
+  include: {
+    type: true;
+  };
+}>;
+
+/**
+ * AbilityのPrismaクエリ結果型
+ */
+type AbilityData = Prisma.AbilityGetPayload<{}>;
 
 /**
  * PokemonリポジトリのPrisma実装
@@ -87,7 +96,7 @@ export class PokemonPrismaRepository implements IPokemonRepository {
   /**
    * PrismaのデータモデルをDomain層のエンティティに変換
    */
-  private toDomainEntity(pokemonData: any): Pokemon {
+  private toDomainEntity(pokemonData: PokemonWithTypes): Pokemon {
     const primaryType = new Type(
       pokemonData.primaryType.id,
       pokemonData.primaryType.name,
@@ -164,7 +173,7 @@ export class AbilityPrismaRepository implements IAbilityRepository {
   /**
    * PrismaのデータモデルをDomain層のエンティティに変換
    */
-  private toDomainEntity(abilityData: any): Ability {
+  private toDomainEntity(abilityData: AbilityData): Ability {
     return new Ability(
       abilityData.id,
       abilityData.name,
