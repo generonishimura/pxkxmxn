@@ -1,13 +1,16 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { PrismaService } from '../../../../shared/prisma/prisma.service';
 import {
   IBattleRepository,
   BATTLE_REPOSITORY_TOKEN,
 } from '../../domain/battle.repository.interface';
+import {
+  ITeamRepository,
+  TEAM_REPOSITORY_TOKEN,
+} from '../../../trainer/domain/trainer.repository.interface';
 import { Battle } from '../../domain/entities/battle.entity';
-import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatCalculator, TrainedPokemonStats } from '../../domain/logic/stat-calculator';
 import { AbilityRegistry } from '../../../pokemon/domain/abilities/ability-registry';
+import { TrainedPokemon } from '../../../trainer/domain/entities/trained-pokemon.entity';
 
 /**
  * StartBattleUseCase
@@ -24,7 +27,8 @@ export class StartBattleUseCase {
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
-    private readonly prisma: PrismaService,
+    @Inject(TEAM_REPOSITORY_TOKEN)
+    private readonly teamRepository: ITeamRepository,
   ) {}
 
   /**
@@ -50,49 +54,15 @@ export class StartBattleUseCase {
     });
 
     // 2. 両チームのポケモン情報を取得
-    const team1Members = await this.prisma.teamMember.findMany({
-      where: { teamId: team1Id },
-      include: {
-        trainedPokemon: {
-          include: {
-            pokemon: {
-              include: {
-                primaryType: true,
-                secondaryType: true,
-              },
-            },
-            ability: true,
-          },
-        },
-      },
-      orderBy: { position: 'asc' },
-    });
-
-    const team2Members = await this.prisma.teamMember.findMany({
-      where: { teamId: team2Id },
-      include: {
-        trainedPokemon: {
-          include: {
-            pokemon: {
-              include: {
-                primaryType: true,
-                secondaryType: true,
-              },
-            },
-            ability: true,
-          },
-        },
-      },
-      orderBy: { position: 'asc' },
-    });
+    const team1Members = await this.teamRepository.findMembersByTeamId(team1Id);
+    const team2Members = await this.teamRepository.findMembersByTeamId(team2Id);
 
     // 3. 各ポケモンのBattlePokemonStatusを作成
     for (const member of team1Members) {
       const trainedPokemon = member.trainedPokemon;
-      const pokemon = trainedPokemon.pokemon;
 
       // ステータスを計算
-      const stats = this.calculateStats(trainedPokemon, pokemon);
+      const stats = this.calculateStats(trainedPokemon);
       const calculatedStats = StatCalculator.calculate(stats);
 
       // BattlePokemonStatusを作成
@@ -123,10 +93,9 @@ export class StartBattleUseCase {
 
     for (const member of team2Members) {
       const trainedPokemon = member.trainedPokemon;
-      const pokemon = trainedPokemon.pokemon;
 
       // ステータスを計算
-      const stats = this.calculateStats(trainedPokemon, pokemon);
+      const stats = this.calculateStats(trainedPokemon);
       const calculatedStats = StatCalculator.calculate(stats);
 
       // BattlePokemonStatusを作成
@@ -159,16 +128,16 @@ export class StartBattleUseCase {
   }
 
   /**
-   * TrainedPokemonとPokemonからステータス情報を計算
+   * TrainedPokemonからステータス情報を計算
    */
-  private calculateStats(trainedPokemon: any, pokemon: any): TrainedPokemonStats {
+  private calculateStats(trainedPokemon: TrainedPokemon): TrainedPokemonStats {
     return {
-      baseHp: pokemon.baseHp,
-      baseAttack: pokemon.baseAttack,
-      baseDefense: pokemon.baseDefense,
-      baseSpecialAttack: pokemon.baseSpecialAttack,
-      baseSpecialDefense: pokemon.baseSpecialDefense,
-      baseSpeed: pokemon.baseSpeed,
+      baseHp: trainedPokemon.pokemon.baseHp,
+      baseAttack: trainedPokemon.pokemon.baseAttack,
+      baseDefense: trainedPokemon.pokemon.baseDefense,
+      baseSpecialAttack: trainedPokemon.pokemon.baseSpecialAttack,
+      baseSpecialDefense: trainedPokemon.pokemon.baseSpecialDefense,
+      baseSpeed: trainedPokemon.pokemon.baseSpeed,
       level: trainedPokemon.level,
       ivHp: trainedPokemon.ivHp,
       ivAttack: trainedPokemon.ivAttack,
@@ -182,7 +151,7 @@ export class StartBattleUseCase {
       evSpecialAttack: trainedPokemon.evSpecialAttack,
       evSpecialDefense: trainedPokemon.evSpecialDefense,
       evSpeed: trainedPokemon.evSpeed,
-      nature: trainedPokemon.nature as any,
+      nature: trainedPokemon.nature,
     };
   }
 

@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import {
-  IBattleRepository,
   BATTLE_REPOSITORY_TOKEN,
 } from './domain/battle.repository.interface';
 import { BattlePrismaRepository } from './infrastructure/persistence/battle.prisma.repository';
@@ -9,13 +8,15 @@ import { StartBattleUseCase } from './application/use-cases/start-battle.use-cas
 import { ExecuteTurnUseCase } from './application/use-cases/execute-turn.use-case';
 import { BattleController } from './infrastructure/battle.controller';
 import { BattleGateway } from './infrastructure/battle.gateway';
+import { TrainerModule } from '../trainer/trainer.module';
+import { PokemonModule } from '../pokemon/pokemon.module';
 
 /**
  * BattleModule
  * Battleモジュールの依存性注入設定
  */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, TrainerModule, PokemonModule],
   controllers: [BattleController],
   providers: [
     // ユースケース

@@ -1,15 +1,26 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { PrismaService } from '../../../../shared/prisma/prisma.service';
 import {
   IBattleRepository,
   BATTLE_REPOSITORY_TOKEN,
 } from '../../domain/battle.repository.interface';
+import {
+  ITrainedPokemonRepository,
+  TRAINED_POKEMON_REPOSITORY_TOKEN,
+} from '../../../trainer/domain/trainer.repository.interface';
+import {
+  IMoveRepository,
+  ITypeEffectivenessRepository,
+  MOVE_REPOSITORY_TOKEN,
+  TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
+} from '../../../pokemon/domain/pokemon.repository.interface';
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
+import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { DamageCalculator, MoveInfo } from '../../domain/logic/damage-calculator';
 import { StatCalculator } from '../../domain/logic/stat-calculator';
-import { Type } from '../../../pokemon/domain/entities/type.entity';
 import { AbilityRegistry } from '../../../pokemon/domain/abilities/ability-registry';
+import { TrainedPokemon } from '../../../trainer/domain/entities/trained-pokemon.entity';
+import { MoveCategory } from '../../../pokemon/domain/entities/move.entity';
 
 /**
  * ターン実行の入力パラメータ
@@ -57,7 +68,12 @@ export class ExecuteTurnUseCase {
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
-    private readonly prisma: PrismaService,
+    @Inject(TRAINED_POKEMON_REPOSITORY_TOKEN)
+    private readonly trainedPokemonRepository: ITrainedPokemonRepository,
+    @Inject(MOVE_REPOSITORY_TOKEN)
+    private readonly moveRepository: IMoveRepository,
+    @Inject(TYPE_EFFECTIVENESS_REPOSITORY_TOKEN)
+    private readonly typeEffectivenessRepository: ITypeEffectivenessRepository,
   ) {}
 
   /**
@@ -153,6 +169,7 @@ export class ExecuteTurnUseCase {
   /**
    * 行動順を決定
    * 優先度と速度を考慮して決定
+   * 優先順位: 交代 > 優先度 > 速度 > 状態異常補正
    */
   private async determineActionOrder(
     trainer1Action: ExecuteTurnParams['trainer1Action'],
@@ -167,9 +184,6 @@ export class ExecuteTurnUseCase {
       switchPokemonId?: number;
     }>
   > {
-    // 簡易実装: ポケモン交代は常に先に実行
-    // 実際の実装では、優先度と速度を考慮する必要がある
-
     const actions: Array<{
       trainerId: number;
       action: 'move' | 'switch';
@@ -177,7 +191,7 @@ export class ExecuteTurnUseCase {
       switchPokemonId?: number;
     }> = [];
 
-    // ポケモン交代を先に処理
+    // ポケモン交代は常に先に実行
     if (trainer1Action.switchPokemonId) {
       actions.push({
         trainerId: trainer1Action.trainerId,
@@ -193,35 +207,78 @@ export class ExecuteTurnUseCase {
       });
     }
 
-    // 技を使用する場合、実際の速度ステータスで順序を決定
+    // 両方が技を使用する場合、優先度と速度を考慮
     if (trainer1Action.moveId && trainer2Action.moveId) {
-      // 実際の速度ステータスを取得
-      const trainer1Speed = await this.getEffectiveSpeed(trainer1Active);
-      const trainer2Speed = await this.getEffectiveSpeed(trainer2Active);
+      // 技の優先度を取得
+      const trainer1Move = await this.moveRepository.findById(trainer1Action.moveId);
+      const trainer2Move = await this.moveRepository.findById(trainer2Action.moveId);
 
-      // 速度比較
-      if (trainer1Speed >= trainer2Speed) {
-        actions.push({
-          trainerId: trainer1Action.trainerId,
-          action: 'move',
-          moveId: trainer1Action.moveId,
-        });
-        actions.push({
-          trainerId: trainer2Action.trainerId,
-          action: 'move',
-          moveId: trainer2Action.moveId,
-        });
+      if (!trainer1Move || !trainer2Move) {
+        throw new Error('Move not found');
+      }
+
+      // 優先度が異なる場合は優先度が高い方が先
+      if (trainer1Move.priority !== trainer2Move.priority) {
+        if (trainer1Move.priority > trainer2Move.priority) {
+          actions.push({
+            trainerId: trainer1Action.trainerId,
+            action: 'move',
+            moveId: trainer1Action.moveId,
+          });
+          actions.push({
+            trainerId: trainer2Action.trainerId,
+            action: 'move',
+            moveId: trainer2Action.moveId,
+          });
+        } else {
+          actions.push({
+            trainerId: trainer2Action.trainerId,
+            action: 'move',
+            moveId: trainer2Action.moveId,
+          });
+          actions.push({
+            trainerId: trainer1Action.trainerId,
+            action: 'move',
+            moveId: trainer1Action.moveId,
+          });
+        }
       } else {
-        actions.push({
-          trainerId: trainer2Action.trainerId,
-          action: 'move',
-          moveId: trainer2Action.moveId,
-        });
-        actions.push({
-          trainerId: trainer1Action.trainerId,
-          action: 'move',
-          moveId: trainer1Action.moveId,
-        });
+        // 優先度が同じ場合は速度で判定
+        // 状態異常による素早さ補正を考慮
+        const trainer1Speed = await this.getEffectiveSpeed(trainer1Active);
+        const trainer2Speed = await this.getEffectiveSpeed(trainer2Active);
+
+        // まひ状態異常の場合は素早さが0.5倍
+        const trainer1SpeedMultiplier = trainer1Active.statusCondition === StatusCondition.Paralysis ? 0.5 : 1.0;
+        const trainer2SpeedMultiplier = trainer2Active.statusCondition === StatusCondition.Paralysis ? 0.5 : 1.0;
+
+        const trainer1FinalSpeed = trainer1Speed * trainer1SpeedMultiplier;
+        const trainer2FinalSpeed = trainer2Speed * trainer2SpeedMultiplier;
+
+        // 速度比較
+        if (trainer1FinalSpeed >= trainer2FinalSpeed) {
+          actions.push({
+            trainerId: trainer1Action.trainerId,
+            action: 'move',
+            moveId: trainer1Action.moveId,
+          });
+          actions.push({
+            trainerId: trainer2Action.trainerId,
+            action: 'move',
+            moveId: trainer2Action.moveId,
+          });
+        } else {
+          actions.push({
+            trainerId: trainer2Action.trainerId,
+            action: 'move',
+            moveId: trainer2Action.moveId,
+          });
+          actions.push({
+            trainerId: trainer1Action.trainerId,
+            action: 'move',
+            moveId: trainer1Action.moveId,
+          });
+        }
       }
     } else if (trainer1Action.moveId) {
       actions.push({
@@ -245,12 +302,7 @@ export class ExecuteTurnUseCase {
    */
   private async getEffectiveSpeed(status: BattlePokemonStatus): Promise<number> {
     // TrainedPokemon情報を取得
-    const trainedPokemon = await this.prisma.trainedPokemon.findUnique({
-      where: { id: status.trainedPokemonId },
-      include: {
-        pokemon: true,
-      },
-    });
+    const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
 
     if (!trainedPokemon) {
       throw new Error('TrainedPokemon not found');
@@ -277,7 +329,7 @@ export class ExecuteTurnUseCase {
       evSpecialAttack: trainedPokemon.evSpecialAttack,
       evSpecialDefense: trainedPokemon.evSpecialDefense,
       evSpeed: trainedPokemon.evSpeed,
-      nature: trainedPokemon.nature as any,
+      nature: trainedPokemon.nature,
     });
 
     // ランク補正を適用
@@ -296,10 +348,7 @@ export class ExecuteTurnUseCase {
     defender: BattlePokemonStatus,
   ): Promise<string> {
     // 技情報を取得
-    const move = await this.prisma.move.findUnique({
-      where: { id: moveId },
-      include: { type: true },
-    });
+    const move = await this.moveRepository.findById(moveId);
 
     if (!move) {
       throw new Error('Move not found');
@@ -311,38 +360,19 @@ export class ExecuteTurnUseCase {
     }
 
     // 攻撃側と防御側のポケモン情報を取得
-    const attackerTrainedPokemon = await this.prisma.trainedPokemon.findUnique({
-      where: { id: attacker.trainedPokemonId },
-      include: {
-        pokemon: {
-          include: {
-            primaryType: true,
-            secondaryType: true,
-          },
-        },
-        ability: true,
-      },
-    });
-
-    const defenderTrainedPokemon = await this.prisma.trainedPokemon.findUnique({
-      where: { id: defender.trainedPokemonId },
-      include: {
-        pokemon: {
-          include: {
-            primaryType: true,
-            secondaryType: true,
-          },
-        },
-        ability: true,
-      },
-    });
+    const attackerTrainedPokemon = await this.trainedPokemonRepository.findById(
+      attacker.trainedPokemonId,
+    );
+    const defenderTrainedPokemon = await this.trainedPokemonRepository.findById(
+      defender.trainedPokemonId,
+    );
 
     if (!attackerTrainedPokemon || !defenderTrainedPokemon) {
       throw new Error('TrainedPokemon not found');
     }
 
     // タイプ相性を取得
-    const typeEffectiveness = await this.getTypeEffectiveness();
+    const typeEffectiveness = await this.typeEffectivenessRepository.getTypeEffectivenessMap();
 
     // 実際のステータス値を計算
     const attackerStats = this.calculateStats(attackerTrainedPokemon);
@@ -351,8 +381,8 @@ export class ExecuteTurnUseCase {
     // ダメージを計算
     const moveInfo: MoveInfo = {
       power: move.power,
-      typeId: move.typeId,
-      category: move.category as 'Physical' | 'Special' | 'Status',
+      typeId: move.type.id,
+      category: this.convertMoveCategoryToString(move.category),
       accuracy: move.accuracy,
     };
 
@@ -361,32 +391,12 @@ export class ExecuteTurnUseCase {
       defender,
       move: moveInfo,
       attackerTypes: {
-        primary: new Type(
-          attackerTrainedPokemon.pokemon.primaryType.id,
-          attackerTrainedPokemon.pokemon.primaryType.name,
-          attackerTrainedPokemon.pokemon.primaryType.nameEn,
-        ),
-        secondary: attackerTrainedPokemon.pokemon.secondaryType
-          ? new Type(
-              attackerTrainedPokemon.pokemon.secondaryType.id,
-              attackerTrainedPokemon.pokemon.secondaryType.name,
-              attackerTrainedPokemon.pokemon.secondaryType.nameEn,
-            )
-          : null,
+        primary: attackerTrainedPokemon.pokemon.primaryType,
+        secondary: attackerTrainedPokemon.pokemon.secondaryType,
       },
       defenderTypes: {
-        primary: new Type(
-          defenderTrainedPokemon.pokemon.primaryType.id,
-          defenderTrainedPokemon.pokemon.primaryType.name,
-          defenderTrainedPokemon.pokemon.primaryType.nameEn,
-        ),
-        secondary: defenderTrainedPokemon.pokemon.secondaryType
-          ? new Type(
-              defenderTrainedPokemon.pokemon.secondaryType.id,
-              defenderTrainedPokemon.pokemon.secondaryType.name,
-              defenderTrainedPokemon.pokemon.secondaryType.nameEn,
-            )
-          : null,
+        primary: defenderTrainedPokemon.pokemon.primaryType,
+        secondary: defenderTrainedPokemon.pokemon.secondaryType,
       },
       typeEffectiveness,
       weather: battle.weather,
@@ -439,10 +449,7 @@ export class ExecuteTurnUseCase {
       });
 
       // 特性のOnEntry効果を発動
-      const trainedPokemon = await this.prisma.trainedPokemon.findUnique({
-        where: { id: trainedPokemonId },
-        include: { ability: true },
-      });
+      const trainedPokemon = await this.trainedPokemonRepository.findById(trainedPokemonId);
 
       if (trainedPokemon?.ability) {
         const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
@@ -464,10 +471,7 @@ export class ExecuteTurnUseCase {
     const activePokemon = battleStatuses.filter(s => s.isActive);
 
     for (const status of activePokemon) {
-      const trainedPokemon = await this.prisma.trainedPokemon.findUnique({
-        where: { id: status.trainedPokemonId },
-        include: { ability: true },
-      });
+      const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
 
       if (trainedPokemon?.ability) {
         const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
@@ -539,7 +543,7 @@ export class ExecuteTurnUseCase {
   /**
    * TrainedPokemonから実際のステータス値を計算
    */
-  private calculateStats(trainedPokemon: any): {
+  private calculateStats(trainedPokemon: TrainedPokemon): {
     attack: number;
     defense: number;
     specialAttack: number;
@@ -566,7 +570,7 @@ export class ExecuteTurnUseCase {
       evSpecialAttack: trainedPokemon.evSpecialAttack,
       evSpecialDefense: trainedPokemon.evSpecialDefense,
       evSpeed: trainedPokemon.evSpeed,
-      nature: trainedPokemon.nature as any,
+      nature: trainedPokemon.nature,
     });
 
     return {
@@ -579,17 +583,14 @@ export class ExecuteTurnUseCase {
   }
 
   /**
-   * タイプ相性マップを取得
+   * MoveCategoryを文字列に変換
    */
-  private async getTypeEffectiveness(): Promise<Map<string, number>> {
-    const effectivenessList = await this.prisma.typeEffectiveness.findMany();
-    const map = new Map<string, number>();
-
-    for (const eff of effectivenessList) {
-      const key = `${eff.typeFromId}-${eff.typeToId}`;
-      map.set(key, eff.effectiveness);
-    }
-
-    return map;
+  private convertMoveCategoryToString(category: MoveCategory): 'Physical' | 'Special' | 'Status' {
+    const categoryMap: Record<MoveCategory, 'Physical' | 'Special' | 'Status'> = {
+      [MoveCategory.Physical]: 'Physical',
+      [MoveCategory.Special]: 'Special',
+      [MoveCategory.Status]: 'Status',
+    };
+    return categoryMap[category];
   }
 }

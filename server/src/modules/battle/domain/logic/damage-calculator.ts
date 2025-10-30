@@ -156,7 +156,12 @@ export class DamageCalculator {
     // 最終ダメージを計算
     const finalDamage = Math.floor(baseDamage * damageMultiplier);
 
-    // 最低ダメージは1
+    // タイプ相性が0の場合は0ダメージを返す
+    // それ以外の場合は最低1ダメージを保証
+    if (typeEffectiveness === 0) {
+      return 0;
+    }
+
     return Math.max(1, finalDamage);
   }
 
@@ -198,6 +203,7 @@ export class DamageCalculator {
       }
     } else {
       // フォールバック: 最大HPを基準に使用（後方互換性のため）
+      // 警告: これは正確なステータス値ではない。baseStatsを提供することを推奨。
       baseStat = status.maxHp;
     }
     const multiplier = status.getStatMultiplier(statType);

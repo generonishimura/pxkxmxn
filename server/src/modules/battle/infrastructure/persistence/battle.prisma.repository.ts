@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
 import {
   IBattleRepository,
-  BATTLE_REPOSITORY_TOKEN,
 } from '../../domain/battle.repository.interface';
 import { Battle, Weather, Field, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';

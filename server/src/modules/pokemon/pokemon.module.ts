@@ -5,10 +5,14 @@ import { GetAbilityEffectUseCase } from './application/use-cases/get-ability-eff
 import {
   PokemonPrismaRepository,
   AbilityPrismaRepository,
+  MovePrismaRepository,
+  TypeEffectivenessPrismaRepository,
 } from './infrastructure/persistence/pokemon.prisma.repository';
 import {
   POKEMON_REPOSITORY_TOKEN,
   ABILITY_REPOSITORY_TOKEN,
+  MOVE_REPOSITORY_TOKEN,
+  TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
 } from './domain/pokemon.repository.interface';
 import { PrismaModule } from '../../shared/prisma/prisma.module';
 import { AbilityRegistry } from './domain/abilities/ability-registry';
@@ -35,8 +39,23 @@ import { AbilityRegistry } from './domain/abilities/ability-registry';
       provide: ABILITY_REPOSITORY_TOKEN,
       useClass: AbilityPrismaRepository,
     },
+    {
+      provide: MOVE_REPOSITORY_TOKEN,
+      useClass: MovePrismaRepository,
+    },
+    {
+      provide: TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
+      useClass: TypeEffectivenessPrismaRepository,
+    },
   ],
-  exports: [GetPokemonByIdUseCase, GetAbilityEffectUseCase],
+  exports: [
+    POKEMON_REPOSITORY_TOKEN,
+    ABILITY_REPOSITORY_TOKEN,
+    MOVE_REPOSITORY_TOKEN,
+    TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
+    GetPokemonByIdUseCase,
+    GetAbilityEffectUseCase,
+  ],
 })
 export class PokemonModule {
   /**

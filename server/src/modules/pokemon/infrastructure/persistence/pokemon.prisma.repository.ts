@@ -1,9 +1,32 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
-import { IPokemonRepository, IAbilityRepository } from '../../domain/pokemon.repository.interface';
+import {
+  IPokemonRepository,
+  IAbilityRepository,
+  IMoveRepository,
+  ITypeEffectivenessRepository,
+  TypeEffectivenessMap,
+} from '../../domain/pokemon.repository.interface';
 import { Pokemon } from '../../domain/entities/pokemon.entity';
 import { Type } from '../../domain/entities/type.entity';
 import { Ability, AbilityTrigger, AbilityCategory } from '../../domain/entities/ability.entity';
+import { Move, MoveCategory } from '../../domain/entities/move.entity';
+
+/**
+ * MoveのPrismaクエリ結果型（include付き）
+ */
+type MoveWithRelations = {
+  id: number;
+  name: string;
+  nameEn: string;
+  type: { id: number; name: string; nameEn: string };
+  category: string;
+  power: number | null;
+  accuracy: number | null;
+  pp: number;
+  priority: number;
+  description: string | null;
+};
 
 /**
  * PokemonリポジトリのPrisma実装
@@ -150,5 +173,68 @@ export class AbilityPrismaRepository implements IAbilityRepository {
       abilityData.triggerEvent as AbilityTrigger,
       abilityData.effectCategory as AbilityCategory
     );
+  }
+}
+
+/**
+ * MoveリポジトリのPrisma実装
+ */
+@Injectable()
+export class MovePrismaRepository implements IMoveRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findById(id: number): Promise<Move | null> {
+    const moveData = await this.prisma.move.findUnique({
+      where: { id },
+      include: {
+        type: true,
+      },
+    });
+
+    if (!moveData) {
+      return null;
+    }
+
+    return this.toDomainEntity(moveData);
+  }
+
+  /**
+   * PrismaのデータモデルをDomain層のエンティティに変換
+   */
+  private toDomainEntity(moveData: MoveWithRelations): Move {
+    const type = new Type(moveData.type.id, moveData.type.name, moveData.type.nameEn);
+
+    return new Move(
+      moveData.id,
+      moveData.name,
+      moveData.nameEn,
+      type,
+      moveData.category as MoveCategory,
+      moveData.power,
+      moveData.accuracy,
+      moveData.pp,
+      moveData.priority,
+      moveData.description,
+    );
+  }
+}
+
+/**
+ * TypeEffectivenessリポジトリのPrisma実装
+ */
+@Injectable()
+export class TypeEffectivenessPrismaRepository implements ITypeEffectivenessRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getTypeEffectivenessMap(): Promise<TypeEffectivenessMap> {
+    const effectivenessList = await this.prisma.typeEffectiveness.findMany();
+    const map = new Map<string, number>();
+
+    for (const eff of effectivenessList) {
+      const key = `${eff.typeFromId}-${eff.typeToId}`;
+      map.set(key, eff.effectiveness);
+    }
+
+    return map;
   }
 }
