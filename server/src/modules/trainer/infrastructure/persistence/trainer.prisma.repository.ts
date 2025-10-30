@@ -2,9 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/prisma/prisma.service';
 import {
   ITrainerRepository,
-  TRAINER_REPOSITORY_TOKEN,
+  ITrainedPokemonRepository,
+  ITeamRepository,
+  TeamMemberInfo,
 } from '../../domain/trainer.repository.interface';
 import { Trainer } from '../../domain/entities/trainer.entity';
+import { TrainedPokemon, Gender } from '../../domain/entities/trained-pokemon.entity';
+import { Pokemon } from '../../../pokemon/domain/entities/pokemon.entity';
+import { Type } from '../../../pokemon/domain/entities/type.entity';
+import { Ability } from '../../../pokemon/domain/entities/ability.entity';
+import { Nature } from '../../../battle/domain/logic/stat-calculator';
 
 /**
  * TrainerリポジトリのPrisma実装
@@ -99,6 +106,223 @@ export class TrainerPrismaRepository implements ITrainerRepository {
       trainerData.email,
       trainerData.createdAt,
       trainerData.updatedAt,
+    );
+  }
+}
+
+/**
+ * TrainedPokemonリポジトリのPrisma実装
+ */
+@Injectable()
+export class TrainedPokemonPrismaRepository implements ITrainedPokemonRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findById(id: number): Promise<TrainedPokemon | null> {
+    const trainedPokemonData = await this.prisma.trainedPokemon.findUnique({
+      where: { id },
+      include: {
+        pokemon: {
+          include: {
+            primaryType: true,
+            secondaryType: true,
+          },
+        },
+        ability: true,
+      },
+    });
+
+    if (!trainedPokemonData) {
+      return null;
+    }
+
+    return this.toDomainEntity(trainedPokemonData);
+  }
+
+  async findByTrainerId(trainerId: number): Promise<TrainedPokemon[]> {
+    const trainedPokemonList = await this.prisma.trainedPokemon.findMany({
+      where: { trainerId },
+      include: {
+        pokemon: {
+          include: {
+            primaryType: true,
+            secondaryType: true,
+          },
+        },
+        ability: true,
+      },
+    });
+
+    return trainedPokemonList.map((tp) => this.toDomainEntity(tp));
+  }
+
+  /**
+   * PrismaのデータモデルをDomain層のエンティティに変換
+   */
+  private toDomainEntity(trainedPokemonData: any): TrainedPokemon {
+    const primaryType = new Type(
+      trainedPokemonData.pokemon.primaryType.id,
+      trainedPokemonData.pokemon.primaryType.name,
+      trainedPokemonData.pokemon.primaryType.nameEn,
+    );
+
+    const secondaryType = trainedPokemonData.pokemon.secondaryType
+      ? new Type(
+          trainedPokemonData.pokemon.secondaryType.id,
+          trainedPokemonData.pokemon.secondaryType.name,
+          trainedPokemonData.pokemon.secondaryType.nameEn,
+        )
+      : null;
+
+    const pokemon = new Pokemon(
+      trainedPokemonData.pokemon.id,
+      trainedPokemonData.pokemon.nationalDex,
+      trainedPokemonData.pokemon.name,
+      trainedPokemonData.pokemon.nameEn,
+      primaryType,
+      secondaryType,
+      trainedPokemonData.pokemon.baseHp,
+      trainedPokemonData.pokemon.baseAttack,
+      trainedPokemonData.pokemon.baseDefense,
+      trainedPokemonData.pokemon.baseSpecialAttack,
+      trainedPokemonData.pokemon.baseSpecialDefense,
+      trainedPokemonData.pokemon.baseSpeed,
+    );
+
+    const ability = trainedPokemonData.ability
+      ? new Ability(
+          trainedPokemonData.ability.id,
+          trainedPokemonData.ability.name,
+          trainedPokemonData.ability.nameEn,
+          trainedPokemonData.ability.description,
+          trainedPokemonData.ability.triggerEvent,
+          trainedPokemonData.ability.effectCategory,
+        )
+      : null;
+
+    return new TrainedPokemon(
+      trainedPokemonData.id,
+      trainedPokemonData.trainerId,
+      pokemon,
+      trainedPokemonData.nickname,
+      trainedPokemonData.level,
+      trainedPokemonData.gender as Gender | null,
+      trainedPokemonData.nature as Nature | null,
+      ability,
+      trainedPokemonData.ivHp,
+      trainedPokemonData.ivAttack,
+      trainedPokemonData.ivDefense,
+      trainedPokemonData.ivSpecialAttack,
+      trainedPokemonData.ivSpecialDefense,
+      trainedPokemonData.ivSpeed,
+      trainedPokemonData.evHp,
+      trainedPokemonData.evAttack,
+      trainedPokemonData.evDefense,
+      trainedPokemonData.evSpecialAttack,
+      trainedPokemonData.evSpecialDefense,
+      trainedPokemonData.evSpeed,
+    );
+  }
+}
+
+/**
+ * TeamリポジトリのPrisma実装
+ */
+@Injectable()
+export class TeamPrismaRepository implements ITeamRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findMembersByTeamId(teamId: number): Promise<TeamMemberInfo[]> {
+    const teamMembers = await this.prisma.teamMember.findMany({
+      where: { teamId },
+      include: {
+        trainedPokemon: {
+          include: {
+            pokemon: {
+              include: {
+                primaryType: true,
+                secondaryType: true,
+              },
+            },
+            ability: true,
+          },
+        },
+      },
+      orderBy: { position: 'asc' },
+    });
+
+    return teamMembers.map((member) => ({
+      id: member.id,
+      teamId: member.teamId,
+      trainedPokemon: this.toTrainedPokemonEntity(member.trainedPokemon),
+      position: member.position,
+    }));
+  }
+
+  /**
+   * PrismaのTrainedPokemonデータをDomain層のTrainedPokemonエンティティに変換
+   */
+  private toTrainedPokemonEntity(trainedPokemonData: any): TrainedPokemon {
+    const primaryType = new Type(
+      trainedPokemonData.pokemon.primaryType.id,
+      trainedPokemonData.pokemon.primaryType.name,
+      trainedPokemonData.pokemon.primaryType.nameEn,
+    );
+
+    const secondaryType = trainedPokemonData.pokemon.secondaryType
+      ? new Type(
+          trainedPokemonData.pokemon.secondaryType.id,
+          trainedPokemonData.pokemon.secondaryType.name,
+          trainedPokemonData.pokemon.secondaryType.nameEn,
+        )
+      : null;
+
+    const pokemon = new Pokemon(
+      trainedPokemonData.pokemon.id,
+      trainedPokemonData.pokemon.nationalDex,
+      trainedPokemonData.pokemon.name,
+      trainedPokemonData.pokemon.nameEn,
+      primaryType,
+      secondaryType,
+      trainedPokemonData.pokemon.baseHp,
+      trainedPokemonData.pokemon.baseAttack,
+      trainedPokemonData.pokemon.baseDefense,
+      trainedPokemonData.pokemon.baseSpecialAttack,
+      trainedPokemonData.pokemon.baseSpecialDefense,
+      trainedPokemonData.pokemon.baseSpeed,
+    );
+
+    const ability = trainedPokemonData.ability
+      ? new Ability(
+          trainedPokemonData.ability.id,
+          trainedPokemonData.ability.name,
+          trainedPokemonData.ability.nameEn,
+          trainedPokemonData.ability.description,
+          trainedPokemonData.ability.triggerEvent,
+          trainedPokemonData.ability.effectCategory,
+        )
+      : null;
+
+    return new TrainedPokemon(
+      trainedPokemonData.id,
+      trainedPokemonData.trainerId,
+      pokemon,
+      trainedPokemonData.nickname,
+      trainedPokemonData.level,
+      trainedPokemonData.gender as Gender | null,
+      trainedPokemonData.nature as Nature | null,
+      ability,
+      trainedPokemonData.ivHp,
+      trainedPokemonData.ivAttack,
+      trainedPokemonData.ivDefense,
+      trainedPokemonData.ivSpecialAttack,
+      trainedPokemonData.ivSpecialDefense,
+      trainedPokemonData.ivSpeed,
+      trainedPokemonData.evHp,
+      trainedPokemonData.evAttack,
+      trainedPokemonData.evDefense,
+      trainedPokemonData.evSpecialAttack,
+      trainedPokemonData.evSpecialDefense,
+      trainedPokemonData.evSpeed,
     );
   }
 }
