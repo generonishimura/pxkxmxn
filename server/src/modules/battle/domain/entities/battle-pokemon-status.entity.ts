@@ -20,7 +20,7 @@ export class BattlePokemonStatus {
     public readonly speedRank: number,
     public readonly accuracyRank: number,
     public readonly evasionRank: number,
-    public readonly statusCondition: StatusCondition | null
+    public readonly statusCondition: StatusCondition | null,
   ) {}
 
   /**
@@ -33,7 +33,16 @@ export class BattlePokemonStatus {
   /**
    * 指定されたステータスランクを取得
    */
-  getStatRank(stat: 'attack' | 'defense' | 'specialAttack' | 'specialDefense' | 'speed' | 'accuracy' | 'evasion'): number {
+  getStatRank(
+    stat:
+      | 'attack'
+      | 'defense'
+      | 'specialAttack'
+      | 'specialDefense'
+      | 'speed'
+      | 'accuracy'
+      | 'evasion',
+  ): number {
     switch (stat) {
       case 'attack':
         return this.attackRank;
@@ -57,7 +66,16 @@ export class BattlePokemonStatus {
    * ランク: -6, -5, -4, -3, -2, -1, 0, +1, +2, +3, +4, +5, +6
    * 倍率: 2/8, 2/7, 2/6, 2/5, 2/4, 2/3, 1, 3/2, 4/2, 5/2, 6/2, 7/2, 8/2
    */
-  getStatMultiplier(stat: 'attack' | 'defense' | 'specialAttack' | 'specialDefense' | 'speed' | 'accuracy' | 'evasion'): number {
+  getStatMultiplier(
+    stat:
+      | 'attack'
+      | 'defense'
+      | 'specialAttack'
+      | 'specialDefense'
+      | 'speed'
+      | 'accuracy'
+      | 'evasion',
+  ): number {
     const rank = this.getStatRank(stat);
 
     if (rank === 0) {
@@ -73,4 +91,3 @@ export class BattlePokemonStatus {
     }
   }
 }
-
