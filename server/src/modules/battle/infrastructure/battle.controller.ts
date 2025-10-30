@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseIntPipe, NotFoundException } from '@nestjs/common';
 import { StartBattleUseCase } from '../application/use-cases/start-battle.use-case';
 import { ExecuteTurnUseCase } from '../application/use-cases/execute-turn.use-case';
 import {
@@ -80,7 +80,7 @@ export class BattleController {
   async getBattle(@Param('id', ParseIntPipe) id: number) {
     const battle = await this.battleRepository.findById(id);
     if (!battle) {
-      return { message: 'Battle not found' };
+      throw new NotFoundException('Battle not found');
     }
 
     const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(id);

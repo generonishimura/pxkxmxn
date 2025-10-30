@@ -27,6 +27,20 @@ export interface DamageCalculationParams {
   field: Field | null;
   attackerAbilityName?: string; // 攻撃側の特性名
   defenderAbilityName?: string; // 防御側の特性名
+  attackerStats?: {
+    attack: number;
+    defense: number;
+    specialAttack: number;
+    specialDefense: number;
+    speed: number;
+  }; // 攻撃側の実際のステータス値（ランク補正前）
+  defenderStats?: {
+    attack: number;
+    defense: number;
+    specialAttack: number;
+    specialDefense: number;
+    speed: number;
+  }; // 防御側の実際のステータス値（ランク補正前）
 }
 
 /**
@@ -65,13 +79,13 @@ export class DamageCalculator {
 
     // 攻撃側のステータス（物理/特殊で分岐）
     const attackStat = move.category === 'Physical'
-      ? this.getEffectiveStat(attacker, 'attack')
-      : this.getEffectiveStat(attacker, 'specialAttack');
+      ? this.getEffectiveStat(attacker, 'attack', params.attackerStats)
+      : this.getEffectiveStat(attacker, 'specialAttack', params.attackerStats);
 
     // 防御側のステータス（物理/特殊で分岐）
     const defenseStat = move.category === 'Physical'
-      ? this.getEffectiveStat(defender, 'defense')
-      : this.getEffectiveStat(defender, 'specialDefense');
+      ? this.getEffectiveStat(defender, 'defense', params.defenderStats)
+      : this.getEffectiveStat(defender, 'specialDefense', params.defenderStats);
 
     // 基本ダメージ計算: floor((floor((2 * level / 5 + 2) * power * A / D) / 50) + 2)
     const baseDamage = Math.floor(
@@ -95,9 +109,10 @@ export class DamageCalculator {
     if (params.attackerAbilityName) {
       const abilityEffect = AbilityRegistry.get(params.attackerAbilityName);
       if (abilityEffect?.modifyDamageDealt) {
+        const currentDamage = baseDamage * damageMultiplier;
         const modifiedDamage = abilityEffect.modifyDamageDealt(
           attacker,
-          baseDamage * damageMultiplier,
+          currentDamage,
           {
             weather: params.weather,
             field: params.field,
@@ -113,9 +128,10 @@ export class DamageCalculator {
     if (params.defenderAbilityName) {
       const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
       if (abilityEffect?.modifyDamage) {
+        const currentDamage = baseDamage * damageMultiplier;
         const modifiedDamage = abilityEffect.modifyDamage(
           defender,
-          baseDamage * damageMultiplier,
+          currentDamage,
           {
             weather: params.weather,
             field: params.field,
@@ -143,11 +159,34 @@ export class DamageCalculator {
   private static getEffectiveStat(
     status: BattlePokemonStatus,
     statType: 'attack' | 'defense' | 'specialAttack' | 'specialDefense' | 'speed',
+    baseStats?: { attack: number; defense: number; specialAttack: number; specialDefense: number; speed: number },
   ): number {
-    // 最大HPを基準に実効ステータスを計算
-    // 実際の実装では、元のステータス値が必要だが、ここでは最大HPを基準値として使用
-    // 実際の実装では、TrainedPokemonから計算されたステータス値を使用する必要がある
-    const baseStat = status.maxHp; // 仮の値。実際にはStatCalculatorで計算した値を使用
+    // 実際のステータス値が提供されている場合はそれを使用
+    let baseStat: number;
+    if (baseStats) {
+      switch (statType) {
+        case 'attack':
+          baseStat = baseStats.attack;
+          break;
+        case 'defense':
+          baseStat = baseStats.defense;
+          break;
+        case 'specialAttack':
+          baseStat = baseStats.specialAttack;
+          break;
+        case 'specialDefense':
+          baseStat = baseStats.specialDefense;
+          break;
+        case 'speed':
+          baseStat = baseStats.speed;
+          break;
+        default:
+          throw new Error(`Unknown statType: ${statType}`);
+      }
+    } else {
+      // フォールバック: 最大HPを基準に使用（後方互換性のため）
+      baseStat = status.maxHp;
+    }
     const multiplier = status.getStatMultiplier(statType);
     return Math.floor(baseStat * multiplier);
   }

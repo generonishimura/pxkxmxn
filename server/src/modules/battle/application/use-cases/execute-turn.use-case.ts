@@ -7,6 +7,7 @@ import {
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { DamageCalculator, MoveInfo } from '../../domain/logic/damage-calculator';
+import { StatCalculator } from '../../domain/logic/stat-calculator';
 import { Type } from '../../../pokemon/domain/entities/type.entity';
 import { AbilityRegistry } from '../../../pokemon/domain/abilities/ability-registry';
 
@@ -87,7 +88,7 @@ export class ExecuteTurnUseCase {
     }
 
     // 行動順を決定
-    const actions = this.determineActionOrder(
+    const actions = await this.determineActionOrder(
       params.trainer1Action,
       params.trainer2Action,
       trainer1Active,
@@ -157,12 +158,12 @@ export class ExecuteTurnUseCase {
    * 行動順を決定
    * 優先度と速度を考慮して決定
    */
-  private determineActionOrder(
+  private async determineActionOrder(
     trainer1Action: ExecuteTurnParams['trainer1Action'],
     trainer2Action: ExecuteTurnParams['trainer2Action'],
     trainer1Active: BattlePokemonStatus,
     trainer2Active: BattlePokemonStatus,
-  ): Array<{ trainerId: number; action: 'move' | 'switch'; moveId?: number; switchPokemonId?: number }> {
+  ): Promise<Array<{ trainerId: number; action: 'move' | 'switch'; moveId?: number; switchPokemonId?: number }>> {
     // 簡易実装: ポケモン交代は常に先に実行
     // 実際の実装では、優先度と速度を考慮する必要がある
 
@@ -184,10 +185,14 @@ export class ExecuteTurnUseCase {
       });
     }
 
-    // 技を使用する場合、速度で順序を決定
+    // 技を使用する場合、実際の速度ステータスで順序を決定
     if (trainer1Action.moveId && trainer2Action.moveId) {
-      // 速度比較（簡易実装）
-      if (trainer1Active.speedRank >= trainer2Active.speedRank) {
+      // 実際の速度ステータスを取得
+      const trainer1Speed = await this.getEffectiveSpeed(trainer1Active);
+      const trainer2Speed = await this.getEffectiveSpeed(trainer2Active);
+
+      // 速度比較
+      if (trainer1Speed >= trainer2Speed) {
         actions.push({
           trainerId: trainer1Action.trainerId,
           action: 'move',
@@ -225,6 +230,51 @@ export class ExecuteTurnUseCase {
     }
 
     return actions;
+  }
+
+  /**
+   * ランク補正を考慮した実効速度を取得
+   */
+  private async getEffectiveSpeed(status: BattlePokemonStatus): Promise<number> {
+    // TrainedPokemon情報を取得
+    const trainedPokemon = await this.prisma.trainedPokemon.findUnique({
+      where: { id: status.trainedPokemonId },
+      include: {
+        pokemon: true,
+      },
+    });
+
+    if (!trainedPokemon) {
+      throw new Error('TrainedPokemon not found');
+    }
+
+    // ステータスを計算
+    const stats = StatCalculator.calculate({
+      baseHp: trainedPokemon.pokemon.baseHp,
+      baseAttack: trainedPokemon.pokemon.baseAttack,
+      baseDefense: trainedPokemon.pokemon.baseDefense,
+      baseSpecialAttack: trainedPokemon.pokemon.baseSpecialAttack,
+      baseSpecialDefense: trainedPokemon.pokemon.baseSpecialDefense,
+      baseSpeed: trainedPokemon.pokemon.baseSpeed,
+      level: trainedPokemon.level,
+      ivHp: trainedPokemon.ivHp,
+      ivAttack: trainedPokemon.ivAttack,
+      ivDefense: trainedPokemon.ivDefense,
+      ivSpecialAttack: trainedPokemon.ivSpecialAttack,
+      ivSpecialDefense: trainedPokemon.ivSpecialDefense,
+      ivSpeed: trainedPokemon.ivSpeed,
+      evHp: trainedPokemon.evHp,
+      evAttack: trainedPokemon.evAttack,
+      evDefense: trainedPokemon.evDefense,
+      evSpecialAttack: trainedPokemon.evSpecialAttack,
+      evSpecialDefense: trainedPokemon.evSpecialDefense,
+      evSpeed: trainedPokemon.evSpeed,
+      nature: trainedPokemon.nature as any,
+    });
+
+    // ランク補正を適用
+    const multiplier = status.getStatMultiplier('speed');
+    return Math.floor(stats.speed * multiplier);
   }
 
   /**
@@ -286,6 +336,10 @@ export class ExecuteTurnUseCase {
     // タイプ相性を取得
     const typeEffectiveness = await this.getTypeEffectiveness();
 
+    // 実際のステータス値を計算
+    const attackerStats = this.calculateStats(attackerTrainedPokemon);
+    const defenderStats = this.calculateStats(defenderTrainedPokemon);
+
     // ダメージを計算
     const moveInfo: MoveInfo = {
       power: move.power,
@@ -331,6 +385,8 @@ export class ExecuteTurnUseCase {
       field: battle.field,
       attackerAbilityName: attackerTrainedPokemon.ability?.name,
       defenderAbilityName: defenderTrainedPokemon.ability?.name,
+      attackerStats: attackerStats,
+      defenderStats: defenderStats,
     });
 
     // ダメージを適用
@@ -461,6 +517,48 @@ export class ExecuteTurnUseCase {
     }
 
     return null;
+  }
+
+  /**
+   * TrainedPokemonから実際のステータス値を計算
+   */
+  private calculateStats(trainedPokemon: any): {
+    attack: number;
+    defense: number;
+    specialAttack: number;
+    specialDefense: number;
+    speed: number;
+  } {
+    const stats = StatCalculator.calculate({
+      baseHp: trainedPokemon.pokemon.baseHp,
+      baseAttack: trainedPokemon.pokemon.baseAttack,
+      baseDefense: trainedPokemon.pokemon.baseDefense,
+      baseSpecialAttack: trainedPokemon.pokemon.baseSpecialAttack,
+      baseSpecialDefense: trainedPokemon.pokemon.baseSpecialDefense,
+      baseSpeed: trainedPokemon.pokemon.baseSpeed,
+      level: trainedPokemon.level,
+      ivHp: trainedPokemon.ivHp,
+      ivAttack: trainedPokemon.ivAttack,
+      ivDefense: trainedPokemon.ivDefense,
+      ivSpecialAttack: trainedPokemon.ivSpecialAttack,
+      ivSpecialDefense: trainedPokemon.ivSpecialDefense,
+      ivSpeed: trainedPokemon.ivSpeed,
+      evHp: trainedPokemon.evHp,
+      evAttack: trainedPokemon.evAttack,
+      evDefense: trainedPokemon.evDefense,
+      evSpecialAttack: trainedPokemon.evSpecialAttack,
+      evSpecialDefense: trainedPokemon.evSpecialDefense,
+      evSpeed: trainedPokemon.evSpeed,
+      nature: trainedPokemon.nature as any,
+    });
+
+    return {
+      attack: stats.attack,
+      defense: stats.defense,
+      specialAttack: stats.specialAttack,
+      specialDefense: stats.specialDefense,
+      speed: stats.speed,
+    };
   }
 
   /**
