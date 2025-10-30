@@ -1,4 +1,6 @@
 import { IAbilityEffect } from '../ability-effect.interface';
+import { BattlePokemonStatus } from '../../../../battle/domain/entities/battle-pokemon-status.entity';
+import { BattleContext } from '../battle-context.interface';
 
 /**
  * 「いかく」特性の効果実装
@@ -10,12 +12,34 @@ export class IntimidateEffect implements IAbilityEffect {
    * 場に出すときに発動
    * 相手の攻撃ランクを1段階下げる
    */
-  onEntry(pokemon: any, _battleContext?: any): void {
-    // TODO: 実際のバトル実装時は、バトルコンテキストから相手ポケモンを取得し、
-    // ステータスランクを操作するロジックを実装する
+  async onEntry(pokemon: BattlePokemonStatus, battleContext?: BattleContext): Promise<void> {
+    if (!battleContext?.battleRepository) {
+      return;
+    }
 
-    // 現在は学習目的のため、インターフェースの実装例を示すのみ
-    console.log(`[IntimidateEffect] ${pokemon.name} のいかくが発動！相手の攻撃が下がった！`);
+    const battle = battleContext.battle;
+
+    // 相手のトレーナーIDを取得
+    const opponentTrainerId =
+      pokemon.trainerId === battle.trainer1Id ? battle.trainer2Id : battle.trainer1Id;
+
+    // 相手のアクティブなポケモンを取得
+    const opponentPokemon = await battleContext.battleRepository.findActivePokemonByBattleIdAndTrainerId(
+      battle.id,
+      opponentTrainerId,
+    );
+
+    if (!opponentPokemon) {
+      return;
+    }
+
+    // 攻撃ランクを1段階下げる（-6から+6の範囲内で）
+    const newAttackRank = Math.max(-6, opponentPokemon.attackRank - 1);
+
+    // 相手の攻撃ランクを更新
+    await battleContext.battleRepository.updateBattlePokemonStatus(opponentPokemon.id, {
+      attackRank: newAttackRank,
+    });
   }
 
   // いかくは場に出すときのみ発動するため、他のメソッドは実装不要

@@ -438,7 +438,10 @@ export class ExecuteTurnUseCase {
       if (trainedPokemon?.ability) {
         const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
         if (abilityEffect?.onEntry) {
-          await abilityEffect.onEntry(targetStatus, { battle });
+          await abilityEffect.onEntry(targetStatus, {
+            battle,
+            battleRepository: this.battleRepository,
+          });
         }
       }
     }
@@ -460,7 +463,10 @@ export class ExecuteTurnUseCase {
       if (trainedPokemon?.ability) {
         const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
         if (abilityEffect?.onTurnEnd) {
-          await abilityEffect.onTurnEnd(status, { battle });
+          await abilityEffect.onTurnEnd(status, {
+            battle,
+            battleRepository: this.battleRepository,
+          });
         }
       }
     }
