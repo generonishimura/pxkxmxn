@@ -79,18 +79,20 @@ export class DamageCalculator {
     const level = 50;
 
     // 攻撃側のステータス（物理/特殊で分岐）
-    const attackStat = move.category === 'Physical'
-      ? this.getEffectiveStat(attacker, 'attack', params.attackerStats)
-      : this.getEffectiveStat(attacker, 'specialAttack', params.attackerStats);
+    const attackStat =
+      move.category === 'Physical'
+        ? this.getEffectiveStat(attacker, 'attack', params.attackerStats)
+        : this.getEffectiveStat(attacker, 'specialAttack', params.attackerStats);
 
     // 防御側のステータス（物理/特殊で分岐）
-    const defenseStat = move.category === 'Physical'
-      ? this.getEffectiveStat(defender, 'defense', params.defenderStats)
-      : this.getEffectiveStat(defender, 'specialDefense', params.defenderStats);
+    const defenseStat =
+      move.category === 'Physical'
+        ? this.getEffectiveStat(defender, 'defense', params.defenderStats)
+        : this.getEffectiveStat(defender, 'specialDefense', params.defenderStats);
 
     // 基本ダメージ計算: floor((floor((2 * level / 5 + 2) * power * A / D) / 50) + 2)
     const baseDamage = Math.floor(
-      (Math.floor((2 * level / 5 + 2) * move.power * attackStat / defenseStat) / 50) + 2
+      Math.floor((((2 * level) / 5 + 2) * move.power * attackStat) / defenseStat) / 50 + 2,
     );
 
     // タイプ一致補正（1.5倍または1.0倍）
@@ -141,11 +143,7 @@ export class DamageCalculator {
               field: params.field,
             }
           : undefined;
-        const modifiedDamage = abilityEffect.modifyDamage(
-          defender,
-          currentDamage,
-          battleContext,
-        );
+        const modifiedDamage = abilityEffect.modifyDamage(defender, currentDamage, battleContext);
         if (modifiedDamage !== undefined) {
           damageMultiplier = modifiedDamage / baseDamage;
         }
@@ -168,7 +166,13 @@ export class DamageCalculator {
   private static getEffectiveStat(
     status: BattlePokemonStatus,
     statType: 'attack' | 'defense' | 'specialAttack' | 'specialDefense' | 'speed',
-    baseStats?: { attack: number; defense: number; specialAttack: number; specialDefense: number; speed: number },
+    baseStats?: {
+      attack: number;
+      defense: number;
+      specialAttack: number;
+      specialDefense: number;
+      speed: number;
+    },
   ): number {
     // 実際のステータス値が提供されている場合はそれを使用
     let baseStat: number;
@@ -250,10 +254,7 @@ export class DamageCalculator {
   /**
    * 天候による補正を取得
    */
-  private static getWeatherMultiplier(
-    moveTypeId: number,
-    weather: Weather | null,
-  ): number {
+  private static getWeatherMultiplier(moveTypeId: number, weather: Weather | null): number {
     if (!weather) {
       return 1.0;
     }
@@ -268,4 +269,3 @@ export class DamageCalculator {
     return 1.0;
   }
 }
-

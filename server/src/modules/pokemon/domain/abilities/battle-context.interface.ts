@@ -35,4 +35,3 @@ export interface BattleContext {
    */
   field?: Field | null;
 }
-
