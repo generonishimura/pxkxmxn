@@ -1,11 +1,30 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../../shared/prisma/prisma.service';
-import {
-  IBattleRepository,
-} from '../../domain/battle.repository.interface';
+import { PrismaService } from '@/shared/prisma/prisma.service';
+import { Prisma } from '@generated/prisma/client';
+import { IBattleRepository } from '../../domain/battle.repository.interface';
 import { Battle, Weather, Field, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
+
+/**
+ * BattleのPrismaクエリ結果型
+ */
+type BattleData = Prisma.BattleGetPayload<{}>;
+
+/**
+ * BattlePokemonStatusのPrismaクエリ結果型
+ */
+type BattlePokemonStatusData = Prisma.BattlePokemonStatusGetPayload<{}>;
+
+/**
+ * Battle更新用の型（リレーションなし）
+ */
+type BattleUpdateInput = Prisma.BattleUncheckedUpdateInput;
+
+/**
+ * BattlePokemonStatus更新用の型
+ */
+type BattlePokemonStatusUpdateInput = Prisma.BattlePokemonStatusUpdateInput;
 
 /**
  * BattleリポジトリのPrisma実装
@@ -50,14 +69,13 @@ export class BattlePrismaRepository implements IBattleRepository {
   }
 
   async update(id: number, data: Partial<Battle>): Promise<Battle> {
-    const updateData: any = {};
+    const updateData: BattleUpdateInput = {};
 
     if (data.turn !== undefined) updateData.turn = data.turn;
-    if (data.weather !== undefined) updateData.weather = data.weather as string;
-    if (data.field !== undefined) updateData.field = data.field as string;
-    if (data.status !== undefined) updateData.status = data.status as string;
-    if (data.winnerTrainerId !== undefined)
-      updateData.winnerTrainerId = data.winnerTrainerId;
+    if (data.weather !== undefined) updateData.weather = data.weather as Weather;
+    if (data.field !== undefined) updateData.field = data.field as Field;
+    if (data.status !== undefined) updateData.status = data.status as BattleStatus;
+    if (data.winnerTrainerId !== undefined) updateData.winnerTrainerId = data.winnerTrainerId;
 
     const battleData = await this.prisma.battle.update({
       where: { id },
@@ -67,14 +85,12 @@ export class BattlePrismaRepository implements IBattleRepository {
     return this.toBattleEntity(battleData);
   }
 
-  async findBattlePokemonStatusByBattleId(
-    battleId: number,
-  ): Promise<BattlePokemonStatus[]> {
+  async findBattlePokemonStatusByBattleId(battleId: number): Promise<BattlePokemonStatus[]> {
     const statusList = await this.prisma.battlePokemonStatus.findMany({
       where: { battleId },
     });
 
-    return statusList.map((status) => this.toBattlePokemonStatusEntity(status));
+    return statusList.map(status => this.toBattlePokemonStatusEntity(status));
   }
 
   async createBattlePokemonStatus(data: {
@@ -110,22 +126,21 @@ export class BattlePrismaRepository implements IBattleRepository {
     id: number,
     data: Partial<BattlePokemonStatus>,
   ): Promise<BattlePokemonStatus> {
-    const updateData: any = {};
+    const updateData: BattlePokemonStatusUpdateInput = {};
 
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.currentHp !== undefined) updateData.currentHp = data.currentHp;
     if (data.maxHp !== undefined) updateData.maxHp = data.maxHp;
     if (data.attackRank !== undefined) updateData.attackRank = data.attackRank;
     if (data.defenseRank !== undefined) updateData.defenseRank = data.defenseRank;
-    if (data.specialAttackRank !== undefined)
-      updateData.specialAttackRank = data.specialAttackRank;
+    if (data.specialAttackRank !== undefined) updateData.specialAttackRank = data.specialAttackRank;
     if (data.specialDefenseRank !== undefined)
       updateData.specialDefenseRank = data.specialDefenseRank;
     if (data.speedRank !== undefined) updateData.speedRank = data.speedRank;
     if (data.accuracyRank !== undefined) updateData.accuracyRank = data.accuracyRank;
     if (data.evasionRank !== undefined) updateData.evasionRank = data.evasionRank;
     if (data.statusCondition !== undefined)
-      updateData.statusCondition = data.statusCondition as string;
+      updateData.statusCondition = data.statusCondition as StatusCondition;
 
     const statusData = await this.prisma.battlePokemonStatus.update({
       where: { id },
@@ -157,7 +172,7 @@ export class BattlePrismaRepository implements IBattleRepository {
   /**
    * PrismaのBattleモデルをDomain層のBattleエンティティに変換
    */
-  private toBattleEntity(battleData: any): Battle {
+  private toBattleEntity(battleData: BattleData): Battle {
     return new Battle(
       battleData.id,
       battleData.trainer1Id,
@@ -175,7 +190,7 @@ export class BattlePrismaRepository implements IBattleRepository {
   /**
    * PrismaのBattlePokemonStatusモデルをDomain層のBattlePokemonStatusエンティティに変換
    */
-  private toBattlePokemonStatusEntity(statusData: any): BattlePokemonStatus {
+  private toBattlePokemonStatusEntity(statusData: BattlePokemonStatusData): BattlePokemonStatus {
     return new BattlePokemonStatus(
       statusData.id,
       statusData.battleId,
@@ -232,4 +247,3 @@ export class BattlePrismaRepository implements IBattleRepository {
     return statusCondition as StatusCondition;
   }
 }
-

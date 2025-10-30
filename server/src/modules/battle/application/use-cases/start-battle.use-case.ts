@@ -6,11 +6,11 @@ import {
 import {
   ITeamRepository,
   TEAM_REPOSITORY_TOKEN,
-} from '../../../trainer/domain/trainer.repository.interface';
+} from '@/modules/trainer/domain/trainer.repository.interface';
 import { Battle } from '../../domain/entities/battle.entity';
 import { StatCalculator, TrainedPokemonStats } from '../../domain/logic/stat-calculator';
-import { AbilityRegistry } from '../../../pokemon/domain/abilities/ability-registry';
-import { TrainedPokemon } from '../../../trainer/domain/entities/trained-pokemon.entity';
+import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 
 /**
  * StartBattleUseCase
@@ -82,11 +82,7 @@ export class StartBattleUseCase {
 
         // 特性のOnEntry効果を発動
         if (trainedPokemon.ability) {
-          await this.triggerAbilityOnEntry(
-            battleStatus.id,
-            trainedPokemon.ability.name,
-            battle,
-          );
+          await this.triggerAbilityOnEntry(battleStatus.id, trainedPokemon.ability.name, battle);
         }
       }
     }
@@ -115,11 +111,7 @@ export class StartBattleUseCase {
 
         // 特性のOnEntry効果を発動
         if (trainedPokemon.ability) {
-          await this.triggerAbilityOnEntry(
-            battleStatus.id,
-            trainedPokemon.ability.name,
-            battle,
-          );
+          await this.triggerAbilityOnEntry(battleStatus.id, trainedPokemon.ability.name, battle);
         }
       }
     }
@@ -170,7 +162,7 @@ export class StartBattleUseCase {
 
     // BattlePokemonStatusを取得
     const battleStatus = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
-    const status = battleStatus.find((s) => s.id === battleStatusId);
+    const status = battleStatus.find(s => s.id === battleStatusId);
 
     if (!status) {
       return;
@@ -183,4 +175,3 @@ export class StartBattleUseCase {
     });
   }
 }
-

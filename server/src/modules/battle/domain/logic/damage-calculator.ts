@@ -1,5 +1,5 @@
-import { Type } from '../../../pokemon/domain/entities/type.entity';
-import { AbilityRegistry } from '../../../pokemon/domain/abilities/ability-registry';
+import { Type } from '@/modules/pokemon/domain/entities/type.entity';
+import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { Weather, Field, Battle } from '../entities/battle.entity';
 

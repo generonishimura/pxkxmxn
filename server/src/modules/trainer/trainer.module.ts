@@ -17,7 +17,7 @@ import {
   TRAINED_POKEMON_REPOSITORY_TOKEN,
   TEAM_REPOSITORY_TOKEN,
 } from './domain/trainer.repository.interface';
-import { PrismaModule } from '../../shared/prisma/prisma.module';
+import { PrismaModule } from '@/shared/prisma/prisma.module';
 
 /**
  * TrainerModule
@@ -61,4 +61,3 @@ import { PrismaModule } from '../../shared/prisma/prisma.module';
   ],
 })
 export class TrainerModule {}
-

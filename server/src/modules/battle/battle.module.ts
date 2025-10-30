@@ -1,9 +1,7 @@
 import { Module } from '@nestjs/common';
-import {
-  BATTLE_REPOSITORY_TOKEN,
-} from './domain/battle.repository.interface';
+import { BATTLE_REPOSITORY_TOKEN } from './domain/battle.repository.interface';
 import { BattlePrismaRepository } from './infrastructure/persistence/battle.prisma.repository';
-import { PrismaModule } from '../../shared/prisma/prisma.module';
+import { PrismaModule } from '@/shared/prisma/prisma.module';
 import { StartBattleUseCase } from './application/use-cases/start-battle.use-case';
 import { ExecuteTurnUseCase } from './application/use-cases/execute-turn.use-case';
 import { BattleController } from './infrastructure/battle.controller';
@@ -36,4 +34,3 @@ import { PokemonModule } from '../pokemon/pokemon.module';
   exports: [BATTLE_REPOSITORY_TOKEN, StartBattleUseCase, ExecuteTurnUseCase],
 })
 export class BattleModule {}
-

@@ -6,21 +6,21 @@ import {
 import {
   ITrainedPokemonRepository,
   TRAINED_POKEMON_REPOSITORY_TOKEN,
-} from '../../../trainer/domain/trainer.repository.interface';
+} from '@/modules/trainer/domain/trainer.repository.interface';
 import {
   IMoveRepository,
   ITypeEffectivenessRepository,
   MOVE_REPOSITORY_TOKEN,
   TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
-} from '../../../pokemon/domain/pokemon.repository.interface';
+} from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { DamageCalculator, MoveInfo } from '../../domain/logic/damage-calculator';
 import { StatCalculator } from '../../domain/logic/stat-calculator';
-import { AbilityRegistry } from '../../../pokemon/domain/abilities/ability-registry';
-import { TrainedPokemon } from '../../../trainer/domain/entities/trained-pokemon.entity';
-import { MoveCategory } from '../../../pokemon/domain/entities/move.entity';
+import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
+import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 
 /**
  * ターン実行の入力パラメータ
@@ -249,8 +249,10 @@ export class ExecuteTurnUseCase {
         const trainer2Speed = await this.getEffectiveSpeed(trainer2Active);
 
         // まひ状態異常の場合は素早さが0.5倍
-        const trainer1SpeedMultiplier = trainer1Active.statusCondition === StatusCondition.Paralysis ? 0.5 : 1.0;
-        const trainer2SpeedMultiplier = trainer2Active.statusCondition === StatusCondition.Paralysis ? 0.5 : 1.0;
+        const trainer1SpeedMultiplier =
+          trainer1Active.statusCondition === StatusCondition.Paralysis ? 0.5 : 1.0;
+        const trainer2SpeedMultiplier =
+          trainer2Active.statusCondition === StatusCondition.Paralysis ? 0.5 : 1.0;
 
         const trainer1FinalSpeed = trainer1Speed * trainer1SpeedMultiplier;
         const trainer2FinalSpeed = trainer2Speed * trainer2SpeedMultiplier;
