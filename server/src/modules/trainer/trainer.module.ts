@@ -7,9 +7,15 @@ import {
   DeleteTrainerUseCase,
   GetAllTrainersUseCase,
 } from './application/use-cases/trainer.use-cases';
-import { TrainerPrismaRepository } from './infrastructure/persistence/trainer.prisma.repository';
+import {
+  TrainerPrismaRepository,
+  TrainedPokemonPrismaRepository,
+  TeamPrismaRepository,
+} from './infrastructure/persistence/trainer.prisma.repository';
 import {
   TRAINER_REPOSITORY_TOKEN,
+  TRAINED_POKEMON_REPOSITORY_TOKEN,
+  TEAM_REPOSITORY_TOKEN,
 } from './domain/trainer.repository.interface';
 import { PrismaModule } from '../../shared/prisma/prisma.module';
 
@@ -34,9 +40,19 @@ import { PrismaModule } from '../../shared/prisma/prisma.module';
       provide: TRAINER_REPOSITORY_TOKEN,
       useClass: TrainerPrismaRepository,
     },
+    {
+      provide: TRAINED_POKEMON_REPOSITORY_TOKEN,
+      useClass: TrainedPokemonPrismaRepository,
+    },
+    {
+      provide: TEAM_REPOSITORY_TOKEN,
+      useClass: TeamPrismaRepository,
+    },
   ],
   exports: [
     TRAINER_REPOSITORY_TOKEN,
+    TRAINED_POKEMON_REPOSITORY_TOKEN,
+    TEAM_REPOSITORY_TOKEN,
     CreateTrainerUseCase,
     GetTrainerByIdUseCase,
     UpdateTrainerUseCase,
