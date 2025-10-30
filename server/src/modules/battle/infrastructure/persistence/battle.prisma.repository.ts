@@ -72,6 +72,8 @@ export class BattlePrismaRepository implements IBattleRepository {
     const updateData: BattleUpdateInput = {};
 
     if (data.turn !== undefined) updateData.turn = data.turn;
+    // Prismaスキーマでenum型として定義されているため、Domain層のenum型をそのまま使用可能
+    // BattleUncheckedUpdateInputは $Enums.Weather | null を許容する
     if (data.weather !== undefined) updateData.weather = data.weather as Weather;
     if (data.field !== undefined) updateData.field = data.field as Field;
     if (data.status !== undefined) updateData.status = data.status as BattleStatus;
@@ -139,6 +141,8 @@ export class BattlePrismaRepository implements IBattleRepository {
     if (data.speedRank !== undefined) updateData.speedRank = data.speedRank;
     if (data.accuracyRank !== undefined) updateData.accuracyRank = data.accuracyRank;
     if (data.evasionRank !== undefined) updateData.evasionRank = data.evasionRank;
+    // Prismaスキーマでenum型として定義されているため、Domain層のenum型をそのまま使用可能
+    // BattlePokemonStatusUpdateInputは $Enums.StatusCondition | null を許容する
     if (data.statusCondition !== undefined)
       updateData.statusCondition = data.statusCondition as StatusCondition;
 
