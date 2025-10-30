@@ -64,7 +64,9 @@ type TrainedPokemonWithRelations = {
 /**
  * PrismaのTrainedPokemonデータをDomain層のTrainedPokemonエンティティに変換（共通ヘルパー関数）
  */
-function convertTrainedPokemonToEntity(trainedPokemonData: TrainedPokemonWithRelations): TrainedPokemon {
+function convertTrainedPokemonToEntity(
+  trainedPokemonData: TrainedPokemonWithRelations,
+): TrainedPokemon {
   const primaryType = new Type(
     trainedPokemonData.pokemon.primaryType.id,
     trainedPokemonData.pokemon.primaryType.name,
@@ -94,16 +96,16 @@ function convertTrainedPokemonToEntity(trainedPokemonData: TrainedPokemonWithRel
     trainedPokemonData.pokemon.baseSpeed,
   );
 
-    const ability = trainedPokemonData.ability
-      ? new Ability(
-          trainedPokemonData.ability.id,
-          trainedPokemonData.ability.name,
-          trainedPokemonData.ability.nameEn,
-          trainedPokemonData.ability.description,
-          trainedPokemonData.ability.triggerEvent as AbilityTrigger,
-          trainedPokemonData.ability.effectCategory as AbilityCategory,
-        )
-      : null;
+  const ability = trainedPokemonData.ability
+    ? new Ability(
+        trainedPokemonData.ability.id,
+        trainedPokemonData.ability.name,
+        trainedPokemonData.ability.nameEn,
+        trainedPokemonData.ability.description,
+        trainedPokemonData.ability.triggerEvent as AbilityTrigger,
+        trainedPokemonData.ability.effectCategory as AbilityCategory,
+      )
+    : null;
 
   return new TrainedPokemon(
     trainedPokemonData.id,
@@ -209,7 +211,7 @@ export class TrainerPrismaRepository implements ITrainerRepository {
       orderBy: { createdAt: 'desc' },
     });
 
-    return trainerList.map((trainer) => this.toTrainerEntity(trainer));
+    return trainerList.map(trainer => this.toTrainerEntity(trainer));
   }
 
   /**
@@ -268,7 +270,7 @@ export class TrainedPokemonPrismaRepository implements ITrainedPokemonRepository
       },
     });
 
-    return trainedPokemonList.map((tp) => this.toDomainEntity(tp));
+    return trainedPokemonList.map(tp => this.toDomainEntity(tp));
   }
 
   /**
@@ -305,7 +307,7 @@ export class TeamPrismaRepository implements ITeamRepository {
       orderBy: { position: 'asc' },
     });
 
-    return teamMembers.map((member) => ({
+    return teamMembers.map(member => ({
       id: member.id,
       teamId: member.teamId,
       trainedPokemon: convertTrainedPokemonToEntity(member.trainedPokemon),
@@ -313,4 +315,3 @@ export class TeamPrismaRepository implements ITeamRepository {
     }));
   }
 }
-
