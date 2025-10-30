@@ -1,7 +1,7 @@
 import { Type } from '../../../pokemon/domain/entities/type.entity';
 import { AbilityRegistry } from '../../../pokemon/domain/abilities/ability-registry';
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
-import { Weather, Field, BattleStatus } from '../entities/battle.entity';
+import { Weather, Field, Battle } from '../entities/battle.entity';
 
 /**
  * Moveの情報
@@ -41,6 +41,7 @@ export interface DamageCalculationParams {
     specialDefense: number;
     speed: number;
   }; // 防御側の実際のステータス値（ランク補正前）
+  battle?: Battle; // バトルエンティティ（特性効果で使用）
 }
 
 /**
@@ -110,25 +111,17 @@ export class DamageCalculator {
       const abilityEffect = AbilityRegistry.get(params.attackerAbilityName);
       if (abilityEffect?.modifyDamageDealt) {
         const currentDamage = baseDamage * damageMultiplier;
+        const battleContext = params.battle
+          ? {
+              battle: params.battle,
+              weather: params.weather,
+              field: params.field,
+            }
+          : undefined;
         const modifiedDamage = abilityEffect.modifyDamageDealt(
           attacker,
           currentDamage,
-          {
-            battle: {
-              id: 0,
-              trainer1Id: 0,
-              trainer2Id: 0,
-              team1Id: 0,
-              team2Id: 0,
-              turn: 0,
-              weather: params.weather,
-              field: params.field,
-              status: BattleStatus.Active,
-              winnerTrainerId: null,
-            },
-            weather: params.weather,
-            field: params.field,
-          },
+          battleContext,
         );
         if (modifiedDamage !== undefined) {
           damageMultiplier = modifiedDamage / baseDamage;
@@ -141,25 +134,17 @@ export class DamageCalculator {
       const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
       if (abilityEffect?.modifyDamage) {
         const currentDamage = baseDamage * damageMultiplier;
+        const battleContext = params.battle
+          ? {
+              battle: params.battle,
+              weather: params.weather,
+              field: params.field,
+            }
+          : undefined;
         const modifiedDamage = abilityEffect.modifyDamage(
           defender,
           currentDamage,
-          {
-            battle: {
-              id: 0,
-              trainer1Id: 0,
-              trainer2Id: 0,
-              team1Id: 0,
-              team2Id: 0,
-              turn: 0,
-              weather: params.weather,
-              field: params.field,
-              status: BattleStatus.Active,
-              winnerTrainerId: null,
-            },
-            weather: params.weather,
-            field: params.field,
-          },
+          battleContext,
         );
         if (modifiedDamage !== undefined) {
           damageMultiplier = modifiedDamage / baseDamage;

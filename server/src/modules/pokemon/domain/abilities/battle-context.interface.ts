@@ -5,10 +5,15 @@ import { Weather, Field } from '../../../battle/domain/entities/battle.entity';
 /**
  * バトルコンテキスト
  * 特性効果の実装時に必要な情報を提供する
+ *
+ * クリーンアーキテクチャの原則に従い、Domain層の特性効果が
+ * Infrastructure層のリポジトリに直接依存しないように、
+ * インターフェースを介してアクセスする
  */
 export interface BattleContext {
   /**
    * バトルエンティティ
+   * 天候やフィールド状態はbattleオブジェクトから取得できる
    */
   battle: Battle;
 
@@ -20,13 +25,13 @@ export interface BattleContext {
 
   /**
    * 天候
-   * ダメージ計算時に使用
+   * ダメージ計算時に使用（battle.weatherと重複するが、利便性のため残す）
    */
   weather?: Weather | null;
 
   /**
    * フィールド状態
-   * ダメージ計算時に使用
+   * ダメージ計算時に使用（battle.fieldと重複するが、利便性のため残す）
    */
   field?: Field | null;
 }

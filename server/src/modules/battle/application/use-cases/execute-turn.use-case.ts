@@ -387,6 +387,7 @@ export class ExecuteTurnUseCase {
       defenderAbilityName: defenderTrainedPokemon.ability?.name,
       attackerStats: attackerStats,
       defenderStats: defenderStats,
+      battle,
     });
 
     // ダメージを適用
