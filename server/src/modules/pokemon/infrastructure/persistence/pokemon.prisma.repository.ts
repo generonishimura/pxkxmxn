@@ -13,6 +13,22 @@ import { Ability, AbilityTrigger, AbilityCategory } from '../../domain/entities/
 import { Move, MoveCategory } from '../../domain/entities/move.entity';
 
 /**
+ * MoveのPrismaクエリ結果型（include付き）
+ */
+type MoveWithRelations = {
+  id: number;
+  name: string;
+  nameEn: string;
+  type: { id: number; name: string; nameEn: string };
+  category: string;
+  power: number | null;
+  accuracy: number | null;
+  pp: number;
+  priority: number;
+  description: string | null;
+};
+
+/**
  * PokemonリポジトリのPrisma実装
  * Domain層で定義したインターフェースの具象実装
  */
@@ -185,7 +201,7 @@ export class MovePrismaRepository implements IMoveRepository {
   /**
    * PrismaのデータモデルをDomain層のエンティティに変換
    */
-  private toDomainEntity(moveData: any): Move {
+  private toDomainEntity(moveData: MoveWithRelations): Move {
     const type = new Type(moveData.type.id, moveData.type.name, moveData.type.nameEn);
 
     return new Move(

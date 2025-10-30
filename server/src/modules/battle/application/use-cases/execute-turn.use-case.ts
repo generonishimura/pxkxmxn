@@ -382,7 +382,7 @@ export class ExecuteTurnUseCase {
     const moveInfo: MoveInfo = {
       power: move.power,
       typeId: move.type.id,
-      category: move.category === MoveCategory.Physical ? 'Physical' : move.category === MoveCategory.Special ? 'Special' : 'Status',
+      category: this.convertMoveCategoryToString(move.category),
       accuracy: move.accuracy,
     };
 
@@ -580,5 +580,17 @@ export class ExecuteTurnUseCase {
       specialDefense: stats.specialDefense,
       speed: stats.speed,
     };
+  }
+
+  /**
+   * MoveCategoryを文字列に変換
+   */
+  private convertMoveCategoryToString(category: MoveCategory): 'Physical' | 'Special' | 'Status' {
+    const categoryMap: Record<MoveCategory, 'Physical' | 'Special' | 'Status'> = {
+      [MoveCategory.Physical]: 'Physical',
+      [MoveCategory.Special]: 'Special',
+      [MoveCategory.Status]: 'Status',
+    };
+    return categoryMap[category];
   }
 }
