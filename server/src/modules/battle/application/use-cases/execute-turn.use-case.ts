@@ -121,13 +121,18 @@ export class ExecuteTurnUseCase {
     // 行動を順番に実行
     for (const action of actions) {
       if (action.action === 'move' && action.moveId) {
-        const attacker = action.trainerId === params.trainer1Action.trainerId ? trainer1Active : trainer2Active;
-        const defender = action.trainerId === params.trainer1Action.trainerId ? trainer2Active : trainer1Active;
+        const attacker =
+          action.trainerId === params.trainer1Action.trainerId ? trainer1Active : trainer2Active;
+        const defender =
+          action.trainerId === params.trainer1Action.trainerId ? trainer2Active : trainer1Active;
 
         // 状態異常による行動不能判定
         if (!StatusConditionHandler.canAct(attacker)) {
           // こおりの場合は解除判定を行う
-          if (attacker.statusCondition === StatusCondition.Freeze && StatusConditionHandler.shouldClearFreeze()) {
+          if (
+            attacker.statusCondition === StatusCondition.Freeze &&
+            StatusConditionHandler.shouldClearFreeze()
+          ) {
             await this.battleRepository.updateBattlePokemonStatus(attacker.id, {
               statusCondition: StatusCondition.None,
             });
@@ -137,7 +142,13 @@ export class ExecuteTurnUseCase {
               result: 'Pokemon thawed out and can act',
             });
             // 解除されたので行動を続行
-            const result = await this.executeMove(battle, action.trainerId, action.moveId, attacker, defender);
+            const result = await this.executeMove(
+              battle,
+              action.trainerId,
+              action.moveId,
+              attacker,
+              defender,
+            );
             actionResults.push({
               trainerId: action.trainerId,
               action: 'move',
@@ -153,7 +164,13 @@ export class ExecuteTurnUseCase {
             });
           }
         } else {
-          const result = await this.executeMove(battle, action.trainerId, action.moveId, attacker, defender);
+          const result = await this.executeMove(
+            battle,
+            action.trainerId,
+            action.moveId,
+            attacker,
+            defender,
+          );
           actionResults.push({
             trainerId: action.trainerId,
             action: 'move',
@@ -467,7 +484,9 @@ export class ExecuteTurnUseCase {
 
     if (currentActive) {
       // 状態異常を解除（交代時に解除されるもの）
-      const statusCondition = StatusConditionHandler.isClearedOnSwitch(currentActive.statusCondition)
+      const statusCondition = StatusConditionHandler.isClearedOnSwitch(
+        currentActive.statusCondition,
+      )
         ? StatusCondition.None
         : currentActive.statusCondition;
 

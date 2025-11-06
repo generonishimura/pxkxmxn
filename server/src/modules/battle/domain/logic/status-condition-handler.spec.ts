@@ -43,9 +43,15 @@ describe('StatusConditionHandler', () => {
     });
 
     it('やけど・どく・もうどくの場合は行動可能', () => {
-      expect(StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.Burn))).toBe(true);
-      expect(StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.Poison))).toBe(true);
-      expect(StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.BadPoison))).toBe(true);
+      expect(StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.Burn))).toBe(
+        true,
+      );
+      expect(StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.Poison))).toBe(
+        true,
+      );
+      expect(
+        StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.BadPoison)),
+      ).toBe(true);
     });
 
     it('こおり・まひは確率的に行動可能/不能', () => {
@@ -113,9 +119,21 @@ describe('StatusConditionHandler', () => {
     });
 
     it('こおり・ねむり・まひの場合はダメージ0', () => {
-      expect(StatusConditionHandler.calculateTurnEndDamage(createBattlePokemonStatus(StatusCondition.Freeze, 100))).toBe(0);
-      expect(StatusConditionHandler.calculateTurnEndDamage(createBattlePokemonStatus(StatusCondition.Sleep, 100))).toBe(0);
-      expect(StatusConditionHandler.calculateTurnEndDamage(createBattlePokemonStatus(StatusCondition.Paralysis, 100))).toBe(0);
+      expect(
+        StatusConditionHandler.calculateTurnEndDamage(
+          createBattlePokemonStatus(StatusCondition.Freeze, 100),
+        ),
+      ).toBe(0);
+      expect(
+        StatusConditionHandler.calculateTurnEndDamage(
+          createBattlePokemonStatus(StatusCondition.Sleep, 100),
+        ),
+      ).toBe(0);
+      expect(
+        StatusConditionHandler.calculateTurnEndDamage(
+          createBattlePokemonStatus(StatusCondition.Paralysis, 100),
+        ),
+      ).toBe(0);
     });
   });
 
@@ -126,12 +144,36 @@ describe('StatusConditionHandler', () => {
     });
 
     it('やけど以外の場合は1.0倍', () => {
-      expect(StatusConditionHandler.getPhysicalAttackMultiplier(createBattlePokemonStatus(StatusCondition.None))).toBe(1.0);
-      expect(StatusConditionHandler.getPhysicalAttackMultiplier(createBattlePokemonStatus(StatusCondition.Poison))).toBe(1.0);
-      expect(StatusConditionHandler.getPhysicalAttackMultiplier(createBattlePokemonStatus(StatusCondition.Freeze))).toBe(1.0);
-      expect(StatusConditionHandler.getPhysicalAttackMultiplier(createBattlePokemonStatus(StatusCondition.Sleep))).toBe(1.0);
-      expect(StatusConditionHandler.getPhysicalAttackMultiplier(createBattlePokemonStatus(StatusCondition.Paralysis))).toBe(1.0);
-      expect(StatusConditionHandler.getPhysicalAttackMultiplier(createBattlePokemonStatus(StatusCondition.BadPoison))).toBe(1.0);
+      expect(
+        StatusConditionHandler.getPhysicalAttackMultiplier(
+          createBattlePokemonStatus(StatusCondition.None),
+        ),
+      ).toBe(1.0);
+      expect(
+        StatusConditionHandler.getPhysicalAttackMultiplier(
+          createBattlePokemonStatus(StatusCondition.Poison),
+        ),
+      ).toBe(1.0);
+      expect(
+        StatusConditionHandler.getPhysicalAttackMultiplier(
+          createBattlePokemonStatus(StatusCondition.Freeze),
+        ),
+      ).toBe(1.0);
+      expect(
+        StatusConditionHandler.getPhysicalAttackMultiplier(
+          createBattlePokemonStatus(StatusCondition.Sleep),
+        ),
+      ).toBe(1.0);
+      expect(
+        StatusConditionHandler.getPhysicalAttackMultiplier(
+          createBattlePokemonStatus(StatusCondition.Paralysis),
+        ),
+      ).toBe(1.0);
+      expect(
+        StatusConditionHandler.getPhysicalAttackMultiplier(
+          createBattlePokemonStatus(StatusCondition.BadPoison),
+        ),
+      ).toBe(1.0);
     });
   });
 
@@ -194,4 +236,3 @@ describe('StatusConditionHandler', () => {
     });
   });
 });
-

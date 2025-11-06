@@ -175,4 +175,3 @@ export class StatusConditionHandler {
     return Math.random() < StatusConditionHandler.FREEZE_THAW_CHANCE;
   }
 }
-
