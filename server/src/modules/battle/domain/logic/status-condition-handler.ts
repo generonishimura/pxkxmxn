@@ -37,6 +37,26 @@ export interface StatusConditionProcessResult {
  */
 export class StatusConditionHandler {
   /**
+   * こおりの解除確率（20%）
+   */
+  private static readonly FREEZE_THAW_CHANCE = 0.2;
+
+  /**
+   * まひによる行動不能の確率（25%）
+   */
+  private static readonly PARALYSIS_IMMOBILIZE_CHANCE = 0.25;
+
+  /**
+   * ねむり1ターン目の解除確率（33%）
+   */
+  private static readonly SLEEP_WAKE_CHANCE_TURN1 = 0.33;
+
+  /**
+   * ねむり2ターン目の解除確率（50%）
+   */
+  private static readonly SLEEP_WAKE_CHANCE_TURN2 = 0.5;
+
+  /**
    * 状態異常による行動可能判定
    * @param status ポケモンの状態
    * @returns 行動可能かどうか
@@ -48,14 +68,14 @@ export class StatusConditionHandler {
 
     switch (status.statusCondition) {
       case StatusCondition.Freeze:
-        // こおり: 20%の確率で解除して行動可能
-        return Math.random() < 0.2;
+        // こおり: FREEZE_THAW_CHANCEの確率で解除して行動可能
+        return Math.random() < StatusConditionHandler.FREEZE_THAW_CHANCE;
       case StatusCondition.Sleep:
         // ねむり: 行動不能（自動解除は別処理で行う）
         return false;
       case StatusCondition.Paralysis:
-        // まひ: 25%の確率で行動不能
-        return Math.random() >= 0.25;
+        // まひ: PARALYSIS_IMMOBILIZE_CHANCEの確率で行動不能
+        return Math.random() >= StatusConditionHandler.PARALYSIS_IMMOBILIZE_CHANCE;
       default:
         return true;
     }
@@ -134,14 +154,14 @@ export class StatusConditionHandler {
    */
   static shouldClearSleep(sleepTurnCount: number): boolean {
     // ねむりは1-3ターン後に自動解除
-    // 1ターン目: 33%の確率で解除
-    // 2ターン目: 50%の確率で解除
+    // 1ターン目: SLEEP_WAKE_CHANCE_TURN1の確率で解除
+    // 2ターン目: SLEEP_WAKE_CHANCE_TURN2の確率で解除
     // 3ターン目: 100%の確率で解除
     if (sleepTurnCount === 0) {
-      return Math.random() < 0.33;
+      return Math.random() < StatusConditionHandler.SLEEP_WAKE_CHANCE_TURN1;
     }
     if (sleepTurnCount === 1) {
-      return Math.random() < 0.5;
+      return Math.random() < StatusConditionHandler.SLEEP_WAKE_CHANCE_TURN2;
     }
     return true; // 3ターン目以降は必ず解除
   }
@@ -151,8 +171,8 @@ export class StatusConditionHandler {
    * @returns 解除されるかどうか
    */
   static shouldClearFreeze(): boolean {
-    // こおりは20%の確率で解除（行動前に判定）
-    return Math.random() < 0.2;
+    // こおりはFREEZE_THAW_CHANCEの確率で解除（行動前に判定）
+    return Math.random() < StatusConditionHandler.FREEZE_THAW_CHANCE;
   }
 }
 

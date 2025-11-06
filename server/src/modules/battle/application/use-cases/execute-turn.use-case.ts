@@ -66,7 +66,7 @@ export interface ExecuteTurnResult {
  */
 @Injectable()
 export class ExecuteTurnUseCase {
-  // もうどく・ねむりのターン数を追跡（バトルID -> ポケモンID -> ターン数）
+  // もうどく・ねむりのターン数を追跡（バトルID -> バトルポケモンステータスID -> ターン数）
   private badPoisonTurnCounts: Map<number, Map<number, number>> = new Map();
   private sleepTurnCounts: Map<number, Map<number, number>> = new Map();
 
