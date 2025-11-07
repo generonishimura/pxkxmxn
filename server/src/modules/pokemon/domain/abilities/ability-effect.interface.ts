@@ -53,4 +53,40 @@ export interface IAbilityEffect {
    * 必要に応じて様々なメソッドで呼び出される
    */
   passiveEffect?(_pokemon: BattlePokemonStatus, _battleContext?: BattleContext): void | Promise<void>;
+
+  /**
+   * 命中率を修正する効果
+   * @param pokemon 対象のポケモン
+   * @param accuracy 現在の命中率（0-100）
+   * @param battleContext バトルコンテキスト
+   * @returns 修正後の命中率（0-100）、修正しない場合はundefined
+   */
+  modifyAccuracy?(_pokemon: BattlePokemonStatus, _accuracy: number, _battleContext?: BattleContext): number | undefined;
+
+  /**
+   * 回避率を修正する効果
+   * @param pokemon 対象のポケモン
+   * @param accuracy 現在の命中率（0-100）
+   * @param battleContext バトルコンテキスト
+   * @returns 回避率の補正値（0-1）、補正しない場合はundefined
+   */
+  modifyEvasion?(_pokemon: BattlePokemonStatus, _accuracy: number, _battleContext?: BattleContext): number | undefined;
+
+  /**
+   * 技の優先度を修正する効果
+   * @param pokemon 対象のポケモン
+   * @param movePriority 技の基本優先度
+   * @param battleContext バトルコンテキスト
+   * @returns 修正後の優先度、修正しない場合はundefined
+   */
+  modifyPriority?(_pokemon: BattlePokemonStatus, _movePriority: number, _battleContext?: BattleContext): number | undefined;
+
+  /**
+   * 速度を修正する効果
+   * @param pokemon 対象のポケモン
+   * @param speed 現在の速度
+   * @param battleContext バトルコンテキスト
+   * @returns 修正後の速度、修正しない場合はundefined
+   */
+  modifySpeed?(_pokemon: BattlePokemonStatus, _speed: number, _battleContext?: BattleContext): number | undefined;
 }
