@@ -130,6 +130,7 @@ model Move {
   // リレーション
   type         Type          @relation(fields: [typeId], references: [id])
   pokemonMoves PokemonMove[]
+  battlePokemonMoves BattlePokemonMove[]
 
   @@map("moves")
 }
@@ -410,10 +411,31 @@ model BattlePokemonStatus {
   battle          Battle          @relation(fields: [battleId], references: [id], onDelete: Cascade)
   trainedPokemon  TrainedPokemon  @relation(fields: [trainedPokemonId], references: [id], onDelete: Cascade)
   trainer         Trainer         @relation("BattlePokemonStatus", fields: [trainerId], references: [id], onDelete: Cascade)
+  battlePokemonMoves BattlePokemonMove[]
 
   // 同じバトル内で同じトレーナーポケモンの状態は1つだけ
   @@unique([battleId, trainedPokemonId])
   @@map("battle_pokemon_status")
+}
+
+// バトル中のポケモンが持つ技とPP
+model BattlePokemonMove {
+  id                  Int      @id @default(autoincrement())
+  battlePokemonStatusId Int    @map("battle_pokemon_status_id")
+  moveId              Int      @map("move_id")
+  currentPp            Int      @map("current_pp") // 現在のPP
+  maxPp                Int      @map("max_pp") // 最大PP（技の基本PP）
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // リレーション
+  battlePokemonStatus BattlePokemonStatus @relation(fields: [battlePokemonStatusId], references: [id], onDelete: Cascade)
+  move                Move                @relation(fields: [moveId], references: [id], onDelete: Cascade)
+
+  // 同じバトルポケモンステータスに同じ技は1つだけ
+  @@unique([battlePokemonStatusId, moveId])
+  @@map("battle_pokemon_moves")
 }
 
 enum StatusCondition {

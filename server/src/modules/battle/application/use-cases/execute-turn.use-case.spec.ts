@@ -45,6 +45,10 @@ describe('ExecuteTurnUseCase', () => {
       createBattlePokemonStatus: jest.fn(),
       updateBattlePokemonStatus: jest.fn(),
       findActivePokemonByBattleIdAndTrainerId: jest.fn(),
+      findBattlePokemonMovesByBattlePokemonStatusId: jest.fn(),
+      createBattlePokemonMove: jest.fn(),
+      updateBattlePokemonMove: jest.fn(),
+      findBattlePokemonMoveById: jest.fn(),
     };
 
     const mockTrainedPokemonRepository: jest.Mocked<ITrainedPokemonRepository> = {
@@ -54,6 +58,7 @@ describe('ExecuteTurnUseCase', () => {
 
     const mockMoveRepository: jest.Mocked<IMoveRepository> = {
       findById: jest.fn(),
+      findByPokemonId: jest.fn(),
     };
 
     const mockTypeEffectivenessRepository: jest.Mocked<ITypeEffectivenessRepository> = {

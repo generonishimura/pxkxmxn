@@ -51,6 +51,11 @@ export interface IMoveRepository {
    * IDで技を取得（Type含む）
    */
   findById(id: number): Promise<Move | null>;
+
+  /**
+   * ポケモンIDで覚えている技一覧を取得（最大4つ、簡略化のため最初の4つ）
+   */
+  findByPokemonId(pokemonId: number): Promise<Move[]>;
 }
 
 /**

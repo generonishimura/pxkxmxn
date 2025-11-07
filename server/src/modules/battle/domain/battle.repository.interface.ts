@@ -1,5 +1,6 @@
 import { Battle } from './entities/battle.entity';
 import { BattlePokemonStatus } from './entities/battle-pokemon-status.entity';
+import { BattlePokemonMove } from './entities/battle-pokemon-move.entity';
 
 /**
  * Battleリポジトリのインターフェース
@@ -57,6 +58,36 @@ export interface IBattleRepository {
     battleId: number,
     trainerId: number,
   ): Promise<BattlePokemonStatus | null>;
+
+  /**
+   * バトル中のポケモンの技一覧を取得
+   */
+  findBattlePokemonMovesByBattlePokemonStatusId(
+    battlePokemonStatusId: number,
+  ): Promise<BattlePokemonMove[]>;
+
+  /**
+   * バトル中のポケモンの技を作成
+   */
+  createBattlePokemonMove(data: {
+    battlePokemonStatusId: number;
+    moveId: number;
+    currentPp: number;
+    maxPp: number;
+  }): Promise<BattlePokemonMove>;
+
+  /**
+   * バトル中のポケモンの技を更新（PPを更新）
+   */
+  updateBattlePokemonMove(
+    id: number,
+    data: { currentPp: number },
+  ): Promise<BattlePokemonMove>;
+
+  /**
+   * IDでバトル中のポケモンの技を取得
+   */
+  findBattlePokemonMoveById(id: number): Promise<BattlePokemonMove | null>;
 }
 
 /**

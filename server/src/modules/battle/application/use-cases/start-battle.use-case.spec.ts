@@ -8,6 +8,10 @@ import {
   ITeamRepository,
   TEAM_REPOSITORY_TOKEN,
 } from '@/modules/trainer/domain/trainer.repository.interface';
+import {
+  IMoveRepository,
+  MOVE_REPOSITORY_TOKEN,
+} from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { Battle, BattleStatus, Weather, Field } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
@@ -23,6 +27,7 @@ describe('StartBattleUseCase', () => {
   let useCase: StartBattleUseCase;
   let battleRepository: jest.Mocked<IBattleRepository>;
   let teamRepository: jest.Mocked<ITeamRepository>;
+  let moveRepository: jest.Mocked<IMoveRepository>;
 
   beforeEach(async () => {
     const mockBattleRepository: jest.Mocked<IBattleRepository> = {
@@ -33,10 +38,19 @@ describe('StartBattleUseCase', () => {
       createBattlePokemonStatus: jest.fn(),
       updateBattlePokemonStatus: jest.fn(),
       findActivePokemonByBattleIdAndTrainerId: jest.fn(),
+      findBattlePokemonMovesByBattlePokemonStatusId: jest.fn(),
+      createBattlePokemonMove: jest.fn(),
+      updateBattlePokemonMove: jest.fn(),
+      findBattlePokemonMoveById: jest.fn(),
     };
 
     const mockTeamRepository: jest.Mocked<ITeamRepository> = {
       findMembersByTeamId: jest.fn(),
+    };
+
+    const mockMoveRepository: jest.Mocked<IMoveRepository> = {
+      findById: jest.fn(),
+      findByPokemonId: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -50,12 +64,20 @@ describe('StartBattleUseCase', () => {
           provide: TEAM_REPOSITORY_TOKEN,
           useValue: mockTeamRepository,
         },
+        {
+          provide: MOVE_REPOSITORY_TOKEN,
+          useValue: mockMoveRepository,
+        },
       ],
     }).compile();
 
     useCase = module.get<StartBattleUseCase>(StartBattleUseCase);
     battleRepository = module.get(BATTLE_REPOSITORY_TOKEN);
     teamRepository = module.get(TEAM_REPOSITORY_TOKEN);
+    moveRepository = module.get(MOVE_REPOSITORY_TOKEN);
+
+    // MoveRepositoryのモックをデフォルトで空の配列を返すように設定
+    moveRepository.findByPokemonId.mockResolvedValue([]);
 
     // AbilityRegistryを初期化
     AbilityRegistry.initialize();
