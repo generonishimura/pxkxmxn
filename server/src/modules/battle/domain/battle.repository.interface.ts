@@ -79,10 +79,7 @@ export interface IBattleRepository {
   /**
    * バトル中のポケモンの技を更新（PPを更新）
    */
-  updateBattlePokemonMove(
-    id: number,
-    data: { currentPp: number },
-  ): Promise<BattlePokemonMove>;
+  updateBattlePokemonMove(id: number, data: { currentPp: number }): Promise<BattlePokemonMove>;
 
   /**
    * IDでバトル中のポケモンの技を取得

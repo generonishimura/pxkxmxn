@@ -27,4 +27,3 @@ export class BattlePokemonMove {
     return Math.max(0, this.currentPp - amount);
   }
 }
-
