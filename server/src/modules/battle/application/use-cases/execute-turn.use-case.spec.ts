@@ -384,8 +384,9 @@ describe('ExecuteTurnUseCase', () => {
       battleRepository.findActivePokemonByBattleIdAndTrainerId
         .mockResolvedValueOnce(currentActiveStatus)
         .mockResolvedValueOnce(trainer2ActiveStatus);
-      battleRepository.findBattlePokemonMovesByBattlePokemonStatusId
-        .mockResolvedValueOnce([battlePokemonMove]); // PPチェック用（trainer2）
+      battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValueOnce([
+        battlePokemonMove,
+      ]); // PPチェック用（trainer2）
       battleRepository.findBattlePokemonStatusByBattleId.mockResolvedValue([
         currentActiveStatus,
         switchTargetStatus,
@@ -737,7 +738,18 @@ describe('ExecuteTurnUseCase', () => {
         null,
       );
 
-      const move = new Move(1, 'かえんほうしゃ', 'Flamethrower', new Type(1, 'ほのお', 'Fire'), MoveCategory.Special, 90, 100, 15, 0, null);
+      const move = new Move(
+        1,
+        'かえんほうしゃ',
+        'Flamethrower',
+        new Type(1, 'ほのお', 'Fire'),
+        MoveCategory.Special,
+        90,
+        100,
+        15,
+        0,
+        null,
+      );
 
       // PPが0のBattlePokemonMove
       const battlePokemonMove = new BattlePokemonMove(1, attackerStatus.id, move.id, 0, 15);
@@ -745,7 +757,20 @@ describe('ExecuteTurnUseCase', () => {
       const trainedPokemon1 = new TrainedPokemon(
         101,
         trainer1Id,
-        new Pokemon(1, 1, 'ポケモン1', 'Pokemon1', new Type(1, 'ノーマル', 'Normal'), null, 100, 50, 50, 50, 50, 50),
+        new Pokemon(
+          1,
+          1,
+          'ポケモン1',
+          'Pokemon1',
+          new Type(1, 'ノーマル', 'Normal'),
+          null,
+          100,
+          50,
+          50,
+          50,
+          50,
+          50,
+        ),
         null,
         50,
         Gender.Male,
@@ -768,7 +793,20 @@ describe('ExecuteTurnUseCase', () => {
       const trainedPokemon2 = new TrainedPokemon(
         102,
         trainer2Id,
-        new Pokemon(2, 2, 'ポケモン2', 'Pokemon2', new Type(1, 'ノーマル', 'Normal'), null, 100, 50, 50, 50, 50, 50),
+        new Pokemon(
+          2,
+          2,
+          'ポケモン2',
+          'Pokemon2',
+          new Type(1, 'ノーマル', 'Normal'),
+          null,
+          100,
+          50,
+          50,
+          50,
+          50,
+          50,
+        ),
         null,
         50,
         Gender.Male,
@@ -884,7 +922,18 @@ describe('ExecuteTurnUseCase', () => {
         null,
       );
 
-      const move = new Move(1, 'かえんほうしゃ', 'Flamethrower', new Type(1, 'ほのお', 'Fire'), MoveCategory.Special, 90, 100, 15, 0, null);
+      const move = new Move(
+        1,
+        'かえんほうしゃ',
+        'Flamethrower',
+        new Type(1, 'ほのお', 'Fire'),
+        MoveCategory.Special,
+        90,
+        100,
+        15,
+        0,
+        null,
+      );
 
       const battlePokemonMove = new BattlePokemonMove(1, attackerStatus.id, move.id, 10, 15);
       const battlePokemonMoveAfterConsumption = new BattlePokemonMove(
@@ -898,7 +947,20 @@ describe('ExecuteTurnUseCase', () => {
       const trainedPokemon1 = new TrainedPokemon(
         101,
         trainer1Id,
-        new Pokemon(1, 1, 'ポケモン1', 'Pokemon1', new Type(1, 'ノーマル', 'Normal'), null, 100, 50, 50, 50, 50, 50),
+        new Pokemon(
+          1,
+          1,
+          'ポケモン1',
+          'Pokemon1',
+          new Type(1, 'ノーマル', 'Normal'),
+          null,
+          100,
+          50,
+          50,
+          50,
+          50,
+          50,
+        ),
         null,
         50,
         Gender.Male,
@@ -921,7 +983,20 @@ describe('ExecuteTurnUseCase', () => {
       const trainedPokemon2 = new TrainedPokemon(
         102,
         trainer2Id,
-        new Pokemon(2, 2, 'ポケモン2', 'Pokemon2', new Type(1, 'ノーマル', 'Normal'), null, 100, 50, 50, 50, 50, 50),
+        new Pokemon(
+          2,
+          2,
+          'ポケモン2',
+          'Pokemon2',
+          new Type(1, 'ノーマル', 'Normal'),
+          null,
+          100,
+          50,
+          50,
+          50,
+          50,
+          50,
+        ),
         null,
         50,
         Gender.Male,
@@ -1054,7 +1129,18 @@ describe('ExecuteTurnUseCase', () => {
       );
 
       // 命中率50%の技
-      const move = new Move(1, 'かえんほうしゃ', 'Flamethrower', new Type(1, 'ほのお', 'Fire'), MoveCategory.Special, 90, 50, 15, 0, null);
+      const move = new Move(
+        1,
+        'かえんほうしゃ',
+        'Flamethrower',
+        new Type(1, 'ほのお', 'Fire'),
+        MoveCategory.Special,
+        90,
+        50,
+        15,
+        0,
+        null,
+      );
 
       const battlePokemonMove = new BattlePokemonMove(1, attackerStatus.id, move.id, 10, 15);
       const battlePokemonMoveAfterConsumption = new BattlePokemonMove(
@@ -1068,7 +1154,20 @@ describe('ExecuteTurnUseCase', () => {
       const trainedPokemon1 = new TrainedPokemon(
         101,
         trainer1Id,
-        new Pokemon(1, 1, 'ポケモン1', 'Pokemon1', new Type(1, 'ノーマル', 'Normal'), null, 100, 50, 50, 50, 50, 50),
+        new Pokemon(
+          1,
+          1,
+          'ポケモン1',
+          'Pokemon1',
+          new Type(1, 'ノーマル', 'Normal'),
+          null,
+          100,
+          50,
+          50,
+          50,
+          50,
+          50,
+        ),
         null,
         50,
         Gender.Male,
@@ -1091,7 +1190,20 @@ describe('ExecuteTurnUseCase', () => {
       const trainedPokemon2 = new TrainedPokemon(
         102,
         trainer2Id,
-        new Pokemon(2, 2, 'ポケモン2', 'Pokemon2', new Type(1, 'ノーマル', 'Normal'), null, 100, 50, 50, 50, 50, 50),
+        new Pokemon(
+          2,
+          2,
+          'ポケモン2',
+          'Pokemon2',
+          new Type(1, 'ノーマル', 'Normal'),
+          null,
+          100,
+          50,
+          50,
+          50,
+          50,
+          50,
+        ),
         null,
         50,
         Gender.Male,

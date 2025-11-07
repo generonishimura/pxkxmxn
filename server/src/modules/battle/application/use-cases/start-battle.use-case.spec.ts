@@ -894,8 +894,30 @@ describe('StartBattleUseCase', () => {
         null,
       );
 
-      const move1 = new Move(1, 'かえんほうしゃ', 'Flamethrower', new Type(1, 'ほのお', 'Fire'), MoveCategory.Special, 90, 100, 15, 0, null);
-      const move2 = new Move(2, '10まんボルト', 'Thunderbolt', new Type(2, 'でんき', 'Electric'), MoveCategory.Special, 90, 100, 15, 0, null);
+      const move1 = new Move(
+        1,
+        'かえんほうしゃ',
+        'Flamethrower',
+        new Type(1, 'ほのお', 'Fire'),
+        MoveCategory.Special,
+        90,
+        100,
+        15,
+        0,
+        null,
+      );
+      const move2 = new Move(
+        2,
+        '10まんボルト',
+        'Thunderbolt',
+        new Type(2, 'でんき', 'Electric'),
+        MoveCategory.Special,
+        90,
+        100,
+        15,
+        0,
+        null,
+      );
 
       battleRepository.create.mockResolvedValue(mockBattle);
       teamRepository.findMembersByTeamId

@@ -196,7 +196,7 @@ export class StartBattleUseCase {
     battlePokemonStatusId: number,
     pokemonId: number,
   ): Promise<void> {
-    // ポケモンが覚えている技を取得（最大4つ）
+    // ポケモンが覚えている技を取得(最大4つ)
     const moves = await this.moveRepository.findByPokemonId(pokemonId);
 
     // 各技のBattlePokemonMoveを作成

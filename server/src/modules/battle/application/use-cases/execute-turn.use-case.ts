@@ -128,7 +128,7 @@ export class ExecuteTurnUseCase {
         const defender =
           action.trainerId === params.trainer1Action.trainerId ? trainer2Active : trainer1Active;
 
-        // PPチェック（PPが0の場合は使用不可）
+        // PPチェック(PPが0の場合は使用不可)
         const battlePokemonMoves =
           await this.battleRepository.findBattlePokemonMovesByBattlePokemonStatusId(attacker.id);
         const battlePokemonMove = battlePokemonMoves.find(bpm => bpm.moveId === action.moveId);
@@ -541,7 +541,7 @@ export class ExecuteTurnUseCase {
       }
     }
 
-    // 変化技の場合はダメージなし（PPは消費される）
+    // 変化技の場合はダメージなし(PPは消費される)
     if (move.category === 'Status' || move.power === null) {
       await this.consumePp(battlePokemonMoveId);
       return `Used ${move.name} (Status move)`;

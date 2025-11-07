@@ -208,7 +208,7 @@ export class MovePrismaRepository implements IMoveRepository {
   }
 
   async findByPokemonId(pokemonId: number): Promise<Move[]> {
-    // ポケモンが覚えている技を取得（最大4つ、簡略化のため最初の4つ）
+    // ポケモンが覚えている技を取得(最大4つ、簡略化のため最初の4つ)
     const pokemonMoves = await this.prisma.pokemonMove.findMany({
       where: { pokemonId },
       take: 4, // 最大4つ
