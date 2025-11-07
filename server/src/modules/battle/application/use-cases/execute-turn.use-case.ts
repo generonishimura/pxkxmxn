@@ -136,7 +136,7 @@ export class ExecuteTurnUseCase {
           actionResults.push({
             trainerId: action.trainerId,
             action: 'move',
-            result: 'Move not found in battle pokemon moves',
+            result: `Move not found in battle pokemon moves (moveId: ${action.moveId}, battlePokemonStatusId: ${attacker.id})`,
           });
           continue;
         }
@@ -607,7 +607,9 @@ export class ExecuteTurnUseCase {
       await this.battleRepository.findBattlePokemonMoveById(battlePokemonMoveId);
 
     if (!battlePokemonMove) {
-      throw new Error('BattlePokemonMove not found');
+      throw new Error(
+        `BattlePokemonMove not found. 技ID: ${battlePokemonMoveId} が見つかりませんでした`,
+      );
     }
 
     // PPを1消費
