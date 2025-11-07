@@ -375,11 +375,8 @@ export class ExecuteTurnUseCase {
           }
         }
 
-        const trainer1FinalSpeed = trainer1Speed;
-        const trainer2FinalSpeed = trainer2Speed;
-
         // 速度比較
-        if (trainer1FinalSpeed >= trainer2FinalSpeed) {
+        if (trainer1Speed >= trainer2Speed) {
           actions.push({
             trainerId: trainer1Action.trainerId,
             action: 'move',

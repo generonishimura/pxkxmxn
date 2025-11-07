@@ -77,20 +77,16 @@ export class AccuracyCalculator {
     const finalAccuracy = effectiveAccuracy * (accuracyMultiplier / evasionMultiplier);
 
     // 特性による命中率補正（攻撃側）
+    // デフォルトはfinalAccuracyを使用し、特性による補正がある場合のみ上書き
+    effectiveAccuracy = finalAccuracy;
     if (attackerAbilityName) {
       const abilityEffect = AbilityRegistry.get(attackerAbilityName);
       if (abilityEffect?.modifyAccuracy) {
         const modifiedAccuracy = abilityEffect.modifyAccuracy(attacker, finalAccuracy, battleContext);
         if (modifiedAccuracy !== undefined) {
           effectiveAccuracy = modifiedAccuracy;
-        } else {
-          effectiveAccuracy = finalAccuracy;
         }
-      } else {
-        effectiveAccuracy = finalAccuracy;
       }
-    } else {
-      effectiveAccuracy = finalAccuracy;
     }
 
     // 特性による回避率補正（防御側）
@@ -99,7 +95,8 @@ export class AccuracyCalculator {
       if (abilityEffect?.modifyEvasion) {
         const modifiedEvasion = abilityEffect.modifyEvasion(defender, effectiveAccuracy, battleContext);
         if (modifiedEvasion !== undefined) {
-          // 回避率補正は命中率を下げる（逆数として扱う）
+          // modifiedEvasionの期待値は0.0〜1.0（0.0:回避補正なし, 1.0:完全回避）
+          // この計算式により、modifiedEvasionが大きいほど命中率が低下する（例: 0.2なら命中率80%、1.0なら0%）
           effectiveAccuracy = effectiveAccuracy * (1 - modifiedEvasion);
         }
       }
