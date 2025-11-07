@@ -128,8 +128,9 @@ model Move {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // リレーション
-  type         Type          @relation(fields: [typeId], references: [id])
-  pokemonMoves PokemonMove[]
+  type               Type                @relation(fields: [typeId], references: [id])
+  pokemonMoves       PokemonMove[]
+  battlePokemonMoves BattlePokemonMove[]
 
   @@map("moves")
 }
@@ -205,25 +206,25 @@ model Trainer {
   // リレーション
   trainedPokemon      TrainedPokemon[]
   teams               Team[]
-  battlesAsTrainer1   Battle[]           @relation("Trainer1Battles")
-  battlesAsTrainer2   Battle[]           @relation("Trainer2Battles")
-  battlesAsWinner     Battle[]           @relation("WinnerBattles")
+  battlesAsTrainer1   Battle[]              @relation("Trainer1Battles")
+  battlesAsTrainer2   Battle[]              @relation("Trainer2Battles")
+  battlesAsWinner     Battle[]              @relation("WinnerBattles")
   battlePokemonStatus BattlePokemonStatus[] @relation("BattlePokemonStatus")
 
   @@map("trainers")
 }
 
 model TrainedPokemon {
-  id        Int      @id @default(autoincrement())
-  trainerId Int     @map("trainer_id")
-  pokemonId Int     @map("pokemon_id") // どのポケモンか（マスターデータ参照）
+  id        Int @id @default(autoincrement())
+  trainerId Int @map("trainer_id")
+  pokemonId Int @map("pokemon_id") // どのポケモンか（マスターデータ参照）
 
   // 育成パラメータ
-  nickname    String? // ニックネーム
-  level       Int     @default(50) // レベル（デフォルト50）
-  gender      Gender?
-  nature      Nature? // 性格（攻撃/防御などに影響）
-  abilityId   Int?    @map("ability_id") // 持っている特性（マスターデータ参照）
+  nickname  String? // ニックネーム
+  level     Int     @default(50) // レベル（デフォルト50）
+  gender    Gender?
+  nature    Nature? // 性格（攻撃/防御などに影響）
+  abilityId Int?    @map("ability_id") // 持っている特性（マスターデータ参照）
 
   // 個体値（0-31）
   ivHp             Int @default(31) @map("iv_hp")
@@ -245,9 +246,9 @@ model TrainedPokemon {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // リレーション
-  trainer              Trainer                  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  pokemon              Pokemon                  @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
-  ability              Ability?                 @relation(fields: [abilityId], references: [id], onDelete: SetNull)
+  trainer             Trainer               @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  pokemon             Pokemon               @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  ability             Ability?              @relation(fields: [abilityId], references: [id], onDelete: SetNull)
   teamMembers         TeamMember[]
   battlePokemonStatus BattlePokemonStatus[]
 
@@ -290,15 +291,15 @@ enum Nature {
 
 // チームと育成個体の中間テーブル
 model TeamMember {
-  id              Int    @id @default(autoincrement())
-  teamId          Int    @map("team_id")
-  trainedPokemonId Int   @map("trained_pokemon_id")
-  position        Int    // チーム内の位置（1-6）
+  id               Int @id @default(autoincrement())
+  teamId           Int @map("team_id")
+  trainedPokemonId Int @map("trained_pokemon_id")
+  position         Int // チーム内の位置（1-6）
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  team          Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  team           Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
   trainedPokemon TrainedPokemon @relation(fields: [trainedPokemonId], references: [id], onDelete: Cascade)
 
   // 同じチーム内で同じ位置に複数のポケモンは入れない
@@ -314,10 +315,10 @@ model Team {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // リレーション
-  trainer          Trainer       @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  teamMembers      TeamMember[]
-  battlesAsTeam1   Battle[]      @relation("Team1Battles")
-  battlesAsTeam2   Battle[]      @relation("Team2Battles")
+  trainer        Trainer      @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  teamMembers    TeamMember[]
+  battlesAsTeam1 Battle[]     @relation("Team1Battles")
+  battlesAsTeam2 Battle[]     @relation("Team2Battles")
 
   @@map("teams")
 }
@@ -327,17 +328,17 @@ model Team {
 // ============================================
 
 model Battle {
-  id        Int      @id @default(autoincrement())
-  trainer1Id Int     @map("trainer1_id")
-  trainer2Id Int     @map("trainer2_id")
-  team1Id    Int     @map("team1_id")
-  team2Id    Int     @map("team2_id")
+  id         Int @id @default(autoincrement())
+  trainer1Id Int @map("trainer1_id")
+  trainer2Id Int @map("trainer2_id")
+  team1Id    Int @map("team1_id")
+  team2Id    Int @map("team2_id")
 
   // バトル状態
-  turn      Int      @default(1) // 現在のターン数
-  weather   Weather? // 天候
-  field     Field?   // フィールド状態
-  status    BattleStatus @default(Active) // バトルの状態
+  turn    Int          @default(1) // 現在のターン数
+  weather Weather? // 天候
+  field   Field? // フィールド状態
+  status  BattleStatus @default(Active) // バトルの状態
 
   // 勝敗
   winnerTrainerId Int? @map("winner_trainer_id") // 勝者（nullの場合は進行中）
@@ -346,11 +347,11 @@ model Battle {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // リレーション
-  trainer1           Trainer              @relation("Trainer1Battles", fields: [trainer1Id], references: [id], onDelete: Cascade)
-  trainer2           Trainer              @relation("Trainer2Battles", fields: [trainer2Id], references: [id], onDelete: Cascade)
-  team1              Team                 @relation("Team1Battles", fields: [team1Id], references: [id], onDelete: Cascade)
-  team2              Team                 @relation("Team2Battles", fields: [team2Id], references: [id], onDelete: Cascade)
-  winnerTrainer      Trainer?             @relation("WinnerBattles", fields: [winnerTrainerId], references: [id], onDelete: SetNull)
+  trainer1            Trainer               @relation("Trainer1Battles", fields: [trainer1Id], references: [id], onDelete: Cascade)
+  trainer2            Trainer               @relation("Trainer2Battles", fields: [trainer2Id], references: [id], onDelete: Cascade)
+  team1               Team                  @relation("Team1Battles", fields: [team1Id], references: [id], onDelete: Cascade)
+  team2               Team                  @relation("Team2Battles", fields: [team2Id], references: [id], onDelete: Cascade)
+  winnerTrainer       Trainer?              @relation("WinnerBattles", fields: [winnerTrainerId], references: [id], onDelete: SetNull)
   battlePokemonStatus BattlePokemonStatus[]
 
   @@map("battles")
@@ -381,24 +382,24 @@ enum BattleStatus {
 // バトル中のポケモン個別の状態
 // 最も重要: バトル中のポケモン個別の状態（現在のHP、状態異常、ランク補正）を管理
 model BattlePokemonStatus {
-  id                Int      @id @default(autoincrement())
-  battleId           Int      @map("battle_id")
-  trainedPokemonId   Int      @map("trained_pokemon_id")
-  trainerId          Int      @map("trainer_id") // どのトレーナーのポケモンか
-  isActive           Boolean  @default(false) @map("is_active") // 場に出ているか
+  id               Int     @id @default(autoincrement())
+  battleId         Int     @map("battle_id")
+  trainedPokemonId Int     @map("trained_pokemon_id")
+  trainerId        Int     @map("trainer_id") // どのトレーナーのポケモンか
+  isActive         Boolean @default(false) @map("is_active") // 場に出ているか
 
   // バトル中のステータス
-  currentHp          Int      @map("current_hp") // 現在のHP
-  maxHp              Int      @map("max_hp") // 最大HP
+  currentHp Int @map("current_hp") // 現在のHP
+  maxHp     Int @map("max_hp") // 最大HP
 
   // ステータスランク（-6から+6まで）
-  attackRank         Int      @default(0) @map("attack_rank")
-  defenseRank        Int      @default(0) @map("defense_rank")
-  specialAttackRank  Int      @default(0) @map("special_attack_rank")
-  specialDefenseRank Int      @default(0) @map("special_defense_rank")
-  speedRank           Int      @default(0) @map("speed_rank")
-  accuracyRank        Int      @default(0) @map("accuracy_rank")
-  evasionRank         Int      @default(0) @map("evasion_rank")
+  attackRank         Int @default(0) @map("attack_rank")
+  defenseRank        Int @default(0) @map("defense_rank")
+  specialAttackRank  Int @default(0) @map("special_attack_rank")
+  specialDefenseRank Int @default(0) @map("special_defense_rank")
+  speedRank          Int @default(0) @map("speed_rank")
+  accuracyRank       Int @default(0) @map("accuracy_rank")
+  evasionRank        Int @default(0) @map("evasion_rank")
 
   // 状態異常
   statusCondition StatusCondition? @map("status_condition")
@@ -407,13 +408,34 @@ model BattlePokemonStatus {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // リレーション
-  battle          Battle          @relation(fields: [battleId], references: [id], onDelete: Cascade)
-  trainedPokemon  TrainedPokemon  @relation(fields: [trainedPokemonId], references: [id], onDelete: Cascade)
-  trainer         Trainer         @relation("BattlePokemonStatus", fields: [trainerId], references: [id], onDelete: Cascade)
+  battle             Battle              @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  trainedPokemon     TrainedPokemon      @relation(fields: [trainedPokemonId], references: [id], onDelete: Cascade)
+  trainer            Trainer             @relation("BattlePokemonStatus", fields: [trainerId], references: [id], onDelete: Cascade)
+  battlePokemonMoves BattlePokemonMove[]
 
   // 同じバトル内で同じトレーナーポケモンの状態は1つだけ
   @@unique([battleId, trainedPokemonId])
   @@map("battle_pokemon_status")
+}
+
+// バトル中のポケモンが持つ技とPP
+model BattlePokemonMove {
+  id                    Int @id @default(autoincrement())
+  battlePokemonStatusId Int @map("battle_pokemon_status_id")
+  moveId                Int @map("move_id")
+  currentPp             Int @map("current_pp") // 現在のPP
+  maxPp                 Int @map("max_pp") // 最大PP（技の基本PP）
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // リレーション
+  battlePokemonStatus BattlePokemonStatus @relation(fields: [battlePokemonStatusId], references: [id], onDelete: Cascade)
+  move                Move                @relation(fields: [moveId], references: [id], onDelete: Cascade)
+
+  // 同じバトルポケモンステータスに同じ技は1つだけ
+  @@unique([battlePokemonStatusId, moveId])
+  @@map("battle_pokemon_moves")
 }
 
 enum StatusCondition {

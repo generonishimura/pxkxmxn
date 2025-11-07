@@ -4,6 +4,7 @@ import { Prisma } from '@generated/prisma/client';
 import { IBattleRepository } from '../../domain/battle.repository.interface';
 import { Battle, Weather, Field, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
+import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 
 /**
@@ -15,6 +16,11 @@ type BattleData = Prisma.BattleGetPayload<{}>;
  * BattlePokemonStatusのPrismaクエリ結果型
  */
 type BattlePokemonStatusData = Prisma.BattlePokemonStatusGetPayload<{}>;
+
+/**
+ * BattlePokemonMoveのPrismaクエリ結果型
+ */
+type BattlePokemonMoveData = Prisma.BattlePokemonMoveGetPayload<{}>;
 
 /**
  * Battle更新用の型（リレーションなし）
@@ -249,5 +255,72 @@ export class BattlePrismaRepository implements IBattleRepository {
       return null;
     }
     return statusCondition as StatusCondition;
+  }
+
+  async findBattlePokemonMovesByBattlePokemonStatusId(
+    battlePokemonStatusId: number,
+  ): Promise<BattlePokemonMove[]> {
+    const moveList = await this.prisma.battlePokemonMove.findMany({
+      where: { battlePokemonStatusId },
+    });
+
+    return moveList.map(move => this.toBattlePokemonMoveEntity(move));
+  }
+
+  async createBattlePokemonMove(data: {
+    battlePokemonStatusId: number;
+    moveId: number;
+    currentPp: number;
+    maxPp: number;
+  }): Promise<BattlePokemonMove> {
+    const moveData = await this.prisma.battlePokemonMove.create({
+      data: {
+        battlePokemonStatusId: data.battlePokemonStatusId,
+        moveId: data.moveId,
+        currentPp: data.currentPp,
+        maxPp: data.maxPp,
+      },
+    });
+
+    return this.toBattlePokemonMoveEntity(moveData);
+  }
+
+  async updateBattlePokemonMove(
+    id: number,
+    data: { currentPp: number },
+  ): Promise<BattlePokemonMove> {
+    const moveData = await this.prisma.battlePokemonMove.update({
+      where: { id },
+      data: {
+        currentPp: data.currentPp,
+      },
+    });
+
+    return this.toBattlePokemonMoveEntity(moveData);
+  }
+
+  async findBattlePokemonMoveById(id: number): Promise<BattlePokemonMove | null> {
+    const moveData = await this.prisma.battlePokemonMove.findUnique({
+      where: { id },
+    });
+
+    if (!moveData) {
+      return null;
+    }
+
+    return this.toBattlePokemonMoveEntity(moveData);
+  }
+
+  /**
+   * PrismaのBattlePokemonMoveモデルをDomain層のBattlePokemonMoveエンティティに変換
+   */
+  private toBattlePokemonMoveEntity(moveData: BattlePokemonMoveData): BattlePokemonMove {
+    return new BattlePokemonMove(
+      moveData.id,
+      moveData.battlePokemonStatusId,
+      moveData.moveId,
+      moveData.currentPp,
+      moveData.maxPp,
+    );
   }
 }

@@ -8,14 +8,24 @@ import {
   ITeamRepository,
   TEAM_REPOSITORY_TOKEN,
 } from '@/modules/trainer/domain/trainer.repository.interface';
+import {
+  IMoveRepository,
+  MOVE_REPOSITORY_TOKEN,
+} from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { Battle, BattleStatus, Weather, Field } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
+import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { TrainedPokemon, Gender } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 import { Pokemon } from '@/modules/pokemon/domain/entities/pokemon.entity';
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
-import { Ability, AbilityTrigger, AbilityCategory } from '@/modules/pokemon/domain/entities/ability.entity';
+import { Move, MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
+import {
+  Ability,
+  AbilityTrigger,
+  AbilityCategory,
+} from '@/modules/pokemon/domain/entities/ability.entity';
 import { TeamMemberInfo } from '@/modules/trainer/domain/trainer.repository.interface';
 import { Nature } from '../../domain/logic/stat-calculator';
 
@@ -23,6 +33,7 @@ describe('StartBattleUseCase', () => {
   let useCase: StartBattleUseCase;
   let battleRepository: jest.Mocked<IBattleRepository>;
   let teamRepository: jest.Mocked<ITeamRepository>;
+  let moveRepository: jest.Mocked<IMoveRepository>;
 
   beforeEach(async () => {
     const mockBattleRepository: jest.Mocked<IBattleRepository> = {
@@ -33,10 +44,19 @@ describe('StartBattleUseCase', () => {
       createBattlePokemonStatus: jest.fn(),
       updateBattlePokemonStatus: jest.fn(),
       findActivePokemonByBattleIdAndTrainerId: jest.fn(),
+      findBattlePokemonMovesByBattlePokemonStatusId: jest.fn(),
+      createBattlePokemonMove: jest.fn(),
+      updateBattlePokemonMove: jest.fn(),
+      findBattlePokemonMoveById: jest.fn(),
     };
 
     const mockTeamRepository: jest.Mocked<ITeamRepository> = {
       findMembersByTeamId: jest.fn(),
+    };
+
+    const mockMoveRepository: jest.Mocked<IMoveRepository> = {
+      findById: jest.fn(),
+      findByPokemonId: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -50,12 +70,20 @@ describe('StartBattleUseCase', () => {
           provide: TEAM_REPOSITORY_TOKEN,
           useValue: mockTeamRepository,
         },
+        {
+          provide: MOVE_REPOSITORY_TOKEN,
+          useValue: mockMoveRepository,
+        },
       ],
     }).compile();
 
     useCase = module.get<StartBattleUseCase>(StartBattleUseCase);
     battleRepository = module.get(BATTLE_REPOSITORY_TOKEN);
     teamRepository = module.get(TEAM_REPOSITORY_TOKEN);
+    moveRepository = module.get(MOVE_REPOSITORY_TOKEN);
+
+    // MoveRepositoryのモックをデフォルトで空の配列を返すように設定
+    moveRepository.findByPokemonId.mockResolvedValue([]);
 
     // AbilityRegistryを初期化
     AbilityRegistry.initialize();
@@ -93,7 +121,14 @@ describe('StartBattleUseCase', () => {
     };
 
     const createMockAbility = (id: number, name: string): Ability => {
-      return new Ability(id, name, name, 'Test ability', AbilityTrigger.OnEntry, AbilityCategory.StatChange);
+      return new Ability(
+        id,
+        name,
+        name,
+        'Test ability',
+        AbilityTrigger.OnEntry,
+        AbilityCategory.StatChange,
+      );
     };
 
     const createMockTrainedPokemon = (
@@ -206,7 +241,7 @@ describe('StartBattleUseCase', () => {
       battleRepository.createBattlePokemonStatus
         .mockResolvedValueOnce(battleStatus1)
         .mockResolvedValueOnce(battleStatus2);
-      
+
       const activeBattleStatus1 = new BattlePokemonStatus(
         battleStatus1.id,
         battleStatus1.battleId,
@@ -224,7 +259,7 @@ describe('StartBattleUseCase', () => {
         battleStatus1.evasionRank,
         battleStatus1.statusCondition,
       );
-      
+
       const activeBattleStatus2 = new BattlePokemonStatus(
         battleStatus2.id,
         battleStatus2.battleId,
@@ -242,7 +277,7 @@ describe('StartBattleUseCase', () => {
         battleStatus2.evasionRank,
         battleStatus2.statusCondition,
       );
-      
+
       battleRepository.updateBattlePokemonStatus
         .mockResolvedValueOnce(activeBattleStatus1)
         .mockResolvedValueOnce(activeBattleStatus2);
@@ -374,7 +409,7 @@ describe('StartBattleUseCase', () => {
         .mockResolvedValueOnce(battleStatus1)
         .mockResolvedValueOnce(battleStatus2)
         .mockResolvedValueOnce(battleStatus3);
-      
+
       const activeBattleStatus1 = new BattlePokemonStatus(
         battleStatus1.id,
         battleStatus1.battleId,
@@ -392,7 +427,7 @@ describe('StartBattleUseCase', () => {
         battleStatus1.evasionRank,
         battleStatus1.statusCondition,
       );
-      
+
       const activeBattleStatus3 = new BattlePokemonStatus(
         battleStatus3.id,
         battleStatus3.battleId,
@@ -410,7 +445,7 @@ describe('StartBattleUseCase', () => {
         battleStatus3.evasionRank,
         battleStatus3.statusCondition,
       );
-      
+
       battleRepository.updateBattlePokemonStatus
         .mockResolvedValueOnce(activeBattleStatus1)
         .mockResolvedValueOnce(activeBattleStatus3);
@@ -531,7 +566,7 @@ describe('StartBattleUseCase', () => {
         battleStatus1.evasionRank,
         battleStatus1.statusCondition,
       );
-      
+
       const activeBattleStatus2 = new BattlePokemonStatus(
         battleStatus2.id,
         battleStatus2.battleId,
@@ -670,7 +705,7 @@ describe('StartBattleUseCase', () => {
       battleRepository.createBattlePokemonStatus
         .mockResolvedValueOnce(battleStatus1)
         .mockResolvedValueOnce(battleStatus2);
-      
+
       const activeBattleStatus1 = new BattlePokemonStatus(
         battleStatus1.id,
         battleStatus1.battleId,
@@ -688,7 +723,7 @@ describe('StartBattleUseCase', () => {
         battleStatus1.evasionRank,
         battleStatus1.statusCondition,
       );
-      
+
       const activeBattleStatus2 = new BattlePokemonStatus(
         battleStatus2.id,
         battleStatus2.battleId,
@@ -706,7 +741,7 @@ describe('StartBattleUseCase', () => {
         battleStatus2.evasionRank,
         battleStatus2.statusCondition,
       );
-      
+
       battleRepository.updateBattlePokemonStatus
         .mockResolvedValueOnce(activeBattleStatus1)
         .mockResolvedValueOnce(activeBattleStatus2);
@@ -775,7 +810,7 @@ describe('StartBattleUseCase', () => {
         .mockResolvedValueOnce(team1Members)
         .mockResolvedValueOnce(team2Members);
       battleRepository.createBattlePokemonStatus.mockResolvedValueOnce(battleStatus1);
-      
+
       const activeBattleStatus1 = new BattlePokemonStatus(
         battleStatus1.id,
         battleStatus1.battleId,
@@ -793,7 +828,7 @@ describe('StartBattleUseCase', () => {
         battleStatus1.evasionRank,
         battleStatus1.statusCondition,
       );
-      
+
       battleRepository.updateBattlePokemonStatus.mockResolvedValueOnce(activeBattleStatus1);
 
       // Act
@@ -811,6 +846,108 @@ describe('StartBattleUseCase', () => {
       expect(createCall.currentHp).toBeGreaterThan(0);
       expect(createCall.maxHp).toBe(createCall.currentHp);
     });
+
+    it('バトル開始時にポケモンが覚えている技のPPを初期化する', async () => {
+      // Arrange
+      const mockBattle = new Battle(
+        1,
+        trainer1Id,
+        trainer2Id,
+        team1Id,
+        team2Id,
+        1,
+        Weather.None,
+        Field.None,
+        BattleStatus.Active,
+        null,
+      );
+
+      const pokemon1 = createMockPokemon(1, 'ポケモン1');
+      const trainedPokemon1 = createMockTrainedPokemon(100, pokemon1);
+
+      const team1Members: TeamMemberInfo[] = [
+        {
+          id: 1,
+          teamId: team1Id,
+          trainedPokemon: trainedPokemon1,
+          position: 1,
+        },
+      ];
+
+      const team2Members: TeamMemberInfo[] = [];
+
+      const battleStatus1 = new BattlePokemonStatus(
+        1,
+        mockBattle.id,
+        trainedPokemon1.id,
+        trainer1Id,
+        false,
+        100,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+      );
+
+      const move1 = new Move(
+        1,
+        'かえんほうしゃ',
+        'Flamethrower',
+        new Type(1, 'ほのお', 'Fire'),
+        MoveCategory.Special,
+        90,
+        100,
+        15,
+        0,
+        null,
+      );
+      const move2 = new Move(
+        2,
+        '10まんボルト',
+        'Thunderbolt',
+        new Type(2, 'でんき', 'Electric'),
+        MoveCategory.Special,
+        90,
+        100,
+        15,
+        0,
+        null,
+      );
+
+      battleRepository.create.mockResolvedValue(mockBattle);
+      teamRepository.findMembersByTeamId
+        .mockResolvedValueOnce(team1Members)
+        .mockResolvedValueOnce(team2Members);
+      battleRepository.createBattlePokemonStatus.mockResolvedValueOnce(battleStatus1);
+      moveRepository.findByPokemonId.mockResolvedValue([move1, move2]);
+      battleRepository.createBattlePokemonMove.mockResolvedValue(
+        new BattlePokemonMove(1, battleStatus1.id, move1.id, 15, 15),
+      );
+
+      // Act
+      await useCase.execute(trainer1Id, trainer2Id, team1Id, team2Id);
+
+      // Assert
+      // ポケモンが覚えている技の数だけBattlePokemonMoveが作成される
+      expect(moveRepository.findByPokemonId).toHaveBeenCalledWith(pokemon1.id);
+      expect(battleRepository.createBattlePokemonMove).toHaveBeenCalledTimes(2);
+      expect(battleRepository.createBattlePokemonMove).toHaveBeenCalledWith({
+        battlePokemonStatusId: battleStatus1.id,
+        moveId: move1.id,
+        currentPp: 15,
+        maxPp: 15,
+      });
+      expect(battleRepository.createBattlePokemonMove).toHaveBeenCalledWith({
+        battlePokemonStatusId: battleStatus1.id,
+        moveId: move2.id,
+        currentPp: 15,
+        maxPp: 15,
+      });
+    });
   });
 });
-

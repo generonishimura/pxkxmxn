@@ -7,6 +7,10 @@ import {
   ITeamRepository,
   TEAM_REPOSITORY_TOKEN,
 } from '@/modules/trainer/domain/trainer.repository.interface';
+import {
+  IMoveRepository,
+  MOVE_REPOSITORY_TOKEN,
+} from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { Battle } from '../../domain/entities/battle.entity';
 import { StatCalculator, TrainedPokemonStats } from '../../domain/logic/stat-calculator';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
@@ -29,6 +33,8 @@ export class StartBattleUseCase {
     private readonly battleRepository: IBattleRepository,
     @Inject(TEAM_REPOSITORY_TOKEN)
     private readonly teamRepository: ITeamRepository,
+    @Inject(MOVE_REPOSITORY_TOKEN)
+    private readonly moveRepository: IMoveRepository,
   ) {}
 
   /**
@@ -74,6 +80,9 @@ export class StartBattleUseCase {
         maxHp: calculatedStats.hp,
       });
 
+      // ポケモンが覚えている技を取得してBattlePokemonMoveを作成
+      await this.initializePokemonMoves(battleStatus.id, trainedPokemon.pokemon.id);
+
       // 最初のポケモン（position=1）を場に出す
       if (member.position === 1) {
         await this.battleRepository.updateBattlePokemonStatus(battleStatus.id, {
@@ -102,6 +111,9 @@ export class StartBattleUseCase {
         currentHp: calculatedStats.hp,
         maxHp: calculatedStats.hp,
       });
+
+      // ポケモンが覚えている技を取得してBattlePokemonMoveを作成
+      await this.initializePokemonMoves(battleStatus.id, trainedPokemon.pokemon.id);
 
       // 最初のポケモン（position=1）を場に出す
       if (member.position === 1) {
@@ -173,5 +185,28 @@ export class StartBattleUseCase {
       battle,
       battleRepository: this.battleRepository,
     });
+  }
+
+  /**
+   * ポケモンが覚えている技を取得してBattlePokemonMoveを作成
+   * @param battlePokemonStatusId バトル中のポケモンステータスID
+   * @param pokemonId ポケモンID
+   */
+  private async initializePokemonMoves(
+    battlePokemonStatusId: number,
+    pokemonId: number,
+  ): Promise<void> {
+    // ポケモンが覚えている技を取得(最大4つ)
+    const moves = await this.moveRepository.findByPokemonId(pokemonId);
+
+    // 各技のBattlePokemonMoveを作成
+    for (const move of moves) {
+      await this.battleRepository.createBattlePokemonMove({
+        battlePokemonStatusId,
+        moveId: move.id,
+        currentPp: move.pp, // 初期PPは技の基本PP
+        maxPp: move.pp, // 最大PPも技の基本PP
+      });
+    }
   }
 }

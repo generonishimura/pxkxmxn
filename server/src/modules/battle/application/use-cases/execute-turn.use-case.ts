@@ -128,6 +128,27 @@ export class ExecuteTurnUseCase {
         const defender =
           action.trainerId === params.trainer1Action.trainerId ? trainer2Active : trainer1Active;
 
+        // PPチェック(PPが0の場合は使用不可)
+        const battlePokemonMoves =
+          await this.battleRepository.findBattlePokemonMovesByBattlePokemonStatusId(attacker.id);
+        const battlePokemonMove = battlePokemonMoves.find(bpm => bpm.moveId === action.moveId);
+        if (!battlePokemonMove) {
+          actionResults.push({
+            trainerId: action.trainerId,
+            action: 'move',
+            result: `Move not found in battle pokemon moves (moveId: ${action.moveId}, battlePokemonStatusId: ${attacker.id})`,
+          });
+          continue;
+        }
+        if (battlePokemonMove.isPpExhausted()) {
+          actionResults.push({
+            trainerId: action.trainerId,
+            action: 'move',
+            result: 'Move has no PP left',
+          });
+          continue;
+        }
+
         // 状態異常による行動不能判定
         if (!StatusConditionHandler.canAct(attacker)) {
           // こおりの場合は解除判定を行う
@@ -150,6 +171,7 @@ export class ExecuteTurnUseCase {
               action.moveId,
               attacker,
               defender,
+              battlePokemonMove.id,
             );
             actionResults.push({
               trainerId: action.trainerId,
@@ -172,6 +194,7 @@ export class ExecuteTurnUseCase {
             action.moveId,
             attacker,
             defender,
+            battlePokemonMove.id,
           );
           actionResults.push({
             trainerId: action.trainerId,
@@ -358,7 +381,11 @@ export class ExecuteTurnUseCase {
         if (trainer1TrainedPokemon?.ability) {
           const abilityEffect = AbilityRegistry.get(trainer1TrainedPokemon.ability.name);
           if (abilityEffect?.modifySpeed) {
-            const modifiedSpeed = abilityEffect.modifySpeed(trainer1Active, trainer1Speed, battleContext);
+            const modifiedSpeed = abilityEffect.modifySpeed(
+              trainer1Active,
+              trainer1Speed,
+              battleContext,
+            );
             if (modifiedSpeed !== undefined) {
               trainer1Speed = modifiedSpeed;
             }
@@ -368,7 +395,11 @@ export class ExecuteTurnUseCase {
         if (trainer2TrainedPokemon?.ability) {
           const abilityEffect = AbilityRegistry.get(trainer2TrainedPokemon.ability.name);
           if (abilityEffect?.modifySpeed) {
-            const modifiedSpeed = abilityEffect.modifySpeed(trainer2Active, trainer2Speed, battleContext);
+            const modifiedSpeed = abilityEffect.modifySpeed(
+              trainer2Active,
+              trainer2Speed,
+              battleContext,
+            );
             if (modifiedSpeed !== undefined) {
               trainer2Speed = modifiedSpeed;
             }
@@ -466,6 +497,7 @@ export class ExecuteTurnUseCase {
     moveId: number,
     attacker: BattlePokemonStatus,
     defender: BattlePokemonStatus,
+    battlePokemonMoveId: number,
   ): Promise<string> {
     // 技情報を取得
     const move = await this.moveRepository.findById(moveId);
@@ -503,12 +535,15 @@ export class ExecuteTurnUseCase {
       );
 
       if (!hit) {
+        // 外れた場合でもPPは消費される
+        await this.consumePp(battlePokemonMoveId);
         return `Used ${move.name} but it missed`;
       }
     }
 
-    // 変化技の場合はダメージなし
+    // 変化技の場合はダメージなし(PPは消費される)
     if (move.category === 'Status' || move.power === null) {
+      await this.consumePp(battlePokemonMoveId);
       return `Used ${move.name} (Status move)`;
     }
 
@@ -556,7 +591,34 @@ export class ExecuteTurnUseCase {
       currentHp: newHp,
     });
 
+    // PPを消費
+    await this.consumePp(battlePokemonMoveId);
+
     return `Used ${move.name} and dealt ${damage} damage`;
+  }
+
+  /**
+   * PPを消費
+   * @param battlePokemonMoveId バトル中のポケモンの技ID
+   */
+  private async consumePp(battlePokemonMoveId: number): Promise<void> {
+    // 現在のBattlePokemonMoveを取得
+    const battlePokemonMove =
+      await this.battleRepository.findBattlePokemonMoveById(battlePokemonMoveId);
+
+    if (!battlePokemonMove) {
+      throw new Error(
+        `BattlePokemonMove not found. 技ID: ${battlePokemonMoveId} が見つかりませんでした`,
+      );
+    }
+
+    // PPを1消費
+    const newPp = battlePokemonMove.consumePp(1);
+
+    // PPを更新
+    await this.battleRepository.updateBattlePokemonMove(battlePokemonMoveId, {
+      currentPp: newPp,
+    });
   }
 
   /**

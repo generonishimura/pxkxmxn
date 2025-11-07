@@ -52,6 +52,10 @@ describe('IntimidateEffect', () => {
       createBattlePokemonStatus: jest.fn(),
       updateBattlePokemonStatus: jest.fn(),
       findActivePokemonByBattleIdAndTrainerId: jest.fn(),
+      findBattlePokemonMovesByBattlePokemonStatusId: jest.fn(),
+      createBattlePokemonMove: jest.fn(),
+      updateBattlePokemonMove: jest.fn(),
+      findBattlePokemonMoveById: jest.fn(),
     };
   };
 
@@ -296,4 +300,3 @@ describe('IntimidateEffect', () => {
     });
   });
 });
-

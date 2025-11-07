@@ -207,6 +207,23 @@ export class MovePrismaRepository implements IMoveRepository {
     return this.toDomainEntity(moveData);
   }
 
+  async findByPokemonId(pokemonId: number): Promise<Move[]> {
+    // ポケモンが覚えている技を取得(最大4つ、簡略化のため最初の4つ)
+    const pokemonMoves = await this.prisma.pokemonMove.findMany({
+      where: { pokemonId },
+      take: 4, // 最大4つ
+      include: {
+        move: {
+          include: {
+            type: true,
+          },
+        },
+      },
+    });
+
+    return pokemonMoves.map(pm => this.toDomainEntity(pm.move));
+  }
+
   /**
    * PrismaのデータモデルをDomain層のエンティティに変換
    */
