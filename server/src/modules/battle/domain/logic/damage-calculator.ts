@@ -2,6 +2,7 @@ import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { Weather, Field, Battle } from '../entities/battle.entity';
+import { StatusConditionHandler } from './status-condition-handler';
 
 /**
  * Moveの情報
@@ -84,6 +85,10 @@ export class DamageCalculator {
         ? this.getEffectiveStat(attacker, 'attack', params.attackerStats)
         : this.getEffectiveStat(attacker, 'specialAttack', params.attackerStats);
 
+    // やけどによる物理攻撃補正
+    const burnMultiplier = StatusConditionHandler.getPhysicalAttackMultiplier(attacker);
+    const finalAttackStat = move.category === 'Physical' ? attackStat * burnMultiplier : attackStat;
+
     // 防御側のステータス（物理/特殊で分岐）
     const defenseStat =
       move.category === 'Physical'
@@ -92,7 +97,7 @@ export class DamageCalculator {
 
     // 基本ダメージ計算: floor((floor((2 * level / 5 + 2) * power * A / D) / 50) + 2)
     const baseDamage = Math.floor(
-      Math.floor((((2 * level) / 5 + 2) * move.power * attackStat) / defenseStat) / 50 + 2,
+      Math.floor((((2 * level) / 5 + 2) * move.power * finalAttackStat) / defenseStat) / 50 + 2,
     );
 
     // タイプ一致補正（1.5倍または1.0倍）
