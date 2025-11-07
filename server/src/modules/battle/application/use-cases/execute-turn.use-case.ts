@@ -18,6 +18,7 @@ import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { DamageCalculator, MoveInfo } from '../../domain/logic/damage-calculator';
 import { StatCalculator } from '../../domain/logic/stat-calculator';
+import { AccuracyCalculator } from '../../domain/logic/accuracy-calculator';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
@@ -110,6 +111,7 @@ export class ExecuteTurnUseCase {
 
     // 行動順を決定
     const actions = await this.determineActionOrder(
+      battle,
       params.trainer1Action,
       params.trainer2Action,
       trainer1Active,
@@ -221,6 +223,7 @@ export class ExecuteTurnUseCase {
    * 優先順位: 交代 > 優先度 > 速度 > 状態異常補正
    */
   private async determineActionOrder(
+    battle: Battle,
     trainer1Action: ExecuteTurnParams['trainer1Action'],
     trainer2Action: ExecuteTurnParams['trainer2Action'],
     trainer1Active: BattlePokemonStatus,
@@ -266,9 +269,54 @@ export class ExecuteTurnUseCase {
         throw new Error('Move not found');
       }
 
+      // 特性による優先度補正を適用
+      const trainer1TrainedPokemon = await this.trainedPokemonRepository.findById(
+        trainer1Active.trainedPokemonId,
+      );
+      const trainer2TrainedPokemon = await this.trainedPokemonRepository.findById(
+        trainer2Active.trainedPokemonId,
+      );
+
+      const battleContext = {
+        battle,
+        weather: battle.weather,
+        field: battle.field,
+      };
+
+      let trainer1Priority = trainer1Move.priority;
+      let trainer2Priority = trainer2Move.priority;
+
+      if (trainer1TrainedPokemon?.ability) {
+        const abilityEffect = AbilityRegistry.get(trainer1TrainedPokemon.ability.name);
+        if (abilityEffect?.modifyPriority) {
+          const modifiedPriority = abilityEffect.modifyPriority(
+            trainer1Active,
+            trainer1Move.priority,
+            battleContext,
+          );
+          if (modifiedPriority !== undefined) {
+            trainer1Priority = modifiedPriority;
+          }
+        }
+      }
+
+      if (trainer2TrainedPokemon?.ability) {
+        const abilityEffect = AbilityRegistry.get(trainer2TrainedPokemon.ability.name);
+        if (abilityEffect?.modifyPriority) {
+          const modifiedPriority = abilityEffect.modifyPriority(
+            trainer2Active,
+            trainer2Move.priority,
+            battleContext,
+          );
+          if (modifiedPriority !== undefined) {
+            trainer2Priority = modifiedPriority;
+          }
+        }
+      }
+
       // 優先度が異なる場合は優先度が高い方が先
-      if (trainer1Move.priority !== trainer2Move.priority) {
-        if (trainer1Move.priority > trainer2Move.priority) {
+      if (trainer1Priority !== trainer2Priority) {
+        if (trainer1Priority > trainer2Priority) {
           actions.push({
             trainerId: trainer1Action.trainerId,
             action: 'move',
@@ -294,8 +342,8 @@ export class ExecuteTurnUseCase {
       } else {
         // 優先度が同じ場合は速度で判定
         // 状態異常による素早さ補正を考慮
-        const trainer1Speed = await this.getEffectiveSpeed(trainer1Active);
-        const trainer2Speed = await this.getEffectiveSpeed(trainer2Active);
+        let trainer1Speed = await this.getEffectiveSpeed(trainer1Active);
+        let trainer2Speed = await this.getEffectiveSpeed(trainer2Active);
 
         // まひ状態異常の場合は素早さが0.5倍
         const trainer1SpeedMultiplier =
@@ -303,8 +351,32 @@ export class ExecuteTurnUseCase {
         const trainer2SpeedMultiplier =
           trainer2Active.statusCondition === StatusCondition.Paralysis ? 0.5 : 1.0;
 
-        const trainer1FinalSpeed = trainer1Speed * trainer1SpeedMultiplier;
-        const trainer2FinalSpeed = trainer2Speed * trainer2SpeedMultiplier;
+        trainer1Speed = trainer1Speed * trainer1SpeedMultiplier;
+        trainer2Speed = trainer2Speed * trainer2SpeedMultiplier;
+
+        // 特性による速度補正を適用
+        if (trainer1TrainedPokemon?.ability) {
+          const abilityEffect = AbilityRegistry.get(trainer1TrainedPokemon.ability.name);
+          if (abilityEffect?.modifySpeed) {
+            const modifiedSpeed = abilityEffect.modifySpeed(trainer1Active, trainer1Speed, battleContext);
+            if (modifiedSpeed !== undefined) {
+              trainer1Speed = modifiedSpeed;
+            }
+          }
+        }
+
+        if (trainer2TrainedPokemon?.ability) {
+          const abilityEffect = AbilityRegistry.get(trainer2TrainedPokemon.ability.name);
+          if (abilityEffect?.modifySpeed) {
+            const modifiedSpeed = abilityEffect.modifySpeed(trainer2Active, trainer2Speed, battleContext);
+            if (modifiedSpeed !== undefined) {
+              trainer2Speed = modifiedSpeed;
+            }
+          }
+        }
+
+        const trainer1FinalSpeed = trainer1Speed;
+        const trainer2FinalSpeed = trainer2Speed;
 
         // 速度比較
         if (trainer1FinalSpeed >= trainer2FinalSpeed) {
@@ -405,11 +477,6 @@ export class ExecuteTurnUseCase {
       throw new Error('Move not found');
     }
 
-    // 変化技の場合はダメージなし
-    if (move.category === 'Status' || move.power === null) {
-      return `Used ${move.name} (Status move)`;
-    }
-
     // 攻撃側と防御側のポケモン情報を取得
     const attackerTrainedPokemon = await this.trainedPokemonRepository.findById(
       attacker.trainedPokemonId,
@@ -420,6 +487,32 @@ export class ExecuteTurnUseCase {
 
     if (!attackerTrainedPokemon || !defenderTrainedPokemon) {
       throw new Error('TrainedPokemon not found');
+    }
+
+    // 命中率判定（変化技の場合は常に命中とみなす）
+    if (move.category !== 'Status' && move.power !== null) {
+      const battleContext = {
+        battle,
+        weather: battle.weather,
+        field: battle.field,
+      };
+      const hit = AccuracyCalculator.checkHit(
+        move.accuracy,
+        attacker,
+        defender,
+        attackerTrainedPokemon.ability?.name,
+        defenderTrainedPokemon.ability?.name,
+        battleContext,
+      );
+
+      if (!hit) {
+        return `Used ${move.name} but it missed`;
+      }
+    }
+
+    // 変化技の場合はダメージなし
+    if (move.category === 'Status' || move.power === null) {
+      return `Used ${move.name} (Status move)`;
     }
 
     // タイプ相性を取得
@@ -441,6 +534,7 @@ export class ExecuteTurnUseCase {
       attacker,
       defender,
       move: moveInfo,
+      moveType: move.type,
       attackerTypes: {
         primary: attackerTrainedPokemon.pokemon.primaryType,
         secondary: attackerTrainedPokemon.pokemon.secondaryType,

@@ -21,6 +21,7 @@ export interface DamageCalculationParams {
   attacker: BattlePokemonStatus;
   defender: BattlePokemonStatus;
   move: MoveInfo;
+  moveType: Type; // 技のタイプ（天候補正などで使用）
   attackerTypes: { primary: Type; secondary: Type | null }; // 攻撃側のポケモンのタイプ
   defenderTypes: { primary: Type; secondary: Type | null }; // 防御側のポケモンのタイプ
   typeEffectiveness: Map<string, number>; // タイプ相性マップ (key: "typeFromId-typeToId", value: effectiveness)
@@ -156,7 +157,7 @@ export class DamageCalculator {
     }
 
     // 天候による補正
-    damageMultiplier *= this.getWeatherMultiplier(params.move.typeId, params.weather);
+    damageMultiplier *= this.getWeatherMultiplier(params.moveType, params.weather);
 
     // 最終ダメージを計算
     const finalDamage = Math.floor(baseDamage * damageMultiplier);
@@ -264,19 +265,51 @@ export class DamageCalculator {
 
   /**
    * 天候による補正を取得
+   *
+   * 補正ルール:
+   * - 晴れ（Sun）:
+   *   - ほのおタイプの技: 1.5倍
+   *   - みずタイプの技: 0.5倍
+   * - 雨（Rain）:
+   *   - みずタイプの技: 1.5倍
+   *   - ほのおタイプの技: 0.5倍
+   * - 砂嵐（Sandstorm）・あられ（Hail）: 補正なし（1.0倍）
    */
-  private static getWeatherMultiplier(moveTypeId: number, weather: Weather | null): number {
-    if (!weather) {
+  private static getWeatherMultiplier(moveType: Type, weather: Weather | null): number {
+    if (!weather || weather === Weather.None) {
       return 1.0;
     }
 
-    // 天候による補正（簡易実装）
-    // 実際の実装では、タイプIDを確認して適切な補正を適用する必要がある
-    // 例: 晴れの時、ほのおタイプの技は1.5倍、みずタイプの技は0.5倍
-    // 例: 雨の時、みずタイプの技は1.5倍、ほのおタイプの技は0.5倍
+    const moveTypeName = moveType.nameEn.toLowerCase();
 
-    // ここでは簡易実装として1.0を返す
-    // 実際の実装では、Typeエンティティを使用してタイプを判定する必要がある
-    return 1.0;
+    switch (weather) {
+      case Weather.Sun:
+        // 晴れの時、ほのおタイプの技は1.5倍、みずタイプの技は0.5倍
+        if (moveTypeName === 'fire') {
+          return 1.5;
+        }
+        if (moveTypeName === 'water') {
+          return 0.5;
+        }
+        return 1.0;
+
+      case Weather.Rain:
+        // 雨の時、みずタイプの技は1.5倍、ほのおタイプの技は0.5倍
+        if (moveTypeName === 'water') {
+          return 1.5;
+        }
+        if (moveTypeName === 'fire') {
+          return 0.5;
+        }
+        return 1.0;
+
+      case Weather.Sandstorm:
+      case Weather.Hail:
+        // 砂嵐・あられの場合は補正なし（将来的に実装可能）
+        return 1.0;
+
+      default:
+        return 1.0;
+    }
   }
 }

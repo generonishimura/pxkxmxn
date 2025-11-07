@@ -43,6 +43,15 @@ describe('DamageCalculator', () => {
     };
   };
 
+  // moveTypeIdからTypeエンティティを作成するヘルパー関数
+  const createMoveType = (typeId: number, nameEn?: string): Type => {
+    // 天候補正テスト用に、ほのおとみずタイプを特別に扱う
+    if (nameEn) {
+      return createType(typeId, `Type${typeId}`, nameEn);
+    }
+    return createType(typeId);
+  };
+
   beforeEach(() => {
     // AbilityRegistryをリセット
     const registry = (AbilityRegistry as any).registry;
@@ -67,6 +76,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(1), secondary: null },
         defenderTypes: { primary: createType(2), secondary: null },
         typeEffectiveness: new Map([['1-2', 1.0]]),
@@ -93,6 +103,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(1), secondary: null },
         defenderTypes: { primary: createType(2), secondary: null },
         typeEffectiveness: new Map([['1-2', 1.0]]),
@@ -122,6 +133,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null }, // STABなし
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -150,6 +162,7 @@ describe('DamageCalculator', () => {
         attacker: createBattlePokemonStatus({ attackRank: 0 }),
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -178,6 +191,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender: createBattlePokemonStatus({ defenseRank: 0 }),
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -209,6 +223,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(1), secondary: null }, // STABあり
         defenderTypes: { primary: createType(2), secondary: null },
         typeEffectiveness: new Map([['1-2', 1.0]]),
@@ -241,6 +256,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: createType(1) }, // サブタイプでSTAB
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -273,6 +289,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 2.0]]), // 2倍
@@ -303,6 +320,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 0.5]]), // 0.5倍
@@ -333,6 +351,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 0.0]]), // 無効
@@ -356,6 +375,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: createType(4) },
         typeEffectiveness: new Map([
@@ -390,6 +410,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: createType(4) },
         typeEffectiveness: new Map([
@@ -418,6 +439,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -448,6 +470,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -478,6 +501,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -508,6 +532,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -543,6 +568,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -576,6 +602,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -614,6 +641,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -653,6 +681,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -690,6 +719,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -727,6 +757,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 0.5]]), // 0.5倍（無効ではない）
@@ -749,6 +780,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 0.0]]), // 無効
@@ -771,6 +803,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -799,6 +832,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
@@ -823,6 +857,7 @@ describe('DamageCalculator', () => {
         attacker,
         defender,
         move,
+        moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
         typeEffectiveness: new Map([['1-3', 1.0]]),
