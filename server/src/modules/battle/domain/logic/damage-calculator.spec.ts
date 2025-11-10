@@ -30,7 +30,11 @@ describe('DamageCalculator', () => {
     );
   };
 
-  const createType = (id: number, name: string = `Type${id}`, nameEn: string = `Type${id}En`): Type => {
+  const createType = (
+    id: number,
+    name: string = `Type${id}`,
+    nameEn: string = `Type${id}En`,
+  ): Type => {
     return new Type(id, name, nameEn);
   };
 
@@ -82,8 +86,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-2', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       expect(DamageCalculator.calculate(params)).toBe(0);
@@ -109,8 +125,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-2', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       expect(DamageCalculator.calculate(params)).toBe(0);
@@ -139,8 +167,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const damage = DamageCalculator.calculate(params);
@@ -168,13 +208,31 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 50, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 50,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsHighAttack: DamageCalculationParams = {
         ...paramsLowAttack,
-        attackerStats: { attack: 150, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 150,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const damageLow = DamageCalculator.calculate(paramsLowAttack);
@@ -197,13 +255,31 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 50, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 50,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsHighDefense: DamageCalculationParams = {
         ...paramsLowDefense,
-        defenderStats: { attack: 100, defense: 150, specialAttack: 100, specialDefense: 100, speed: 100 },
+        defenderStats: {
+          attack: 100,
+          defense: 150,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const damageLow = DamageCalculator.calculate(paramsLowDefense);
@@ -229,8 +305,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-2', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsWithoutStab: DamageCalculationParams = {
@@ -262,8 +350,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsWithoutStab: DamageCalculationParams = {
@@ -295,8 +395,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 2.0]]), // 2倍
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsNormal: DamageCalculationParams = {
@@ -326,8 +438,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 0.5]]), // 0.5倍
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsNormal: DamageCalculationParams = {
@@ -357,8 +481,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 0.0]]), // 無効
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const damage = DamageCalculator.calculate(params);
@@ -384,8 +520,20 @@ describe('DamageCalculator', () => {
         ]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsNormal: DamageCalculationParams = {
@@ -419,8 +567,20 @@ describe('DamageCalculator', () => {
         ]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const damage = DamageCalculator.calculate(params);
@@ -445,8 +605,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsNoRank: DamageCalculationParams = {
@@ -476,8 +648,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsNoRank: DamageCalculationParams = {
@@ -507,8 +691,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsNoRank: DamageCalculationParams = {
@@ -538,8 +734,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsNoRank: DamageCalculationParams = {
@@ -574,8 +782,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsNoBurn: DamageCalculationParams = {
@@ -608,8 +828,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsNoBurn: DamageCalculationParams = {
@@ -648,8 +880,20 @@ describe('DamageCalculator', () => {
         weather: null,
         field: null,
         attackerAbilityName: 'test-ability',
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsWithoutAbility: DamageCalculationParams = {
@@ -688,8 +932,20 @@ describe('DamageCalculator', () => {
         weather: null,
         field: null,
         defenderAbilityName: 'マルチスケイル',
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsWithoutMultiscale: DamageCalculationParams = {
@@ -726,8 +982,20 @@ describe('DamageCalculator', () => {
         weather: null,
         field: null,
         defenderAbilityName: 'マルチスケイル',
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsWithoutMultiscale: DamageCalculationParams = {
@@ -764,9 +1032,21 @@ describe('DamageCalculator', () => {
         weather: null,
         field: null,
         // 攻撃1、ランク-6 → 実効攻撃力 = floor(1 * 2/8) = floor(0.25) = 0
-        attackerStats: { attack: 1, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 1,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
         // 防御999、ランク6 → 実効防御力 = floor(999 * 8/2) = floor(3996) = 3996
-        defenderStats: { attack: 100, defense: 999, specialAttack: 100, specialDefense: 100, speed: 100 },
+        defenderStats: {
+          attack: 100,
+          defense: 999,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const damage = DamageCalculator.calculate(params);
@@ -794,8 +1074,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 0.5]]), // 0.5倍（無効ではない）
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const damage = DamageCalculator.calculate(params);
@@ -820,8 +1112,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 0.0]]), // 無効
         weather: null,
         field: null,
-        attackerStats: { attack: 999, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 1, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 999,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 1,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const damage = DamageCalculator.calculate(params);
@@ -872,8 +1176,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       // 正常なケースではエラーが発生しないことを確認
@@ -897,8 +1213,20 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: Weather.Sun,
         field: null,
-        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
-        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
       };
 
       const paramsNoWeather: DamageCalculationParams = {
@@ -914,4 +1242,3 @@ describe('DamageCalculator', () => {
     });
   });
 });
-
