@@ -168,7 +168,6 @@ export class DamageCalculator {
     }
 
     // 計算結果が0以下の場合は0を返す（タイプ相性が0.25倍などでダメージが0になる場合を考慮）
-    // 計算結果が1以上の場合はそのまま返す
     if (finalDamage <= 0) {
       return 0;
     }
