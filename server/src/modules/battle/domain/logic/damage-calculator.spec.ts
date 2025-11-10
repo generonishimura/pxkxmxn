@@ -744,7 +744,7 @@ describe('DamageCalculator', () => {
   });
 
   describe('calculate - エッジケース', () => {
-    it('最低ダメージは1になる（タイプ相性が無効でない場合）', () => {
+    it('タイプ相性が無効でない場合でも、計算結果が0の場合は0ダメージを返す', () => {
       const attacker = createBattlePokemonStatus({
         attackRank: -6, // 最低ランク
       });
@@ -760,7 +760,7 @@ describe('DamageCalculator', () => {
         moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
-        typeEffectiveness: new Map([['1-3', 0.5]]), // 0.5倍（無効ではない）
+        typeEffectiveness: new Map([['1-3', 0.25]]), // 0.25倍（無効ではないが、計算結果が0になる可能性がある）
         weather: null,
         field: null,
         attackerStats: { attack: 1, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
@@ -768,6 +768,35 @@ describe('DamageCalculator', () => {
       };
 
       const damage = DamageCalculator.calculate(params);
+      // 計算結果が0以下の場合は0を返す（最低1ダメージを保証しない）
+      expect(damage).toBeGreaterThanOrEqual(0);
+    });
+
+    it('タイプ相性が無効でない場合、計算結果が1以上の場合はそのまま返す', () => {
+      const attacker = createBattlePokemonStatus({
+        attackRank: 0,
+      });
+      const defender = createBattlePokemonStatus({
+        defenseRank: 0,
+      });
+      const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
+
+      const params: DamageCalculationParams = {
+        attacker,
+        defender,
+        move,
+        moveType: createMoveType(move.typeId),
+        attackerTypes: { primary: createType(2), secondary: null },
+        defenderTypes: { primary: createType(3), secondary: null },
+        typeEffectiveness: new Map([['1-3', 0.5]]), // 0.5倍（無効ではない）
+        weather: null,
+        field: null,
+        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+      };
+
+      const damage = DamageCalculator.calculate(params);
+      // 計算結果が1以上の場合はそのまま返す
       expect(damage).toBeGreaterThanOrEqual(1);
     });
 

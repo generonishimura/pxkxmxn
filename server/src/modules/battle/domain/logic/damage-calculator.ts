@@ -163,12 +163,17 @@ export class DamageCalculator {
     const finalDamage = Math.floor(baseDamage * damageMultiplier);
 
     // タイプ相性が0の場合は0ダメージを返す
-    // それ以外の場合は最低1ダメージを保証
     if (typeEffectiveness === 0) {
       return 0;
     }
 
-    return Math.max(1, finalDamage);
+    // 計算結果が0以下の場合は0を返す（タイプ相性が0.25倍などでダメージが0になる場合を考慮）
+    // 計算結果が1以上の場合はそのまま返す
+    if (finalDamage <= 0) {
+      return 0;
+    }
+
+    return finalDamage;
   }
 
   /**
