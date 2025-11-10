@@ -823,7 +823,7 @@ describe('DamageCalculator', () => {
       expect(damage).toBe(0);
     });
 
-    it('baseStatsが提供されていない場合、maxHpをフォールバックとして使用する', () => {
+    it('baseStatsが提供されていない場合、エラーが発生する', () => {
       const attacker = createBattlePokemonStatus({ maxHp: 200 });
       const defender = createBattlePokemonStatus({ maxHp: 100 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -841,10 +841,10 @@ describe('DamageCalculator', () => {
         // attackerStatsとdefenderStatsを提供しない
       };
 
-      // エラーが発生しないことを確認
-      expect(() => DamageCalculator.calculate(params)).not.toThrow();
-      const damage = DamageCalculator.calculate(params);
-      expect(damage).toBeGreaterThan(0);
+      // baseStatsが提供されていない場合はエラーが発生する
+      expect(() => DamageCalculator.calculate(params)).toThrow(
+        'baseStats must be provided for accurate damage calculation',
+      );
     });
 
     it('getEffectiveStatに不正なstatTypeが渡された場合、エラーが発生する', () => {
