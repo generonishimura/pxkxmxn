@@ -744,9 +744,9 @@ describe('DamageCalculator', () => {
   });
 
   describe('calculate - エッジケース', () => {
-    it('最低ダメージは1になる（タイプ相性が無効でない場合）', () => {
+    it('タイプ相性が無効でない場合でも、計算結果が0の場合は0ダメージを返す', () => {
       const attacker = createBattlePokemonStatus({
-        attackRank: -6, // 最低ランク
+        attackRank: -6, // 最低ランク（実効攻撃力が0になる）
       });
       const defender = createBattlePokemonStatus({
         defenseRank: 6, // 最高ランク
@@ -760,15 +760,49 @@ describe('DamageCalculator', () => {
         moveType: createMoveType(move.typeId),
         attackerTypes: { primary: createType(2), secondary: null },
         defenderTypes: { primary: createType(3), secondary: null },
-        typeEffectiveness: new Map([['1-3', 0.5]]), // 0.5倍（無効ではない）
+        typeEffectiveness: new Map([['1-3', 0.25]]), // 0.25倍（無効ではないが、計算結果が0になる）
         weather: null,
         field: null,
+        // 攻撃1、ランク-6 → 実効攻撃力 = floor(1 * 2/8) = floor(0.25) = 0
         attackerStats: { attack: 1, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        // 防御999、ランク6 → 実効防御力 = floor(999 * 8/2) = floor(3996) = 3996
         defenderStats: { attack: 100, defense: 999, specialAttack: 100, specialDefense: 100, speed: 100 },
       };
 
       const damage = DamageCalculator.calculate(params);
-      expect(damage).toBeGreaterThanOrEqual(1);
+      // 実効攻撃力が0のため、baseDamage = floor(floor(0) / 50 + 2) = 2
+      // finalDamage = floor(2 * 0.25) = floor(0.5) = 0
+      expect(damage).toBe(0);
+    });
+
+    it('タイプ相性が無効でない場合、計算結果が1以上の場合はそのまま返す', () => {
+      const attacker = createBattlePokemonStatus({
+        attackRank: 0,
+      });
+      const defender = createBattlePokemonStatus({
+        defenseRank: 0,
+      });
+      const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
+
+      const params: DamageCalculationParams = {
+        attacker,
+        defender,
+        move,
+        moveType: createMoveType(move.typeId),
+        attackerTypes: { primary: createType(2), secondary: null }, // STABなし
+        defenderTypes: { primary: createType(3), secondary: null },
+        typeEffectiveness: new Map([['1-3', 0.5]]), // 0.5倍（無効ではない）
+        weather: null,
+        field: null,
+        attackerStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+        defenderStats: { attack: 100, defense: 100, specialAttack: 100, specialDefense: 100, speed: 100 },
+      };
+
+      const damage = DamageCalculator.calculate(params);
+      // レベル50、攻撃100、防御100、威力100、タイプ相性0.5倍の場合
+      // baseDamage = floor(floor((22 * 100 * 100) / 100) / 50 + 2) = floor(2200 / 50 + 2) = floor(44 + 2) = 46
+      // finalDamage = floor(46 * 1.0 * 0.5) = floor(23) = 23
+      expect(damage).toBe(23);
     });
 
     it('タイプ相性が無効の場合、最低ダメージでも0になる', () => {
@@ -794,7 +828,7 @@ describe('DamageCalculator', () => {
       expect(damage).toBe(0);
     });
 
-    it('baseStatsが提供されていない場合、maxHpをフォールバックとして使用する', () => {
+    it('baseStatsが提供されていない場合、エラーが発生する', () => {
       const attacker = createBattlePokemonStatus({ maxHp: 200 });
       const defender = createBattlePokemonStatus({ maxHp: 100 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -812,10 +846,10 @@ describe('DamageCalculator', () => {
         // attackerStatsとdefenderStatsを提供しない
       };
 
-      // エラーが発生しないことを確認
-      expect(() => DamageCalculator.calculate(params)).not.toThrow();
-      const damage = DamageCalculator.calculate(params);
-      expect(damage).toBeGreaterThan(0);
+      // baseStatsが提供されていない場合はエラーが発生する
+      expect(() => DamageCalculator.calculate(params)).toThrow(
+        'baseStats must be provided for accurate damage calculation',
+      );
     });
 
     it('getEffectiveStatに不正なstatTypeが渡された場合、エラーが発生する', () => {

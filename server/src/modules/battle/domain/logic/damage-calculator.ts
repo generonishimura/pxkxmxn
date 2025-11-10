@@ -163,16 +163,25 @@ export class DamageCalculator {
     const finalDamage = Math.floor(baseDamage * damageMultiplier);
 
     // タイプ相性が0の場合は0ダメージを返す
-    // それ以外の場合は最低1ダメージを保証
     if (typeEffectiveness === 0) {
       return 0;
     }
 
-    return Math.max(1, finalDamage);
+    // 計算結果が0以下の場合は0を返す（タイプ相性が0.25倍などでダメージが0になる場合を考慮）
+    if (finalDamage <= 0) {
+      return 0;
+    }
+
+    return finalDamage;
   }
 
   /**
    * ランク補正を考慮した実効ステータスを取得
+   * @param status バトル中のポケモンステータス
+   * @param statType 取得するステータスの種類
+   * @param baseStats 計算済みのステータス値（種族値・個体値・努力値・性格補正を考慮済み）
+   * @returns ランク補正を考慮した実効ステータス値
+   * @throws Error baseStatsが提供されていない場合
    */
   private static getEffectiveStat(
     status: BattlePokemonStatus,
@@ -185,33 +194,35 @@ export class DamageCalculator {
       speed: number;
     },
   ): number {
-    // 実際のステータス値が提供されている場合はそれを使用
-    let baseStat: number;
-    if (baseStats) {
-      switch (statType) {
-        case 'attack':
-          baseStat = baseStats.attack;
-          break;
-        case 'defense':
-          baseStat = baseStats.defense;
-          break;
-        case 'specialAttack':
-          baseStat = baseStats.specialAttack;
-          break;
-        case 'specialDefense':
-          baseStat = baseStats.specialDefense;
-          break;
-        case 'speed':
-          baseStat = baseStats.speed;
-          break;
-        default:
-          throw new Error(`Unknown statType: ${statType}`);
-      }
-    } else {
-      // フォールバック: 最大HPを基準に使用（後方互換性のため）
-      // 警告: これは正確なステータス値ではない。baseStatsを提供することを推奨。
-      baseStat = status.maxHp;
+    // baseStatsは必須（正確なダメージ計算のため）
+    if (!baseStats) {
+      throw new Error(
+        `baseStats must be provided for accurate damage calculation. statType: ${statType}`,
+      );
     }
+
+    // 実際のステータス値を使用
+    let baseStat: number;
+    switch (statType) {
+      case 'attack':
+        baseStat = baseStats.attack;
+        break;
+      case 'defense':
+        baseStat = baseStats.defense;
+        break;
+      case 'specialAttack':
+        baseStat = baseStats.specialAttack;
+        break;
+      case 'specialDefense':
+        baseStat = baseStats.specialDefense;
+        break;
+      case 'speed':
+        baseStat = baseStats.speed;
+        break;
+      default:
+        throw new Error(`Unknown statType: ${statType}`);
+    }
+
     const multiplier = status.getStatMultiplier(statType);
     return Math.floor(baseStat * multiplier);
   }
