@@ -52,6 +52,7 @@ describe('IntimidateEffect', () => {
       createBattlePokemonStatus: jest.fn(),
       updateBattlePokemonStatus: jest.fn(),
       findActivePokemonByBattleIdAndTrainerId: jest.fn(),
+      findBattlePokemonStatusById: jest.fn(),
       findBattlePokemonMovesByBattlePokemonStatusId: jest.fn(),
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),

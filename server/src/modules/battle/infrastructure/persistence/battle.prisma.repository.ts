@@ -179,6 +179,18 @@ export class BattlePrismaRepository implements IBattleRepository {
     return this.toBattlePokemonStatusEntity(statusData);
   }
 
+  async findBattlePokemonStatusById(id: number): Promise<BattlePokemonStatus | null> {
+    const statusData = await this.prisma.battlePokemonStatus.findUnique({
+      where: { id },
+    });
+
+    if (!statusData) {
+      return null;
+    }
+
+    return this.toBattlePokemonStatusEntity(statusData);
+  }
+
   /**
    * PrismaのBattleモデルをDomain層のBattleエンティティに変換
    */

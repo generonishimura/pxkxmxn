@@ -23,6 +23,7 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
+import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 
 /**
  * ターン実行の入力パラメータ
@@ -518,13 +519,17 @@ export class ExecuteTurnUseCase {
       throw new Error('TrainedPokemon not found');
     }
 
+    // バトルコンテキストを作成（技の特殊効果用）
+    const battleContext = {
+      battle,
+      battleRepository: this.battleRepository,
+      trainedPokemonRepository: this.trainedPokemonRepository,
+      weather: battle.weather,
+      field: battle.field,
+    };
+
     // 命中率判定（変化技の場合は常に命中とみなす）
     if (move.category !== 'Status' && move.power !== null) {
-      const battleContext = {
-        battle,
-        weather: battle.weather,
-        field: battle.field,
-      };
       const hit = AccuracyCalculator.checkHit(
         move.accuracy,
         attacker,
@@ -537,6 +542,16 @@ export class ExecuteTurnUseCase {
       if (!hit) {
         // 外れた場合でもPPは消費される
         await this.consumePp(battlePokemonMoveId);
+
+        // 技の特殊効果（onMiss）を呼び出す
+        const moveEffect = MoveRegistry.get(move.name);
+        if (moveEffect?.onMiss) {
+          const missMessage = await moveEffect.onMiss(attacker, defender, battleContext);
+          if (missMessage) {
+            return `Used ${move.name} but it missed. ${missMessage}`;
+          }
+        }
+
         return `Used ${move.name} but it missed`;
       }
     }
@@ -591,10 +606,26 @@ export class ExecuteTurnUseCase {
       currentHp: newHp,
     });
 
+    // 更新後のdefenderを取得（状態異常付与のために最新の状態を取得）
+    const updatedDefender = await this.battleRepository.findBattlePokemonStatusById(defender.id);
+    if (!updatedDefender) {
+      throw new Error('Defender not found after damage application');
+    }
+
     // PPを消費
     await this.consumePp(battlePokemonMoveId);
 
-    return `Used ${move.name} and dealt ${damage} damage`;
+    // 技の特殊効果（onHit）を呼び出す
+    const moveEffect = MoveRegistry.get(move.name);
+    let effectMessage = '';
+    if (moveEffect?.onHit) {
+      const hitMessage = await moveEffect.onHit(attacker, updatedDefender, battleContext);
+      if (hitMessage) {
+        effectMessage = ` ${hitMessage}`;
+      }
+    }
+
+    return `Used ${move.name} and dealt ${damage} damage${effectMessage}`;
   }
 
   /**

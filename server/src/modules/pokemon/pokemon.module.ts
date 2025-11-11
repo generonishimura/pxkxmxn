@@ -16,6 +16,7 @@ import {
 } from './domain/pokemon.repository.interface';
 import { PrismaModule } from '@/shared/prisma/prisma.module';
 import { AbilityRegistry } from './domain/abilities/ability-registry';
+import { MoveRegistry } from './domain/moves/move-registry';
 
 /**
  * PokemonModule
@@ -59,9 +60,10 @@ import { AbilityRegistry } from './domain/abilities/ability-registry';
 })
 export class PokemonModule {
   /**
-   * モジュール初期化時に特性レジストリを初期化
+   * モジュール初期化時に特性レジストリと技のレジストリを初期化
    */
   constructor() {
     AbilityRegistry.initialize();
+    MoveRegistry.initialize();
   }
 }
