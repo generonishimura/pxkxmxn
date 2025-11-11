@@ -65,4 +65,3 @@ export interface IMoveEffect {
     battleContext: BattleContext,
   ): Promise<string | null>;
 }
-
