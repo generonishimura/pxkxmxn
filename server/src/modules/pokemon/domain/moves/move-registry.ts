@@ -27,7 +27,7 @@ export class MoveRegistry {
     this.registry.set('かえんほうしゃ', new FlamethrowerEffect());
     this.registry.set('10まんボルト', new ThunderboltEffect());
     this.registry.set('どくどく', new ToxicEffect());
-    this.registry.set('こおりのつぶて', new IceBeamEffect());
+    this.registry.set('れいとうビーム', new IceBeamEffect());
     this.registry.set('ねむりごな', new SleepPowderEffect());
   }
 

@@ -62,33 +62,18 @@ export abstract class BaseOpponentStatChangeEffect implements IAbilityEffect {
     // 新しいランクを計算（-6から+6の範囲内で）
     const newRank = Math.max(-6, Math.min(6, currentRank + this.rankChange));
 
-    // ステータスランクを更新するためのオブジェクトを作成
-    // Partial<BattlePokemonStatus>ではreadonlyプロパティに直接代入できないため、
-    // 型アサーションを使用して更新データを作成
-    const updateData: Partial<BattlePokemonStatus> = {} as Partial<BattlePokemonStatus>;
-    switch (this.statType) {
-      case 'attack':
-        (updateData as any).attackRank = newRank;
-        break;
-      case 'defense':
-        (updateData as any).defenseRank = newRank;
-        break;
-      case 'specialAttack':
-        (updateData as any).specialAttackRank = newRank;
-        break;
-      case 'specialDefense':
-        (updateData as any).specialDefenseRank = newRank;
-        break;
-      case 'speed':
-        (updateData as any).speedRank = newRank;
-        break;
-      case 'accuracy':
-        (updateData as any).accuracyRank = newRank;
-        break;
-      case 'evasion':
-        (updateData as any).evasionRank = newRank;
-        break;
-    }
+    // statTypeからプロパティ名をマッピングしてupdateDataを構築
+    const statRankPropMap: Record<StatType, keyof BattlePokemonStatus> = {
+      attack: 'attackRank',
+      defense: 'defenseRank',
+      specialAttack: 'specialAttackRank',
+      specialDefense: 'specialDefenseRank',
+      speed: 'speedRank',
+      accuracy: 'accuracyRank',
+      evasion: 'evasionRank',
+    };
+    const propName = statRankPropMap[this.statType];
+    const updateData: Partial<BattlePokemonStatus> = { [propName]: newRank } as Partial<BattlePokemonStatus>;
 
     // 相手のステータスランクを更新
     await battleContext.battleRepository.updateBattlePokemonStatus(opponentPokemon.id, updateData);
