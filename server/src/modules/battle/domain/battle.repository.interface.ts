@@ -60,6 +60,11 @@ export interface IBattleRepository {
   ): Promise<BattlePokemonStatus | null>;
 
   /**
+   * IDでバトル中のポケモン状態を取得
+   */
+  findBattlePokemonStatusById(id: number): Promise<BattlePokemonStatus | null>;
+
+  /**
    * バトル中のポケモンの技一覧を取得
    */
   findBattlePokemonMovesByBattlePokemonStatusId(

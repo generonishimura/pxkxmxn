@@ -1,10 +1,11 @@
 import { Battle } from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
 import { Weather, Field } from '@/modules/battle/domain/entities/battle.entity';
+import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
 
 /**
  * バトルコンテキスト
- * 特性効果の実装時に必要な情報を提供する
+ * 特性効果や技の特殊効果の実装時に必要な情報を提供する
  *
  * クリーンアーキテクチャの原則に従い、Domain層の特性効果が
  * Infrastructure層のリポジトリに直接依存しないように、
@@ -22,6 +23,12 @@ export interface BattleContext {
    * 特性効果からバトル状態を更新するために使用
    */
   battleRepository?: IBattleRepository;
+
+  /**
+   * 育成ポケモンリポジトリ
+   * 技の特殊効果からポケモンのタイプ情報などを取得するために使用
+   */
+  trainedPokemonRepository?: ITrainedPokemonRepository;
 
   /**
    * 天候

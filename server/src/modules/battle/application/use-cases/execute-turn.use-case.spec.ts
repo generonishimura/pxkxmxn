@@ -46,6 +46,7 @@ describe('ExecuteTurnUseCase', () => {
       createBattlePokemonStatus: jest.fn(),
       updateBattlePokemonStatus: jest.fn(),
       findActivePokemonByBattleIdAndTrainerId: jest.fn(),
+      findBattlePokemonStatusById: jest.fn(),
       findBattlePokemonMovesByBattlePokemonStatusId: jest.fn(),
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
@@ -327,6 +328,7 @@ describe('ExecuteTurnUseCase', () => {
       );
 
       battleRepository.updateBattlePokemonStatus.mockResolvedValue(updatedDefenderStatus);
+      battleRepository.findBattlePokemonStatusById.mockResolvedValue(updatedDefenderStatus);
       battleRepository.findBattlePokemonStatusByBattleId.mockResolvedValue([
         attackerStatus,
         defenderStatus,
@@ -442,8 +444,10 @@ describe('ExecuteTurnUseCase', () => {
       );
 
       battleRepository.updateBattlePokemonStatus
-        .mockResolvedValueOnce(inactiveStatus)
-        .mockResolvedValueOnce(activeSwitchStatus);
+        .mockResolvedValueOnce(inactiveStatus) // executeSwitchでtrainer1のポケモンを非アクティブに
+        .mockResolvedValueOnce(activeSwitchStatus) // executeSwitchでtrainer1のポケモンをアクティブに
+        .mockResolvedValueOnce(currentActiveStatus); // executeMoveでtrainer1がダメージを受ける
+      battleRepository.findBattlePokemonStatusById.mockResolvedValue(currentActiveStatus); // executeMoveでtrainer1を取得
       battleRepository.findBattlePokemonMoveById.mockResolvedValue(battlePokemonMove);
       battleRepository.updateBattlePokemonMove.mockResolvedValue(
         new BattlePokemonMove(1, trainer2ActiveStatus.id, move.id, 34, 35),
@@ -536,6 +540,7 @@ describe('ExecuteTurnUseCase', () => {
         .mockResolvedValueOnce(trainedPokemon2); // executeMoveでdefender取得
 
       battleRepository.updateBattlePokemonStatus.mockResolvedValue(faintedDefenderStatus);
+      battleRepository.findBattlePokemonStatusById.mockResolvedValue(faintedDefenderStatus);
       // determineActionOrderで使用
       battleRepository.findBattlePokemonStatusByBattleId.mockResolvedValueOnce([
         attackerStatus,
@@ -1049,6 +1054,13 @@ describe('ExecuteTurnUseCase', () => {
       battleRepository.findBattlePokemonMoveById
         .mockResolvedValueOnce(battlePokemonMove) // consumePp用（trainer1）
         .mockResolvedValueOnce(battlePokemonMove); // consumePp用（trainer2）
+      // executeMoveでダメージ適用後に呼ばれる
+      battleRepository.updateBattlePokemonStatus
+        .mockResolvedValueOnce(defenderStatus) // trainer1の技でdefenderがダメージを受ける
+        .mockResolvedValueOnce(attackerStatus); // trainer2の技でattackerがダメージを受ける
+      battleRepository.findBattlePokemonStatusById
+        .mockResolvedValueOnce(defenderStatus) // trainer1の技でdefenderを取得
+        .mockResolvedValueOnce(attackerStatus); // trainer2の技でattackerを取得
       battleRepository.updateBattlePokemonMove.mockResolvedValue(battlePokemonMoveAfterConsumption);
       battleRepository.update.mockResolvedValue({
         ...battle,
