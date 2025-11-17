@@ -38,6 +38,7 @@ export interface PokeApiPokemonResponse {
   id: number;
   name: string;
   names?: Array<{ language: PokeApiNamedResource; name: string }>;
+  species: PokeApiNamedResource; // pokemon-speciesへのリンク
   stats: Array<{
     base_stat: number;
     stat: PokeApiNamedResource;

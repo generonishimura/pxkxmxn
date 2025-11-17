@@ -15,19 +15,25 @@ const prisma = new PrismaClient();
 const pokeApi = new PokeApiClient();
 
 const EXCLUDED_TYPE_NAMES = new Set(['unknown', 'shadow']);
-const TYPE_LIST_LIMIT = 100;
-const DEFAULT_POKEMON_LIMIT = 151;
-const DEFAULT_MOVE_LIMIT = 200;
-const DEFAULT_ABILITY_LIMIT = 100;
 
-const parseLimit = (value: string | undefined, fallback: number): number => {
+/**
+ * 環境変数から制限値を取得
+ * 0または未指定の場合は全件取得（PokeAPIのcountを使用）
+ */
+const parseLimit = (value: string | undefined): number | null => {
+  if (!value) {
+    return null; // 全件取得
+  }
   const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null; // 無効な値の場合は全件取得
+  }
+  return parsed;
 };
 
-const POKEMON_LIMIT = parseLimit(process.env.SEED_POKEMON_LIMIT, DEFAULT_POKEMON_LIMIT);
-const MOVE_LIMIT = parseLimit(process.env.SEED_MOVE_LIMIT, DEFAULT_MOVE_LIMIT);
-const ABILITY_LIMIT = parseLimit(process.env.SEED_ABILITY_LIMIT, DEFAULT_ABILITY_LIMIT);
+const POKEMON_LIMIT = parseLimit(process.env.SEED_POKEMON_LIMIT);
+const MOVE_LIMIT = parseLimit(process.env.SEED_MOVE_LIMIT);
+const ABILITY_LIMIT = parseLimit(process.env.SEED_ABILITY_LIMIT);
 
 interface TypeSeedResult {
   typeMap: Map<string, number>;
@@ -54,11 +60,14 @@ async function main(): Promise<void> {
 }
 
 const filterCanonicalTypes = (types: TypeSeedData[]): TypeSeedData[] =>
-  types.filter((type) => !EXCLUDED_TYPE_NAMES.has(type.apiName));
+  types.filter(type => !EXCLUDED_TYPE_NAMES.has(type.apiName));
 
 async function seedTypes(): Promise<TypeSeedResult> {
   console.log('Seeding Types...');
-  const list = await pokeApi.fetchTypeList(TYPE_LIST_LIMIT, 0);
+  // まず総数を取得
+  const initialList = await pokeApi.fetchTypeList(1, 0);
+  const totalCount = initialList.count;
+  const list = await pokeApi.fetchTypeList(totalCount, 0);
   const seeds: TypeSeedData[] = [];
 
   for (const resource of list.results) {
@@ -89,7 +98,7 @@ async function seedTypes(): Promise<TypeSeedResult> {
     typeMap.set(type.apiName, record.id);
   }
 
-  console.log(`Seeded ${canonicalTypes.length} types.`);
+  console.log(`Seeded ${canonicalTypes.length} types (${totalCount} total in API).`);
   return { typeMap, typeSeeds: canonicalTypes };
 }
 
@@ -133,17 +142,69 @@ async function seedTypeEffectiveness(
 }
 
 async function seedPokemon(typeMap: Map<string, number>): Promise<void> {
-  console.log(`Seeding Pokemon (limit: ${POKEMON_LIMIT})...`);
-  const list = await pokeApi.fetchPokemonList(POKEMON_LIMIT, 0);
+  // まず総数を取得
+  const initialList = await pokeApi.fetchPokemonList(1, 0);
+  const totalCount = initialList.count;
+  const limit = POKEMON_LIMIT ?? totalCount;
+  const actualLimit = Math.min(limit, totalCount);
 
-  for (const resource of list.results) {
-    const pokemon = await pokeApi.fetchPokemon(resource.name);
-    const species = await pokeApi.fetchPokemonSpecies(resource.name);
-    const seed = createPokemonSeedData(pokemon, species);
-    await upsertPokemon(seed, typeMap);
+  console.log(`Seeding Pokemon (${actualLimit} / ${totalCount} total)...`);
+
+  // ページネーションで全件取得
+  let offset = 0;
+  let processed = 0;
+  const batchSize = 100; // 一度に取得する件数
+
+  while (processed < actualLimit) {
+    const currentBatchSize = Math.min(batchSize, actualLimit - processed);
+    const list = await pokeApi.fetchPokemonList(currentBatchSize, offset);
+
+    for (const resource of list.results) {
+      try {
+        const pokemon = await pokeApi.fetchPokemon(resource.name);
+        // pokemon-speciesのURLからIDを抽出（例: "https://pokeapi.co/api/v2/pokemon-species/386/" -> 386）
+        const speciesUrl = pokemon.species.url;
+        const speciesIdMatch = speciesUrl.match(/\/pokemon-species\/(\d+)\//);
+        if (!speciesIdMatch) {
+          console.warn(`\n  Skip ${resource.name}: cannot extract species ID from ${speciesUrl}`);
+          processed++;
+          continue;
+        }
+        const speciesId = parseInt(speciesIdMatch[1], 10);
+        const species = await pokeApi.fetchPokemonSpecies(speciesId);
+        const seed = createPokemonSeedData(pokemon, species);
+        await upsertPokemon(seed, typeMap);
+        processed++;
+
+        if (processed % 10 === 0) {
+          process.stdout.write(`\r  Progress: ${processed}/${actualLimit}`);
+        }
+      } catch (error) {
+        // 404エラーなどの場合は簡潔に警告のみ表示
+        if (error && typeof error === 'object' && 'response' in error) {
+          const axiosError = error as { response?: { status?: number } };
+          if (axiosError.response?.status === 404) {
+            console.warn(`\n  Skip ${resource.name}: not found (404)`);
+          } else {
+            console.error(
+              `\n  Error processing ${resource.name}:`,
+              axiosError.response?.status || 'unknown error',
+            );
+          }
+        } else {
+          console.error(`\n  Error processing ${resource.name}:`, error);
+        }
+        processed++; // エラーでもカウントして続行
+      }
+    }
+
+    offset += list.results.length;
+    if (list.results.length === 0 || offset >= actualLimit) {
+      break;
+    }
   }
 
-  console.log(`Seeded ${list.results.length} pokemon.`);
+  console.log(`\nSeeded ${processed} pokemon.`);
 }
 
 const upsertPokemon = async (
@@ -155,9 +216,7 @@ const upsertPokemon = async (
     throw new Error(`Type ${seed.primaryTypeName} not found for pokemon ${seed.nameEn}`);
   }
 
-  const secondaryTypeId = seed.secondaryTypeName
-    ? typeMap.get(seed.secondaryTypeName)
-    : undefined;
+  const secondaryTypeId = seed.secondaryTypeName ? typeMap.get(seed.secondaryTypeName) : undefined;
 
   await prisma.pokemon.upsert({
     where: { nationalDex: seed.nationalDex },
@@ -190,76 +249,173 @@ const upsertPokemon = async (
 };
 
 async function seedMoves(typeMap: Map<string, number>): Promise<void> {
-  console.log(`Seeding Moves (limit: ${MOVE_LIMIT})...`);
-  const list = await pokeApi.fetchMoveList(MOVE_LIMIT, 0);
+  // まず総数を取得
+  const initialList = await pokeApi.fetchMoveList(1, 0);
+  const totalCount = initialList.count;
+  const limit = MOVE_LIMIT ?? totalCount;
+  const actualLimit = Math.min(limit, totalCount);
 
-  for (const resource of list.results) {
-    const move = await pokeApi.fetchMove(resource.name);
-    const seed = createMoveSeedData(move);
-    const typeId = typeMap.get(seed.typeName);
-    if (!typeId) {
-      console.warn(`Skip move ${seed.nameEn}: missing type ${seed.typeName}`);
-      continue;
+  console.log(`Seeding Moves (${actualLimit} / ${totalCount} total)...`);
+
+  // ページネーションで全件取得
+  let offset = 0;
+  let processed = 0;
+  let skipped = 0;
+  const batchSize = 100;
+
+  while (processed + skipped < actualLimit) {
+    const currentBatchSize = Math.min(batchSize, actualLimit - processed - skipped);
+    const list = await pokeApi.fetchMoveList(currentBatchSize, offset);
+
+    for (const resource of list.results) {
+      try {
+        const move = await pokeApi.fetchMove(resource.name);
+        const seed = createMoveSeedData(move);
+        const typeId = typeMap.get(seed.typeName);
+        if (!typeId) {
+          console.warn(`\n  Skip move ${seed.nameEn}: missing type ${seed.typeName}`);
+          skipped++;
+          continue;
+        }
+
+        await prisma.move.upsert({
+          where: { nameEn: seed.nameEn },
+          update: {
+            name: seed.name,
+            typeId,
+            category: seed.category,
+            power: seed.power,
+            accuracy: seed.accuracy,
+            pp: seed.pp,
+            priority: seed.priority,
+            description: seed.description,
+          },
+          create: {
+            name: seed.name,
+            nameEn: seed.nameEn,
+            typeId,
+            category: seed.category,
+            power: seed.power,
+            accuracy: seed.accuracy,
+            pp: seed.pp,
+            priority: seed.priority,
+            description: seed.description,
+          },
+        });
+        processed++;
+
+        if (processed % 10 === 0) {
+          process.stdout.write(`\r  Progress: ${processed}/${actualLimit}`);
+        }
+      } catch (error) {
+        // Prismaのユニーク制約違反（重複エラー）の場合は警告のみ
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+          console.warn(`\n  Skip move ${resource.name}: duplicate name (already exists)`);
+          skipped++;
+        } else if (error && typeof error === 'object' && 'response' in error) {
+          // 404エラーなどの場合は簡潔に警告のみ表示
+          const axiosError = error as { response?: { status?: number } };
+          if (axiosError.response?.status === 404) {
+            console.warn(`\n  Skip move ${resource.name}: not found (404)`);
+          } else {
+            console.error(
+              `\n  Error processing move ${resource.name}:`,
+              axiosError.response?.status || 'unknown error',
+            );
+          }
+          skipped++;
+        } else {
+          console.error(`\n  Error processing move ${resource.name}:`, error);
+          skipped++;
+        }
+      }
     }
 
-    await prisma.move.upsert({
-      where: { nameEn: seed.nameEn },
-      update: {
-        name: seed.name,
-        typeId,
-        category: seed.category,
-        power: seed.power,
-        accuracy: seed.accuracy,
-        pp: seed.pp,
-        priority: seed.priority,
-        description: seed.description,
-      },
-      create: {
-        name: seed.name,
-        nameEn: seed.nameEn,
-        typeId,
-        category: seed.category,
-        power: seed.power,
-        accuracy: seed.accuracy,
-        pp: seed.pp,
-        priority: seed.priority,
-        description: seed.description,
-      },
-    });
+    offset += list.results.length;
+    if (list.results.length === 0 || offset >= actualLimit) {
+      break;
+    }
   }
 
-  console.log(`Seeded ${list.results.length} moves.`);
+  console.log(`\nSeeded ${processed} moves${skipped > 0 ? ` (${skipped} skipped)` : ''}.`);
 }
 
 async function seedAbilities(): Promise<void> {
-  console.log(`Seeding Abilities (limit: ${ABILITY_LIMIT})...`);
-  const list = await pokeApi.fetchAbilityList(ABILITY_LIMIT, 0);
+  // まず総数を取得
+  const initialList = await pokeApi.fetchAbilityList(1, 0);
+  const totalCount = initialList.count;
+  const limit = ABILITY_LIMIT ?? totalCount;
+  const actualLimit = Math.min(limit, totalCount);
 
-  for (const resource of list.results) {
-    const ability = await pokeApi.fetchAbility(resource.name);
-    const seed = createAbilitySeedData(ability);
-    const metadata = getAbilityMetadata(seed.name);
+  console.log(`Seeding Abilities (${actualLimit} / ${totalCount} total)...`);
 
-    await prisma.ability.upsert({
-      where: { nameEn: seed.nameEn },
-      update: {
-        name: seed.name,
-        description: seed.description,
-        triggerEvent: metadata.triggerEvent,
-        effectCategory: metadata.effectCategory,
-      },
-      create: {
-        name: seed.name,
-        nameEn: seed.nameEn,
-        description: seed.description,
-        triggerEvent: metadata.triggerEvent,
-        effectCategory: metadata.effectCategory,
-      },
-    });
+  // ページネーションで全件取得
+  let offset = 0;
+  let processed = 0;
+  const batchSize = 100;
+
+  while (processed < actualLimit) {
+    const currentBatchSize = Math.min(batchSize, actualLimit - processed);
+    const list = await pokeApi.fetchAbilityList(currentBatchSize, offset);
+
+    for (const resource of list.results) {
+      try {
+        const ability = await pokeApi.fetchAbility(resource.name);
+        const seed = createAbilitySeedData(ability);
+        const metadata = getAbilityMetadata(seed.name);
+
+        await prisma.ability.upsert({
+          where: { nameEn: seed.nameEn },
+          update: {
+            name: seed.name,
+            description: seed.description,
+            triggerEvent: metadata.triggerEvent,
+            effectCategory: metadata.effectCategory,
+          },
+          create: {
+            name: seed.name,
+            nameEn: seed.nameEn,
+            description: seed.description,
+            triggerEvent: metadata.triggerEvent,
+            effectCategory: metadata.effectCategory,
+          },
+        });
+        processed++;
+
+        if (processed % 10 === 0) {
+          process.stdout.write(`\r  Progress: ${processed}/${actualLimit}`);
+        }
+      } catch (error) {
+        // Prismaのユニーク制約違反（重複エラー）の場合は警告のみ
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+          console.warn(`\n  Skip ability ${resource.name}: duplicate name (already exists)`);
+          processed++; // エラーでもカウントして続行
+        } else if (error && typeof error === 'object' && 'response' in error) {
+          // 404エラーなどの場合は簡潔に警告のみ表示
+          const axiosError = error as { response?: { status?: number } };
+          if (axiosError.response?.status === 404) {
+            console.warn(`\n  Skip ability ${resource.name}: not found (404)`);
+          } else {
+            console.error(
+              `\n  Error processing ability ${resource.name}:`,
+              axiosError.response?.status || 'unknown error',
+            );
+          }
+          processed++; // エラーでもカウントして続行
+        } else {
+          console.error(`\n  Error processing ability ${resource.name}:`, error);
+          processed++; // エラーでもカウントして続行
+        }
+      }
+    }
+
+    offset += list.results.length;
+    if (list.results.length === 0 || offset >= actualLimit) {
+      break;
+    }
   }
 
-  console.log(`Seeded ${list.results.length} abilities.`);
+  console.log(`\nSeeded ${processed} abilities.`);
 }
 
 void main();
-
