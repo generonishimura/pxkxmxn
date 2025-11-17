@@ -22,7 +22,7 @@
       "@generated/*": ["generated/*"]
     }
   },
-  "include": ["src/**/*", "generated/**/*"],
+  "include": ["src/**/*", "generated/**/*", "prisma/**/*"],
   "exclude": ["node_modules", "dist"]
 }
 
