@@ -540,6 +540,23 @@ async function seedPokemonMoves(): Promise<void> {
       // PokeAPIからポケモンの詳細情報を取得（moves情報を含む）
       const pokemonData = await pokeApi.fetchPokemon(pokemon.nameEn.toLowerCase());
 
+      // このポケモンの既存のPokemonMoveレコードを一括取得（N+1問題を回避）
+      const existingMoves = await prisma.pokemonMove.findMany({
+        where: { pokemonId: pokemon.id },
+        select: {
+          moveId: true,
+          level: true,
+          method: true,
+        },
+      });
+
+      // 既存レコードのキーをSetで管理（重複チェック用）
+      const existingMoveKeys = new Set<string>();
+      for (const existingMove of existingMoves) {
+        const key = `${existingMove.moveId}-${existingMove.level}-${existingMove.method}`;
+        existingMoveKeys.add(key);
+      }
+
       for (const moveEntry of pokemonData.moves) {
         try {
           const moveSeeds = createPokemonMoveSeedData(moveEntry);
@@ -558,18 +575,9 @@ async function seedPokemonMoves(): Promise<void> {
               continue;
             }
 
-            // PokemonMoveテーブルにupsert
-            // 同じpokemonId、moveId、method、levelの組み合わせが既に存在する場合はスキップ
-            const existing = await prisma.pokemonMove.findFirst({
-              where: {
-                pokemonId: pokemon.id,
-                moveId: move.id,
-                level: moveSeed.level,
-                method: moveSeed.method,
-              },
-            });
-
-            if (existing) {
+            // 既存レコードの重複チェック（一括取得したデータを使用）
+            const key = `${move.id}-${moveSeed.level}-${moveSeed.method}`;
+            if (existingMoveKeys.has(key)) {
               // 既に存在する場合はスキップ
               continue;
             }
@@ -583,6 +591,8 @@ async function seedPokemonMoves(): Promise<void> {
                 method: moveSeed.method,
               },
             });
+            // 作成したレコードを既存セットに追加（同じポケモン内での重複を防ぐ）
+            existingMoveKeys.add(key);
             totalMoves++;
           }
         } catch (error) {

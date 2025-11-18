@@ -241,11 +241,11 @@ export const createPokemonMoveSeedData = (
 ): PokemonMoveSeedData[] => {
   // 最新のバージョングループ（scarlet-violet）を優先的に使用
   // 見つからない場合は最初のエントリを使用
-  const latestVersionGroup = moveEntry.version_group_details.find(
+  const selectedVersionGroup = moveEntry.version_group_details.find(
     (detail) => detail.version_group.name === 'scarlet-violet',
   ) ?? moveEntry.version_group_details[0];
 
-  if (!latestVersionGroup) {
+  if (!selectedVersionGroup) {
     // version_group_detailsが空の場合は、methodとlevelをnullとして返す
     return [
       {
@@ -270,6 +270,9 @@ export const createPokemonMoveSeedData = (
     if (!uniqueEntries.has(key)) {
       uniqueEntries.set(key, {
         moveNameEn: toTitleCase(moveEntry.move.name),
+        // level_learned_atが0の場合はnullに変換
+        // 0は「進化前から覚えられる」ことを意味し、nullで表現する
+        // nullは「version_group_detailsが空の場合」や「該当する覚え方がない場合」も意味する
         level: detail.level_learned_at === 0 ? null : detail.level_learned_at,
         method,
       });
