@@ -3,6 +3,8 @@ import {
   buildTypeEffectivenessMatrix,
   createAbilitySeedData,
   createMoveSeedData,
+  createPokemonAbilitySeedData,
+  createPokemonMoveSeedData,
   createPokemonSeedData,
   createTypeSeedData,
   PokemonSeedData,
@@ -49,6 +51,8 @@ async function main(): Promise<void> {
     await seedPokemon(typeMap);
     await seedMoves(typeMap);
     await seedAbilities();
+    await seedPokemonAbilities();
+    await seedPokemonMoves();
 
     console.log('Seed completed successfully.');
   } catch (error) {
@@ -416,6 +420,206 @@ async function seedAbilities(): Promise<void> {
   }
 
   console.log(`\nSeeded ${processed} abilities.`);
+}
+
+async function seedPokemonAbilities(): Promise<void> {
+  console.log('Seeding Pokemon Abilities...');
+
+  // 既存のPokemonデータを取得
+  const pokemons = await prisma.pokemon.findMany({
+    orderBy: { nationalDex: 'asc' },
+  });
+
+  const limit = POKEMON_LIMIT ?? pokemons.length;
+  const actualLimit = Math.min(limit, pokemons.length);
+
+  console.log(`Processing ${actualLimit} pokemon...`);
+
+  let processed = 0;
+  let totalAbilities = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < actualLimit; i++) {
+    const pokemon = pokemons[i];
+    try {
+      // PokeAPIからポケモンの詳細情報を取得（abilities情報を含む）
+      const pokemonData = await pokeApi.fetchPokemon(pokemon.nameEn.toLowerCase());
+
+      for (const abilityEntry of pokemonData.abilities) {
+        try {
+          const abilitySeed = createPokemonAbilitySeedData(abilityEntry);
+
+          // DBのAbilityテーブルからnameEnで検索
+          const ability = await prisma.ability.findUnique({
+            where: { nameEn: abilitySeed.abilityNameEn },
+          });
+
+          if (!ability) {
+            console.warn(
+              `\n  Skip ability ${abilitySeed.abilityNameEn} for ${pokemon.nameEn}: not found in DB`,
+            );
+            skipped++;
+            continue;
+          }
+
+          // PokemonAbilityテーブルにupsert
+          await prisma.pokemonAbility.upsert({
+            where: {
+              pokemonId_abilityId: {
+                pokemonId: pokemon.id,
+                abilityId: ability.id,
+              },
+            },
+            update: {
+              isHidden: abilitySeed.isHidden,
+            },
+            create: {
+              pokemonId: pokemon.id,
+              abilityId: ability.id,
+              isHidden: abilitySeed.isHidden,
+            },
+          });
+          totalAbilities++;
+        } catch (error) {
+          console.warn(
+            `\n  Error processing ability ${abilityEntry.ability.name} for ${pokemon.nameEn}:`,
+            error,
+          );
+          skipped++;
+        }
+      }
+
+      processed++;
+
+      if (processed % 10 === 0) {
+        process.stdout.write(`\r  Progress: ${processed}/${actualLimit}`);
+      }
+    } catch (error) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number } };
+        if (axiosError.response?.status === 404) {
+          console.warn(`\n  Skip ${pokemon.nameEn}: not found (404)`);
+        } else {
+          console.error(
+            `\n  Error processing ${pokemon.nameEn}:`,
+            axiosError.response?.status || 'unknown error',
+          );
+        }
+      } else {
+        console.error(`\n  Error processing ${pokemon.nameEn}:`, error);
+      }
+      processed++; // エラーでもカウントして続行
+    }
+  }
+
+  console.log(
+    `\nSeeded ${totalAbilities} pokemon abilities${skipped > 0 ? ` (${skipped} skipped)` : ''}.`,
+  );
+}
+
+async function seedPokemonMoves(): Promise<void> {
+  console.log('Seeding Pokemon Moves...');
+
+  // 既存のPokemonデータを取得
+  const pokemons = await prisma.pokemon.findMany({
+    orderBy: { nationalDex: 'asc' },
+  });
+
+  const limit = POKEMON_LIMIT ?? pokemons.length;
+  const actualLimit = Math.min(limit, pokemons.length);
+
+  console.log(`Processing ${actualLimit} pokemon...`);
+
+  let processed = 0;
+  let totalMoves = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < actualLimit; i++) {
+    const pokemon = pokemons[i];
+    try {
+      // PokeAPIからポケモンの詳細情報を取得（moves情報を含む）
+      const pokemonData = await pokeApi.fetchPokemon(pokemon.nameEn.toLowerCase());
+
+      for (const moveEntry of pokemonData.moves) {
+        try {
+          const moveSeeds = createPokemonMoveSeedData(moveEntry);
+
+          for (const moveSeed of moveSeeds) {
+            // DBのMoveテーブルからnameEnで検索
+            const move = await prisma.move.findUnique({
+              where: { nameEn: moveSeed.moveNameEn },
+            });
+
+            if (!move) {
+              console.warn(
+                `\n  Skip move ${moveSeed.moveNameEn} for ${pokemon.nameEn}: not found in DB`,
+              );
+              skipped++;
+              continue;
+            }
+
+            // PokemonMoveテーブルにupsert
+            // 同じpokemonId、moveId、method、levelの組み合わせが既に存在する場合はスキップ
+            const existing = await prisma.pokemonMove.findFirst({
+              where: {
+                pokemonId: pokemon.id,
+                moveId: move.id,
+                level: moveSeed.level,
+                method: moveSeed.method,
+              },
+            });
+
+            if (existing) {
+              // 既に存在する場合はスキップ
+              continue;
+            }
+
+            // 存在しない場合は作成
+            await prisma.pokemonMove.create({
+              data: {
+                pokemonId: pokemon.id,
+                moveId: move.id,
+                level: moveSeed.level,
+                method: moveSeed.method,
+              },
+            });
+            totalMoves++;
+          }
+        } catch (error) {
+          console.warn(
+            `\n  Error processing move ${moveEntry.move.name} for ${pokemon.nameEn}:`,
+            error,
+          );
+          skipped++;
+        }
+      }
+
+      processed++;
+
+      if (processed % 10 === 0) {
+        process.stdout.write(`\r  Progress: ${processed}/${actualLimit}`);
+      }
+    } catch (error) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number } };
+        if (axiosError.response?.status === 404) {
+          console.warn(`\n  Skip ${pokemon.nameEn}: not found (404)`);
+        } else {
+          console.error(
+            `\n  Error processing ${pokemon.nameEn}:`,
+            axiosError.response?.status || 'unknown error',
+          );
+        }
+      } else {
+        console.error(`\n  Error processing ${pokemon.nameEn}:`, error);
+      }
+      processed++; // エラーでもカウントして続行
+    }
+  }
+
+  console.log(
+    `\nSeeded ${totalMoves} pokemon moves${skipped > 0 ? ` (${skipped} skipped)` : ''}.`,
+  );
 }
 
 void main();

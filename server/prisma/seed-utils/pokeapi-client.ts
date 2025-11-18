@@ -47,6 +47,19 @@ export interface PokeApiPokemonResponse {
     slot: number;
     type: PokeApiNamedResource;
   }>;
+  abilities: Array<{
+    ability: PokeApiNamedResource;
+    is_hidden: boolean;
+    slot: number;
+  }>;
+  moves: Array<{
+    move: PokeApiNamedResource;
+    version_group_details: Array<{
+      level_learned_at: number;
+      move_learn_method: PokeApiNamedResource;
+      version_group: PokeApiNamedResource;
+    }>;
+  }>;
 }
 
 export interface PokeApiPokemonSpeciesResponse {

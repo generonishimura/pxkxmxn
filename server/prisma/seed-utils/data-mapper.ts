@@ -58,6 +58,17 @@ export interface TypeEffectivenessSeedData {
   effectiveness: number;
 }
 
+export interface PokemonAbilitySeedData {
+  abilityNameEn: string; // DBのAbilityテーブルとマッチングするための英語名
+  isHidden: boolean;
+}
+
+export interface PokemonMoveSeedData {
+  moveNameEn: string; // DBのMoveテーブルとマッチングするための英語名
+  level: number | null; // 何レベルで覚えるか（nullの場合は進化前から覚えられる等）
+  method: string | null; // 覚え方（"level-up", "machine", "egg", "tutor"など）
+}
+
 export const createTypeSeedData = (
   type: PokeApiTypeResponse,
 ): TypeSeedData => ({
@@ -208,6 +219,92 @@ const mapMoveCategory = (category: string): MoveCategoryValue => {
       return 'Special';
     default:
       return 'Status';
+  }
+};
+
+/**
+ * PokeAPIの特性データからPokemonAbilitySeedDataを作成
+ */
+export const createPokemonAbilitySeedData = (
+  abilityEntry: PokeApiPokemonResponse['abilities'][number],
+): PokemonAbilitySeedData => ({
+  abilityNameEn: toTitleCase(abilityEntry.ability.name),
+  isHidden: abilityEntry.is_hidden,
+});
+
+/**
+ * PokeAPIの技データからPokemonMoveSeedDataを作成
+ * 最新のバージョングループ（scarlet-violet）の情報を使用
+ */
+export const createPokemonMoveSeedData = (
+  moveEntry: PokeApiPokemonResponse['moves'][number],
+): PokemonMoveSeedData[] => {
+  // 最新のバージョングループ（scarlet-violet）を優先的に使用
+  // 見つからない場合は最初のエントリを使用
+  const latestVersionGroup = moveEntry.version_group_details.find(
+    (detail) => detail.version_group.name === 'scarlet-violet',
+  ) ?? moveEntry.version_group_details[0];
+
+  if (!latestVersionGroup) {
+    // version_group_detailsが空の場合は、methodとlevelをnullとして返す
+    return [
+      {
+        moveNameEn: toTitleCase(moveEntry.move.name),
+        level: null,
+        method: null,
+      },
+    ];
+  }
+
+  // 同じ技でも複数の覚え方がある場合があるため、配列で返す
+  // ただし、同じmethodとlevelの組み合わせは1つだけにする
+  const uniqueEntries = new Map<string, PokemonMoveSeedData>();
+  for (const detail of moveEntry.version_group_details) {
+    // 最新のバージョングループのみを使用（scarlet-violet）
+    if (detail.version_group.name !== 'scarlet-violet') {
+      continue;
+    }
+
+    const method = mapMoveLearnMethod(detail.move_learn_method.name);
+    const key = `${method}-${detail.level_learned_at}`;
+    if (!uniqueEntries.has(key)) {
+      uniqueEntries.set(key, {
+        moveNameEn: toTitleCase(moveEntry.move.name),
+        level: detail.level_learned_at === 0 ? null : detail.level_learned_at,
+        method,
+      });
+    }
+  }
+
+  // エントリがない場合は、methodとlevelをnullとして返す
+  if (uniqueEntries.size === 0) {
+    return [
+      {
+        moveNameEn: toTitleCase(moveEntry.move.name),
+        level: null,
+        method: null,
+      },
+    ];
+  }
+
+  return Array.from(uniqueEntries.values());
+};
+
+/**
+ * PokeAPIのmove_learn_method名をDBのmethod形式に変換
+ */
+const mapMoveLearnMethod = (method: string): string | null => {
+  switch (method) {
+    case 'level-up':
+      return 'level_up';
+    case 'machine':
+      return 'tm';
+    case 'egg':
+      return 'egg';
+    case 'tutor':
+      return 'tutor';
+    default:
+      return null;
   }
 };
 
