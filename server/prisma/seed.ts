@@ -635,9 +635,7 @@ async function seedPokemonMoves(): Promise<void> {
     }
   }
 
-  console.log(
-    `\nSeeded ${totalMoves} pokemon moves${skipped > 0 ? ` (${skipped} skipped)` : ''}.`,
-  );
+  console.log(`\nSeeded ${totalMoves} pokemon moves${skipped > 0 ? ` (${skipped} skipped)` : ''}.`);
 }
 
 void main();
