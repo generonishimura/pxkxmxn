@@ -530,6 +530,28 @@ async function seedPokemonMoves(): Promise<void> {
 
   console.log(`Processing ${actualLimit} pokemon...`);
 
+  // 全ポケモン分の既存のPokemonMoveレコードを一括取得（N+1問題を完全に回避）
+  const pokemonIds = pokemons.slice(0, actualLimit).map(p => p.id);
+  const allExistingMoves = await prisma.pokemonMove.findMany({
+    where: { pokemonId: { in: pokemonIds } },
+    select: {
+      pokemonId: true,
+      moveId: true,
+      level: true,
+      method: true,
+    },
+  });
+
+  // ポケモンIDごとに既存レコードのキーをMapで管理（重複チェック用）
+  const existingMoveKeysByPokemon = new Map<number, Set<string>>();
+  for (const existingMove of allExistingMoves) {
+    if (!existingMoveKeysByPokemon.has(existingMove.pokemonId)) {
+      existingMoveKeysByPokemon.set(existingMove.pokemonId, new Set<string>());
+    }
+    const key = `${existingMove.moveId}-${existingMove.level}-${existingMove.method}`;
+    existingMoveKeysByPokemon.get(existingMove.pokemonId)!.add(key);
+  }
+
   let processed = 0;
   let totalMoves = 0;
   let skipped = 0;
@@ -540,22 +562,8 @@ async function seedPokemonMoves(): Promise<void> {
       // PokeAPIからポケモンの詳細情報を取得（moves情報を含む）
       const pokemonData = await pokeApi.fetchPokemon(pokemon.nameEn.toLowerCase());
 
-      // このポケモンの既存のPokemonMoveレコードを一括取得（N+1問題を回避）
-      const existingMoves = await prisma.pokemonMove.findMany({
-        where: { pokemonId: pokemon.id },
-        select: {
-          moveId: true,
-          level: true,
-          method: true,
-        },
-      });
-
-      // 既存レコードのキーをSetで管理（重複チェック用）
-      const existingMoveKeys = new Set<string>();
-      for (const existingMove of existingMoves) {
-        const key = `${existingMove.moveId}-${existingMove.level}-${existingMove.method}`;
-        existingMoveKeys.add(key);
-      }
+      // このポケモンの既存レコードのキーを取得（一括取得したデータを使用）
+      const existingMoveKeys = existingMoveKeysByPokemon.get(pokemon.id) ?? new Set<string>();
 
       for (const moveEntry of pokemonData.moves) {
         try {
