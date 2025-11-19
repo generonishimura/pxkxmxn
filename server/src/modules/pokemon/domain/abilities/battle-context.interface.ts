@@ -41,4 +41,10 @@ export interface BattleContext {
    * ダメージ計算時に使用（battle.fieldと重複するが、利便性のため残す）
    */
   field?: Field | null;
+
+  /**
+   * 技のタイプ名（日本語名、例: "ほのお"）
+   * タイプによるダメージ修正特性で使用
+   */
+  moveTypeName?: string;
 }

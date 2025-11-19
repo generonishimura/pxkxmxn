@@ -1,6 +1,6 @@
 import { MultiscaleEffect } from './multiscale-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
-import { BattleContext } from '../battle-context.interface';
+import { BattleContext } from '../../battle-context.interface';
 
 describe('MultiscaleEffect', () => {
   // テスト用のヘルパー関数

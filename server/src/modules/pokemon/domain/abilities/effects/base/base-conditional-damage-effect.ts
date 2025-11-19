@@ -1,6 +1,6 @@
-import { IAbilityEffect } from '../ability-effect.interface';
+import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
-import { BattleContext } from '../battle-context.interface';
+import { BattleContext } from '../../battle-context.interface';
 
 /**
  * ダメージ修正の条件タイプ

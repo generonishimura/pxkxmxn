@@ -4,7 +4,7 @@ import { StatusCondition } from '../entities/status-condition.enum';
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { Weather, Battle } from '../entities/battle.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
-import { MultiscaleEffect } from '@/modules/pokemon/domain/abilities/effects/multiscale-effect';
+import { MultiscaleEffect } from '@/modules/pokemon/domain/abilities/effects/damage-modify/multiscale-effect';
 
 describe('DamageCalculator', () => {
   // テスト用のヘルパー関数

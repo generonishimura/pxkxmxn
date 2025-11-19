@@ -1,6 +1,20 @@
 import { IAbilityEffect } from './ability-effect.interface';
-import { IntimidateEffect } from './effects/intimidate-effect';
-import { MultiscaleEffect } from './effects/multiscale-effect';
+import { IntimidateEffect } from './effects/stat-change/intimidate-effect';
+import { SwiftSwimEffect } from './effects/stat-change/swift-swim-effect';
+import { ChlorophyllEffect } from './effects/stat-change/chlorophyll-effect';
+import { SandRushEffect } from './effects/stat-change/sand-rush-effect';
+import { InsomniaEffect } from './effects/immunity/insomnia-effect';
+import { LevitateEffect } from './effects/immunity/levitate-effect';
+import { VoltAbsorbEffect } from './effects/immunity/volt-absorb-effect';
+import { FlashFireEffect } from './effects/immunity/flash-fire-effect';
+import { WaterAbsorbEffect } from './effects/immunity/water-absorb-effect';
+import { MultiscaleEffect } from './effects/damage-modify/multiscale-effect';
+import { ThickFatEffect } from './effects/damage-modify/thick-fat-effect';
+import { SteelworkerEffect } from './effects/damage-modify/steelworker-effect';
+import { DrizzleEffect } from './effects/weather/drizzle-effect';
+import { DroughtEffect } from './effects/weather/drought-effect';
+import { SandStreamEffect } from './effects/weather/sand-stream-effect';
+import { SnowWarningEffect } from './effects/weather/snow-warning-effect';
 
 /**
  * 特性レジストリ
@@ -23,9 +37,20 @@ export class AbilityRegistry {
     // DBのnameをキーとして、対応するロジッククラスを登録
     this.registry.set('いかく', new IntimidateEffect());
     this.registry.set('マルチスケイル', new MultiscaleEffect());
-    // 将来的に他の特性も追加可能:
-    // this.registry.set('ふみん', new InsomniaEffect());
-    // this.registry.set('ふゆう', new LevitateEffect());
+    this.registry.set('ふみん', new InsomniaEffect());
+    this.registry.set('ふゆう', new LevitateEffect());
+    this.registry.set('すいすい', new SwiftSwimEffect());
+    this.registry.set('あついしぼう', new ThickFatEffect());
+    this.registry.set('ちくでん', new VoltAbsorbEffect());
+    this.registry.set('もらいび', new FlashFireEffect());
+    this.registry.set('あめふらし', new DrizzleEffect());
+    this.registry.set('ひでり', new DroughtEffect());
+    this.registry.set('すなあらし', new SandStreamEffect());
+    this.registry.set('ゆきふらし', new SnowWarningEffect());
+    this.registry.set('ちょすい', new WaterAbsorbEffect());
+    this.registry.set('はがねつかい', new SteelworkerEffect());
+    this.registry.set('ようりょくそ', new ChlorophyllEffect());
+    this.registry.set('すなかき', new SandRushEffect());
   }
 
   /**

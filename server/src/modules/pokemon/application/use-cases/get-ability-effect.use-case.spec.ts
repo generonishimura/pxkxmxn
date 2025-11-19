@@ -7,7 +7,7 @@ import {
 import { Ability, AbilityTrigger, AbilityCategory } from '../../domain/entities/ability.entity';
 import { AbilityRegistry } from '../../domain/abilities/ability-registry';
 import { IAbilityEffect } from '../../domain/abilities/ability-effect.interface';
-import { IntimidateEffect } from '../../domain/abilities/effects/intimidate-effect';
+import { IntimidateEffect } from '../../domain/abilities/effects/stat-change/intimidate-effect';
 
 describe('GetAbilityEffectUseCase', () => {
   let useCase: GetAbilityEffectUseCase;

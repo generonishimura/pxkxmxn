@@ -4,7 +4,7 @@ import { GetPokemonByIdUseCase } from '../application/use-cases/get-pokemon-by-i
 import { GetAbilityEffectUseCase } from '../application/use-cases/get-ability-effect.use-case';
 import { Pokemon } from '../domain/entities/pokemon.entity';
 import { Type } from '../domain/entities/type.entity';
-import { IntimidateEffect } from '../domain/abilities/effects/intimidate-effect';
+import { IntimidateEffect } from '../domain/abilities/effects/stat-change/intimidate-effect';
 
 describe('PokemonController', () => {
   let controller: PokemonController;

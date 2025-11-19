@@ -1,6 +1,6 @@
 import { BaseConditionalDamageEffect } from './base-conditional-damage-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
-import { BattleContext } from '../battle-context.interface';
+import { BattleContext } from '../../battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 
 /**

@@ -612,6 +612,26 @@ export class ExecuteTurnUseCase {
       throw new Error('Defender not found after damage application');
     }
 
+    // タイプ無効化が発動した場合（ダメージが0の場合）、HP回復などの効果を処理
+    if (damage === 0 && defenderTrainedPokemon?.ability) {
+      const abilityEffect = AbilityRegistry.get(defenderTrainedPokemon.ability.name);
+      if (abilityEffect?.onAfterTakingDamage) {
+        const battleContext = {
+          battle,
+          battleRepository: this.battleRepository,
+          trainedPokemonRepository: this.trainedPokemonRepository,
+          weather: battle.weather,
+          field: battle.field,
+          moveTypeName: move.type.name,
+        };
+        // 元のダメージを計算（タイプ無効化が発動する前のダメージ）
+        // 実際には、DamageCalculatorで計算されたダメージが0なので、
+        // タイプ無効化が発動したことを示すために、元のダメージを計算する必要はない
+        // ただし、HP回復量の計算に使用する可能性があるため、0を渡す
+        await abilityEffect.onAfterTakingDamage(updatedDefender, 0, battleContext);
+      }
+    }
+
     // PPを消費
     await this.consumePp(battlePokemonMoveId);
 

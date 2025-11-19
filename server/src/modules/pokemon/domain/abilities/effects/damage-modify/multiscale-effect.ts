@@ -1,4 +1,4 @@
-import { BaseConditionalDamageEffect } from './base-conditional-damage-effect';
+import { BaseConditionalDamageEffect } from '../base/base-conditional-damage-effect';
 
 /**
  * 「マルチスケイル」特性の効果実装

@@ -1,4 +1,4 @@
-import { BaseOpponentStatChangeEffect } from './base-opponent-stat-change-effect';
+import { BaseOpponentStatChangeEffect } from '../base/base-opponent-stat-change-effect';
 
 /**
  * 「いかく」特性の効果実装

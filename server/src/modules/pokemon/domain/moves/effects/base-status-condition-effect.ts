@@ -2,6 +2,7 @@ import { IMoveEffect } from '../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { AbilityRegistry } from '../../abilities/ability-registry';
 
 /**
  * 状態異常付与の基底クラス
@@ -63,6 +64,22 @@ export abstract class BaseStatusConditionEffect implements IMoveEffect {
         this.immuneTypes.includes(trainedPokemon.pokemon.secondaryType.name));
     if (hasImmuneType) {
       return null;
+    }
+
+    // 特性による無効化チェック
+    if (trainedPokemon.ability) {
+      const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
+      if (abilityEffect?.canReceiveStatusCondition) {
+        const canReceive = abilityEffect.canReceiveStatusCondition(
+          defender,
+          this.statusCondition,
+          battleContext,
+        );
+        // canReceiveがfalseの場合は無効化（undefinedの場合は判定しない）
+        if (canReceive === false) {
+          return null;
+        }
+      }
     }
 
     // 確率判定（chanceが1.0の場合は必ず付与）

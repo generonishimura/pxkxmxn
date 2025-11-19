@@ -1,6 +1,6 @@
 import { BaseOpponentStatChangeEffect } from './base-opponent-stat-change-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
-import { BattleContext } from '../battle-context.interface';
+import { BattleContext } from '../../battle-context.interface';
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
 
