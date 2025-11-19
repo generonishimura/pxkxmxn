@@ -8,4 +8,3 @@ import { Weather } from '@/modules/battle/domain/entities/battle.entity';
 export class SnowWarningEffect extends BaseWeatherEffect {
   protected readonly weather = Weather.Hail;
 }
-
