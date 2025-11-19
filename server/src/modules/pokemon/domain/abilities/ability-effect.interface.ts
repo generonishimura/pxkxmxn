@@ -1,5 +1,6 @@
 import { BattleContext } from './battle-context.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
+import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 
 /**
  * 特性効果のインターフェース
@@ -89,4 +90,43 @@ export interface IAbilityEffect {
    * @returns 修正後の速度、修正しない場合はundefined
    */
   modifySpeed?(_pokemon: BattlePokemonStatus, _speed: number, _battleContext?: BattleContext): number | undefined;
+
+  /**
+   * 状態異常を受けられるかどうかを判定する効果
+   * @param pokemon 対象のポケモン
+   * @param statusCondition 付与されようとしている状態異常
+   * @param battleContext バトルコンテキスト
+   * @returns 受けられる場合はtrue、無効化する場合はfalse、判定しない場合はundefined
+   */
+  canReceiveStatusCondition?(
+    _pokemon: BattlePokemonStatus,
+    _statusCondition: StatusCondition,
+    _battleContext?: BattleContext,
+  ): boolean | undefined;
+
+  /**
+   * 特定のタイプの技に対して無効化を持つかどうかを判定する効果
+   * @param pokemon 対象のポケモン
+   * @param typeName 技のタイプ名（日本語名、例: "じめん"）
+   * @param battleContext バトルコンテキスト
+   * @returns 無効化する場合はtrue、無効化しない場合はfalse、判定しない場合はundefined
+   */
+  isImmuneToType?(
+    _pokemon: BattlePokemonStatus,
+    _typeName: string,
+    _battleContext?: BattleContext,
+  ): boolean | undefined;
+
+  /**
+   * ダメージを受けた後に発動する効果（HP回復など）
+   * タイプ無効化と組み合わせて使用（例: ちくでん、もらいび）
+   * @param pokemon 対象のポケモン
+   * @param originalDamage 元のダメージ（無効化される前のダメージ）
+   * @param battleContext バトルコンテキスト
+   */
+  onAfterTakingDamage?(
+    _pokemon: BattlePokemonStatus,
+    _originalDamage: number,
+    _battleContext?: BattleContext,
+  ): void | Promise<void>;
 }

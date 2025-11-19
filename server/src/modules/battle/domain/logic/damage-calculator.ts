@@ -111,6 +111,29 @@ export class DamageCalculator {
       params.typeEffectiveness,
     );
 
+    // 防御側の特性によるタイプ無効化チェック
+    if (params.defenderAbilityName) {
+      const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
+      if (abilityEffect?.isImmuneToType) {
+        const battleContext = params.battle
+          ? {
+              battle: params.battle,
+              weather: params.weather,
+              field: params.field,
+            }
+          : undefined;
+        const isImmune = abilityEffect.isImmuneToType(
+          defender,
+          params.moveType.name,
+          battleContext,
+        );
+        // 無効化されている場合はダメージ0を返す
+        if (isImmune === true) {
+          return 0;
+        }
+      }
+    }
+
     // ダメージ修正（特性、天候、フィールドなど）
     let damageMultiplier = stab * typeEffectiveness;
 
@@ -124,6 +147,7 @@ export class DamageCalculator {
               battle: params.battle,
               weather: params.weather,
               field: params.field,
+              moveTypeName: params.moveType.name,
             }
           : undefined;
         const modifiedDamage = abilityEffect.modifyDamageDealt(
@@ -147,6 +171,7 @@ export class DamageCalculator {
               battle: params.battle,
               weather: params.weather,
               field: params.field,
+              moveTypeName: params.moveType.name,
             }
           : undefined;
         const modifiedDamage = abilityEffect.modifyDamage(defender, currentDamage, battleContext);
