@@ -1,7 +1,7 @@
 import { BaseTypeAbsorbEffect } from '../base/base-type-absorb-effect';
 
 /**
- * しめりけ（Water Absorb）特性の効果
+ * ちょすい（Water Absorb）特性の効果
  * みずタイプの技を無効化し、最大HPの1/4回復
  */
 export class WaterAbsorbEffect extends BaseTypeAbsorbEffect {

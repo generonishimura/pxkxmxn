@@ -47,7 +47,7 @@ export class AbilityRegistry {
     this.registry.set('ひでり', new DroughtEffect());
     this.registry.set('すなあらし', new SandStreamEffect());
     this.registry.set('ゆきふらし', new SnowWarningEffect());
-    this.registry.set('しめりけ', new WaterAbsorbEffect());
+    this.registry.set('ちょすい', new WaterAbsorbEffect());
     this.registry.set('はがねつかい', new SteelworkerEffect());
     this.registry.set('ようりょくそ', new ChlorophyllEffect());
     this.registry.set('すなかき', new SandRushEffect());

@@ -45,7 +45,7 @@ describe('ability-mapping', () => {
         effectCategory: 'Immunity',
       });
 
-      expect(getAbilityMetadata('しめりけ')).toEqual({
+      expect(getAbilityMetadata('ちょすい')).toEqual({
         triggerEvent: 'OnTakingDamage',
         effectCategory: 'Immunity',
       });
@@ -128,7 +128,7 @@ describe('ability-mapping', () => {
         'ふゆう',
         'ちくでん',
         'もらいび',
-        'しめりけ',
+        'ちょすい',
         'あついしぼう',
         'はがねつかい',
         'すいすい',
@@ -171,7 +171,7 @@ describe('ability-mapping', () => {
         'ふゆう',
         'ちくでん',
         'もらいび',
-        'しめりけ',
+        'ちょすい',
         'あついしぼう',
         'はがねつかい',
         'すいすい',
@@ -208,7 +208,7 @@ describe('ability-mapping', () => {
         'ふゆう',
         'ちくでん',
         'もらいび',
-        'しめりけ',
+        'ちょすい',
         'あついしぼう',
         'はがねつかい',
         'すいすい',

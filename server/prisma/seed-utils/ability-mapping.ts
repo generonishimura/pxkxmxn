@@ -55,7 +55,7 @@ const abilityMetadataMap: Record<string, AbilityMetadata> = {
     triggerEvent: 'OnTakingDamage',
     effectCategory: 'Immunity',
   },
-  しめりけ: {
+  ちょすい: {
     triggerEvent: 'OnTakingDamage',
     effectCategory: 'Immunity',
   },

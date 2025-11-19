@@ -139,7 +139,7 @@ const abilityMetadataMap: Record<string, AbilityMetadata> = {
 | OnEntry | StatChange | いかく |
 | OnEntry | Weather | あめふらし、ひでり、すなあらし、ゆきふらし |
 | OnTakingDamage | DamageModify | マルチスケイル、あついしぼう |
-| OnTakingDamage | Immunity | ちくでん、もらいび、しめりけ |
+| OnTakingDamage | Immunity | ちくでん、もらいび、ちょすい |
 | OnDealingDamage | DamageModify | はがねつかい |
 | Passive | Immunity | ふゆう |
 | Passive | StatChange | すいすい、ようりょくそ、すなかき |
@@ -250,7 +250,7 @@ const abilityMetadataMap: Record<string, AbilityMetadata> = {
 以下のカテゴリから主要な特性を追加：
 
 - **状態異常無効化系**: ふみん、どんかん
-- **タイプ無効化系**: ふゆう、ちくでん、もらいび、しめりけ
+- **タイプ無効化系**: ふゆう、ちくでん、もらいび、ちょすい
 - **ダメージ修正系**: あついしぼう、はがねつかい
 - **ステータス変化系**: すいすい、ようりょくそ、すなかき
 - **天候系**: あめふらし、ひでり、すなあらし、ゆきふらし
