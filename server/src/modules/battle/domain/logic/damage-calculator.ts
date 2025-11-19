@@ -3,6 +3,7 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { Weather, Field, Battle } from '../entities/battle.entity';
 import { StatusConditionHandler } from './status-condition-handler';
+import { ValidationException } from '@/shared/domain/exceptions';
 
 /**
  * Moveの情報
@@ -294,8 +295,9 @@ export class DamageCalculator {
   ): number {
     // baseStatsは必須（正確なダメージ計算のため）
     if (!baseStats) {
-      throw new Error(
+      throw new ValidationException(
         `baseStats must be provided for accurate damage calculation. statType: ${statType}`,
+        'baseStats',
       );
     }
 
@@ -318,7 +320,7 @@ export class DamageCalculator {
         baseStat = baseStats.speed;
         break;
       default:
-        throw new Error(`Unknown statType: ${statType}`);
+        throw new ValidationException(`Unknown statType: ${statType}`, 'statType');
     }
 
     const multiplier = status.getStatMultiplier(statType);

@@ -401,7 +401,7 @@ Nest.jsのモジュール（`*.module.ts`）で、インターフェースと具
 #### API仕様
 
 - **APIバージョン**: PokeAPI v2
-- **APIドキュメント**: https://pokeapi.co/docs/v2
+- **APIドキュメント**: <https://pokeapi.co/docs/v2>
 - **認証**: 不要（公開API）
 - **レート制限**: 公式にはレート制限なし（ただし、ローカルキャッシュを推奨）
 
@@ -473,7 +473,7 @@ Nest.jsのモジュール（`*.module.ts`）で、インターフェースと具
 
 - **PokeAPIの形式**: `damage_relations` フィールドからタイプ相性を取得
 - **DBの形式**: `TypeEffectiveness` テーブルに `typeFromId`, `typeToId`, `effectiveness` として保存
-- **効果値の変換**: 
+- **効果値の変換**:
   - `no_damage_to` → effectiveness = 0
   - `half_damage_to` → effectiveness = 0.5
   - `double_damage_to` → effectiveness = 2.0
@@ -636,3 +636,179 @@ SQLインジェクションの可能性がないか、XSSの可能性がない�
 レースコンディションの可能性がないか、デッドロックの可能性がないか、スレッドセーフティが確保されているかを確認する。
 
 対応: 適切な同期機構を使用し、レースコンディションを回避する。
+
+## 9. 開発効率化
+
+特性・技の特殊効果実装は、大量の類似コードを生成する必要があるため、開発効率を向上させるためのツールとパターンを整備する。
+
+### 9.1. コード生成ツール（特性・技）
+
+基底クラスを活用した実装が多いため、設定ファイルからコードを自動生成するツールを導入する。
+
+#### 目的
+
+- **実装時間の短縮**: 特性・技の実装時間を10分→1分に短縮
+- **タイポ・設定ミスの削減**: 自動生成により人的ミスを削減
+- **一貫性の確保**: コードスタイルと構造の統一
+
+#### 実装方針
+
+設定ファイルベースの実装
+
+特性・技の効果クラスを設定ファイルから自動生成する。
+
+```json
+// config/abilities.json
+{
+  "ちくでん": {
+    "baseClass": "BaseTypeAbsorbEffect",
+    "params": {
+      "immuneTypes": ["でんき"],
+      "healRatio": 0.25
+    }
+  },
+  "すいすい": {
+    "baseClass": "BaseWeatherDependentSpeedEffect",
+    "params": {
+      "requiredWeathers": ["Rain"],
+      "speedMultiplier": 2.0
+    }
+  }
+}
+```
+
+生成スクリプト
+
+```typescript
+// scripts/generate-ability-effect.ts
+// 設定ファイルから特性効果クラスを自動生成
+// - クラスファイルの生成
+// - レジストリへの登録コードの生成
+```
+
+生成されるコード例
+
+```typescript
+// 自動生成されるコード
+import { BaseTypeAbsorbEffect } from '../base/base-type-absorb-effect';
+
+/**
+ * ちくでん（Volt Absorb）特性の効果
+ * でんきタイプの技を無効化し、最大HPの1/4回復
+ */
+export class VoltAbsorbEffect extends BaseTypeAbsorbEffect {
+  protected readonly immuneTypes = ['でんき'] as const;
+  protected readonly healRatio = 0.25;
+}
+```
+
+#### 対応する基底クラス
+
+以下の基底クラスに対応する設定ファイル形式を定義する。
+
+- `BaseTypeAbsorbEffect`: タイプ吸収系
+- `BaseWeatherDependentSpeedEffect`: 天候依存速度系
+- `BaseStatusConditionEffect`: 状態異常付与系（技用）
+- `BaseTypeImmunityEffect`: タイプ無効化系
+- `BaseOpponentStatChangeEffect`: 相手ステータス変化系
+- `BaseConditionalDamageEffect`: 条件付きダメージ修正系
+
+### 9.2. テストテンプレート生成
+
+既存のテストパターンから、基底クラスごとのテストテンプレートを自動生成する。
+
+#### 目的
+
+- **テスト作成時間の短縮**: テスト作成時間を30分→5分に短縮
+- **テストカバレッジの向上**: 標準的なテストケースを自動生成
+- **テスト品質の統一**: 一貫したテスト構造の確保
+
+#### 実装方針
+
+テスト生成スクリプト
+
+```typescript
+// scripts/generate-test.ts
+// 特性効果クラスからテストファイルを自動生成
+// - 基底クラスに応じたテストテンプレートを選択
+// - 設定ファイルのパラメータに基づいてテストケースを生成
+```
+
+生成されるテスト例
+
+`BaseTypeAbsorbEffect`を継承するクラス用のテンプレート:
+
+- `isImmuneToType`のテスト（無効化タイプの確認）
+- `onAfterTakingDamage`のテスト（HP回復の確認）
+- HP上限のテスト（最大HPを超えないことの確認）
+
+テストテンプレートの種類
+
+基底クラスごとに以下のテンプレートを用意する。
+
+- `BaseTypeAbsorbEffect`: タイプ無効化テスト、HP回復テスト
+- `BaseWeatherDependentSpeedEffect`: 天候条件テスト、速度倍率テスト
+- `BaseStatusConditionEffect`: 状態異常付与確率テスト、免疫タイプテスト
+- `BaseTypeImmunityEffect`: タイプ無効化テスト
+- `BaseOpponentStatChangeEffect`: ステータス変化テスト
+- `BaseConditionalDamageEffect`: 条件判定テスト、ダメージ修正テスト
+
+### 9.3. 基底クラスの拡充
+
+よく使われるパターンに対応する基底クラスを追加し、実装を簡素化する。
+
+#### 目的
+
+- **新規実装の簡素化**: 基底クラスを継承するだけで実装可能に
+- **コード量の削減**: 重複コードの削減
+- **保守性の向上**: 共通ロジックの一元管理
+
+#### 追加すべき基底クラス
+
+以下の基底クラスを優先的に追加する。
+
+1. **BaseStatBoostEffect** - ステータス上昇系
+   - 例: はりきり、かたやぶり
+   - パラメータ: 上昇するステータス、上昇量
+
+2. **BaseTypeBoostEffect** - タイプ一致時の威力上昇
+   - 例: てきおうりょく、スナイパー
+   - パラメータ: 対象タイプ、倍率
+
+3. **BaseHpThresholdEffect** - HP閾値による効果
+   - 例: こんじょう、しんりょく
+   - パラメータ: HP閾値、発動条件、効果内容
+
+4. **BaseWeatherDependentDamageEffect** - 天候依存のダメージ修正
+   - 例: すなのちから（砂嵐時）
+   - パラメータ: 天候条件、ダメージ倍率
+
+5. **BaseMultiHitEffect** - 連続攻撃技用
+   - 例: みだれひっかき、つつく
+   - パラメータ: 攻撃回数、各攻撃の威力
+
+6. **BaseRecoilEffect** - 反動ダメージ系
+   - 例: すてみタックル、とっしん
+   - パラメータ: 反動率
+
+#### 実装優先順位
+
+1. **Phase 1（即座に実装）**: よく使われるパターン
+   - `BaseStatBoostEffect`
+   - `BaseTypeBoostEffect`
+   - `BaseHpThresholdEffect`
+
+2. **Phase 2（短期）**: 中頻度のパターン
+   - `BaseWeatherDependentDamageEffect`
+   - `BaseMultiHitEffect`
+
+3. **Phase 3（中期）**: 特殊なパターン
+   - `BaseRecoilEffect`
+   - その他の特殊効果
+
+#### 基底クラス実装のガイドライン
+
+- **抽象メソッドの最小化**: 必要なパラメータのみを抽象プロパティとして定義
+- **デフォルト実装の提供**: 可能な限りデフォルト実装を提供
+- **テストの自動生成対応**: 基底クラスごとにテストテンプレートを用意
+- **ドキュメントの整備**: 各基底クラスの使用方法を明確に記載

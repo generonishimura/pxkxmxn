@@ -24,6 +24,10 @@ import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemo
 import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
+import {
+  NotFoundException,
+  InvalidStateException,
+} from '@/shared/domain/exceptions';
 
 /**
  * ターン実行の入力パラメータ
@@ -89,11 +93,14 @@ export class ExecuteTurnUseCase {
   async execute(params: ExecuteTurnParams): Promise<ExecuteTurnResult> {
     const battle = await this.battleRepository.findById(params.battleId);
     if (!battle) {
-      throw new Error('Battle not found');
+      throw new NotFoundException('Battle', params.battleId);
     }
 
     if (battle.status !== 'Active') {
-      throw new Error('Battle is not active');
+      throw new InvalidStateException(
+        `Battle is not active. Current status: ${battle.status}`,
+        battle.status,
+      );
     }
 
     // アクティブなポケモンを取得
@@ -107,7 +114,7 @@ export class ExecuteTurnUseCase {
     );
 
     if (!trainer1Active || !trainer2Active) {
-      throw new Error('Active pokemon not found');
+      throw new NotFoundException('Active pokemon');
     }
 
     // 行動順を決定
@@ -290,7 +297,8 @@ export class ExecuteTurnUseCase {
       const trainer2Move = await this.moveRepository.findById(trainer2Action.moveId);
 
       if (!trainer1Move || !trainer2Move) {
-        throw new Error('Move not found');
+        const missingMoveId = !trainer1Move ? trainer1Action.moveId : trainer2Action.moveId;
+        throw new NotFoundException('Move', missingMoveId);
       }
 
       // 特性による優先度補正を適用
@@ -457,7 +465,7 @@ export class ExecuteTurnUseCase {
     const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
 
     if (!trainedPokemon) {
-      throw new Error('TrainedPokemon not found');
+      throw new NotFoundException('TrainedPokemon', status.trainedPokemonId);
     }
 
     // ステータスを計算
@@ -504,7 +512,7 @@ export class ExecuteTurnUseCase {
     const move = await this.moveRepository.findById(moveId);
 
     if (!move) {
-      throw new Error('Move not found');
+      throw new NotFoundException('Move', moveId);
     }
 
     // 攻撃側と防御側のポケモン情報を取得
@@ -516,7 +524,10 @@ export class ExecuteTurnUseCase {
     );
 
     if (!attackerTrainedPokemon || !defenderTrainedPokemon) {
-      throw new Error('TrainedPokemon not found');
+      const missingId = !attackerTrainedPokemon
+        ? attacker.trainedPokemonId
+        : defender.trainedPokemonId;
+      throw new NotFoundException('TrainedPokemon', missingId);
     }
 
     // バトルコンテキストを作成（技の特殊効果用）
@@ -609,7 +620,7 @@ export class ExecuteTurnUseCase {
     // 更新後のdefenderを取得（状態異常付与のために最新の状態を取得）
     const updatedDefender = await this.battleRepository.findBattlePokemonStatusById(defender.id);
     if (!updatedDefender) {
-      throw new Error('Defender not found after damage application');
+      throw new NotFoundException('Defender BattlePokemonStatus', defender.id);
     }
 
     // タイプ無効化が発動した場合（ダメージが0の場合）、HP回復などの効果を処理
@@ -658,9 +669,7 @@ export class ExecuteTurnUseCase {
       await this.battleRepository.findBattlePokemonMoveById(battlePokemonMoveId);
 
     if (!battlePokemonMove) {
-      throw new Error(
-        `BattlePokemonMove not found. 技ID: ${battlePokemonMoveId} が見つかりませんでした`,
-      );
+      throw new NotFoundException('BattlePokemonMove', battlePokemonMoveId);
     }
 
     // PPを1消費
