@@ -9,10 +9,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { StartBattleUseCase } from '../application/use-cases/start-battle.use-case';
 import { ExecuteTurnUseCase } from '../application/use-cases/execute-turn.use-case';
-import {
-  IBattleRepository,
-  BATTLE_REPOSITORY_TOKEN,
-} from '../domain/battle.repository.interface';
+import { IBattleRepository, BATTLE_REPOSITORY_TOKEN } from '../domain/battle.repository.interface';
 import { Inject, Logger } from '@nestjs/common';
 
 /**
@@ -68,7 +65,9 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
 
       // バトル状態を取得
-      const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
+      const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(
+        battle.id,
+      );
 
       // クライアントに結果を送信
       return {
@@ -117,7 +116,9 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       // バトル状態を取得
-      const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(result.battle.id);
+      const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(
+        result.battle.id,
+      );
 
       // クライアントに結果を送信
       return {
@@ -154,7 +155,9 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
         };
       }
 
-      const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(data.battleId);
+      const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(
+        data.battleId,
+      );
 
       return {
         event: 'battle:status:result',
@@ -173,4 +176,3 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 }
-
