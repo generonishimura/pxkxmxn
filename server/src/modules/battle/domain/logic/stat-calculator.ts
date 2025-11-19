@@ -80,6 +80,46 @@ export interface CalculatedStats {
 
 export class StatCalculator {
   /**
+   * ステータス計算式の係数A（2 * base + iv + floor(ev/4) の部分）
+   */
+  private static readonly STAT_FORMULA_COEFFICIENT_A = 2;
+
+  /**
+   * ステータス計算式の係数B（floor(ev/4) の部分）
+   */
+  private static readonly STAT_FORMULA_COEFFICIENT_B = 4;
+
+  /**
+   * ステータス計算式の係数C（* level / 100 の部分）
+   */
+  private static readonly STAT_FORMULA_COEFFICIENT_C = 100;
+
+  /**
+   * HP以外のステータス計算式の係数D（+ 5 の部分）
+   */
+  private static readonly STAT_FORMULA_COEFFICIENT_D = 5;
+
+  /**
+   * HP計算式の係数E（+ level + 10 の部分）
+   */
+  private static readonly HP_FORMULA_COEFFICIENT_E = 10;
+
+  /**
+   * 性格による補正：上げたいステータスの倍率
+   */
+  private static readonly NATURE_UP_MULTIPLIER = 1.1;
+
+  /**
+   * 性格による補正：下げたいステータスの倍率
+   */
+  private static readonly NATURE_DOWN_MULTIPLIER = 0.9;
+
+  /**
+   * 性格による補正：変化なしの倍率
+   */
+  private static readonly NATURE_NEUTRAL_MULTIPLIER = 1.0;
+
+  /**
    * TrainedPokemonのステータス情報から実際のステータスを計算
    */
   static calculate(stats: TrainedPokemonStats): CalculatedStats {
@@ -98,7 +138,17 @@ export class StatCalculator {
    * HP = floor((2 * baseHp + iv + floor(ev/4)) * level / 100) + level + 10
    */
   private static calculateHp(stats: TrainedPokemonStats): number {
-    return Math.floor((2 * stats.baseHp + stats.ivHp + Math.floor(stats.evHp / 4)) * stats.level / 100) + stats.level + 10;
+    return (
+      Math.floor(
+        ((StatCalculator.STAT_FORMULA_COEFFICIENT_A * stats.baseHp +
+          stats.ivHp +
+          Math.floor(stats.evHp / StatCalculator.STAT_FORMULA_COEFFICIENT_B)) *
+          stats.level) /
+          StatCalculator.STAT_FORMULA_COEFFICIENT_C,
+      ) +
+      stats.level +
+      StatCalculator.HP_FORMULA_COEFFICIENT_E
+    );
   }
 
   /**
@@ -113,7 +163,14 @@ export class StatCalculator {
     nature: Nature | null,
     statType: 'attack' | 'defense' | 'specialAttack' | 'specialDefense' | 'speed',
   ): number {
-    const baseValue = Math.floor((2 * base + iv + Math.floor(ev / 4)) * level / 100) + 5;
+    const baseValue =
+      Math.floor(
+        ((StatCalculator.STAT_FORMULA_COEFFICIENT_A * base +
+          iv +
+          Math.floor(ev / StatCalculator.STAT_FORMULA_COEFFICIENT_B)) *
+          level) /
+          StatCalculator.STAT_FORMULA_COEFFICIENT_C,
+      ) + StatCalculator.STAT_FORMULA_COEFFICIENT_D;
     const natureMultiplier = this.getNatureMultiplier(nature, statType);
     return Math.floor(baseValue * natureMultiplier);
   }
@@ -126,7 +183,7 @@ export class StatCalculator {
     statType: 'attack' | 'defense' | 'specialAttack' | 'specialDefense' | 'speed',
   ): number {
     if (!nature) {
-      return 1.0;
+      return StatCalculator.NATURE_NEUTRAL_MULTIPLIER;
     }
 
     // 性格による補正テーブル
@@ -161,12 +218,12 @@ export class StatCalculator {
 
     const modifier = natureModifiers[nature];
     if (modifier.up === statType && modifier.down !== statType) {
-      return 1.1;
+      return StatCalculator.NATURE_UP_MULTIPLIER;
     }
     if (modifier.down === statType && modifier.up !== statType) {
-      return 0.9;
+      return StatCalculator.NATURE_DOWN_MULTIPLIER;
     }
-    return 1.0;
+    return StatCalculator.NATURE_NEUTRAL_MULTIPLIER;
   }
 }
 
