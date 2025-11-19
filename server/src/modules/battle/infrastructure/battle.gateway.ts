@@ -13,7 +13,7 @@ import {
   IBattleRepository,
   BATTLE_REPOSITORY_TOKEN,
 } from '../domain/battle.repository.interface';
-import { Inject } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 
 /**
  * BattleGateway
@@ -25,6 +25,8 @@ import { Inject } from '@nestjs/common';
   },
 })
 export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  private readonly logger = new Logger(BattleGateway.name);
+
   @WebSocketServer()
   server: Server;
 
@@ -36,11 +38,11 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
+    this.logger.log(`Client connected: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`);
+    this.logger.log(`Client disconnected: ${client.id}`);
   }
 
   /**
