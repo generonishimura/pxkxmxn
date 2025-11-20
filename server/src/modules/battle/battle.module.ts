@@ -8,6 +8,7 @@ import { BattleController } from './infrastructure/battle.controller';
 import { BattleGateway } from './infrastructure/battle.gateway';
 import { TrainerModule } from '../trainer/trainer.module';
 import { PokemonModule } from '../pokemon/pokemon.module';
+import { ActionOrderDeterminerService } from './application/services/action-order-determiner.service';
 
 /**
  * BattleModule
@@ -20,6 +21,9 @@ import { PokemonModule } from '../pokemon/pokemon.module';
     // ユースケース
     StartBattleUseCase,
     ExecuteTurnUseCase,
+
+    // サービス
+    ActionOrderDeterminerService,
 
     // ゲートウェイ
     BattleGateway,

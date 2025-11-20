@@ -28,6 +28,7 @@ import {
   NotFoundException,
   InvalidStateException,
 } from '@/shared/domain/exceptions';
+import { ActionOrderDeterminerService } from '../services/action-order-determiner.service';
 
 /**
  * ターン実行の入力パラメータ
@@ -85,6 +86,7 @@ export class ExecuteTurnUseCase {
     private readonly moveRepository: IMoveRepository,
     @Inject(TYPE_EFFECTIVENESS_REPOSITORY_TOKEN)
     private readonly typeEffectivenessRepository: ITypeEffectivenessRepository,
+    private readonly actionOrderDeterminer: ActionOrderDeterminerService,
   ) {}
 
   /**
@@ -118,13 +120,13 @@ export class ExecuteTurnUseCase {
     }
 
     // 行動順を決定
-    const actions = await this.determineActionOrder(
+    const actions = await this.actionOrderDeterminer.determine({
       battle,
-      params.trainer1Action,
-      params.trainer2Action,
+      trainer1Action: params.trainer1Action,
+      trainer2Action: params.trainer2Action,
       trainer1Active,
       trainer2Active,
-    );
+    });
 
     const actionResults: Array<{ trainerId: number; action: string; result: string }> = [];
 
@@ -248,254 +250,6 @@ export class ExecuteTurnUseCase {
     };
   }
 
-  /**
-   * 行動順を決定
-   * 優先度と速度を考慮して決定
-   * 優先順位: 交代 > 優先度 > 速度 > 状態異常補正
-   */
-  private async determineActionOrder(
-    battle: Battle,
-    trainer1Action: ExecuteTurnParams['trainer1Action'],
-    trainer2Action: ExecuteTurnParams['trainer2Action'],
-    trainer1Active: BattlePokemonStatus,
-    trainer2Active: BattlePokemonStatus,
-  ): Promise<
-    Array<{
-      trainerId: number;
-      action: 'move' | 'switch';
-      moveId?: number;
-      switchPokemonId?: number;
-    }>
-  > {
-    const actions: Array<{
-      trainerId: number;
-      action: 'move' | 'switch';
-      moveId?: number;
-      switchPokemonId?: number;
-    }> = [];
-
-    // ポケモン交代は常に先に実行
-    if (trainer1Action.switchPokemonId) {
-      actions.push({
-        trainerId: trainer1Action.trainerId,
-        action: 'switch',
-        switchPokemonId: trainer1Action.switchPokemonId,
-      });
-    }
-    if (trainer2Action.switchPokemonId) {
-      actions.push({
-        trainerId: trainer2Action.trainerId,
-        action: 'switch',
-        switchPokemonId: trainer2Action.switchPokemonId,
-      });
-    }
-
-    // 両方が技を使用する場合、優先度と速度を考慮
-    if (trainer1Action.moveId && trainer2Action.moveId) {
-      // 技の優先度を取得
-      const trainer1Move = await this.moveRepository.findById(trainer1Action.moveId);
-      const trainer2Move = await this.moveRepository.findById(trainer2Action.moveId);
-
-      if (!trainer1Move || !trainer2Move) {
-        const missingMoveId = !trainer1Move ? trainer1Action.moveId : trainer2Action.moveId;
-        throw new NotFoundException('Move', missingMoveId);
-      }
-
-      // 特性による優先度補正を適用
-      const trainer1TrainedPokemon = await this.trainedPokemonRepository.findById(
-        trainer1Active.trainedPokemonId,
-      );
-      const trainer2TrainedPokemon = await this.trainedPokemonRepository.findById(
-        trainer2Active.trainedPokemonId,
-      );
-
-      const battleContext = {
-        battle,
-        weather: battle.weather,
-        field: battle.field,
-      };
-
-      let trainer1Priority = trainer1Move.priority;
-      let trainer2Priority = trainer2Move.priority;
-
-      if (trainer1TrainedPokemon?.ability) {
-        const abilityEffect = AbilityRegistry.get(trainer1TrainedPokemon.ability.name);
-        if (abilityEffect?.modifyPriority) {
-          const modifiedPriority = abilityEffect.modifyPriority(
-            trainer1Active,
-            trainer1Move.priority,
-            battleContext,
-          );
-          if (modifiedPriority !== undefined) {
-            trainer1Priority = modifiedPriority;
-          }
-        }
-      }
-
-      if (trainer2TrainedPokemon?.ability) {
-        const abilityEffect = AbilityRegistry.get(trainer2TrainedPokemon.ability.name);
-        if (abilityEffect?.modifyPriority) {
-          const modifiedPriority = abilityEffect.modifyPriority(
-            trainer2Active,
-            trainer2Move.priority,
-            battleContext,
-          );
-          if (modifiedPriority !== undefined) {
-            trainer2Priority = modifiedPriority;
-          }
-        }
-      }
-
-      // 優先度が異なる場合は優先度が高い方が先
-      if (trainer1Priority !== trainer2Priority) {
-        if (trainer1Priority > trainer2Priority) {
-          actions.push({
-            trainerId: trainer1Action.trainerId,
-            action: 'move',
-            moveId: trainer1Action.moveId,
-          });
-          actions.push({
-            trainerId: trainer2Action.trainerId,
-            action: 'move',
-            moveId: trainer2Action.moveId,
-          });
-        } else {
-          actions.push({
-            trainerId: trainer2Action.trainerId,
-            action: 'move',
-            moveId: trainer2Action.moveId,
-          });
-          actions.push({
-            trainerId: trainer1Action.trainerId,
-            action: 'move',
-            moveId: trainer1Action.moveId,
-          });
-        }
-      } else {
-        // 優先度が同じ場合は速度で判定
-        // 状態異常による素早さ補正を考慮
-        let trainer1Speed = await this.getEffectiveSpeed(trainer1Active);
-        let trainer2Speed = await this.getEffectiveSpeed(trainer2Active);
-
-        // まひ状態異常の場合は素早さが0.5倍
-        const trainer1SpeedMultiplier =
-          trainer1Active.statusCondition === StatusCondition.Paralysis ? 0.5 : 1.0;
-        const trainer2SpeedMultiplier =
-          trainer2Active.statusCondition === StatusCondition.Paralysis ? 0.5 : 1.0;
-
-        trainer1Speed = trainer1Speed * trainer1SpeedMultiplier;
-        trainer2Speed = trainer2Speed * trainer2SpeedMultiplier;
-
-        // 特性による速度補正を適用
-        if (trainer1TrainedPokemon?.ability) {
-          const abilityEffect = AbilityRegistry.get(trainer1TrainedPokemon.ability.name);
-          if (abilityEffect?.modifySpeed) {
-            const modifiedSpeed = abilityEffect.modifySpeed(
-              trainer1Active,
-              trainer1Speed,
-              battleContext,
-            );
-            if (modifiedSpeed !== undefined) {
-              trainer1Speed = modifiedSpeed;
-            }
-          }
-        }
-
-        if (trainer2TrainedPokemon?.ability) {
-          const abilityEffect = AbilityRegistry.get(trainer2TrainedPokemon.ability.name);
-          if (abilityEffect?.modifySpeed) {
-            const modifiedSpeed = abilityEffect.modifySpeed(
-              trainer2Active,
-              trainer2Speed,
-              battleContext,
-            );
-            if (modifiedSpeed !== undefined) {
-              trainer2Speed = modifiedSpeed;
-            }
-          }
-        }
-
-        // 速度比較
-        if (trainer1Speed >= trainer2Speed) {
-          actions.push({
-            trainerId: trainer1Action.trainerId,
-            action: 'move',
-            moveId: trainer1Action.moveId,
-          });
-          actions.push({
-            trainerId: trainer2Action.trainerId,
-            action: 'move',
-            moveId: trainer2Action.moveId,
-          });
-        } else {
-          actions.push({
-            trainerId: trainer2Action.trainerId,
-            action: 'move',
-            moveId: trainer2Action.moveId,
-          });
-          actions.push({
-            trainerId: trainer1Action.trainerId,
-            action: 'move',
-            moveId: trainer1Action.moveId,
-          });
-        }
-      }
-    } else if (trainer1Action.moveId) {
-      actions.push({
-        trainerId: trainer1Action.trainerId,
-        action: 'move',
-        moveId: trainer1Action.moveId,
-      });
-    } else if (trainer2Action.moveId) {
-      actions.push({
-        trainerId: trainer2Action.trainerId,
-        action: 'move',
-        moveId: trainer2Action.moveId,
-      });
-    }
-
-    return actions;
-  }
-
-  /**
-   * ランク補正を考慮した実効速度を取得
-   */
-  private async getEffectiveSpeed(status: BattlePokemonStatus): Promise<number> {
-    // TrainedPokemon情報を取得
-    const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
-
-    if (!trainedPokemon) {
-      throw new NotFoundException('TrainedPokemon', status.trainedPokemonId);
-    }
-
-    // ステータスを計算
-    const stats = StatCalculator.calculate({
-      baseHp: trainedPokemon.pokemon.baseHp,
-      baseAttack: trainedPokemon.pokemon.baseAttack,
-      baseDefense: trainedPokemon.pokemon.baseDefense,
-      baseSpecialAttack: trainedPokemon.pokemon.baseSpecialAttack,
-      baseSpecialDefense: trainedPokemon.pokemon.baseSpecialDefense,
-      baseSpeed: trainedPokemon.pokemon.baseSpeed,
-      level: trainedPokemon.level,
-      ivHp: trainedPokemon.ivHp,
-      ivAttack: trainedPokemon.ivAttack,
-      ivDefense: trainedPokemon.ivDefense,
-      ivSpecialAttack: trainedPokemon.ivSpecialAttack,
-      ivSpecialDefense: trainedPokemon.ivSpecialDefense,
-      ivSpeed: trainedPokemon.ivSpeed,
-      evHp: trainedPokemon.evHp,
-      evAttack: trainedPokemon.evAttack,
-      evDefense: trainedPokemon.evDefense,
-      evSpecialAttack: trainedPokemon.evSpecialAttack,
-      evSpecialDefense: trainedPokemon.evSpecialDefense,
-      evSpeed: trainedPokemon.evSpeed,
-      nature: trainedPokemon.nature,
-    });
-
-    // ランク補正を適用
-    const multiplier = status.getStatMultiplier('speed');
-    return Math.floor(stats.speed * multiplier);
-  }
 
   /**
    * 技を実行
