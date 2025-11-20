@@ -80,29 +80,34 @@ export interface CalculatedStats {
 
 export class StatCalculator {
   /**
-   * ステータス計算式の係数A（2 * base + iv + floor(ev/4) の部分）
+   * ステータス計算式の基本ステータス倍率（2 * base + iv + floor(ev/4) の部分の2）
+   * 種族値に2を掛けることで、種族値の影響を強調
    */
-  private static readonly STAT_FORMULA_COEFFICIENT_A = 2;
+  private static readonly BASE_STAT_MULTIPLIER = 2;
 
   /**
-   * ステータス計算式の係数B（floor(ev/4) の部分）
+   * ステータス計算式の努力値除数（floor(ev/4) の部分の4）
+   * 努力値を4で割ることで、努力値の影響を調整
    */
-  private static readonly STAT_FORMULA_COEFFICIENT_B = 4;
+  private static readonly EV_DIVISOR = 4;
 
   /**
-   * ステータス計算式の係数C（* level / 100 の部分）
+   * ステータス計算式のレベル除数（* level / 100 の部分の100）
+   * レベルによる影響を100で割ることで、ステータスのスケールを調整
    */
-  private static readonly STAT_FORMULA_COEFFICIENT_C = 100;
+  private static readonly LEVEL_DIVISOR = 100;
 
   /**
-   * HP以外のステータス計算式の係数D（+ 5 の部分）
+   * HP以外のステータス計算式のオフセット（+ 5 の部分の5）
+   * 最小ステータス値を保証するための定数
    */
-  private static readonly STAT_FORMULA_COEFFICIENT_D = 5;
+  private static readonly NON_HP_STAT_OFFSET = 5;
 
   /**
-   * HP計算式の係数E（+ level + 10 の部分）
+   * HP計算式のオフセット（+ level + 10 の部分の10）
+   * HPの最小値を保証するための定数
    */
-  private static readonly HP_FORMULA_COEFFICIENT_E = 10;
+  private static readonly HP_STAT_OFFSET = 10;
 
   /**
    * 性格による補正：上げたいステータスの倍率
@@ -140,14 +145,14 @@ export class StatCalculator {
   private static calculateHp(stats: TrainedPokemonStats): number {
     return (
       Math.floor(
-        ((StatCalculator.STAT_FORMULA_COEFFICIENT_A * stats.baseHp +
+        ((StatCalculator.BASE_STAT_MULTIPLIER * stats.baseHp +
           stats.ivHp +
-          Math.floor(stats.evHp / StatCalculator.STAT_FORMULA_COEFFICIENT_B)) *
+          Math.floor(stats.evHp / StatCalculator.EV_DIVISOR)) *
           stats.level) /
-          StatCalculator.STAT_FORMULA_COEFFICIENT_C,
+          StatCalculator.LEVEL_DIVISOR,
       ) +
       stats.level +
-      StatCalculator.HP_FORMULA_COEFFICIENT_E
+      StatCalculator.HP_STAT_OFFSET
     );
   }
 
@@ -165,12 +170,12 @@ export class StatCalculator {
   ): number {
     const baseValue =
       Math.floor(
-        ((StatCalculator.STAT_FORMULA_COEFFICIENT_A * base +
+        ((StatCalculator.BASE_STAT_MULTIPLIER * base +
           iv +
-          Math.floor(ev / StatCalculator.STAT_FORMULA_COEFFICIENT_B)) *
+          Math.floor(ev / StatCalculator.EV_DIVISOR)) *
           level) /
-          StatCalculator.STAT_FORMULA_COEFFICIENT_C,
-      ) + StatCalculator.STAT_FORMULA_COEFFICIENT_D;
+          StatCalculator.LEVEL_DIVISOR,
+      ) + StatCalculator.NON_HP_STAT_OFFSET;
     const natureMultiplier = this.getNatureMultiplier(nature, statType);
     return Math.floor(baseValue * natureMultiplier);
   }

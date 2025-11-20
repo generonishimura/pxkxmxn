@@ -65,28 +65,34 @@ export interface DamageCalculationParams {
 export class DamageCalculator {
   /**
    * バトルで使用される標準レベル
+   * ポケモンの公式バトルではレベル50が標準として使用される
+   * 参照: REQUIREMENT.md セクション「標準レベル」
    */
   private static readonly STANDARD_BATTLE_LEVEL = 50;
 
   /**
-   * ダメージ計算式の係数A（2 * level / 5 + 2 の部分）
+   * ダメージ計算式のレベル倍率（2 * level / 5 + 2 の部分の2）
+   * 基本ダメージ計算式のレベル項の係数
    */
-  private static readonly DAMAGE_FORMULA_COEFFICIENT_A = 2;
+  private static readonly LEVEL_MULTIPLIER = 2;
 
   /**
-   * ダメージ計算式の係数B（level / 5 の部分）
+   * ダメージ計算式のレベル除数（level / 5 の部分の5）
+   * レベルを5で割ることで、レベルによる影響を調整
    */
-  private static readonly DAMAGE_FORMULA_COEFFICIENT_B = 5;
+  private static readonly LEVEL_DIVISOR = 5;
 
   /**
-   * ダメージ計算式の係数C（/ 50 の部分）
+   * ダメージ計算式の攻撃・防御除数（/ 50 の部分の50）
+   * 攻撃力と防御力の比を50で割ることで、ダメージのスケールを調整
    */
-  private static readonly DAMAGE_FORMULA_COEFFICIENT_C = 50;
+  private static readonly ATTACK_DEFENSE_DIVISOR = 50;
 
   /**
-   * ダメージ計算式の係数D（+ 2 の部分）
+   * ダメージ計算式の基本ダメージオフセット（+ 2 の部分の2）
+   * 最小ダメージを保証するための定数
    */
-  private static readonly DAMAGE_FORMULA_COEFFICIENT_D = 2;
+  private static readonly BASE_DAMAGE_OFFSET = 2;
 
   /**
    * タイプ一致（STAB: Same Type Attack Bonus）の倍率
@@ -164,15 +170,15 @@ export class DamageCalculator {
     // 基本ダメージ計算: floor((floor((2 * level / 5 + 2) * power * A / D) / 50) + 2)
     const baseDamage = Math.floor(
       Math.floor(
-        (((DamageCalculator.DAMAGE_FORMULA_COEFFICIENT_A * level) /
-          DamageCalculator.DAMAGE_FORMULA_COEFFICIENT_B +
-          DamageCalculator.DAMAGE_FORMULA_COEFFICIENT_D) *
+        (((DamageCalculator.LEVEL_MULTIPLIER * level) /
+          DamageCalculator.LEVEL_DIVISOR +
+          DamageCalculator.BASE_DAMAGE_OFFSET) *
           move.power *
           finalAttackStat) /
           defenseStat,
       ) /
-        DamageCalculator.DAMAGE_FORMULA_COEFFICIENT_C +
-        DamageCalculator.DAMAGE_FORMULA_COEFFICIENT_D,
+        DamageCalculator.ATTACK_DEFENSE_DIVISOR +
+        DamageCalculator.BASE_DAMAGE_OFFSET,
     );
 
     // タイプ一致補正（1.5倍または1.0倍）
