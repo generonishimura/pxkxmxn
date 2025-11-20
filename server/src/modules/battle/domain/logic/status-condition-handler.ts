@@ -57,6 +57,36 @@ export class StatusConditionHandler {
   private static readonly SLEEP_WAKE_CHANCE_TURN2 = 0.5;
 
   /**
+   * やけどによる物理攻撃倍率
+   */
+  private static readonly BURN_PHYSICAL_ATTACK_MULTIPLIER = 0.5;
+
+  /**
+   * 物理攻撃倍率のデフォルト値（やけど以外）
+   */
+  private static readonly DEFAULT_PHYSICAL_ATTACK_MULTIPLIER = 1.0;
+
+  /**
+   * やけどのダメージ計算の除数（最大HPの1/16）
+   */
+  private static readonly BURN_DAMAGE_DIVISOR = 16;
+
+  /**
+   * どくのダメージ計算の除数（最大HPの1/8）
+   */
+  private static readonly POISON_DAMAGE_DIVISOR = 8;
+
+  /**
+   * もうどくのダメージ計算の除数（最大HPの1/16から始まる）
+   */
+  private static readonly BAD_POISON_DAMAGE_DIVISOR = 16;
+
+  /**
+   * もうどくの最大ダメージ倍率（最大HPの1/2 = 8/16）
+   */
+  private static readonly BAD_POISON_MAX_DAMAGE_RATIO = 8 / 16;
+
+  /**
    * 状態異常による行動可能判定
    * @param status ポケモンの状態
    * @returns 行動可能かどうか
@@ -98,14 +128,17 @@ export class StatusConditionHandler {
     switch (status.statusCondition) {
       case StatusCondition.Burn:
         // やけど: 最大HPの1/16
-        return Math.floor(status.maxHp / 16);
+        return Math.floor(status.maxHp / StatusConditionHandler.BURN_DAMAGE_DIVISOR);
       case StatusCondition.Poison:
         // どく: 最大HPの1/8
-        return Math.floor(status.maxHp / 8);
+        return Math.floor(status.maxHp / StatusConditionHandler.POISON_DAMAGE_DIVISOR);
       case StatusCondition.BadPoison: {
         // もうどく: 最大HPの1/16から始まり、毎ターン増加（最大1/2）
         // ターン数に応じて: 1/16, 2/16, 3/16, ..., 8/16 (1/2)
-        const damageRatio = Math.min((badPoisonTurnCount + 1) / 16, 8 / 16);
+        const damageRatio = Math.min(
+          (badPoisonTurnCount + 1) / StatusConditionHandler.BAD_POISON_DAMAGE_DIVISOR,
+          StatusConditionHandler.BAD_POISON_MAX_DAMAGE_RATIO,
+        );
         return Math.floor(status.maxHp * damageRatio);
       }
       default:
@@ -120,9 +153,9 @@ export class StatusConditionHandler {
    */
   static getPhysicalAttackMultiplier(status: BattlePokemonStatus): number {
     if (status.statusCondition === StatusCondition.Burn) {
-      return 0.5;
+      return StatusConditionHandler.BURN_PHYSICAL_ATTACK_MULTIPLIER;
     }
-    return 1.0;
+    return StatusConditionHandler.DEFAULT_PHYSICAL_ATTACK_MULTIPLIER;
   }
 
   /**
