@@ -20,15 +20,25 @@ export class MoveRegistry {
   /**
    * レジストリを初期化
    * アプリケーション起動時に呼び出されることを想定
+   * @throws Error 初期化に失敗した場合
    */
   static initialize(): void {
-    // 技の特殊効果ロジックを登録
-    // DBのnameをキーとして、対応するロジッククラスを登録
-    this.registry.set('かえんほうしゃ', new FlamethrowerEffect());
-    this.registry.set('10まんボルト', new ThunderboltEffect());
-    this.registry.set('どくどく', new ToxicEffect());
-    this.registry.set('れいとうビーム', new IceBeamEffect());
-    this.registry.set('ねむりごな', new SleepPowderEffect());
+    try {
+      // レジストリをクリア（再初期化の場合に備える）
+      this.registry.clear();
+
+      // 技の特殊効果ロジックを登録
+      // DBのnameをキーとして、対応するロジッククラスを登録
+      this.registry.set('かえんほうしゃ', new FlamethrowerEffect());
+      this.registry.set('10まんボルト', new ThunderboltEffect());
+      this.registry.set('どくどく', new ToxicEffect());
+      this.registry.set('れいとうビーム', new IceBeamEffect());
+      this.registry.set('ねむりごな', new SleepPowderEffect());
+    } catch (error) {
+      throw new Error(
+        `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   /**

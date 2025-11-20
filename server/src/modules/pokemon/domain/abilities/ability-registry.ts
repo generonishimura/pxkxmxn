@@ -31,26 +31,36 @@ export class AbilityRegistry {
   /**
    * レジストリを初期化
    * アプリケーション起動時に呼び出されることを想定
+   * @throws Error 初期化に失敗した場合
    */
   static initialize(): void {
-    // 特性ロジックを登録
-    // DBのnameをキーとして、対応するロジッククラスを登録
-    this.registry.set('いかく', new IntimidateEffect());
-    this.registry.set('マルチスケイル', new MultiscaleEffect());
-    this.registry.set('ふみん', new InsomniaEffect());
-    this.registry.set('ふゆう', new LevitateEffect());
-    this.registry.set('すいすい', new SwiftSwimEffect());
-    this.registry.set('あついしぼう', new ThickFatEffect());
-    this.registry.set('ちくでん', new VoltAbsorbEffect());
-    this.registry.set('もらいび', new FlashFireEffect());
-    this.registry.set('あめふらし', new DrizzleEffect());
-    this.registry.set('ひでり', new DroughtEffect());
-    this.registry.set('すなあらし', new SandStreamEffect());
-    this.registry.set('ゆきふらし', new SnowWarningEffect());
-    this.registry.set('ちょすい', new WaterAbsorbEffect());
-    this.registry.set('はがねつかい', new SteelworkerEffect());
-    this.registry.set('ようりょくそ', new ChlorophyllEffect());
-    this.registry.set('すなかき', new SandRushEffect());
+    try {
+      // レジストリをクリア（再初期化の場合に備える）
+      this.registry.clear();
+
+      // 特性ロジックを登録
+      // DBのnameをキーとして、対応するロジッククラスを登録
+      this.registry.set('いかく', new IntimidateEffect());
+      this.registry.set('マルチスケイル', new MultiscaleEffect());
+      this.registry.set('ふみん', new InsomniaEffect());
+      this.registry.set('ふゆう', new LevitateEffect());
+      this.registry.set('すいすい', new SwiftSwimEffect());
+      this.registry.set('あついしぼう', new ThickFatEffect());
+      this.registry.set('ちくでん', new VoltAbsorbEffect());
+      this.registry.set('もらいび', new FlashFireEffect());
+      this.registry.set('あめふらし', new DrizzleEffect());
+      this.registry.set('ひでり', new DroughtEffect());
+      this.registry.set('すなあらし', new SandStreamEffect());
+      this.registry.set('ゆきふらし', new SnowWarningEffect());
+      this.registry.set('ちょすい', new WaterAbsorbEffect());
+      this.registry.set('はがねつかい', new SteelworkerEffect());
+      this.registry.set('ようりょくそ', new ChlorophyllEffect());
+      this.registry.set('すなかき', new SandRushEffect());
+    } catch (error) {
+      throw new Error(
+        `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   /**

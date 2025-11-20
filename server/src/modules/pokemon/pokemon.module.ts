@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { PokemonController } from './infrastructure/pokemon.controller';
 import { GetPokemonByIdUseCase } from './application/use-cases/get-pokemon-by-id.use-case';
 import { GetAbilityEffectUseCase } from './application/use-cases/get-ability-effect.use-case';
@@ -58,12 +58,27 @@ import { MoveRegistry } from './domain/moves/move-registry';
     GetAbilityEffectUseCase,
   ],
 })
-export class PokemonModule {
+export class PokemonModule implements OnModuleInit {
+  private readonly logger = new Logger(PokemonModule.name);
+
   /**
    * モジュール初期化時に特性レジストリと技のレジストリを初期化
+   * 初期化に失敗した場合はアプリケーション起動を停止
    */
-  constructor() {
-    AbilityRegistry.initialize();
-    MoveRegistry.initialize();
+  onModuleInit() {
+    try {
+      this.logger.log('Initializing AbilityRegistry...');
+      AbilityRegistry.initialize();
+      const abilityCount = AbilityRegistry.listRegistered().length;
+      this.logger.log(`AbilityRegistry initialized successfully. Registered ${abilityCount} abilities.`);
+
+      this.logger.log('Initializing MoveRegistry...');
+      MoveRegistry.initialize();
+      const moveCount = MoveRegistry.listRegistered().length;
+      this.logger.log(`MoveRegistry initialized successfully. Registered ${moveCount} moves.`);
+    } catch (error) {
+      this.logger.error('Failed to initialize registries', error);
+      throw error;
+    }
   }
 }
