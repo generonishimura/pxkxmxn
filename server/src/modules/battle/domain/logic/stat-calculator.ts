@@ -130,11 +130,46 @@ export class StatCalculator {
   static calculate(stats: TrainedPokemonStats): CalculatedStats {
     return {
       hp: this.calculateHp(stats),
-      attack: this.calculateStat(stats.baseAttack, stats.ivAttack, stats.evAttack, stats.level, stats.nature, 'attack'),
-      defense: this.calculateStat(stats.baseDefense, stats.ivDefense, stats.evDefense, stats.level, stats.nature, 'defense'),
-      specialAttack: this.calculateStat(stats.baseSpecialAttack, stats.ivSpecialAttack, stats.evSpecialAttack, stats.level, stats.nature, 'specialAttack'),
-      specialDefense: this.calculateStat(stats.baseSpecialDefense, stats.ivSpecialDefense, stats.evSpecialDefense, stats.level, stats.nature, 'specialDefense'),
-      speed: this.calculateStat(stats.baseSpeed, stats.ivSpeed, stats.evSpeed, stats.level, stats.nature, 'speed'),
+      attack: this.calculateStat(
+        stats.baseAttack,
+        stats.ivAttack,
+        stats.evAttack,
+        stats.level,
+        stats.nature,
+        'attack',
+      ),
+      defense: this.calculateStat(
+        stats.baseDefense,
+        stats.ivDefense,
+        stats.evDefense,
+        stats.level,
+        stats.nature,
+        'defense',
+      ),
+      specialAttack: this.calculateStat(
+        stats.baseSpecialAttack,
+        stats.ivSpecialAttack,
+        stats.evSpecialAttack,
+        stats.level,
+        stats.nature,
+        'specialAttack',
+      ),
+      specialDefense: this.calculateStat(
+        stats.baseSpecialDefense,
+        stats.ivSpecialDefense,
+        stats.evSpecialDefense,
+        stats.level,
+        stats.nature,
+        'specialDefense',
+      ),
+      speed: this.calculateStat(
+        stats.baseSpeed,
+        stats.ivSpeed,
+        stats.evSpeed,
+        stats.level,
+        stats.nature,
+        'speed',
+      ),
     };
   }
 
@@ -231,4 +266,3 @@ export class StatCalculator {
     return StatCalculator.NATURE_NEUTRAL_MULTIPLIER;
   }
 }
-

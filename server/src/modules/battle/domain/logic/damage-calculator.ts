@@ -170,8 +170,7 @@ export class DamageCalculator {
     // 基本ダメージ計算: floor((floor((2 * level / 5 + 2) * power * A / D) / 50) + 2)
     const baseDamage = Math.floor(
       Math.floor(
-        (((DamageCalculator.LEVEL_MULTIPLIER * level) /
-          DamageCalculator.LEVEL_DIVISOR +
+        (((DamageCalculator.LEVEL_MULTIPLIER * level) / DamageCalculator.LEVEL_DIVISOR +
           DamageCalculator.BASE_DAMAGE_OFFSET) *
           move.power *
           finalAttackStat) /
