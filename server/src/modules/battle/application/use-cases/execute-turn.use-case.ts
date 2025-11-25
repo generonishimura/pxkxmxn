@@ -3,16 +3,6 @@ import {
   IBattleRepository,
   BATTLE_REPOSITORY_TOKEN,
 } from '../../domain/battle.repository.interface';
-import {
-  ITrainedPokemonRepository,
-  TRAINED_POKEMON_REPOSITORY_TOKEN,
-} from '@/modules/trainer/domain/trainer.repository.interface';
-import {
-  IMoveRepository,
-  ITypeEffectivenessRepository,
-  MOVE_REPOSITORY_TOKEN,
-  TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
-} from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
@@ -73,10 +63,6 @@ export class ExecuteTurnUseCase {
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
-    @Inject(TRAINED_POKEMON_REPOSITORY_TOKEN)
-    private readonly trainedPokemonRepository: ITrainedPokemonRepository,
-    @Inject(MOVE_REPOSITORY_TOKEN)
-    private readonly moveRepository: IMoveRepository,
     private readonly actionOrderDeterminer: ActionOrderDeterminerService,
     private readonly winnerChecker: WinnerCheckerService,
     private readonly statusConditionProcessor: StatusConditionProcessorService,
