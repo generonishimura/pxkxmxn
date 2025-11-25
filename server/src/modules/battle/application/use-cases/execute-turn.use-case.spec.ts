@@ -28,6 +28,7 @@ import { Nature } from '../../domain/logic/stat-calculator';
 import { ActionOrderDeterminerService } from '../services/action-order-determiner.service';
 import { WinnerCheckerService } from '../services/winner-checker.service';
 import { StatusConditionProcessorService } from '../services/status-condition-processor.service';
+import { PokemonSwitcherService } from '../services/pokemon-switcher.service';
 
 describe('ExecuteTurnUseCase', () => {
   let useCase: ExecuteTurnUseCase;
@@ -76,6 +77,7 @@ describe('ExecuteTurnUseCase', () => {
         ActionOrderDeterminerService,
         WinnerCheckerService,
         StatusConditionProcessorService,
+        PokemonSwitcherService,
         {
           provide: BATTLE_REPOSITORY_TOKEN,
           useValue: mockBattleRepository,

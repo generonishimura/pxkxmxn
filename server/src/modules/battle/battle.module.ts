@@ -11,6 +11,7 @@ import { PokemonModule } from '../pokemon/pokemon.module';
 import { ActionOrderDeterminerService } from './application/services/action-order-determiner.service';
 import { WinnerCheckerService } from './application/services/winner-checker.service';
 import { StatusConditionProcessorService } from './application/services/status-condition-processor.service';
+import { PokemonSwitcherService } from './application/services/pokemon-switcher.service';
 
 /**
  * BattleModule
@@ -28,6 +29,7 @@ import { StatusConditionProcessorService } from './application/services/status-c
     ActionOrderDeterminerService,
     WinnerCheckerService,
     StatusConditionProcessorService,
+    PokemonSwitcherService,
 
     // ゲートウェイ
     BattleGateway,

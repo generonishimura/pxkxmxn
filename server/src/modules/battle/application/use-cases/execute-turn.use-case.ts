@@ -31,6 +31,7 @@ import {
 import { ActionOrderDeterminerService } from '../services/action-order-determiner.service';
 import { WinnerCheckerService } from '../services/winner-checker.service';
 import { StatusConditionProcessorService } from '../services/status-condition-processor.service';
+import { PokemonSwitcherService } from '../services/pokemon-switcher.service';
 
 /**
  * ターン実行の入力パラメータ
@@ -87,6 +88,7 @@ export class ExecuteTurnUseCase {
     private readonly actionOrderDeterminer: ActionOrderDeterminerService,
     private readonly winnerChecker: WinnerCheckerService,
     private readonly statusConditionProcessor: StatusConditionProcessorService,
+    private readonly pokemonSwitcher: PokemonSwitcherService,
   ) {}
 
   /**
@@ -229,7 +231,7 @@ export class ExecuteTurnUseCase {
           };
         }
       } else if (action.action === 'switch' && action.switchPokemonId) {
-        await this.executeSwitch(battle, action.trainerId, action.switchPokemonId);
+        await this.pokemonSwitcher.executeSwitch(battle, action.trainerId, action.switchPokemonId);
         actionResults.push({
           trainerId: action.trainerId,
           action: 'switch',
@@ -437,62 +439,6 @@ export class ExecuteTurnUseCase {
     });
   }
 
-  /**
-   * ポケモンを交代
-   */
-  private async executeSwitch(
-    battle: Battle,
-    trainerId: number,
-    trainedPokemonId: number,
-  ): Promise<void> {
-    // 現在のアクティブなポケモンを非アクティブにする
-    const currentActive = await this.battleRepository.findActivePokemonByBattleIdAndTrainerId(
-      battle.id,
-      trainerId,
-    );
-
-    if (currentActive) {
-      // 状態異常を解除（交代時に解除されるもの）
-      const statusCondition = StatusConditionHandler.isClearedOnSwitch(
-        currentActive.statusCondition,
-      )
-        ? StatusCondition.None
-        : currentActive.statusCondition;
-
-      await this.battleRepository.updateBattlePokemonStatus(currentActive.id, {
-        isActive: false,
-        statusCondition,
-      });
-
-      // 注: もうどく・ねむりのターン数はStatusConditionProcessorServiceで管理されているため、
-      // 状態異常がNoneになれば自動的にクリアされる
-    }
-
-    // 新しいポケモンをアクティブにする
-    const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
-    const targetStatus = battleStatuses.find(
-      s => s.trainedPokemonId === trainedPokemonId && s.trainerId === trainerId,
-    );
-
-    if (targetStatus) {
-      await this.battleRepository.updateBattlePokemonStatus(targetStatus.id, {
-        isActive: true,
-      });
-
-      // 特性のOnEntry効果を発動
-      const trainedPokemon = await this.trainedPokemonRepository.findById(trainedPokemonId);
-
-      if (trainedPokemon?.ability) {
-        const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
-        if (abilityEffect?.onEntry) {
-          await abilityEffect.onEntry(targetStatus, {
-            battle,
-            battleRepository: this.battleRepository,
-          });
-        }
-      }
-    }
-  }
 
 
 
