@@ -9,6 +9,10 @@ import { BattleGateway } from './infrastructure/battle.gateway';
 import { TrainerModule } from '../trainer/trainer.module';
 import { PokemonModule } from '../pokemon/pokemon.module';
 import { ActionOrderDeterminerService } from './application/services/action-order-determiner.service';
+import { WinnerCheckerService } from './application/services/winner-checker.service';
+import { StatusConditionProcessorService } from './application/services/status-condition-processor.service';
+import { PokemonSwitcherService } from './application/services/pokemon-switcher.service';
+import { MoveExecutorService } from './application/services/move-executor.service';
 
 /**
  * BattleModule
@@ -24,6 +28,10 @@ import { ActionOrderDeterminerService } from './application/services/action-orde
 
     // サービス
     ActionOrderDeterminerService,
+    WinnerCheckerService,
+    StatusConditionProcessorService,
+    PokemonSwitcherService,
+    MoveExecutorService,
 
     // ゲートウェイ
     BattleGateway,

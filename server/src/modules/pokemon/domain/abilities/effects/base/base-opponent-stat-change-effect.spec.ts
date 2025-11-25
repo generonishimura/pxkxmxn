@@ -145,7 +145,7 @@ describe('BaseOpponentStatChangeEffect', () => {
       );
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
         defenseRank: 1,
-      } as any);
+      });
     });
 
     it('正常に相手の特攻ランクを2段階下げる', async () => {
@@ -170,7 +170,7 @@ describe('BaseOpponentStatChangeEffect', () => {
 
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
         specialAttackRank: 0,
-      } as any);
+      });
     });
 
     it('ランクが+6の場合、+6のまま（上限チェック）', async () => {
@@ -193,7 +193,7 @@ describe('BaseOpponentStatChangeEffect', () => {
 
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
         defenseRank: 6,
-      } as any);
+      });
     });
 
     it('ランクが-6の場合、-6のまま（下限チェック）', async () => {
@@ -216,7 +216,7 @@ describe('BaseOpponentStatChangeEffect', () => {
 
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
         specialAttackRank: -6,
-      } as any); // -6 + (-2) = -8 → Math.max(-6, -8) = -6
+      }); // -6 + (-2) = -8 → Math.max(-6, -8) = -6
     });
 
     it('trainer1Idのポケモンが場に出た場合、trainer2Idのポケモンのランクを変更', async () => {

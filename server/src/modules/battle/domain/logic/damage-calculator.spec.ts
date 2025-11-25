@@ -58,10 +58,7 @@ describe('DamageCalculator', () => {
 
   beforeEach(() => {
     // AbilityRegistryをリセット
-    const registry = (AbilityRegistry as any).registry;
-    if (registry) {
-      registry.clear();
-    }
+    AbilityRegistry.clear();
     AbilityRegistry.initialize();
   });
 
@@ -867,7 +864,7 @@ describe('DamageCalculator', () => {
       const mockAbilityEffect = {
         modifyDamageDealt: jest.fn().mockReturnValue(undefined),
       };
-      AbilityRegistry.register('test-ability', mockAbilityEffect as any);
+      AbilityRegistry.register('test-ability', mockAbilityEffect);
 
       const paramsWithAbility: DamageCalculationParams = {
         attacker,

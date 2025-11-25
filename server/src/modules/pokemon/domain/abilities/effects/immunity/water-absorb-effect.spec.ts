@@ -1,7 +1,7 @@
 import { WaterAbsorbEffect } from './water-absorb-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
-import { Weather, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
+import { Weather, BattleStatus, Battle } from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
 
 describe('WaterAbsorbEffect', () => {
@@ -36,21 +36,20 @@ describe('WaterAbsorbEffect', () => {
         currentHp: 50,
       }),
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(pokemon),
-    } as any;
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      findBattlePokemonStatusByBattleId: jest.fn(),
+      createBattlePokemonStatus: jest.fn(),
+      findActivePokemonByBattleIdAndTrainerId: jest.fn(),
+      findBattlePokemonMovesByBattlePokemonStatusId: jest.fn(),
+      createBattlePokemonMove: jest.fn(),
+      updateBattlePokemonMove: jest.fn(),
+      findBattlePokemonMoveById: jest.fn(),
+    } as jest.Mocked<IBattleRepository>;
 
     battleContext = {
-      battle: {
-        id: 1,
-        trainer1Id: 1,
-        trainer2Id: 2,
-        team1Id: 1,
-        team2Id: 2,
-        turn: 1,
-        weather: Weather.None,
-        field: null,
-        status: BattleStatus.Active,
-        winnerTrainerId: null,
-      },
+      battle: new Battle(1, 1, 2, 1, 2, 1, Weather.None, null, BattleStatus.Active, null),
       battleRepository: mockBattleRepository,
       moveTypeName: 'みず',
     };
