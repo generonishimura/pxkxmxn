@@ -14,6 +14,8 @@ import { UpdateTrainerUseCase } from '../application/use-cases/trainer.use-cases
 import { DeleteTrainerUseCase } from '../application/use-cases/trainer.use-cases';
 import { GetAllTrainersUseCase } from '../application/use-cases/trainer.use-cases';
 import { Trainer } from '../domain/entities/trainer.entity';
+import { CreateTrainerDto } from './dto/create-trainer.dto';
+import { UpdateTrainerDto } from './dto/update-trainer.dto';
 
 /**
  * TrainerController
@@ -33,7 +35,7 @@ export class TrainerController {
    * トレーナーを作成
    */
   @Post()
-  async create(@Body() data: { name: string; email?: string }): Promise<Trainer> {
+  async create(@Body() data: CreateTrainerDto): Promise<Trainer> {
     return await this.createTrainerUseCase.execute(data);
   }
 
@@ -59,7 +61,7 @@ export class TrainerController {
   @Put(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() data: Partial<Trainer>,
+    @Body() data: UpdateTrainerDto,
   ): Promise<Trainer> {
     return await this.updateTrainerUseCase.execute(id, data);
   }
