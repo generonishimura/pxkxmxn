@@ -25,6 +25,7 @@ import { Pokemon } from '@/modules/pokemon/domain/entities/pokemon.entity';
 import { Ability } from '@/modules/pokemon/domain/entities/ability.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { Nature } from '../../domain/logic/stat-calculator';
+import { ActionOrderDeterminerService } from '../services/action-order-determiner.service';
 
 describe('ExecuteTurnUseCase', () => {
   let useCase: ExecuteTurnUseCase;
@@ -70,6 +71,7 @@ describe('ExecuteTurnUseCase', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExecuteTurnUseCase,
+        ActionOrderDeterminerService,
         {
           provide: BATTLE_REPOSITORY_TOKEN,
           useValue: mockBattleRepository,

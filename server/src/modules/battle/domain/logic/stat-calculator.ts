@@ -80,16 +80,96 @@ export interface CalculatedStats {
 
 export class StatCalculator {
   /**
+   * ステータス計算式の基本ステータス倍率（2 * base + iv + floor(ev/4) の部分の2）
+   * 種族値に2を掛けることで、種族値の影響を強調
+   */
+  private static readonly BASE_STAT_MULTIPLIER = 2;
+
+  /**
+   * ステータス計算式の努力値除数（floor(ev/4) の部分の4）
+   * 努力値を4で割ることで、努力値の影響を調整
+   */
+  private static readonly EV_DIVISOR = 4;
+
+  /**
+   * ステータス計算式のレベル除数（* level / 100 の部分の100）
+   * レベルによる影響を100で割ることで、ステータスのスケールを調整
+   */
+  private static readonly LEVEL_DIVISOR = 100;
+
+  /**
+   * HP以外のステータス計算式のオフセット（+ 5 の部分の5）
+   * 最小ステータス値を保証するための定数
+   */
+  private static readonly NON_HP_STAT_OFFSET = 5;
+
+  /**
+   * HP計算式のオフセット（+ level + 10 の部分の10）
+   * HPの最小値を保証するための定数
+   */
+  private static readonly HP_STAT_OFFSET = 10;
+
+  /**
+   * 性格による補正：上げたいステータスの倍率
+   */
+  private static readonly NATURE_UP_MULTIPLIER = 1.1;
+
+  /**
+   * 性格による補正：下げたいステータスの倍率
+   */
+  private static readonly NATURE_DOWN_MULTIPLIER = 0.9;
+
+  /**
+   * 性格による補正：変化なしの倍率
+   */
+  private static readonly NATURE_NEUTRAL_MULTIPLIER = 1.0;
+
+  /**
    * TrainedPokemonのステータス情報から実際のステータスを計算
    */
   static calculate(stats: TrainedPokemonStats): CalculatedStats {
     return {
       hp: this.calculateHp(stats),
-      attack: this.calculateStat(stats.baseAttack, stats.ivAttack, stats.evAttack, stats.level, stats.nature, 'attack'),
-      defense: this.calculateStat(stats.baseDefense, stats.ivDefense, stats.evDefense, stats.level, stats.nature, 'defense'),
-      specialAttack: this.calculateStat(stats.baseSpecialAttack, stats.ivSpecialAttack, stats.evSpecialAttack, stats.level, stats.nature, 'specialAttack'),
-      specialDefense: this.calculateStat(stats.baseSpecialDefense, stats.ivSpecialDefense, stats.evSpecialDefense, stats.level, stats.nature, 'specialDefense'),
-      speed: this.calculateStat(stats.baseSpeed, stats.ivSpeed, stats.evSpeed, stats.level, stats.nature, 'speed'),
+      attack: this.calculateStat(
+        stats.baseAttack,
+        stats.ivAttack,
+        stats.evAttack,
+        stats.level,
+        stats.nature,
+        'attack',
+      ),
+      defense: this.calculateStat(
+        stats.baseDefense,
+        stats.ivDefense,
+        stats.evDefense,
+        stats.level,
+        stats.nature,
+        'defense',
+      ),
+      specialAttack: this.calculateStat(
+        stats.baseSpecialAttack,
+        stats.ivSpecialAttack,
+        stats.evSpecialAttack,
+        stats.level,
+        stats.nature,
+        'specialAttack',
+      ),
+      specialDefense: this.calculateStat(
+        stats.baseSpecialDefense,
+        stats.ivSpecialDefense,
+        stats.evSpecialDefense,
+        stats.level,
+        stats.nature,
+        'specialDefense',
+      ),
+      speed: this.calculateStat(
+        stats.baseSpeed,
+        stats.ivSpeed,
+        stats.evSpeed,
+        stats.level,
+        stats.nature,
+        'speed',
+      ),
     };
   }
 
@@ -98,7 +178,17 @@ export class StatCalculator {
    * HP = floor((2 * baseHp + iv + floor(ev/4)) * level / 100) + level + 10
    */
   private static calculateHp(stats: TrainedPokemonStats): number {
-    return Math.floor((2 * stats.baseHp + stats.ivHp + Math.floor(stats.evHp / 4)) * stats.level / 100) + stats.level + 10;
+    return (
+      Math.floor(
+        ((StatCalculator.BASE_STAT_MULTIPLIER * stats.baseHp +
+          stats.ivHp +
+          Math.floor(stats.evHp / StatCalculator.EV_DIVISOR)) *
+          stats.level) /
+          StatCalculator.LEVEL_DIVISOR,
+      ) +
+      stats.level +
+      StatCalculator.HP_STAT_OFFSET
+    );
   }
 
   /**
@@ -113,7 +203,14 @@ export class StatCalculator {
     nature: Nature | null,
     statType: 'attack' | 'defense' | 'specialAttack' | 'specialDefense' | 'speed',
   ): number {
-    const baseValue = Math.floor((2 * base + iv + Math.floor(ev / 4)) * level / 100) + 5;
+    const baseValue =
+      Math.floor(
+        ((StatCalculator.BASE_STAT_MULTIPLIER * base +
+          iv +
+          Math.floor(ev / StatCalculator.EV_DIVISOR)) *
+          level) /
+          StatCalculator.LEVEL_DIVISOR,
+      ) + StatCalculator.NON_HP_STAT_OFFSET;
     const natureMultiplier = this.getNatureMultiplier(nature, statType);
     return Math.floor(baseValue * natureMultiplier);
   }
@@ -126,7 +223,7 @@ export class StatCalculator {
     statType: 'attack' | 'defense' | 'specialAttack' | 'specialDefense' | 'speed',
   ): number {
     if (!nature) {
-      return 1.0;
+      return StatCalculator.NATURE_NEUTRAL_MULTIPLIER;
     }
 
     // 性格による補正テーブル
@@ -161,12 +258,11 @@ export class StatCalculator {
 
     const modifier = natureModifiers[nature];
     if (modifier.up === statType && modifier.down !== statType) {
-      return 1.1;
+      return StatCalculator.NATURE_UP_MULTIPLIER;
     }
     if (modifier.down === statType && modifier.up !== statType) {
-      return 0.9;
+      return StatCalculator.NATURE_DOWN_MULTIPLIER;
     }
-    return 1.0;
+    return StatCalculator.NATURE_NEUTRAL_MULTIPLIER;
   }
 }
-

@@ -3,6 +3,7 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { Weather, Field, Battle } from '../entities/battle.entity';
 import { StatusConditionHandler } from './status-condition-handler';
+import { ValidationException } from '@/shared/domain/exceptions';
 
 /**
  * Moveの情報
@@ -63,6 +64,76 @@ export interface DamageCalculationParams {
  */
 export class DamageCalculator {
   /**
+   * バトルで使用される標準レベル
+   * ポケモンの公式バトルではレベル50が標準として使用される
+   * 参照: REQUIREMENT.md セクション「標準レベル」
+   */
+  private static readonly STANDARD_BATTLE_LEVEL = 50;
+
+  /**
+   * ダメージ計算式のレベル倍率（2 * level / 5 + 2 の部分の2）
+   * 基本ダメージ計算式のレベル項の係数
+   */
+  private static readonly LEVEL_MULTIPLIER = 2;
+
+  /**
+   * ダメージ計算式のレベル除数（level / 5 の部分の5）
+   * レベルを5で割ることで、レベルによる影響を調整
+   */
+  private static readonly LEVEL_DIVISOR = 5;
+
+  /**
+   * ダメージ計算式の攻撃・防御除数（/ 50 の部分の50）
+   * 攻撃力と防御力の比を50で割ることで、ダメージのスケールを調整
+   */
+  private static readonly ATTACK_DEFENSE_DIVISOR = 50;
+
+  /**
+   * ダメージ計算式の基本ダメージオフセット（+ 2 の部分の2）
+   * 最小ダメージを保証するための定数
+   */
+  private static readonly BASE_DAMAGE_OFFSET = 2;
+
+  /**
+   * タイプ一致（STAB: Same Type Attack Bonus）の倍率
+   */
+  private static readonly STAB_MULTIPLIER = 1.5;
+
+  /**
+   * タイプ一致なしの場合の倍率
+   */
+  private static readonly NO_STAB_MULTIPLIER = 1.0;
+
+  /**
+   * タイプ相性のデフォルト倍率
+   */
+  private static readonly DEFAULT_TYPE_EFFECTIVENESS = 1.0;
+
+  /**
+   * 天候補正なしの場合の倍率
+   */
+  private static readonly NO_WEATHER_MULTIPLIER = 1.0;
+
+  /**
+   * 晴れの時のほのおタイプ技の倍率
+   */
+  private static readonly SUN_FIRE_TYPE_MULTIPLIER = 1.5;
+
+  /**
+   * 晴れの時のみずタイプ技の倍率
+   */
+  private static readonly SUN_WATER_TYPE_MULTIPLIER = 0.5;
+
+  /**
+   * 雨の時のみずタイプ技の倍率
+   */
+  private static readonly RAIN_WATER_TYPE_MULTIPLIER = 1.5;
+
+  /**
+   * 雨の時のほのおタイプ技の倍率
+   */
+  private static readonly RAIN_FIRE_TYPE_MULTIPLIER = 0.5;
+  /**
    * ダメージを計算
    * @param params ダメージ計算の入力パラメータ
    * @returns ダメージ値（変化技の場合は0）
@@ -77,8 +148,8 @@ export class DamageCalculator {
     const attacker = params.attacker;
     const defender = params.defender;
 
-    // レベルは50を想定（バトルで使用される標準レベル）
-    const level = 50;
+    // レベルは標準バトルレベルを使用
+    const level = DamageCalculator.STANDARD_BATTLE_LEVEL;
 
     // 攻撃側のステータス（物理/特殊で分岐）
     const attackStat =
@@ -98,7 +169,15 @@ export class DamageCalculator {
 
     // 基本ダメージ計算: floor((floor((2 * level / 5 + 2) * power * A / D) / 50) + 2)
     const baseDamage = Math.floor(
-      Math.floor((((2 * level) / 5 + 2) * move.power * finalAttackStat) / defenseStat) / 50 + 2,
+      Math.floor(
+        (((DamageCalculator.LEVEL_MULTIPLIER * level) / DamageCalculator.LEVEL_DIVISOR +
+          DamageCalculator.BASE_DAMAGE_OFFSET) *
+          move.power *
+          finalAttackStat) /
+          defenseStat,
+      ) /
+        DamageCalculator.ATTACK_DEFENSE_DIVISOR +
+        DamageCalculator.BASE_DAMAGE_OFFSET,
     );
 
     // タイプ一致補正（1.5倍または1.0倍）
@@ -221,8 +300,9 @@ export class DamageCalculator {
   ): number {
     // baseStatsは必須（正確なダメージ計算のため）
     if (!baseStats) {
-      throw new Error(
+      throw new ValidationException(
         `baseStats must be provided for accurate damage calculation. statType: ${statType}`,
+        'baseStats',
       );
     }
 
@@ -245,7 +325,7 @@ export class DamageCalculator {
         baseStat = baseStats.speed;
         break;
       default:
-        throw new Error(`Unknown statType: ${statType}`);
+        throw new ValidationException(`Unknown statType: ${statType}`, 'statType');
     }
 
     const multiplier = status.getStatMultiplier(statType);
@@ -261,12 +341,12 @@ export class DamageCalculator {
     attackerTypes: { primary: Type; secondary: Type | null },
   ): number {
     if (attackerTypes.primary.id === moveTypeId) {
-      return 1.5;
+      return DamageCalculator.STAB_MULTIPLIER;
     }
     if (attackerTypes.secondary?.id === moveTypeId) {
-      return 1.5;
+      return DamageCalculator.STAB_MULTIPLIER;
     }
-    return 1.0;
+    return DamageCalculator.NO_STAB_MULTIPLIER;
   }
 
   /**
@@ -278,7 +358,7 @@ export class DamageCalculator {
     defenderTypes: { primary: Type; secondary: Type | null },
     typeEffectiveness: Map<string, number>,
   ): number {
-    let effectiveness = 1.0;
+    let effectiveness = DamageCalculator.DEFAULT_TYPE_EFFECTIVENESS;
 
     // メインタイプとの相性
     const primaryKey = `${moveTypeId}-${defenderTypes.primary.id}`;
@@ -313,7 +393,7 @@ export class DamageCalculator {
    */
   private static getWeatherMultiplier(moveType: Type, weather: Weather | null): number {
     if (!weather || weather === Weather.None) {
-      return 1.0;
+      return DamageCalculator.NO_WEATHER_MULTIPLIER;
     }
 
     const moveTypeName = moveType.nameEn.toLowerCase();
@@ -322,30 +402,30 @@ export class DamageCalculator {
       case Weather.Sun:
         // 晴れの時、ほのおタイプの技は1.5倍、みずタイプの技は0.5倍
         if (moveTypeName === 'fire') {
-          return 1.5;
+          return DamageCalculator.SUN_FIRE_TYPE_MULTIPLIER;
         }
         if (moveTypeName === 'water') {
-          return 0.5;
+          return DamageCalculator.SUN_WATER_TYPE_MULTIPLIER;
         }
-        return 1.0;
+        return DamageCalculator.NO_WEATHER_MULTIPLIER;
 
       case Weather.Rain:
         // 雨の時、みずタイプの技は1.5倍、ほのおタイプの技は0.5倍
         if (moveTypeName === 'water') {
-          return 1.5;
+          return DamageCalculator.RAIN_WATER_TYPE_MULTIPLIER;
         }
         if (moveTypeName === 'fire') {
-          return 0.5;
+          return DamageCalculator.RAIN_FIRE_TYPE_MULTIPLIER;
         }
-        return 1.0;
+        return DamageCalculator.NO_WEATHER_MULTIPLIER;
 
       case Weather.Sandstorm:
       case Weather.Hail:
         // 砂嵐・あられの場合は補正なし（将来的に実装可能）
-        return 1.0;
+        return DamageCalculator.NO_WEATHER_MULTIPLIER;
 
       default:
-        return 1.0;
+        return DamageCalculator.NO_WEATHER_MULTIPLIER;
     }
   }
 }
