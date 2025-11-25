@@ -56,8 +56,8 @@ export class PokemonSwitcherService {
         statusCondition,
       });
 
-      // 注: もうどく・ねむりのターン数はStatusConditionProcessorServiceで管理されているため、
-      // 状態異常がNoneになれば自動的にクリアされる
+      // 注: もうどく・ねむりのターン数はStatusConditionProcessorServiceで管理されているが、
+      // 交代時に状態異常が解除されるため、ターン数の追跡自体が不要となる
     }
 
     // 新しいポケモンをアクティブにする

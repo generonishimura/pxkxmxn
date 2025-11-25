@@ -16,7 +16,6 @@ import {
   TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
 } from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
-import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { DamageCalculator, MoveInfo } from '../../domain/logic/damage-calculator';
 import { AccuracyCalculator } from '../../domain/logic/accuracy-calculator';
 import { StatCalculator } from '../../domain/logic/stat-calculator';
@@ -128,7 +127,7 @@ export class MoveExecutorService {
     const moveInfo: MoveInfo = {
       power: move.power,
       typeId: move.type.id,
-      category: this.convertMoveCategoryToString(move.category),
+      category: move.category,
       accuracy: move.accuracy,
     };
 
@@ -267,11 +266,5 @@ export class MoveExecutorService {
     };
   }
 
-  /**
-   * MoveCategoryを文字列に変換
-   */
-  private convertMoveCategoryToString(category: MoveCategory): 'Physical' | 'Special' | 'Status' {
-    return category;
-  }
 }
 

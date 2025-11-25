@@ -4,7 +4,6 @@ import {
   BATTLE_REPOSITORY_TOKEN,
 } from '../../domain/battle.repository.interface';
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
-import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 import {
