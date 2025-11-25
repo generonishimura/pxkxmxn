@@ -29,6 +29,8 @@ import {
   InvalidStateException,
 } from '@/shared/domain/exceptions';
 import { ActionOrderDeterminerService } from '../services/action-order-determiner.service';
+import { WinnerCheckerService } from '../services/winner-checker.service';
+import { StatusConditionProcessorService } from '../services/status-condition-processor.service';
 
 /**
  * ターン実行の入力パラメータ
@@ -73,10 +75,6 @@ export interface ExecuteTurnResult {
  */
 @Injectable()
 export class ExecuteTurnUseCase {
-  // もうどく・ねむりのターン数を追跡（バトルID -> バトルポケモンステータスID -> ターン数）
-  private badPoisonTurnCounts: Map<number, Map<number, number>> = new Map();
-  private sleepTurnCounts: Map<number, Map<number, number>> = new Map();
-
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
@@ -87,6 +85,8 @@ export class ExecuteTurnUseCase {
     @Inject(TYPE_EFFECTIVENESS_REPOSITORY_TOKEN)
     private readonly typeEffectivenessRepository: ITypeEffectivenessRepository,
     private readonly actionOrderDeterminer: ActionOrderDeterminerService,
+    private readonly winnerChecker: WinnerCheckerService,
+    private readonly statusConditionProcessor: StatusConditionProcessorService,
   ) {}
 
   /**
@@ -190,7 +190,9 @@ export class ExecuteTurnUseCase {
             });
           } else {
             // 行動不能
-            const statusMessage = this.getStatusConditionMessage(attacker.statusCondition);
+            const statusMessage = this.statusConditionProcessor.getStatusConditionMessage(
+              attacker.statusCondition,
+            );
             actionResults.push({
               trainerId: action.trainerId,
               action: 'move',
@@ -214,7 +216,7 @@ export class ExecuteTurnUseCase {
         }
 
         // 勝敗判定
-        const winner = await this.checkWinner(battle.id);
+        const winner = await this.winnerChecker.checkWinner(battle.id);
         if (winner) {
           await this.battleRepository.update(battle.id, {
             status: BattleStatus.Completed,
@@ -237,7 +239,7 @@ export class ExecuteTurnUseCase {
     }
 
     // ターン終了時の特性効果を処理
-    await this.processTurnEndAbilities(battle);
+    await this.statusConditionProcessor.processTurnEndAbilities(battle);
 
     // ターン数を増やす
     const updatedBattle = await this.battleRepository.update(battle.id, {
@@ -462,13 +464,8 @@ export class ExecuteTurnUseCase {
         statusCondition,
       });
 
-      // もうどく・ねむりのターン数をリセット
-      if (this.badPoisonTurnCounts.has(battle.id)) {
-        this.badPoisonTurnCounts.get(battle.id)!.delete(currentActive.id);
-      }
-      if (this.sleepTurnCounts.has(battle.id)) {
-        this.sleepTurnCounts.get(battle.id)!.delete(currentActive.id);
-      }
+      // 注: もうどく・ねむりのターン数はStatusConditionProcessorServiceで管理されているため、
+      // 状態異常がNoneになれば自動的にクリアされる
     }
 
     // 新しいポケモンをアクティブにする
@@ -497,160 +494,7 @@ export class ExecuteTurnUseCase {
     }
   }
 
-  /**
-   * ターン終了時の特性効果と状態異常を処理
-   */
-  private async processTurnEndAbilities(battle: Battle): Promise<void> {
-    const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
-    const activePokemon = battleStatuses.filter(s => s.isActive);
 
-    for (const status of activePokemon) {
-      // 状態異常によるダメージ処理
-      await this.processStatusConditionDamage(battle.id, status);
-
-      // 特性効果の処理
-      const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
-
-      if (trainedPokemon?.ability) {
-        const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
-        if (abilityEffect?.onTurnEnd) {
-          await abilityEffect.onTurnEnd(status, {
-            battle,
-            battleRepository: this.battleRepository,
-          });
-        }
-      }
-    }
-  }
-
-  /**
-   * 状態異常によるダメージを処理
-   */
-  private async processStatusConditionDamage(
-    battleId: number,
-    status: BattlePokemonStatus,
-  ): Promise<void> {
-    if (!status.statusCondition || status.statusCondition === StatusCondition.None) {
-      return;
-    }
-
-    // もうどくのターン数を取得・更新
-    let badPoisonTurnCount = 0;
-    if (status.statusCondition === StatusCondition.BadPoison) {
-      if (!this.badPoisonTurnCounts.has(battleId)) {
-        this.badPoisonTurnCounts.set(battleId, new Map());
-      }
-      const battleMap = this.badPoisonTurnCounts.get(battleId)!;
-      badPoisonTurnCount = battleMap.get(status.id) || 0;
-      battleMap.set(status.id, badPoisonTurnCount + 1);
-    }
-
-    // ねむりのターン数を取得・更新
-    let sleepTurnCount = 0;
-    if (status.statusCondition === StatusCondition.Sleep) {
-      if (!this.sleepTurnCounts.has(battleId)) {
-        this.sleepTurnCounts.set(battleId, new Map());
-      }
-      const battleMap = this.sleepTurnCounts.get(battleId)!;
-      sleepTurnCount = battleMap.get(status.id) || 0;
-
-      // ねむりの自動解除判定
-      if (StatusConditionHandler.shouldClearSleep(sleepTurnCount)) {
-        await this.battleRepository.updateBattlePokemonStatus(status.id, {
-          statusCondition: StatusCondition.None,
-        });
-        battleMap.delete(status.id);
-        return;
-      }
-
-      battleMap.set(status.id, sleepTurnCount + 1);
-    }
-
-    // ダメージを計算
-    const damage = StatusConditionHandler.calculateTurnEndDamage(status, badPoisonTurnCount);
-    if (damage > 0) {
-      const newHp = Math.max(0, status.currentHp - damage);
-      await this.battleRepository.updateBattlePokemonStatus(status.id, {
-        currentHp: newHp,
-      });
-    }
-  }
-
-  /**
-   * 状態異常のメッセージを取得
-   */
-  private getStatusConditionMessage(statusCondition: StatusCondition | null): string {
-    if (!statusCondition) {
-      return 'no status';
-    }
-
-    const messages: Record<StatusCondition, string> = {
-      [StatusCondition.None]: 'no status',
-      [StatusCondition.Burn]: 'burn',
-      [StatusCondition.Freeze]: 'freeze',
-      [StatusCondition.Paralysis]: 'paralysis',
-      [StatusCondition.Poison]: 'poison',
-      [StatusCondition.BadPoison]: 'bad poison',
-      [StatusCondition.Sleep]: 'sleep',
-    };
-
-    return messages[statusCondition] || 'unknown status';
-  }
-
-  /**
-   * 勝敗を判定
-   */
-  private async checkWinner(battleId: number): Promise<number | null> {
-    const battle = await this.battleRepository.findById(battleId);
-    if (!battle) {
-      return null;
-    }
-
-    // 各トレーナーのアクティブなポケモンを取得
-    const trainer1Active = await this.battleRepository.findActivePokemonByBattleIdAndTrainerId(
-      battleId,
-      battle.trainer1Id,
-    );
-    const trainer2Active = await this.battleRepository.findActivePokemonByBattleIdAndTrainerId(
-      battleId,
-      battle.trainer2Id,
-    );
-
-    // 両方のポケモンが倒れている場合（理論上は発生しない）
-    if (!trainer1Active && !trainer2Active) {
-      return null;
-    }
-
-    // トレーナー1のポケモンが倒れている場合
-    if (!trainer1Active || trainer1Active.isFainted()) {
-      // トレーナー1の他のポケモンがいるか確認
-      const trainer1Statuses =
-        await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
-      const trainer1Alive = trainer1Statuses.filter(
-        s => s.trainerId === battle.trainer1Id && !s.isFainted(),
-      );
-
-      if (trainer1Alive.length === 0) {
-        return battle.trainer2Id;
-      }
-    }
-
-    // トレーナー2のポケモンが倒れている場合
-    if (!trainer2Active || trainer2Active.isFainted()) {
-      // トレーナー2の他のポケモンがいるか確認
-      const trainer2Statuses =
-        await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
-      const trainer2Alive = trainer2Statuses.filter(
-        s => s.trainerId === battle.trainer2Id && !s.isFainted(),
-      );
-
-      if (trainer2Alive.length === 0) {
-        return battle.trainer1Id;
-      }
-    }
-
-    return null;
-  }
 
   /**
    * TrainedPokemonから実際のステータス値を計算

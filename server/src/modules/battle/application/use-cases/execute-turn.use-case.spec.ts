@@ -26,6 +26,8 @@ import { Ability } from '@/modules/pokemon/domain/entities/ability.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { Nature } from '../../domain/logic/stat-calculator';
 import { ActionOrderDeterminerService } from '../services/action-order-determiner.service';
+import { WinnerCheckerService } from '../services/winner-checker.service';
+import { StatusConditionProcessorService } from '../services/status-condition-processor.service';
 
 describe('ExecuteTurnUseCase', () => {
   let useCase: ExecuteTurnUseCase;
@@ -72,6 +74,8 @@ describe('ExecuteTurnUseCase', () => {
       providers: [
         ExecuteTurnUseCase,
         ActionOrderDeterminerService,
+        WinnerCheckerService,
+        StatusConditionProcessorService,
         {
           provide: BATTLE_REPOSITORY_TOKEN,
           useValue: mockBattleRepository,
