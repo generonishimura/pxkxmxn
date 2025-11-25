@@ -29,6 +29,7 @@ import { ActionOrderDeterminerService } from '../services/action-order-determine
 import { WinnerCheckerService } from '../services/winner-checker.service';
 import { StatusConditionProcessorService } from '../services/status-condition-processor.service';
 import { PokemonSwitcherService } from '../services/pokemon-switcher.service';
+import { MoveExecutorService } from '../services/move-executor.service';
 
 describe('ExecuteTurnUseCase', () => {
   let useCase: ExecuteTurnUseCase;
@@ -78,6 +79,7 @@ describe('ExecuteTurnUseCase', () => {
         WinnerCheckerService,
         StatusConditionProcessorService,
         PokemonSwitcherService,
+        MoveExecutorService,
         {
           provide: BATTLE_REPOSITORY_TOKEN,
           useValue: mockBattleRepository,
