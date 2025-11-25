@@ -15,10 +15,7 @@ describe('GetAbilityEffectUseCase', () => {
 
   beforeEach(async () => {
     // AbilityRegistryをリセット（各テスト前にクリーンな状態にする）
-    const registry = (AbilityRegistry as any).registry;
-    if (registry) {
-      registry.clear();
-    }
+    AbilityRegistry.clear();
     AbilityRegistry.initialize();
 
     const mockRepository: jest.Mocked<IAbilityRepository> = {

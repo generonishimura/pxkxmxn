@@ -87,4 +87,12 @@ export class AbilityRegistry {
   static listRegistered(): string[] {
     return Array.from(this.registry.keys());
   }
+
+  /**
+   * レジストリをクリア（テスト用）
+   * 本番環境では使用しないこと
+   */
+  static clear(): void {
+    this.registry.clear();
+  }
 }
