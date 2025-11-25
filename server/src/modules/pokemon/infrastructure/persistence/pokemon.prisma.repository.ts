@@ -9,9 +9,9 @@ import {
   TypeEffectivenessMap,
 } from '../../domain/pokemon.repository.interface';
 import { Pokemon } from '../../domain/entities/pokemon.entity';
-import { Type } from '../../domain/entities/type.entity';
-import { Ability, AbilityTrigger, AbilityCategory } from '../../domain/entities/ability.entity';
-import { Move, MoveCategory } from '../../domain/entities/move.entity';
+import { Ability } from '../../domain/entities/ability.entity';
+import { Move } from '../../domain/entities/move.entity';
+import { PokemonMapper, AbilityMapper, MoveMapper } from '@/shared/infrastructure/mappers';
 
 /**
  * PokemonのPrismaクエリ結果型（include付き）
@@ -58,7 +58,7 @@ export class PokemonPrismaRepository implements IPokemonRepository {
       return null;
     }
 
-    return this.toDomainEntity(pokemonData);
+    return PokemonMapper.toDomainEntity(pokemonData);
   }
 
   async findByNationalDex(nationalDex: number): Promise<Pokemon | null> {
@@ -74,7 +74,7 @@ export class PokemonPrismaRepository implements IPokemonRepository {
       return null;
     }
 
-    return this.toDomainEntity(pokemonData);
+    return PokemonMapper.toDomainEntity(pokemonData);
   }
 
   async findByName(name: string): Promise<Pokemon | null> {
@@ -90,41 +90,7 @@ export class PokemonPrismaRepository implements IPokemonRepository {
       return null;
     }
 
-    return this.toDomainEntity(pokemonData);
-  }
-
-  /**
-   * PrismaのデータモデルをDomain層のエンティティに変換
-   */
-  private toDomainEntity(pokemonData: PokemonWithTypes): Pokemon {
-    const primaryType = new Type(
-      pokemonData.primaryType.id,
-      pokemonData.primaryType.name,
-      pokemonData.primaryType.nameEn,
-    );
-
-    const secondaryType = pokemonData.secondaryType
-      ? new Type(
-          pokemonData.secondaryType.id,
-          pokemonData.secondaryType.name,
-          pokemonData.secondaryType.nameEn,
-        )
-      : null;
-
-    return new Pokemon(
-      pokemonData.id,
-      pokemonData.nationalDex,
-      pokemonData.name,
-      pokemonData.nameEn,
-      primaryType,
-      secondaryType,
-      pokemonData.baseHp,
-      pokemonData.baseAttack,
-      pokemonData.baseDefense,
-      pokemonData.baseSpecialAttack,
-      pokemonData.baseSpecialDefense,
-      pokemonData.baseSpeed,
-    );
+    return PokemonMapper.toDomainEntity(pokemonData);
   }
 }
 
@@ -144,7 +110,7 @@ export class AbilityPrismaRepository implements IAbilityRepository {
       return null;
     }
 
-    return this.toDomainEntity(abilityData);
+    return AbilityMapper.toDomainEntity(abilityData);
   }
 
   async findByName(name: string): Promise<Ability | null> {
@@ -156,7 +122,7 @@ export class AbilityPrismaRepository implements IAbilityRepository {
       return null;
     }
 
-    return this.toDomainEntity(abilityData);
+    return AbilityMapper.toDomainEntity(abilityData);
   }
 
   async findByPokemonId(pokemonId: number): Promise<Ability[]> {
@@ -167,21 +133,7 @@ export class AbilityPrismaRepository implements IAbilityRepository {
       },
     });
 
-    return pokemonAbilities.map(pa => this.toDomainEntity(pa.ability));
-  }
-
-  /**
-   * PrismaのデータモデルをDomain層のエンティティに変換
-   */
-  private toDomainEntity(abilityData: AbilityData): Ability {
-    return new Ability(
-      abilityData.id,
-      abilityData.name,
-      abilityData.nameEn,
-      abilityData.description,
-      abilityData.triggerEvent as AbilityTrigger,
-      abilityData.effectCategory as AbilityCategory,
-    );
+    return pokemonAbilities.map(pa => AbilityMapper.toDomainEntity(pa.ability));
   }
 }
 
@@ -204,7 +156,7 @@ export class MovePrismaRepository implements IMoveRepository {
       return null;
     }
 
-    return this.toDomainEntity(moveData);
+    return MoveMapper.toDomainEntity(moveData);
   }
 
   async findByPokemonId(pokemonId: number): Promise<Move[]> {
@@ -221,27 +173,7 @@ export class MovePrismaRepository implements IMoveRepository {
       },
     });
 
-    return pokemonMoves.map(pm => this.toDomainEntity(pm.move));
-  }
-
-  /**
-   * PrismaのデータモデルをDomain層のエンティティに変換
-   */
-  private toDomainEntity(moveData: MoveWithRelations): Move {
-    const type = new Type(moveData.type.id, moveData.type.name, moveData.type.nameEn);
-
-    return new Move(
-      moveData.id,
-      moveData.name,
-      moveData.nameEn,
-      type,
-      moveData.category as MoveCategory,
-      moveData.power,
-      moveData.accuracy,
-      moveData.pp,
-      moveData.priority,
-      moveData.description,
-    );
+    return pokemonMoves.map(pm => MoveMapper.toDomainEntity(pm.move));
   }
 }
 

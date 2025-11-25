@@ -8,12 +8,8 @@ import {
   TeamMemberInfo,
 } from '../../domain/trainer.repository.interface';
 import { Trainer } from '../../domain/entities/trainer.entity';
-import { TrainedPokemon, Gender } from '../../domain/entities/trained-pokemon.entity';
-import { Pokemon } from '@/modules/pokemon/domain/entities/pokemon.entity';
-import { Type } from '@/modules/pokemon/domain/entities/type.entity';
-import { Ability } from '@/modules/pokemon/domain/entities/ability.entity';
-import { AbilityTrigger, AbilityCategory } from '@/modules/pokemon/domain/entities/ability.entity';
-import { Nature } from '@/modules/battle/domain/logic/stat-calculator';
+import { TrainedPokemon } from '../../domain/entities/trained-pokemon.entity';
+import { TrainedPokemonMapper, TrainedPokemonWithRelations } from '@/shared/infrastructure/mappers';
 
 /**
  * TrainerのPrismaクエリ結果型
@@ -25,91 +21,7 @@ type TrainerData = Prisma.TrainerGetPayload<{}>;
  */
 type TrainerUpdateInput = Prisma.TrainerUpdateInput;
 
-/**
- * TrainedPokemonのPrismaクエリ結果型（include付き）
- * 実際のクエリ結果から推論される型
- */
-type TrainedPokemonWithRelations = Prisma.TrainedPokemonGetPayload<{
-  include: {
-    pokemon: {
-      include: {
-        primaryType: true;
-        secondaryType: true;
-      };
-    };
-    ability: true;
-  };
-}>;
 
-/**
- * PrismaのTrainedPokemonデータをDomain層のTrainedPokemonエンティティに変換（共通ヘルパー関数）
- */
-function convertTrainedPokemonToEntity(
-  trainedPokemonData: TrainedPokemonWithRelations,
-): TrainedPokemon {
-  const primaryType = new Type(
-    trainedPokemonData.pokemon.primaryType.id,
-    trainedPokemonData.pokemon.primaryType.name,
-    trainedPokemonData.pokemon.primaryType.nameEn,
-  );
-
-  const secondaryType = trainedPokemonData.pokemon.secondaryType
-    ? new Type(
-        trainedPokemonData.pokemon.secondaryType.id,
-        trainedPokemonData.pokemon.secondaryType.name,
-        trainedPokemonData.pokemon.secondaryType.nameEn,
-      )
-    : null;
-
-  const pokemon = new Pokemon(
-    trainedPokemonData.pokemon.id,
-    trainedPokemonData.pokemon.nationalDex,
-    trainedPokemonData.pokemon.name,
-    trainedPokemonData.pokemon.nameEn,
-    primaryType,
-    secondaryType,
-    trainedPokemonData.pokemon.baseHp,
-    trainedPokemonData.pokemon.baseAttack,
-    trainedPokemonData.pokemon.baseDefense,
-    trainedPokemonData.pokemon.baseSpecialAttack,
-    trainedPokemonData.pokemon.baseSpecialDefense,
-    trainedPokemonData.pokemon.baseSpeed,
-  );
-
-  const ability = trainedPokemonData.ability
-    ? new Ability(
-        trainedPokemonData.ability.id,
-        trainedPokemonData.ability.name,
-        trainedPokemonData.ability.nameEn,
-        trainedPokemonData.ability.description,
-        trainedPokemonData.ability.triggerEvent as AbilityTrigger,
-        trainedPokemonData.ability.effectCategory as AbilityCategory,
-      )
-    : null;
-
-  return new TrainedPokemon(
-    trainedPokemonData.id,
-    trainedPokemonData.trainerId,
-    pokemon,
-    trainedPokemonData.nickname,
-    trainedPokemonData.level,
-    trainedPokemonData.gender as Gender | null,
-    trainedPokemonData.nature as Nature | null,
-    ability,
-    trainedPokemonData.ivHp,
-    trainedPokemonData.ivAttack,
-    trainedPokemonData.ivDefense,
-    trainedPokemonData.ivSpecialAttack,
-    trainedPokemonData.ivSpecialDefense,
-    trainedPokemonData.ivSpeed,
-    trainedPokemonData.evHp,
-    trainedPokemonData.evAttack,
-    trainedPokemonData.evDefense,
-    trainedPokemonData.evSpecialAttack,
-    trainedPokemonData.evSpecialDefense,
-    trainedPokemonData.evSpeed,
-  );
-}
 
 /**
  * TrainerリポジトリのPrisma実装
@@ -257,7 +169,7 @@ export class TrainedPokemonPrismaRepository implements ITrainedPokemonRepository
    * PrismaのデータモデルをDomain層のエンティティに変換
    */
   private toDomainEntity(trainedPokemonData: TrainedPokemonWithRelations): TrainedPokemon {
-    return convertTrainedPokemonToEntity(trainedPokemonData);
+    return TrainedPokemonMapper.toDomainEntity(trainedPokemonData);
   }
 }
 
@@ -290,7 +202,7 @@ export class TeamPrismaRepository implements ITeamRepository {
     return teamMembers.map(member => ({
       id: member.id,
       teamId: member.teamId,
-      trainedPokemon: convertTrainedPokemonToEntity(member.trainedPokemon),
+      trainedPokemon: TrainedPokemonMapper.toDomainEntity(member.trainedPokemon),
       position: member.position,
     }));
   }
