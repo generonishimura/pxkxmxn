@@ -47,4 +47,10 @@ export interface BattleContext {
    * タイプによるダメージ修正特性で使用
    */
   moveTypeName?: string;
+
+  /**
+   * 連続攻撃技の攻撃回数
+   * BaseMultiHitEffectで設定される
+   */
+  multiHitCount?: number;
 }
