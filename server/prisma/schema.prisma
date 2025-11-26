@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -12,8 +6,8 @@ generator client {
 generator erd {
   provider                  = "prisma-erd-generator"
   output                    = "../docs/ERD.png"
+  includeRelationFromFields = "true"
   theme                     = "forest"
-  includeRelationFromFields = true
 }
 
 datasource db {
@@ -21,21 +15,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// マスターデータ: 静的データ
-// ============================================
-
 model Type {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique // 例: "ほのお", "みず", "でんき"
-  nameEn    String   @unique @map("name_en") // 例: "Fire", "Water", "Electric"
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // リレーション
+  id                    Int                 @id @default(autoincrement())
+  name                  String              @unique
+  nameEn                String              @unique @map("name_en")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+  moves                 Move[]
   pokemonPrimaryTypes   Pokemon[]           @relation("PrimaryType")
   pokemonSecondaryTypes Pokemon[]           @relation("SecondaryType")
-  moves                 Move[]
   typeEffectivenessFrom TypeEffectiveness[] @relation("TypeFrom")
   typeEffectivenessTo   TypeEffectiveness[] @relation("TypeTo")
 
@@ -43,216 +31,271 @@ model Type {
 }
 
 model Pokemon {
-  id              Int    @id @default(autoincrement())
-  nationalDex     Int    @unique @map("national_dex") // 図鑑番号
-  name            String @unique // 例: "ピカチュウ"
-  nameEn          String @unique @map("name_en") // 例: "Pikachu"
-  primaryTypeId   Int    @map("primary_type_id")
-  secondaryTypeId Int?   @map("secondary_type_id") // null許可（単タイプの場合）
-
-  // 基本ステータス
-  baseHp             Int @map("base_hp")
-  baseAttack         Int @map("base_attack")
-  baseDefense        Int @map("base_defense")
-  baseSpecialAttack  Int @map("base_special_attack")
-  baseSpecialDefense Int @map("base_special_defense")
-  baseSpeed          Int @map("base_speed")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // リレーション
-  primaryType      Type             @relation("PrimaryType", fields: [primaryTypeId], references: [id])
-  secondaryType    Type?            @relation("SecondaryType", fields: [secondaryTypeId], references: [id])
-  pokemonAbilities PokemonAbility[]
-  pokemonMoves     PokemonMove[]
-  trainedPokemon   TrainedPokemon[]
+  id                 Int              @id @default(autoincrement())
+  nationalDex        Int              @unique @map("national_dex")
+  name               String           @unique
+  nameEn             String           @unique @map("name_en")
+  primaryTypeId      Int              @map("primary_type_id")
+  secondaryTypeId    Int?             @map("secondary_type_id")
+  baseHp             Int              @map("base_hp")
+  baseAttack         Int              @map("base_attack")
+  baseDefense        Int              @map("base_defense")
+  baseSpecialAttack  Int              @map("base_special_attack")
+  baseSpecialDefense Int              @map("base_special_defense")
+  baseSpeed          Int              @map("base_speed")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  pokemonAbilities   PokemonAbility[]
+  pokemonMoves       PokemonMove[]
+  primaryType        Type             @relation("PrimaryType", fields: [primaryTypeId], references: [id])
+  secondaryType      Type?            @relation("SecondaryType", fields: [secondaryTypeId], references: [id])
+  trainedPokemon     TrainedPokemon[]
 
   @@map("pokemons")
 }
 
 model Ability {
-  id             Int             @id @default(autoincrement())
-  name           String          @unique // 例: "いかく", "ふみん" - アプリケーション側でロジックを識別するキー
-  nameEn         String          @unique @map("name_en") // 例: "Intimidate", "Insomnia"
-  description    String // UI表示用の説明文
-  triggerEvent   AbilityTrigger  @map("trigger_event") // ロジックの発動タイミング（補助フラグ）
-  effectCategory AbilityCategory @map("effect_category") // 効果の大まかな分類（補助フラグ）
-
-  // 注意: ロジックそのもの（例: 「HPが満タンならダメージ半減」）はDBに保存しない
-  // アプリケーション側で name をキーとしてロジックを管理
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // リレーション
+  id               Int              @id @default(autoincrement())
+  name             String           @unique
+  nameEn           String           @unique @map("name_en")
+  description      String
+  triggerEvent     AbilityTrigger   @map("trigger_event")
+  effectCategory   AbilityCategory  @map("effect_category")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
   pokemonAbilities PokemonAbility[]
   trainedPokemon   TrainedPokemon[]
 
   @@map("abilities")
 }
 
-enum AbilityTrigger {
-  OnEntry // 場に出すとき
-  OnTakingDamage // ダメージを受けるとき
-  OnDealingDamage // ダメージを与えるとき
-  OnTurnEnd // ターン終了時
-  OnSwitchOut // 場から下がるとき
-  Passive // 常時発動（無効化されない限り）
-  OnStatusCondition // 状態異常になったとき
-  Other // その他
-}
-
-enum AbilityCategory {
-  StatChange // ステータス変化
-  Immunity // 無効化
-  Weather // 天候
-  DamageModify // ダメージ修正
-  StatusCondition // 状態異常
-  Other // その他
-}
-
 model Move {
-  id          Int          @id @default(autoincrement())
-  name        String       @unique // 例: "かえんほうしゃ", "ハイドロポンプ"
-  nameEn      String       @unique @map("name_en") // 例: "Flamethrower", "Hydro Pump"
-  typeId      Int          @map("type_id")
-  category    MoveCategory // 物理、特殊、変化
-  power       Int? // null許可（変化技の場合）
-  accuracy    Int? // null許可（必中技の場合）
-  pp          Int          @default(1) // 使用可能回数
-  priority    Int          @default(0) // 優先度
-  description String? // UI表示用の説明文
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // リレーション
+  id                 Int                 @id @default(autoincrement())
+  name               String              @unique
+  nameEn             String              @unique @map("name_en")
+  typeId             Int                 @map("type_id")
+  category           MoveCategory
+  power              Int?
+  accuracy           Int?
+  pp                 Int                 @default(1)
+  priority           Int                 @default(0)
+  description        String?
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  battlePokemonMoves BattlePokemonMove[]
   type               Type                @relation(fields: [typeId], references: [id])
   pokemonMoves       PokemonMove[]
-  battlePokemonMoves BattlePokemonMove[]
 
   @@map("moves")
 }
 
-enum MoveCategory {
-  Physical // 物理
-  Special // 特殊
-  Status // 変化
-}
-
 model TypeEffectiveness {
-  id            Int   @id @default(autoincrement())
-  typeFromId    Int   @map("type_from_id") // 技のタイプ
-  typeToId      Int   @map("type_to_id") // 受けるポケモンのタイプ
-  effectiveness Float // 0, 0.5, 1.0, 2.0 のいずれか
+  id            Int      @id @default(autoincrement())
+  typeFromId    Int      @map("type_from_id")
+  typeToId      Int      @map("type_to_id")
+  effectiveness Float
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  typeFrom      Type     @relation("TypeFrom", fields: [typeFromId], references: [id])
+  typeTo        Type     @relation("TypeTo", fields: [typeToId], references: [id])
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // リレーション
-  typeFrom Type @relation("TypeFrom", fields: [typeFromId], references: [id])
-  typeTo   Type @relation("TypeTo", fields: [typeToId], references: [id])
-
-  // 同じ組み合わせは1つだけ
   @@unique([typeFromId, typeToId])
   @@map("type_effectiveness")
 }
 
-// ポケモンと特性の中間テーブル（ポケモンは複数の特性を持てる）
 model PokemonAbility {
   id        Int      @id @default(autoincrement())
   pokemonId Int      @map("pokemon_id")
   abilityId Int      @map("ability_id")
-  isHidden  Boolean  @default(false) @map("is_hidden") // 夢特性かどうか
+  isHidden  Boolean  @default(false) @map("is_hidden")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  ability   Ability  @relation(fields: [abilityId], references: [id], onDelete: Cascade)
+  pokemon   Pokemon  @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
 
-  pokemon Pokemon @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
-  ability Ability @relation(fields: [abilityId], references: [id], onDelete: Cascade)
-
-  // 同じポケモンに同じ特性は1つだけ
   @@unique([pokemonId, abilityId])
   @@map("pokemon_abilities")
 }
 
-// ポケモンと技の中間テーブル（ポケモンが覚えられる技）
 model PokemonMove {
   id        Int      @id @default(autoincrement())
   pokemonId Int      @map("pokemon_id")
   moveId    Int      @map("move_id")
-  level     Int? // 何レベルで覚えるか（nullの場合は進化前から覚えられる等）
-  method    String? // 覚え方（"level_up", "tm", "egg", "tutor"など）
+  level     Int?
+  method    String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-
-  pokemon Pokemon @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
-  move    Move    @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  move      Move     @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  pokemon   Pokemon  @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
 
   @@map("pokemon_moves")
 }
 
-// ============================================
-// ユーザーデータ: 動的データ
-// ============================================
-
 model Trainer {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique // ユーザー名
-  email     String?  @unique // メールアドレス（認証時に使用）
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // リレーション
-  trainedPokemon      TrainedPokemon[]
-  teams               Team[]
+  id                  Int                   @id @default(autoincrement())
+  name                String                @unique
+  email               String?               @unique
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+  battlePokemonStatus BattlePokemonStatus[] @relation("BattlePokemonStatus")
   battlesAsTrainer1   Battle[]              @relation("Trainer1Battles")
   battlesAsTrainer2   Battle[]              @relation("Trainer2Battles")
   battlesAsWinner     Battle[]              @relation("WinnerBattles")
-  battlePokemonStatus BattlePokemonStatus[] @relation("BattlePokemonStatus")
+  teams               Team[]
+  trainedPokemon      TrainedPokemon[]
 
   @@map("trainers")
 }
 
 model TrainedPokemon {
-  id        Int @id @default(autoincrement())
-  trainerId Int @map("trainer_id")
-  pokemonId Int @map("pokemon_id") // どのポケモンか（マスターデータ参照）
-
-  // 育成パラメータ
-  nickname  String? // ニックネーム
-  level     Int     @default(50) // レベル（デフォルト50）
-  gender    Gender?
-  nature    Nature? // 性格（攻撃/防御などに影響）
-  abilityId Int?    @map("ability_id") // 持っている特性（マスターデータ参照）
-
-  // 個体値（0-31）
-  ivHp             Int @default(31) @map("iv_hp")
-  ivAttack         Int @default(31) @map("iv_attack")
-  ivDefense        Int @default(31) @map("iv_defense")
-  ivSpecialAttack  Int @default(31) @map("iv_special_attack")
-  ivSpecialDefense Int @default(31) @map("iv_special_defense")
-  ivSpeed          Int @default(31) @map("iv_speed")
-
-  // 努力値（0-255、合計510まで）
-  evHp             Int @default(0) @map("ev_hp")
-  evAttack         Int @default(0) @map("ev_attack")
-  evDefense        Int @default(0) @map("ev_defense")
-  evSpecialAttack  Int @default(0) @map("ev_special_attack")
-  evSpecialDefense Int @default(0) @map("ev_special_defense")
-  evSpeed          Int @default(0) @map("ev_speed")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // リレーション
-  trainer             Trainer               @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  pokemon             Pokemon               @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
-  ability             Ability?              @relation(fields: [abilityId], references: [id], onDelete: SetNull)
-  teamMembers         TeamMember[]
+  id                  Int                   @id @default(autoincrement())
+  trainerId           Int                   @map("trainer_id")
+  pokemonId           Int                   @map("pokemon_id")
+  nickname            String?
+  level               Int                   @default(50)
+  gender              Gender?
+  nature              Nature?
+  abilityId           Int?                  @map("ability_id")
+  ivHp                Int                   @default(31) @map("iv_hp")
+  ivAttack            Int                   @default(31) @map("iv_attack")
+  ivDefense           Int                   @default(31) @map("iv_defense")
+  ivSpecialAttack     Int                   @default(31) @map("iv_special_attack")
+  ivSpecialDefense    Int                   @default(31) @map("iv_special_defense")
+  ivSpeed             Int                   @default(31) @map("iv_speed")
+  evHp                Int                   @default(0) @map("ev_hp")
+  evAttack            Int                   @default(0) @map("ev_attack")
+  evDefense           Int                   @default(0) @map("ev_defense")
+  evSpecialAttack     Int                   @default(0) @map("ev_special_attack")
+  evSpecialDefense    Int                   @default(0) @map("ev_special_defense")
+  evSpeed             Int                   @default(0) @map("ev_speed")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
   battlePokemonStatus BattlePokemonStatus[]
+  teamMembers         TeamMember[]
+  ability             Ability?              @relation(fields: [abilityId], references: [id])
+  pokemon             Pokemon               @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  trainer             Trainer               @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
   @@map("trained_pokemon")
+}
+
+model TeamMember {
+  id               Int            @id @default(autoincrement())
+  teamId           Int            @map("team_id")
+  trainedPokemonId Int            @map("trained_pokemon_id")
+  position         Int
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  team             Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  trainedPokemon   TrainedPokemon @relation(fields: [trainedPokemonId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, position])
+  @@map("team_members")
+}
+
+model Team {
+  id             Int          @id @default(autoincrement())
+  trainerId      Int          @map("trainer_id")
+  name           String
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  battlesAsTeam1 Battle[]     @relation("Team1Battles")
+  battlesAsTeam2 Battle[]     @relation("Team2Battles")
+  teamMembers    TeamMember[]
+  trainer        Trainer      @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@map("teams")
+}
+
+model Battle {
+  id                  Int                   @id @default(autoincrement())
+  trainer1Id          Int                   @map("trainer1_id")
+  trainer2Id          Int                   @map("trainer2_id")
+  team1Id             Int                   @map("team1_id")
+  team2Id             Int                   @map("team2_id")
+  turn                Int                   @default(1)
+  weather             Weather?
+  field               Field?
+  status              BattleStatus          @default(Active)
+  winnerTrainerId     Int?                  @map("winner_trainer_id")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+  battlePokemonStatus BattlePokemonStatus[]
+  team1               Team                  @relation("Team1Battles", fields: [team1Id], references: [id], onDelete: Cascade)
+  team2               Team                  @relation("Team2Battles", fields: [team2Id], references: [id], onDelete: Cascade)
+  trainer1            Trainer               @relation("Trainer1Battles", fields: [trainer1Id], references: [id], onDelete: Cascade)
+  trainer2            Trainer               @relation("Trainer2Battles", fields: [trainer2Id], references: [id], onDelete: Cascade)
+  winnerTrainer       Trainer?              @relation("WinnerBattles", fields: [winnerTrainerId], references: [id])
+
+  @@map("battles")
+}
+
+model BattlePokemonStatus {
+  id                 Int                 @id @default(autoincrement())
+  battleId           Int                 @map("battle_id")
+  trainedPokemonId   Int                 @map("trained_pokemon_id")
+  trainerId          Int                 @map("trainer_id")
+  isActive           Boolean             @default(false) @map("is_active")
+  currentHp          Int                 @map("current_hp")
+  maxHp              Int                 @map("max_hp")
+  attackRank         Int                 @default(0) @map("attack_rank")
+  defenseRank        Int                 @default(0) @map("defense_rank")
+  specialAttackRank  Int                 @default(0) @map("special_attack_rank")
+  specialDefenseRank Int                 @default(0) @map("special_defense_rank")
+  speedRank          Int                 @default(0) @map("speed_rank")
+  accuracyRank       Int                 @default(0) @map("accuracy_rank")
+  evasionRank        Int                 @default(0) @map("evasion_rank")
+  statusCondition    StatusCondition?    @map("status_condition")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  battlePokemonMoves BattlePokemonMove[]
+  battle             Battle              @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  trainedPokemon     TrainedPokemon      @relation(fields: [trainedPokemonId], references: [id], onDelete: Cascade)
+  trainer            Trainer             @relation("BattlePokemonStatus", fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@unique([battleId, trainedPokemonId])
+  @@map("battle_pokemon_status")
+}
+
+model BattlePokemonMove {
+  id                    Int                 @id @default(autoincrement())
+  battlePokemonStatusId Int                 @map("battle_pokemon_status_id")
+  moveId                Int                 @map("move_id")
+  currentPp             Int                 @map("current_pp")
+  maxPp                 Int                 @map("max_pp")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+  battlePokemonStatus   BattlePokemonStatus @relation(fields: [battlePokemonStatusId], references: [id], onDelete: Cascade)
+  move                  Move                @relation(fields: [moveId], references: [id], onDelete: Cascade)
+
+  @@unique([battlePokemonStatusId, moveId])
+  @@map("battle_pokemon_moves")
+}
+
+enum AbilityTrigger {
+  OnEntry
+  OnTakingDamage
+  OnDealingDamage
+  OnTurnEnd
+  OnSwitchOut
+  Passive
+  OnStatusCondition
+  Other
+}
+
+enum AbilityCategory {
+  StatChange
+  Immunity
+  Weather
+  DamageModify
+  StatusCondition
+  Other
+}
+
+enum MoveCategory {
+  Physical
+  Special
+  Status
 }
 
 enum Gender {
@@ -289,74 +332,6 @@ enum Nature {
   Quirky
 }
 
-// チームと育成個体の中間テーブル
-model TeamMember {
-  id               Int @id @default(autoincrement())
-  teamId           Int @map("team_id")
-  trainedPokemonId Int @map("trained_pokemon_id")
-  position         Int // チーム内の位置（1-6）
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  team           Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  trainedPokemon TrainedPokemon @relation(fields: [trainedPokemonId], references: [id], onDelete: Cascade)
-
-  // 同じチーム内で同じ位置に複数のポケモンは入れない
-  @@unique([teamId, position])
-  @@map("team_members")
-}
-
-model Team {
-  id        Int      @id @default(autoincrement())
-  trainerId Int      @map("trainer_id")
-  name      String // チーム名
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // リレーション
-  trainer        Trainer      @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  teamMembers    TeamMember[]
-  battlesAsTeam1 Battle[]     @relation("Team1Battles")
-  battlesAsTeam2 Battle[]     @relation("Team2Battles")
-
-  @@map("teams")
-}
-
-// ============================================
-// バトルデータ: 揮発性データ
-// ============================================
-
-model Battle {
-  id         Int @id @default(autoincrement())
-  trainer1Id Int @map("trainer1_id")
-  trainer2Id Int @map("trainer2_id")
-  team1Id    Int @map("team1_id")
-  team2Id    Int @map("team2_id")
-
-  // バトル状態
-  turn    Int          @default(1) // 現在のターン数
-  weather Weather? // 天候
-  field   Field? // フィールド状態
-  status  BattleStatus @default(Active) // バトルの状態
-
-  // 勝敗
-  winnerTrainerId Int? @map("winner_trainer_id") // 勝者（nullの場合は進行中）
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // リレーション
-  trainer1            Trainer               @relation("Trainer1Battles", fields: [trainer1Id], references: [id], onDelete: Cascade)
-  trainer2            Trainer               @relation("Trainer2Battles", fields: [trainer2Id], references: [id], onDelete: Cascade)
-  team1               Team                  @relation("Team1Battles", fields: [team1Id], references: [id], onDelete: Cascade)
-  team2               Team                  @relation("Team2Battles", fields: [team2Id], references: [id], onDelete: Cascade)
-  winnerTrainer       Trainer?              @relation("WinnerBattles", fields: [winnerTrainerId], references: [id], onDelete: SetNull)
-  battlePokemonStatus BattlePokemonStatus[]
-
-  @@map("battles")
-}
-
 enum Weather {
   None
   Sun
@@ -374,76 +349,17 @@ enum Field {
 }
 
 enum BattleStatus {
-  Active // 進行中
-  Completed // 終了
-  Abandoned // 放棄
-}
-
-// バトル中のポケモン個別の状態
-// 最も重要: バトル中のポケモン個別の状態（現在のHP、状態異常、ランク補正）を管理
-model BattlePokemonStatus {
-  id               Int     @id @default(autoincrement())
-  battleId         Int     @map("battle_id")
-  trainedPokemonId Int     @map("trained_pokemon_id")
-  trainerId        Int     @map("trainer_id") // どのトレーナーのポケモンか
-  isActive         Boolean @default(false) @map("is_active") // 場に出ているか
-
-  // バトル中のステータス
-  currentHp Int @map("current_hp") // 現在のHP
-  maxHp     Int @map("max_hp") // 最大HP
-
-  // ステータスランク（-6から+6まで）
-  attackRank         Int @default(0) @map("attack_rank")
-  defenseRank        Int @default(0) @map("defense_rank")
-  specialAttackRank  Int @default(0) @map("special_attack_rank")
-  specialDefenseRank Int @default(0) @map("special_defense_rank")
-  speedRank          Int @default(0) @map("speed_rank")
-  accuracyRank       Int @default(0) @map("accuracy_rank")
-  evasionRank        Int @default(0) @map("evasion_rank")
-
-  // 状態異常
-  statusCondition StatusCondition? @map("status_condition")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // リレーション
-  battle             Battle              @relation(fields: [battleId], references: [id], onDelete: Cascade)
-  trainedPokemon     TrainedPokemon      @relation(fields: [trainedPokemonId], references: [id], onDelete: Cascade)
-  trainer            Trainer             @relation("BattlePokemonStatus", fields: [trainerId], references: [id], onDelete: Cascade)
-  battlePokemonMoves BattlePokemonMove[]
-
-  // 同じバトル内で同じトレーナーポケモンの状態は1つだけ
-  @@unique([battleId, trainedPokemonId])
-  @@map("battle_pokemon_status")
-}
-
-// バトル中のポケモンが持つ技とPP
-model BattlePokemonMove {
-  id                    Int @id @default(autoincrement())
-  battlePokemonStatusId Int @map("battle_pokemon_status_id")
-  moveId                Int @map("move_id")
-  currentPp             Int @map("current_pp") // 現在のPP
-  maxPp                 Int @map("max_pp") // 最大PP（技の基本PP）
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // リレーション
-  battlePokemonStatus BattlePokemonStatus @relation(fields: [battlePokemonStatusId], references: [id], onDelete: Cascade)
-  move                Move                @relation(fields: [moveId], references: [id], onDelete: Cascade)
-
-  // 同じバトルポケモンステータスに同じ技は1つだけ
-  @@unique([battlePokemonStatusId, moveId])
-  @@map("battle_pokemon_moves")
+  Active
+  Completed
+  Abandoned
 }
 
 enum StatusCondition {
   None
-  Burn // やけど
-  Freeze // こおり
-  Paralysis // まひ
-  Poison // どく
-  BadPoison // もうどく
-  Sleep // ねむり
+  Burn
+  Freeze
+  Paralysis
+  Poison
+  BadPoison
+  Sleep
 }
