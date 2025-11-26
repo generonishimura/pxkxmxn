@@ -62,10 +62,11 @@ export abstract class BaseStatBoostEffect implements IAbilityEffect {
 
     // statTypeからプロパティ名を取得してupdateDataを構築
     const propName = BaseStatBoostEffect.statRankPropMap[this.statType];
-    const updateData: Partial<BattlePokemonStatus> = { [propName]: newRank } as Partial<BattlePokemonStatus>;
+    const updateData: Partial<BattlePokemonStatus> = {
+      [propName]: newRank,
+    } as Partial<BattlePokemonStatus>;
 
     // 自分のステータスランクを更新
     await battleContext.battleRepository.updateBattlePokemonStatus(pokemon.id, updateData);
   }
 }
-

@@ -79,4 +79,3 @@ export abstract class BaseHpThresholdEffect implements IAbilityEffect {
     }
   }
 }
-

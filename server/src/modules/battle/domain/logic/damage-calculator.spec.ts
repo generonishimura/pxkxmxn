@@ -539,7 +539,9 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
       };
 
-      const damageDoubleSuperEffective = await DamageCalculator.calculate(paramsDoubleSuperEffective);
+      const damageDoubleSuperEffective = await DamageCalculator.calculate(
+        paramsDoubleSuperEffective,
+      );
       const damageNormal = await DamageCalculator.calculate(paramsNormal);
 
       const ratio = damageDoubleSuperEffective / damageNormal;
