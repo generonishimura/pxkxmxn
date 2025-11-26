@@ -27,13 +27,24 @@ export abstract class BaseHpThresholdEffect implements IAbilityEffect {
   protected customThreshold?: number;
 
   /**
-   * ダメージを受けるときに発動する効果（サブクラスで実装）
-   * デフォルト実装ではダメージを変更しない
+   * ダメージを受けるときに発動する効果
+   *
+   * このメソッドは`IAbilityEffect`インターフェースの`modifyDamage`に対応します。
+   * デフォルト実装ではダメージを変更しません（そのまま返す）。
+   *
+   * サブクラスでHP閾値に基づくダメージ修正を実装する場合は、このメソッドをオーバーライドしてください。
+   * オーバーライド時は、`checkHpThreshold`メソッドを使用してHP閾値をチェックし、
+   * 閾値を満たしている場合のみダメージを修正してください。
+   *
+   * @param pokemon 対象のポケモン
+   * @param damage 受けるダメージ
+   * @param _battleContext バトルコンテキスト（デフォルト実装では未使用）
+   * @returns 修正後のダメージ（デフォルト実装では変更なし）
    */
   modifyDamage?(
     pokemon: BattlePokemonStatus,
     damage: number,
-    battleContext?: BattleContext,
+    _battleContext?: BattleContext,
   ): number {
     return damage;
   }

@@ -22,6 +22,20 @@ export type StatType =
  */
 export abstract class BaseStatBoostEffect implements IAbilityEffect {
   /**
+   * ステータスタイプからBattlePokemonStatusのプロパティ名へのマッピング
+   * メソッド呼び出しごとのオブジェクト生成を避けるため、クラスレベルで定義
+   */
+  private static readonly statRankPropMap: Record<StatType, keyof BattlePokemonStatus> = {
+    attack: 'attackRank',
+    defense: 'defenseRank',
+    specialAttack: 'specialAttackRank',
+    specialDefense: 'specialDefenseRank',
+    speed: 'speedRank',
+    accuracy: 'accuracyRank',
+    evasion: 'evasionRank',
+  };
+
+  /**
    * 変更するステータスの種類
    */
   protected abstract readonly statType: StatType;
@@ -46,17 +60,8 @@ export abstract class BaseStatBoostEffect implements IAbilityEffect {
     // 新しいランクを計算（-6から+6の範囲内で）
     const newRank = Math.max(-6, Math.min(6, currentRank + this.rankChange));
 
-    // statTypeからプロパティ名をマッピングしてupdateDataを構築
-    const statRankPropMap: Record<StatType, keyof BattlePokemonStatus> = {
-      attack: 'attackRank',
-      defense: 'defenseRank',
-      specialAttack: 'specialAttackRank',
-      specialDefense: 'specialDefenseRank',
-      speed: 'speedRank',
-      accuracy: 'accuracyRank',
-      evasion: 'evasionRank',
-    };
-    const propName = statRankPropMap[this.statType];
+    // statTypeからプロパティ名を取得してupdateDataを構築
+    const propName = BaseStatBoostEffect.statRankPropMap[this.statType];
     const updateData: Partial<BattlePokemonStatus> = { [propName]: newRank } as Partial<BattlePokemonStatus>;
 
     // 自分のステータスランクを更新
