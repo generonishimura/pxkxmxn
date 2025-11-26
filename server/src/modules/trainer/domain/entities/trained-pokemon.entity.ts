@@ -84,22 +84,28 @@ export class TrainedPokemon {
 
     // 個体値（IV）のバリデーション
     const ivs = [ivHp, ivAttack, ivDefense, ivSpecialAttack, ivSpecialDefense, ivSpeed];
-    for (const iv of ivs) {
+    const ivNames = ['HP', 'Attack', 'Defense', 'SpecialAttack', 'SpecialDefense', 'Speed'];
+    for (let i = 0; i < ivs.length; i++) {
+      const iv = ivs[i];
+      const ivName = ivNames[i];
       if (iv < TrainedPokemon.MIN_IV || iv > TrainedPokemon.MAX_IV) {
         throw new ValidationException(
-          `IV must be between ${TrainedPokemon.MIN_IV} and ${TrainedPokemon.MAX_IV}. Got: ${iv}`,
-          'iv',
+          `${ivName} IV must be between ${TrainedPokemon.MIN_IV} and ${TrainedPokemon.MAX_IV}. Got: ${iv}`,
+          `iv${ivName}`,
         );
       }
     }
 
     // 努力値（EV）のバリデーション（1つのステータスあたり）
     const evs = [evHp, evAttack, evDefense, evSpecialAttack, evSpecialDefense, evSpeed];
-    for (const ev of evs) {
+    const evNames = ['HP', 'Attack', 'Defense', 'SpecialAttack', 'SpecialDefense', 'Speed'];
+    for (let i = 0; i < evs.length; i++) {
+      const ev = evs[i];
+      const evName = evNames[i];
       if (ev < TrainedPokemon.MIN_EV || ev > TrainedPokemon.MAX_EV_PER_STAT) {
         throw new ValidationException(
-          `EV must be between ${TrainedPokemon.MIN_EV} and ${TrainedPokemon.MAX_EV_PER_STAT}. Got: ${ev}`,
-          'ev',
+          `${evName} EV must be between ${TrainedPokemon.MIN_EV} and ${TrainedPokemon.MAX_EV_PER_STAT}. Got: ${ev}`,
+          `ev${evName}`,
         );
       }
     }
