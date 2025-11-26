@@ -16,10 +16,7 @@ const prisma = new PrismaClient();
 /**
  * 技が特殊効果を持つかどうかを判定
  */
-function hasSpecialEffect(move: {
-  description: string | null;
-  category: string;
-}): boolean {
+function hasSpecialEffect(move: { description: string | null; category: string }): boolean {
   const description = move.description?.toLowerCase() || '';
   return (
     description.includes('burn') ||
