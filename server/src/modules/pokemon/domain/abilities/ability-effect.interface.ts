@@ -33,7 +33,11 @@ export interface IAbilityEffect {
    * @param battleContext バトルコンテキスト
    * @returns 修正後のダメージ
    */
-  modifyDamageDealt?(_pokemon: BattlePokemonStatus, _damage: number, _battleContext?: BattleContext): number;
+  modifyDamageDealt?(
+    _pokemon: BattlePokemonStatus,
+    _damage: number,
+    _battleContext?: BattleContext,
+  ): number | Promise<number | undefined>;
 
   /**
    * ターン終了時（OnTurnEnd）に発動する効果

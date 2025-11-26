@@ -138,7 +138,7 @@ export class DamageCalculator {
    * @param params ダメージ計算の入力パラメータ
    * @returns ダメージ値（変化技の場合は0）
    */
-  static calculate(params: DamageCalculationParams): number {
+  static async calculate(params: DamageCalculationParams): Promise<number> {
     // 変化技の場合はダメージ0
     if (params.move.category === 'Status' || params.move.power === null) {
       return 0;
@@ -229,10 +229,8 @@ export class DamageCalculator {
               moveTypeName: params.moveType.name,
             }
           : undefined;
-        const modifiedDamage = abilityEffect.modifyDamageDealt(
-          attacker,
-          currentDamage,
-          battleContext,
+        const modifiedDamage = await Promise.resolve(
+          abilityEffect.modifyDamageDealt(attacker, currentDamage, battleContext),
         );
         if (modifiedDamage !== undefined) {
           damageMultiplier = modifiedDamage / baseDamage;
