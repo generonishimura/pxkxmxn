@@ -23,7 +23,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "db:setup": "npm run db:up && npx wait-port localhost:5432 && npm run prisma:migrate"
+    "db:setup": "npm run db:up && npx wait-port localhost:5432 && npm run prisma:migrate",
+    "check:coverage": "ts-node -r tsconfig-paths/register src/scripts/check-registry-coverage.spec.ts",
+    "generate:issues": "ts-node -r tsconfig-paths/register src/scripts/generate-category-issues.ts"
   },
   "keywords": [],
   "author": "",
