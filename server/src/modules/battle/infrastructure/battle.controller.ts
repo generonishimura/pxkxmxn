@@ -6,6 +6,8 @@ import {
   BATTLE_REPOSITORY_TOKEN,
 } from '../domain/battle.repository.interface';
 import { Inject } from '@nestjs/common';
+import { StartBattleDto } from './dto/start-battle.dto';
+import { ExecuteTurnDto } from './dto/execute-turn.dto';
 
 /**
  * BattleController
@@ -25,15 +27,7 @@ export class BattleController {
    * POST /battle/start
    */
   @Post('start')
-  async startBattle(
-    @Body()
-    body: {
-      trainer1Id: number;
-      trainer2Id: number;
-      team1Id: number;
-      team2Id: number;
-    },
-  ) {
+  async startBattle(@Body() body: StartBattleDto) {
     const battle = await this.startBattleUseCase.execute(
       body.trainer1Id,
       body.trainer2Id,
@@ -48,22 +42,7 @@ export class BattleController {
    * POST /battle/:id/turn
    */
   @Post(':id/turn')
-  async executeTurn(
-    @Param('id', ParseIntPipe) battleId: number,
-    @Body()
-    body: {
-      trainer1Action: {
-        trainerId: number;
-        moveId?: number;
-        switchPokemonId?: number;
-      };
-      trainer2Action: {
-        trainerId: number;
-        moveId?: number;
-        switchPokemonId?: number;
-      };
-    },
-  ) {
+  async executeTurn(@Param('id', ParseIntPipe) battleId: number, @Body() body: ExecuteTurnDto) {
     const result = await this.executeTurnUseCase.execute({
       battleId,
       trainer1Action: body.trainer1Action,
