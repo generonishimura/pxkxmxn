@@ -14,6 +14,30 @@ dotenv.config();
 const prisma = new PrismaClient();
 
 /**
+ * 技が特殊効果を持つかどうかを判定
+ */
+function hasSpecialEffect(move: {
+  description: string | null;
+  category: string;
+}): boolean {
+  const description = move.description?.toLowerCase() || '';
+  return (
+    description.includes('burn') ||
+    description.includes('paralyze') ||
+    description.includes('freeze') ||
+    description.includes('poison') ||
+    description.includes('sleep') ||
+    description.includes('flinch') ||
+    description.includes('stat') ||
+    description.includes('weather') ||
+    description.includes('recoil') ||
+    description.includes('multi-hit') ||
+    description.includes('priority') ||
+    move.category === 'Status' // 変化技は全て特殊効果を持つ可能性がある
+  );
+}
+
+/**
  * 特性レジストリの網羅性をチェック
  */
 async function checkAbilityRegistryCoverage(): Promise<void> {
@@ -163,26 +187,7 @@ async function checkMoveRegistryCoverage(): Promise<void> {
   // 実装されていない技を特定
   // 注意: 全ての技に特殊効果があるわけではないため、特殊効果を持つ技のみをチェック
   // ここでは、descriptionに特殊効果の記述がある技を対象とする
-  const movesWithSpecialEffects = allMoves.filter(move => {
-    // 特殊効果を持つ可能性がある技を判定
-    // 状態異常、ステータス変化、天候変更などのキーワードを含む
-    const description = move.description?.toLowerCase() || '';
-    const hasSpecialEffect =
-      description.includes('burn') ||
-      description.includes('paralyze') ||
-      description.includes('freeze') ||
-      description.includes('poison') ||
-      description.includes('sleep') ||
-      description.includes('flinch') ||
-      description.includes('stat') ||
-      description.includes('weather') ||
-      description.includes('recoil') ||
-      description.includes('multi-hit') ||
-      description.includes('priority') ||
-      move.category === 'Status'; // 変化技は全て特殊効果を持つ可能性がある
-
-    return hasSpecialEffect;
-  });
+  const movesWithSpecialEffects = allMoves.filter(move => hasSpecialEffect(move));
 
   const unimplementedMoves = movesWithSpecialEffects.filter(
     move => !registeredMoves.includes(move.name),
@@ -333,23 +338,7 @@ async function getMoveCategoryData(): Promise<
   MoveRegistry.initialize();
   const registeredMoves = MoveRegistry.listRegistered();
 
-  const movesWithSpecialEffects = allMoves.filter(move => {
-    const description = move.description?.toLowerCase() || '';
-    const hasSpecialEffect =
-      description.includes('burn') ||
-      description.includes('paralyze') ||
-      description.includes('freeze') ||
-      description.includes('poison') ||
-      description.includes('sleep') ||
-      description.includes('flinch') ||
-      description.includes('stat') ||
-      description.includes('weather') ||
-      description.includes('recoil') ||
-      description.includes('multi-hit') ||
-      description.includes('priority') ||
-      move.category === 'Status';
-    return hasSpecialEffect;
-  });
+  const movesWithSpecialEffects = allMoves.filter(move => hasSpecialEffect(move));
 
   const unimplementedMoves = movesWithSpecialEffects.filter(
     move => !registeredMoves.includes(move.name),
@@ -372,4 +361,5 @@ export {
   checkMoveRegistryCoverage,
   getAbilityCategoryData,
   getMoveCategoryData,
+  hasSpecialEffect,
 };

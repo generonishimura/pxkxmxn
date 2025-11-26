@@ -7,6 +7,7 @@ import * as dotenv from 'dotenv';
 import { PrismaClient } from '@generated/prisma/client';
 import { AbilityRegistry } from '../modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '../modules/pokemon/domain/moves/move-registry';
+import { hasSpecialEffect } from './check-registry-coverage.spec';
 
 // 環境変数を読み込む
 dotenv.config();
@@ -221,23 +222,7 @@ async function generateMoveIssues(): Promise<void> {
   MoveRegistry.initialize();
   const registeredMoves = MoveRegistry.listRegistered();
 
-  const movesWithSpecialEffects = allMoves.filter(move => {
-    const description = move.description?.toLowerCase() || '';
-    const hasSpecialEffect =
-      description.includes('burn') ||
-      description.includes('paralyze') ||
-      description.includes('freeze') ||
-      description.includes('poison') ||
-      description.includes('sleep') ||
-      description.includes('flinch') ||
-      description.includes('stat') ||
-      description.includes('weather') ||
-      description.includes('recoil') ||
-      description.includes('multi-hit') ||
-      description.includes('priority') ||
-      move.category === 'Status';
-    return hasSpecialEffect;
-  });
+  const movesWithSpecialEffects = allMoves.filter(move => hasSpecialEffect(move));
 
   const unimplementedMoves = movesWithSpecialEffects.filter(
     move => !registeredMoves.includes(move.name),

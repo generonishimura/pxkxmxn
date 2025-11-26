@@ -6,7 +6,7 @@ generator client {
 generator erd {
   provider                  = "prisma-erd-generator"
   output                    = "../docs/ERD.png"
-  includeRelationFromFields = "true"
+  includeRelationFromFields = true
   theme                     = "forest"
 }
 
@@ -172,7 +172,7 @@ model TrainedPokemon {
   updatedAt           DateTime              @updatedAt @map("updated_at")
   battlePokemonStatus BattlePokemonStatus[]
   teamMembers         TeamMember[]
-  ability             Ability?              @relation(fields: [abilityId], references: [id])
+  ability             Ability?              @relation(fields: [abilityId], references: [id], onDelete: SetNull)
   pokemon             Pokemon               @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
   trainer             Trainer               @relation(fields: [trainerId], references: [id], onDelete: Cascade)
 
@@ -225,7 +225,7 @@ model Battle {
   team2               Team                  @relation("Team2Battles", fields: [team2Id], references: [id], onDelete: Cascade)
   trainer1            Trainer               @relation("Trainer1Battles", fields: [trainer1Id], references: [id], onDelete: Cascade)
   trainer2            Trainer               @relation("Trainer2Battles", fields: [trainer2Id], references: [id], onDelete: Cascade)
-  winnerTrainer       Trainer?              @relation("WinnerBattles", fields: [winnerTrainerId], references: [id])
+  winnerTrainer       Trainer?              @relation("WinnerBattles", fields: [winnerTrainerId], references: [id], onDelete: SetNull)
 
   @@map("battles")
 }
