@@ -131,7 +131,7 @@ export class MoveExecutorService {
       accuracy: move.accuracy,
     };
 
-    const damage = DamageCalculator.calculate({
+    const damage = await DamageCalculator.calculate({
       attacker,
       defender,
       move: moveInfo,
