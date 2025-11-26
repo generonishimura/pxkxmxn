@@ -63,7 +63,7 @@ describe('DamageCalculator', () => {
   });
 
   describe('calculate - 基本ダメージ計算', () => {
-    it('変化技の場合はダメージ0を返す', () => {
+    it('変化技の場合はダメージ0を返す', async () => {
       const attacker = createBattlePokemonStatus();
       const defender = createBattlePokemonStatus();
       const move: MoveInfo = {
@@ -99,10 +99,10 @@ describe('DamageCalculator', () => {
         },
       };
 
-      expect(DamageCalculator.calculate(params)).toBe(0);
+      expect(await DamageCalculator.calculate(params)).toBe(0);
     });
 
-    it('powerがnullの場合はダメージ0を返す', () => {
+    it('powerがnullの場合はダメージ0を返す', async () => {
       const attacker = createBattlePokemonStatus();
       const defender = createBattlePokemonStatus();
       const move: MoveInfo = {
@@ -138,10 +138,10 @@ describe('DamageCalculator', () => {
         },
       };
 
-      expect(DamageCalculator.calculate(params)).toBe(0);
+      expect(await DamageCalculator.calculate(params)).toBe(0);
     });
 
-    it('基本ダメージ計算式が正しく動作する', () => {
+    it('基本ダメージ計算式が正しく動作する', async () => {
       const attacker = createBattlePokemonStatus({
         attackRank: 0,
       });
@@ -180,7 +180,7 @@ describe('DamageCalculator', () => {
         },
       };
 
-      const damage = DamageCalculator.calculate(params);
+      const damage = await DamageCalculator.calculate(params);
       // レベル50、攻撃100、防御100、威力100の場合の基本ダメージ
       // floor((floor((2 * 50 / 5 + 2) * 100 * 100 / 100) / 50) + 2)
       // = floor((floor(22 * 100) / 50) + 2)
@@ -191,7 +191,7 @@ describe('DamageCalculator', () => {
       expect(damage).toBeLessThan(100);
     });
 
-    it('攻撃側のステータスが高いほどダメージが大きくなる', () => {
+    it('攻撃側のステータスが高いほどダメージが大きくなる', async () => {
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
 
@@ -232,13 +232,13 @@ describe('DamageCalculator', () => {
         },
       };
 
-      const damageLow = DamageCalculator.calculate(paramsLowAttack);
-      const damageHigh = DamageCalculator.calculate(paramsHighAttack);
+      const damageLow = await DamageCalculator.calculate(paramsLowAttack);
+      const damageHigh = await DamageCalculator.calculate(paramsHighAttack);
 
       expect(damageHigh).toBeGreaterThan(damageLow);
     });
 
-    it('防御側のステータスが高いほどダメージが小さくなる', () => {
+    it('防御側のステータスが高いほどダメージが小さくなる', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
 
@@ -279,15 +279,15 @@ describe('DamageCalculator', () => {
         },
       };
 
-      const damageLow = DamageCalculator.calculate(paramsLowDefense);
-      const damageHigh = DamageCalculator.calculate(paramsHighDefense);
+      const damageLow = await DamageCalculator.calculate(paramsLowDefense);
+      const damageHigh = await DamageCalculator.calculate(paramsHighDefense);
 
       expect(damageLow).toBeGreaterThan(damageHigh);
     });
   });
 
   describe('calculate - タイプ一致（STAB）', () => {
-    it('技のタイプとポケモンのメインタイプが一致する場合、1.5倍になる', () => {
+    it('技のタイプとポケモンのメインタイプが一致する場合、1.5倍になる', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -323,8 +323,8 @@ describe('DamageCalculator', () => {
         attackerTypes: { primary: createType(2), secondary: null }, // STABなし
       };
 
-      const damageWithStab = DamageCalculator.calculate(paramsWithStab);
-      const damageWithoutStab = DamageCalculator.calculate(paramsWithoutStab);
+      const damageWithStab = await DamageCalculator.calculate(paramsWithStab);
+      const damageWithoutStab = await DamageCalculator.calculate(paramsWithoutStab);
 
       // STABありのダメージは約1.5倍になる
       expect(damageWithStab).toBeGreaterThan(damageWithoutStab);
@@ -332,7 +332,7 @@ describe('DamageCalculator', () => {
       expect(ratio).toBeCloseTo(1.5, 0.1);
     });
 
-    it('技のタイプとポケモンのサブタイプが一致する場合、1.5倍になる', () => {
+    it('技のタイプとポケモンのサブタイプが一致する場合、1.5倍になる', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -368,8 +368,8 @@ describe('DamageCalculator', () => {
         attackerTypes: { primary: createType(2), secondary: createType(3) }, // STABなし
       };
 
-      const damageWithStab = DamageCalculator.calculate(paramsWithStab);
-      const damageWithoutStab = DamageCalculator.calculate(paramsWithoutStab);
+      const damageWithStab = await DamageCalculator.calculate(paramsWithStab);
+      const damageWithoutStab = await DamageCalculator.calculate(paramsWithoutStab);
 
       const ratio = damageWithStab / damageWithoutStab;
       expect(ratio).toBeCloseTo(1.5, 0.1);
@@ -377,7 +377,7 @@ describe('DamageCalculator', () => {
   });
 
   describe('calculate - タイプ相性', () => {
-    it('タイプ相性が2倍の場合、ダメージが2倍になる', () => {
+    it('タイプ相性が2倍の場合、ダメージが2倍になる', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -413,14 +413,14 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]), // 1倍
       };
 
-      const damageSuperEffective = DamageCalculator.calculate(paramsSuperEffective);
-      const damageNormal = DamageCalculator.calculate(paramsNormal);
+      const damageSuperEffective = await DamageCalculator.calculate(paramsSuperEffective);
+      const damageNormal = await DamageCalculator.calculate(paramsNormal);
 
       const ratio = damageSuperEffective / damageNormal;
       expect(ratio).toBeCloseTo(2.0, 0.1);
     });
 
-    it('タイプ相性が0.5倍の場合、ダメージが0.5倍になる', () => {
+    it('タイプ相性が0.5倍の場合、ダメージが0.5倍になる', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -456,14 +456,14 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]), // 1倍
       };
 
-      const damageNotVeryEffective = DamageCalculator.calculate(paramsNotVeryEffective);
-      const damageNormal = DamageCalculator.calculate(paramsNormal);
+      const damageNotVeryEffective = await DamageCalculator.calculate(paramsNotVeryEffective);
+      const damageNormal = await DamageCalculator.calculate(paramsNormal);
 
       const ratio = damageNotVeryEffective / damageNormal;
       expect(ratio).toBeCloseTo(0.5, 0.1);
     });
 
-    it('タイプ相性が0倍の場合、ダメージが0になる', () => {
+    it('タイプ相性が0倍の場合、ダメージが0になる', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -494,11 +494,11 @@ describe('DamageCalculator', () => {
         },
       };
 
-      const damage = DamageCalculator.calculate(params);
+      const damage = await DamageCalculator.calculate(params);
       expect(damage).toBe(0);
     });
 
-    it('複数タイプがある場合、タイプ相性は掛け算される', () => {
+    it('複数タイプがある場合、タイプ相性は掛け算される', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -539,14 +539,14 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
       };
 
-      const damageDoubleSuperEffective = DamageCalculator.calculate(paramsDoubleSuperEffective);
-      const damageNormal = DamageCalculator.calculate(paramsNormal);
+      const damageDoubleSuperEffective = await DamageCalculator.calculate(paramsDoubleSuperEffective);
+      const damageNormal = await DamageCalculator.calculate(paramsNormal);
 
       const ratio = damageDoubleSuperEffective / damageNormal;
       expect(ratio).toBeCloseTo(4.0, 0.1);
     });
 
-    it('タイプ相性が0.5倍と2倍の組み合わせの場合、1倍になる', () => {
+    it('タイプ相性が0.5倍と2倍の組み合わせの場合、1倍になる', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -580,14 +580,14 @@ describe('DamageCalculator', () => {
         },
       };
 
-      const damage = DamageCalculator.calculate(params);
+      const damage = await DamageCalculator.calculate(params);
       expect(damage).toBeGreaterThan(0);
       // 2.0 * 0.5 = 1.0なので、通常ダメージとほぼ同じになる
     });
   });
 
   describe('calculate - ランク補正', () => {
-    it('攻撃ランクが+1の場合、ダメージが1.5倍になる', () => {
+    it('攻撃ランクが+1の場合、ダメージが1.5倍になる', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 1 });
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -623,14 +623,14 @@ describe('DamageCalculator', () => {
         attacker: createBattlePokemonStatus({ attackRank: 0 }),
       };
 
-      const damageRankUp = DamageCalculator.calculate(paramsRankUp);
-      const damageNoRank = DamageCalculator.calculate(paramsNoRank);
+      const damageRankUp = await DamageCalculator.calculate(paramsRankUp);
+      const damageNoRank = await DamageCalculator.calculate(paramsNoRank);
 
       const ratio = damageRankUp / damageNoRank;
       expect(ratio).toBeCloseTo(1.5, 0.1);
     });
 
-    it('防御ランクが+1の場合、ダメージが2/3倍になる', () => {
+    it('防御ランクが+1の場合、ダメージが2/3倍になる', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({ defenseRank: 1 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -666,14 +666,14 @@ describe('DamageCalculator', () => {
         defender: createBattlePokemonStatus({ defenseRank: 0 }),
       };
 
-      const damageRankUp = DamageCalculator.calculate(paramsRankUp);
-      const damageNoRank = DamageCalculator.calculate(paramsNoRank);
+      const damageRankUp = await DamageCalculator.calculate(paramsRankUp);
+      const damageNoRank = await DamageCalculator.calculate(paramsNoRank);
 
       const ratio = damageRankUp / damageNoRank;
       expect(ratio).toBeCloseTo(2 / 3, 0.1);
     });
 
-    it('攻撃ランクが-1の場合、ダメージが2/3倍になる', () => {
+    it('攻撃ランクが-1の場合、ダメージが2/3倍になる', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: -1 });
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -709,14 +709,14 @@ describe('DamageCalculator', () => {
         attacker: createBattlePokemonStatus({ attackRank: 0 }),
       };
 
-      const damageRankDown = DamageCalculator.calculate(paramsRankDown);
-      const damageNoRank = DamageCalculator.calculate(paramsNoRank);
+      const damageRankDown = await DamageCalculator.calculate(paramsRankDown);
+      const damageNoRank = await DamageCalculator.calculate(paramsNoRank);
 
       const ratio = damageRankDown / damageNoRank;
       expect(ratio).toBeCloseTo(2 / 3, 0.1);
     });
 
-    it('特殊攻撃技の場合、特殊攻撃ランクが使用される', () => {
+    it('特殊攻撃技の場合、特殊攻撃ランクが使用される', async () => {
       const attacker = createBattlePokemonStatus({ specialAttackRank: 1 });
       const defender = createBattlePokemonStatus({ specialDefenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Special' });
@@ -752,8 +752,8 @@ describe('DamageCalculator', () => {
         attacker: createBattlePokemonStatus({ specialAttackRank: 0 }),
       };
 
-      const damageRankUp = DamageCalculator.calculate(paramsRankUp);
-      const damageNoRank = DamageCalculator.calculate(paramsNoRank);
+      const damageRankUp = await DamageCalculator.calculate(paramsRankUp);
+      const damageNoRank = await DamageCalculator.calculate(paramsNoRank);
 
       const ratio = damageRankUp / damageNoRank;
       expect(ratio).toBeCloseTo(1.5, 0.1);
@@ -761,7 +761,7 @@ describe('DamageCalculator', () => {
   });
 
   describe('calculate - やけどによる物理攻撃補正', () => {
-    it('やけど状態のポケモンが物理技を使用する場合、ダメージが0.5倍になる', () => {
+    it('やけど状態のポケモンが物理技を使用する場合、ダメージが0.5倍になる', async () => {
       const attacker = createBattlePokemonStatus({
         attackRank: 0,
         statusCondition: StatusCondition.Burn,
@@ -800,14 +800,14 @@ describe('DamageCalculator', () => {
         attacker: createBattlePokemonStatus({ attackRank: 0, statusCondition: null }),
       };
 
-      const damageBurn = DamageCalculator.calculate(paramsBurn);
-      const damageNoBurn = DamageCalculator.calculate(paramsNoBurn);
+      const damageBurn = await DamageCalculator.calculate(paramsBurn);
+      const damageNoBurn = await DamageCalculator.calculate(paramsNoBurn);
 
       const ratio = damageBurn / damageNoBurn;
       expect(ratio).toBeCloseTo(0.5, 0.1);
     });
 
-    it('やけど状態でも特殊技を使用する場合、ダメージ補正は適用されない', () => {
+    it('やけど状態でも特殊技を使用する場合、ダメージ補正は適用されない', async () => {
       const attacker = createBattlePokemonStatus({
         specialAttackRank: 0,
         statusCondition: StatusCondition.Burn,
@@ -846,8 +846,8 @@ describe('DamageCalculator', () => {
         attacker: createBattlePokemonStatus({ specialAttackRank: 0, statusCondition: null }),
       };
 
-      const damageBurn = DamageCalculator.calculate(paramsBurn);
-      const damageNoBurn = DamageCalculator.calculate(paramsNoBurn);
+      const damageBurn = await DamageCalculator.calculate(paramsBurn);
+      const damageNoBurn = await DamageCalculator.calculate(paramsNoBurn);
 
       // やけどは特殊技には影響しない
       expect(damageBurn).toBeCloseTo(damageNoBurn, 0);
@@ -855,7 +855,7 @@ describe('DamageCalculator', () => {
   });
 
   describe('calculate - 特性効果', () => {
-    it('攻撃側の特性効果がundefinedを返す場合、ダメージが変更されない', () => {
+    it('攻撃側の特性効果がundefinedを返す場合、ダメージが変更されない', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -898,15 +898,15 @@ describe('DamageCalculator', () => {
         attackerAbilityName: undefined,
       };
 
-      const damageWithAbility = DamageCalculator.calculate(paramsWithAbility);
-      const damageWithoutAbility = DamageCalculator.calculate(paramsWithoutAbility);
+      const damageWithAbility = await DamageCalculator.calculate(paramsWithAbility);
+      const damageWithoutAbility = await DamageCalculator.calculate(paramsWithoutAbility);
 
       // undefinedを返す場合はダメージが変更されない
       expect(damageWithAbility).toBeCloseTo(damageWithoutAbility, 0);
       expect(mockAbilityEffect.modifyDamageDealt).toHaveBeenCalled();
     });
 
-    it('マルチスケイル特性でHPが満タンの場合、ダメージが半減する', () => {
+    it('マルチスケイル特性でHPが満タンの場合、ダメージが半減する', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({
         defenseRank: 0,
@@ -950,14 +950,14 @@ describe('DamageCalculator', () => {
         defenderAbilityName: undefined,
       };
 
-      const damageWithMultiscale = DamageCalculator.calculate(paramsWithMultiscale);
-      const damageWithoutMultiscale = DamageCalculator.calculate(paramsWithoutMultiscale);
+      const damageWithMultiscale = await DamageCalculator.calculate(paramsWithMultiscale);
+      const damageWithoutMultiscale = await DamageCalculator.calculate(paramsWithoutMultiscale);
 
       const ratio = damageWithMultiscale / damageWithoutMultiscale;
       expect(ratio).toBeCloseTo(0.5, 0.1);
     });
 
-    it('マルチスケイル特性でHPが満タンでない場合、ダメージ補正は適用されない', () => {
+    it('マルチスケイル特性でHPが満タンでない場合、ダメージ補正は適用されない', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({
         defenseRank: 0,
@@ -1000,8 +1000,8 @@ describe('DamageCalculator', () => {
         defenderAbilityName: undefined,
       };
 
-      const damageWithMultiscale = DamageCalculator.calculate(paramsWithMultiscale);
-      const damageWithoutMultiscale = DamageCalculator.calculate(paramsWithoutMultiscale);
+      const damageWithMultiscale = await DamageCalculator.calculate(paramsWithMultiscale);
+      const damageWithoutMultiscale = await DamageCalculator.calculate(paramsWithoutMultiscale);
 
       // HPが満タンでない場合は補正なし
       expect(damageWithMultiscale).toBeCloseTo(damageWithoutMultiscale, 0);
@@ -1009,7 +1009,7 @@ describe('DamageCalculator', () => {
   });
 
   describe('calculate - エッジケース', () => {
-    it('タイプ相性が無効でない場合でも、計算結果が0の場合は0ダメージを返す', () => {
+    it('タイプ相性が無効でない場合でも、計算結果が0の場合は0ダメージを返す', async () => {
       const attacker = createBattlePokemonStatus({
         attackRank: -6, // 最低ランク（実効攻撃力が0になる）
       });
@@ -1046,13 +1046,13 @@ describe('DamageCalculator', () => {
         },
       };
 
-      const damage = DamageCalculator.calculate(params);
+      const damage = await DamageCalculator.calculate(params);
       // 実効攻撃力が0のため、baseDamage = floor(floor(0) / 50 + 2) = 2
       // finalDamage = floor(2 * 0.25) = floor(0.5) = 0
       expect(damage).toBe(0);
     });
 
-    it('タイプ相性が無効でない場合、計算結果が1以上の場合はそのまま返す', () => {
+    it('タイプ相性が無効でない場合、計算結果が1以上の場合はそのまま返す', async () => {
       const attacker = createBattlePokemonStatus({
         attackRank: 0,
       });
@@ -1087,14 +1087,14 @@ describe('DamageCalculator', () => {
         },
       };
 
-      const damage = DamageCalculator.calculate(params);
+      const damage = await DamageCalculator.calculate(params);
       // レベル50、攻撃100、防御100、威力100、タイプ相性0.5倍の場合
       // baseDamage = floor(floor((22 * 100 * 100) / 100) / 50 + 2) = floor(2200 / 50 + 2) = floor(44 + 2) = 46
       // finalDamage = floor(46 * 1.0 * 0.5) = floor(23) = 23
       expect(damage).toBe(23);
     });
 
-    it('タイプ相性が無効の場合、最低ダメージでも0になる', () => {
+    it('タイプ相性が無効の場合、最低ダメージでも0になる', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 6 });
       const defender = createBattlePokemonStatus({ defenseRank: -6 });
       const move = createMoveInfo({ power: 999, typeId: 1, category: 'Physical' });
@@ -1125,11 +1125,11 @@ describe('DamageCalculator', () => {
         },
       };
 
-      const damage = DamageCalculator.calculate(params);
+      const damage = await DamageCalculator.calculate(params);
       expect(damage).toBe(0);
     });
 
-    it('baseStatsが提供されていない場合、エラーが発生する', () => {
+    it('baseStatsが提供されていない場合、エラーが発生する', async () => {
       const attacker = createBattlePokemonStatus({ maxHp: 200 });
       const defender = createBattlePokemonStatus({ maxHp: 100 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -1153,7 +1153,7 @@ describe('DamageCalculator', () => {
       );
     });
 
-    it('getEffectiveStatに不正なstatTypeが渡された場合、エラーが発生する', () => {
+    it('getEffectiveStatに不正なstatTypeが渡された場合、エラーが発生する', async () => {
       // getEffectiveStatはprivateメソッドなので、間接的にテストする
       // baseStatsに不正な値が含まれている場合のエラーは発生しないが、
       // TypeScriptの型チェックで防がれるため、実際のテストは不要
@@ -1195,7 +1195,7 @@ describe('DamageCalculator', () => {
   });
 
   describe('calculate - 天候補正', () => {
-    it('天候が設定されていても、現在は1.0倍を返す（実装が不完全）', () => {
+    it('天候が設定されていても、現在は1.0倍を返す（実装が不完全）', async () => {
       const attacker = createBattlePokemonStatus({ attackRank: 0 });
       const defender = createBattlePokemonStatus({ defenseRank: 0 });
       const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
@@ -1231,8 +1231,8 @@ describe('DamageCalculator', () => {
         weather: null,
       };
 
-      const damageWithWeather = DamageCalculator.calculate(paramsWithWeather);
-      const damageNoWeather = DamageCalculator.calculate(paramsNoWeather);
+      const damageWithWeather = await DamageCalculator.calculate(paramsWithWeather);
+      const damageNoWeather = await DamageCalculator.calculate(paramsNoWeather);
 
       // 現在の実装では天候補正は1.0倍のまま
       expect(damageWithWeather).toBeCloseTo(damageNoWeather, 0);
