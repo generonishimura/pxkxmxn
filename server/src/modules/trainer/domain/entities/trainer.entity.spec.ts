@@ -55,15 +55,11 @@ describe('Trainer', () => {
     });
 
     it('createdAtが無効なDateの場合、ValidationExceptionを投げる', () => {
-      expect(() => createTrainer({ createdAt: new Date('invalid') })).toThrow(
-        ValidationException,
-      );
+      expect(() => createTrainer({ createdAt: new Date('invalid') })).toThrow(ValidationException);
     });
 
     it('updatedAtが無効なDateの場合、ValidationExceptionを投げる', () => {
-      expect(() => createTrainer({ updatedAt: new Date('invalid') })).toThrow(
-        ValidationException,
-      );
+      expect(() => createTrainer({ updatedAt: new Date('invalid') })).toThrow(ValidationException);
     });
 
     it('emailがnullの場合は正常', () => {
@@ -72,4 +68,3 @@ describe('Trainer', () => {
     });
   });
 });
-
