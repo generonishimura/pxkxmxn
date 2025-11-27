@@ -26,11 +26,12 @@ describe('ActionOrderDeterminer', () => {
   const createBattlePokemonStatus = (
     overrides?: Partial<BattlePokemonStatus>,
   ): BattlePokemonStatus => {
+    const trainedPokemonId = overrides?.trainedPokemonId ?? overrides?.trainerId ?? 1;
     return new BattlePokemonStatus(
       overrides?.id ?? 1,
       overrides?.battleId ?? 1,
-      overrides?.trainedPokemonId ?? 1,
-      overrides?.trainerId ?? 1,
+      trainedPokemonId,
+      overrides?.trainerId ?? trainedPokemonId,
       overrides?.isActive ?? true,
       overrides?.currentHp ?? 100,
       overrides?.maxHp ?? 100,

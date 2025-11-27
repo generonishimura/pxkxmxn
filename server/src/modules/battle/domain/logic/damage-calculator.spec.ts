@@ -1150,7 +1150,7 @@ describe('DamageCalculator', () => {
       };
 
       // baseStatsが提供されていない場合はエラーが発生する
-      expect(() => DamageCalculator.calculate(params)).toThrow(
+      await expect(DamageCalculator.calculate(params)).rejects.toThrow(
         'baseStats must be provided for accurate damage calculation',
       );
     });
@@ -1192,7 +1192,7 @@ describe('DamageCalculator', () => {
       };
 
       // 正常なケースではエラーが発生しないことを確認
-      expect(() => DamageCalculator.calculate(params)).not.toThrow();
+      await expect(DamageCalculator.calculate(params)).resolves.toBeGreaterThanOrEqual(0);
     });
   });
 
