@@ -8,7 +8,11 @@ import { Move, MoveCategory } from '@/modules/pokemon/domain/entities/move.entit
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { TrainedPokemon, Gender } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 import { Pokemon } from '@/modules/pokemon/domain/entities/pokemon.entity';
-import { Ability, AbilityTrigger, AbilityCategory } from '@/modules/pokemon/domain/entities/ability.entity';
+import {
+  Ability,
+  AbilityTrigger,
+  AbilityCategory,
+} from '@/modules/pokemon/domain/entities/ability.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { NotFoundException } from '@/shared/domain/exceptions';
 import { Nature } from './stat-calculator';
@@ -56,15 +60,15 @@ describe('ActionOrderDeterminer', () => {
     );
   };
 
-  const createType = (id: number, name: string = `Type${id}`, nameEn: string = `Type${id}En`): Type => {
+  const createType = (
+    id: number,
+    name: string = `Type${id}`,
+    nameEn: string = `Type${id}En`,
+  ): Type => {
     return new Type(id, name, nameEn);
   };
 
-  const createMove = (
-    id: number,
-    priority: number = 0,
-    overrides?: Partial<Move>,
-  ): Move => {
+  const createMove = (id: number, priority: number = 0, overrides?: Partial<Move>): Move => {
     return new Move(
       id,
       overrides?.name ?? `Move${id}`,
@@ -125,18 +129,18 @@ describe('ActionOrderDeterminer', () => {
       Gender.Male,
       nature,
       ability,
-      31,        // ivHp
-      31,        // ivAttack
-      31,        // ivDefense
-      31,        // ivSpecialAttack
-      31,        // ivSpecialDefense
-      ivSpeed,   // ivSpeed
-      0,         // evHp
-      0,         // evAttack
-      0,         // evDefense
-      0,         // evSpecialAttack
-      0,         // evSpecialDefense
-      evSpeed,   // evSpeed
+      31, // ivHp
+      31, // ivAttack
+      31, // ivDefense
+      31, // ivSpecialAttack
+      31, // ivSpecialDefense
+      ivSpeed, // ivSpeed
+      0, // evHp
+      0, // evAttack
+      0, // evDefense
+      0, // evSpecialAttack
+      0, // evSpecialDefense
+      evSpeed, // evSpeed
     );
   };
 
@@ -243,7 +247,7 @@ describe('ActionOrderDeterminer', () => {
 
       const move1 = createMove(1, 1); // 優先度+1
       const move2 = createMove(2, 0); // 優先度0
-      moveRepository.findById.mockImplementation((id) => {
+      moveRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(move1);
         if (id === 2) return Promise.resolve(move2);
         return Promise.resolve(null);
@@ -253,7 +257,7 @@ describe('ActionOrderDeterminer', () => {
       const pokemon2 = createPokemon(2, 200); // 速度が高いが、優先度が低い
       const trainedPokemon1 = createTrainedPokemon(1, pokemon1);
       const trainedPokemon2 = createTrainedPokemon(2, pokemon2);
-      trainedPokemonRepository.findById.mockImplementation((id) => {
+      trainedPokemonRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(trainedPokemon1);
         if (id === 2) return Promise.resolve(trainedPokemon2);
         return Promise.resolve(null);
@@ -295,7 +299,7 @@ describe('ActionOrderDeterminer', () => {
 
       const move1 = createMove(1, 0); // 優先度0
       const move2 = createMove(2, 0); // 優先度0
-      moveRepository.findById.mockImplementation((id) => {
+      moveRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(move1);
         if (id === 2) return Promise.resolve(move2);
         return Promise.resolve(null);
@@ -305,7 +309,7 @@ describe('ActionOrderDeterminer', () => {
       const pokemon2 = createPokemon(2, 100); // 速度が低い
       const trainedPokemon1 = createTrainedPokemon(1, pokemon1);
       const trainedPokemon2 = createTrainedPokemon(2, pokemon2);
-      trainedPokemonRepository.findById.mockImplementation((id) => {
+      trainedPokemonRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(trainedPokemon1);
         if (id === 2) return Promise.resolve(trainedPokemon2);
         return Promise.resolve(null);
@@ -347,7 +351,7 @@ describe('ActionOrderDeterminer', () => {
 
       const move1 = createMove(1, 0); // 優先度0
       const move2 = createMove(2, 0); // 優先度0
-      moveRepository.findById.mockImplementation((id) => {
+      moveRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(move1);
         if (id === 2) return Promise.resolve(move2);
         return Promise.resolve(null);
@@ -357,7 +361,7 @@ describe('ActionOrderDeterminer', () => {
       const pokemon2 = createPokemon(2, 100);
       const trainedPokemon1 = createTrainedPokemon(1, pokemon1);
       const trainedPokemon2 = createTrainedPokemon(2, pokemon2);
-      trainedPokemonRepository.findById.mockImplementation((id) => {
+      trainedPokemonRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(trainedPokemon1);
         if (id === 2) return Promise.resolve(trainedPokemon2);
         return Promise.resolve(null);
@@ -402,7 +406,7 @@ describe('ActionOrderDeterminer', () => {
 
       const move1 = createMove(1, 0);
       const move2 = createMove(2, 0);
-      moveRepository.findById.mockImplementation((id) => {
+      moveRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(move1);
         if (id === 2) return Promise.resolve(move2);
         return Promise.resolve(null);
@@ -415,7 +419,7 @@ describe('ActionOrderDeterminer', () => {
       const pokemon2 = createPokemon(2, 60);
       const trainedPokemon1 = createTrainedPokemon(1, pokemon1);
       const trainedPokemon2 = createTrainedPokemon(2, pokemon2);
-      trainedPokemonRepository.findById.mockImplementation((id) => {
+      trainedPokemonRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(trainedPokemon1);
         if (id === 2) return Promise.resolve(trainedPokemon2);
         return Promise.resolve(null);
@@ -484,7 +488,7 @@ describe('ActionOrderDeterminer', () => {
 
       const move1 = createMove(1, 0);
       const move2 = createMove(2, 0);
-      moveRepository.findById.mockImplementation((id) => {
+      moveRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(move1);
         if (id === 2) return Promise.resolve(move2);
         return Promise.resolve(null);
@@ -516,19 +520,22 @@ describe('ActionOrderDeterminer', () => {
       const trainer2Active = createBattlePokemonStatus({ trainerId: 2 });
 
       const move1 = createMove(1, 0); // 優先度0
-      const move2 = createMove(2, 0); // 優先度0
-      moveRepository.findById.mockImplementation((id) => {
+      const move2 = createMove(2, -1); // 優先度-1（trainer2の優先度が低い）
+      moveRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(move1);
         if (id === 2) return Promise.resolve(move2);
         return Promise.resolve(null);
       });
 
+      // trainer1: baseSpeed=100 → 優先度0 → 特性で+1 → 優先度1
+      // trainer2: baseSpeed=200 → 優先度-1
+      // 優先度1 > -1なので、trainer1が先になる
       const pokemon1 = createPokemon(1, 100);
-      const pokemon2 = createPokemon(2, 200); // 速度が高いが、優先度補正によりtrainer1が先になる
+      const pokemon2 = createPokemon(2, 200);
       const ability1 = createAbility(1, 'テスト特性');
       const trainedPokemon1 = createTrainedPokemon(1, pokemon1, ability1);
       const trainedPokemon2 = createTrainedPokemon(2, pokemon2);
-      trainedPokemonRepository.findById.mockImplementation((id) => {
+      trainedPokemonRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(trainedPokemon1);
         if (id === 2) return Promise.resolve(trainedPokemon2);
         return Promise.resolve(null);
@@ -536,7 +543,7 @@ describe('ActionOrderDeterminer', () => {
 
       // モックの特性効果を作成（優先度を+1にする）
       const mockAbilityEffect = {
-        modifyPriority: jest.fn(() => 1), // 優先度を+1にする
+        modifyPriority: jest.fn((_pokemon, _movePriority) => _movePriority + 1), // 優先度を+1にする
       };
       AbilityRegistry.register('テスト特性', mockAbilityEffect as any);
 
@@ -570,23 +577,23 @@ describe('ActionOrderDeterminer', () => {
       const trainer1Active = createBattlePokemonStatus({ trainerId: 1 });
       const trainer2Active = createBattlePokemonStatus({ trainerId: 2 });
 
-      const move1 = createMove(1, 0); // 優先度0
+      const move1 = createMove(1, -1); // 優先度-1（trainer1の優先度が低い）
       const move2 = createMove(2, 0); // 優先度0
-      moveRepository.findById.mockImplementation((id) => {
+      moveRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(move1);
         if (id === 2) return Promise.resolve(move2);
         return Promise.resolve(null);
       });
 
-      // trainer1: baseSpeed=100 → 速度152
-      // trainer2: baseSpeed=100 → 速度152（同じ）
-      // trainer2の優先度が+1になるので、trainer2が先になる
-      const pokemon1 = createPokemon(1, 100);
+      // trainer1: baseSpeed=200 → 速度が高いが、優先度が-1
+      // trainer2: baseSpeed=100 → 優先度0 → 特性で+1 → 優先度1
+      // 優先度1 > -1なので、trainer2が先になる
+      const pokemon1 = createPokemon(1, 200);
       const pokemon2 = createPokemon(2, 100);
       const ability2 = createAbility(2, 'テスト特性2');
       const trainedPokemon1 = createTrainedPokemon(1, pokemon1);
       const trainedPokemon2 = createTrainedPokemon(2, pokemon2, ability2);
-      trainedPokemonRepository.findById.mockImplementation((id) => {
+      trainedPokemonRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(trainedPokemon1);
         if (id === 2) return Promise.resolve(trainedPokemon2);
         return Promise.resolve(null);
@@ -630,7 +637,7 @@ describe('ActionOrderDeterminer', () => {
 
       const move1 = createMove(1, 0);
       const move2 = createMove(2, 0);
-      moveRepository.findById.mockImplementation((id) => {
+      moveRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(move1);
         if (id === 2) return Promise.resolve(move2);
         return Promise.resolve(null);
@@ -641,7 +648,7 @@ describe('ActionOrderDeterminer', () => {
       const ability1 = createAbility(1, 'テスト特性3');
       const trainedPokemon1 = createTrainedPokemon(1, pokemon1, ability1);
       const trainedPokemon2 = createTrainedPokemon(2, pokemon2);
-      trainedPokemonRepository.findById.mockImplementation((id) => {
+      trainedPokemonRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(trainedPokemon1);
         if (id === 2) return Promise.resolve(trainedPokemon2);
         return Promise.resolve(null);
@@ -685,21 +692,21 @@ describe('ActionOrderDeterminer', () => {
 
       const move1 = createMove(1, 0);
       const move2 = createMove(2, 0);
-      moveRepository.findById.mockImplementation((id) => {
+      moveRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(move1);
         if (id === 2) return Promise.resolve(move2);
         return Promise.resolve(null);
       });
 
-      // trainer1: baseSpeed=150 → 速度202
+      // trainer1: baseSpeed=100 → 速度152
       // trainer2: baseSpeed=100 → 速度152 → 特性で2倍 → 304
-      // 304 > 202なので、trainer2が先になる
-      const pokemon1 = createPokemon(1, 150);
+      // 304 > 152なので、trainer2が先になる
+      const pokemon1 = createPokemon(1, 100);
       const pokemon2 = createPokemon(2, 100);
       const ability2 = createAbility(2, 'テスト特性4');
       const trainedPokemon1 = createTrainedPokemon(1, pokemon1);
       const trainedPokemon2 = createTrainedPokemon(2, pokemon2, ability2);
-      trainedPokemonRepository.findById.mockImplementation((id) => {
+      trainedPokemonRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(trainedPokemon1);
         if (id === 2) return Promise.resolve(trainedPokemon2);
         return Promise.resolve(null);
@@ -743,7 +750,7 @@ describe('ActionOrderDeterminer', () => {
 
       const move1 = createMove(1, -1); // 優先度-1
       const move2 = createMove(2, 0); // 優先度0
-      moveRepository.findById.mockImplementation((id) => {
+      moveRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(move1);
         if (id === 2) return Promise.resolve(move2);
         return Promise.resolve(null);
@@ -753,7 +760,7 @@ describe('ActionOrderDeterminer', () => {
       const pokemon2 = createPokemon(2, 100);
       const trainedPokemon1 = createTrainedPokemon(1, pokemon1);
       const trainedPokemon2 = createTrainedPokemon(2, pokemon2);
-      trainedPokemonRepository.findById.mockImplementation((id) => {
+      trainedPokemonRepository.findById.mockImplementation(id => {
         if (id === 1) return Promise.resolve(trainedPokemon1);
         if (id === 2) return Promise.resolve(trainedPokemon2);
         return Promise.resolve(null);
@@ -789,4 +796,3 @@ describe('ActionOrderDeterminer', () => {
     });
   });
 });
-
