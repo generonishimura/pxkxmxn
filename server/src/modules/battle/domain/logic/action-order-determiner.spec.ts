@@ -125,18 +125,18 @@ describe('ActionOrderDeterminer', () => {
       Gender.Male,
       nature,
       ability,
-      ivSpeed,
-      31,
-      31,
-      31,
-      31,
-      ivSpeed,
-      evSpeed,
-      0,
-      0,
-      0,
-      0,
-      evSpeed,
+      31,        // ivHp
+      31,        // ivAttack
+      31,        // ivDefense
+      31,        // ivSpecialAttack
+      31,        // ivSpecialDefense
+      ivSpeed,   // ivSpeed
+      0,         // evHp
+      0,         // evAttack
+      0,         // evDefense
+      0,         // evSpecialAttack
+      0,         // evSpecialDefense
+      evSpeed,   // evSpeed
     );
   };
 
@@ -154,13 +154,14 @@ describe('ActionOrderDeterminer', () => {
 
     determiner = new ActionOrderDeterminer(moveRepository, trainedPokemonRepository);
 
-    // AbilityRegistryを初期化
+    // AbilityRegistryをクリア（テストで登録する特性のために）
     AbilityRegistry.clear();
-    AbilityRegistry.initialize();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+    // テストで登録した特性をクリア
+    AbilityRegistry.clear();
   });
 
   describe('determine', () => {
@@ -577,7 +578,10 @@ describe('ActionOrderDeterminer', () => {
         return Promise.resolve(null);
       });
 
-      const pokemon1 = createPokemon(1, 200); // 速度が高いが、優先度補正によりtrainer2が先になる
+      // trainer1: baseSpeed=100 → 速度152
+      // trainer2: baseSpeed=100 → 速度152（同じ）
+      // trainer2の優先度が+1になるので、trainer2が先になる
+      const pokemon1 = createPokemon(1, 100);
       const pokemon2 = createPokemon(2, 100);
       const ability2 = createAbility(2, 'テスト特性2');
       const trainedPokemon1 = createTrainedPokemon(1, pokemon1);
@@ -590,7 +594,7 @@ describe('ActionOrderDeterminer', () => {
 
       // モックの特性効果を作成（優先度を+1にする）
       const mockAbilityEffect = {
-        modifyPriority: jest.fn(() => 1), // 優先度を+1にする
+        modifyPriority: jest.fn((_pokemon, _movePriority) => _movePriority + 1), // 優先度を+1にする
       };
       AbilityRegistry.register('テスト特性2', mockAbilityEffect as any);
 
@@ -687,7 +691,10 @@ describe('ActionOrderDeterminer', () => {
         return Promise.resolve(null);
       });
 
-      const pokemon1 = createPokemon(1, 150); // 速度が高いが、特性補正によりtrainer2が先になる
+      // trainer1: baseSpeed=150 → 速度202
+      // trainer2: baseSpeed=100 → 速度152 → 特性で2倍 → 304
+      // 304 > 202なので、trainer2が先になる
+      const pokemon1 = createPokemon(1, 150);
       const pokemon2 = createPokemon(2, 100);
       const ability2 = createAbility(2, 'テスト特性4');
       const trainedPokemon1 = createTrainedPokemon(1, pokemon1);
