@@ -1,10 +1,31 @@
 import { StatusCondition } from './status-condition.enum';
+import { ValidationException } from '../../../../shared/domain/exceptions/validation.exception';
 
 /**
  * BattlePokemonStatusエンティティ
  * バトル中のポケモン個別の状態を管理
  */
 export class BattlePokemonStatus {
+  /**
+   * 最小ID値
+   */
+  private static readonly MIN_ID = 1;
+
+  /**
+   * 最小HP値
+   */
+  private static readonly MIN_HP = 1;
+
+  /**
+   * ステータスランクの最小値
+   */
+  private static readonly MIN_RANK = -6;
+
+  /**
+   * ステータスランクの最大値
+   */
+  private static readonly MAX_RANK = 6;
+
   constructor(
     public readonly id: number,
     public readonly battleId: number,
@@ -21,7 +42,81 @@ export class BattlePokemonStatus {
     public readonly accuracyRank: number,
     public readonly evasionRank: number,
     public readonly statusCondition: StatusCondition | null,
-  ) {}
+  ) {
+    // IDのバリデーション
+    if (id < BattlePokemonStatus.MIN_ID) {
+      throw new ValidationException(
+        `BattlePokemonStatus ID must be at least ${BattlePokemonStatus.MIN_ID}. Got: ${id}`,
+        'id',
+      );
+    }
+
+    if (battleId < BattlePokemonStatus.MIN_ID) {
+      throw new ValidationException(
+        `Battle ID must be at least ${BattlePokemonStatus.MIN_ID}. Got: ${battleId}`,
+        'battleId',
+      );
+    }
+
+    if (trainedPokemonId < BattlePokemonStatus.MIN_ID) {
+      throw new ValidationException(
+        `Trained Pokemon ID must be at least ${BattlePokemonStatus.MIN_ID}. Got: ${trainedPokemonId}`,
+        'trainedPokemonId',
+      );
+    }
+
+    if (trainerId < BattlePokemonStatus.MIN_ID) {
+      throw new ValidationException(
+        `Trainer ID must be at least ${BattlePokemonStatus.MIN_ID}. Got: ${trainerId}`,
+        'trainerId',
+      );
+    }
+
+    // HPのバリデーション
+    if (maxHp < BattlePokemonStatus.MIN_HP) {
+      throw new ValidationException(
+        `Max HP must be at least ${BattlePokemonStatus.MIN_HP}. Got: ${maxHp}`,
+        'maxHp',
+      );
+    }
+
+    if (currentHp < 0) {
+      throw new ValidationException(
+        `Current HP must be at least 0. Got: ${currentHp}`,
+        'currentHp',
+      );
+    }
+
+    if (currentHp > maxHp) {
+      throw new ValidationException(
+        `Current HP must not exceed Max HP. Got: currentHp=${currentHp}, maxHp=${maxHp}`,
+        'currentHp',
+      );
+    }
+
+    // ステータスランクのバリデーション
+    const ranks = [
+      { value: attackRank, name: 'attackRank' },
+      { value: defenseRank, name: 'defenseRank' },
+      { value: specialAttackRank, name: 'specialAttackRank' },
+      { value: specialDefenseRank, name: 'specialDefenseRank' },
+      { value: speedRank, name: 'speedRank' },
+      { value: accuracyRank, name: 'accuracyRank' },
+      { value: evasionRank, name: 'evasionRank' },
+    ];
+
+    for (const rank of ranks) {
+      if (
+        rank.value < BattlePokemonStatus.MIN_RANK ||
+        rank.value > BattlePokemonStatus.MAX_RANK
+      ) {
+        throw new ValidationException(
+          `${rank.name} must be between ${BattlePokemonStatus.MIN_RANK} and ${BattlePokemonStatus.MAX_RANK}. Got: ${rank.value}`,
+          rank.name,
+        );
+      }
+    }
+  }
 
   /**
    * HPが0以下になったかどうか

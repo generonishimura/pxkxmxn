@@ -1,4 +1,4 @@
-import { IsInt, Min, IsNotEmpty, IsOptional, ValidateNested, ValidateIf } from 'class-validator';
+import { IsInt, Min, IsNotEmpty, ValidateNested, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 
 /**
