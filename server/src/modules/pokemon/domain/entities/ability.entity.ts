@@ -39,6 +39,20 @@ export class Ability {
    */
   private static readonly MIN_ID = 1;
 
+  /**
+   * 名前のバリデーション
+   * @param value 検証する名前
+   * @param fieldName フィールド名（エラーメッセージ用）
+   */
+  private static validateName(value: string, fieldName: string): void {
+    if (!value || value.trim().length === 0) {
+      throw new ValidationException(
+        `Ability ${fieldName} must not be empty`,
+        fieldName,
+      );
+    }
+  }
+
   constructor(
     public readonly id: number,
     public readonly name: string, // アプリケーション側でロジックを識別するキー
@@ -56,26 +70,8 @@ export class Ability {
     }
 
     // 名前のバリデーション
-    if (!name || name.trim().length === 0) {
-      throw new ValidationException(
-        'Ability name must not be empty',
-        'name',
-      );
-    }
-
-    if (!nameEn || nameEn.trim().length === 0) {
-      throw new ValidationException(
-        'Ability nameEn must not be empty',
-        'nameEn',
-      );
-    }
-
-    // 説明のバリデーション
-    if (!description || description.trim().length === 0) {
-      throw new ValidationException(
-        'Ability description must not be empty',
-        'description',
-      );
-    }
+    Ability.validateName(name, 'name');
+    Ability.validateName(nameEn, 'nameEn');
+    Ability.validateName(description, 'description');
   }
 }

@@ -11,9 +11,15 @@ export class BattlePokemonMove {
   private static readonly MIN_ID = 1;
 
   /**
-   * 最小PP値
+   * 最小PP値（maxPp用）
+   * Move.MIN_PP = 1と整合性を取るため、1に設定
    */
-  private static readonly MIN_PP = 0;
+  private static readonly MIN_MAX_PP = 1;
+
+  /**
+   * 最小currentPp値（PPを使い切った状態を許可）
+   */
+  private static readonly MIN_CURRENT_PP = 0;
 
   constructor(
     public readonly id: number,
@@ -45,16 +51,16 @@ export class BattlePokemonMove {
     }
 
     // PPのバリデーション
-    if (maxPp < BattlePokemonMove.MIN_PP) {
+    if (maxPp < BattlePokemonMove.MIN_MAX_PP) {
       throw new ValidationException(
-        `Max PP must be at least ${BattlePokemonMove.MIN_PP}. Got: ${maxPp}`,
+        `Max PP must be at least ${BattlePokemonMove.MIN_MAX_PP}. Got: ${maxPp}`,
         'maxPp',
       );
     }
 
-    if (currentPp < BattlePokemonMove.MIN_PP) {
+    if (currentPp < BattlePokemonMove.MIN_CURRENT_PP) {
       throw new ValidationException(
-        `Current PP must be at least ${BattlePokemonMove.MIN_PP}. Got: ${currentPp}`,
+        `Current PP must be at least ${BattlePokemonMove.MIN_CURRENT_PP}. Got: ${currentPp}`,
         'currentPp',
       );
     }

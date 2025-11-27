@@ -26,6 +26,20 @@ export class Pokemon {
    */
   private static readonly MAX_BASE_STAT = 255;
 
+  /**
+   * 名前のバリデーション
+   * @param value 検証する名前
+   * @param fieldName フィールド名（エラーメッセージ用）
+   */
+  private static validateName(value: string, fieldName: string): void {
+    if (!value || value.trim().length === 0) {
+      throw new ValidationException(
+        `Pokemon ${fieldName} must not be empty`,
+        fieldName,
+      );
+    }
+  }
+
   constructor(
     public readonly id: number,
     public readonly nationalDex: number,
@@ -57,19 +71,8 @@ export class Pokemon {
     }
 
     // 名前のバリデーション
-    if (!name || name.trim().length === 0) {
-      throw new ValidationException(
-        'Pokemon name must not be empty',
-        'name',
-      );
-    }
-
-    if (!nameEn || nameEn.trim().length === 0) {
-      throw new ValidationException(
-        'Pokemon nameEn must not be empty',
-        'nameEn',
-      );
-    }
+    Pokemon.validateName(name, 'name');
+    Pokemon.validateName(nameEn, 'nameEn');
 
     // 基本ステータスのバリデーション
     const baseStats = [

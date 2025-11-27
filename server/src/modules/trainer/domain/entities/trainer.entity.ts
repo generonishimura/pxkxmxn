@@ -36,19 +36,13 @@ export class Trainer {
     }
 
     // 名前のバリデーション
-    if (!name || name.trim().length === 0) {
-      throw new ValidationException(
-        'Trainer name must not be empty',
-        'name',
-      );
-    }
-
+    const trimmedNameLength = name.trim().length;
     if (
-      name.length < Trainer.MIN_NAME_LENGTH ||
-      name.length > Trainer.MAX_NAME_LENGTH
+      trimmedNameLength < Trainer.MIN_NAME_LENGTH ||
+      trimmedNameLength > Trainer.MAX_NAME_LENGTH
     ) {
       throw new ValidationException(
-        `Trainer name must be between ${Trainer.MIN_NAME_LENGTH} and ${Trainer.MAX_NAME_LENGTH} characters. Got: ${name.length}`,
+        `Trainer name must be between ${Trainer.MIN_NAME_LENGTH} and ${Trainer.MAX_NAME_LENGTH} characters. Got: ${trimmedNameLength}`,
         'name',
       );
     }
