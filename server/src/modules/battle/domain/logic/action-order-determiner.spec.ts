@@ -31,7 +31,7 @@ describe('ActionOrderDeterminer', () => {
       overrides?.id ?? 1,
       overrides?.battleId ?? 1,
       trainedPokemonId,
-      overrides?.trainerId ?? trainedPokemonId ?? 1,
+      overrides?.trainerId ?? trainedPokemonId,
       overrides?.isActive ?? true,
       overrides?.currentHp ?? 100,
       overrides?.maxHp ?? 100,
