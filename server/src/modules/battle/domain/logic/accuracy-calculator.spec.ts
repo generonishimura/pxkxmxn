@@ -2,6 +2,7 @@ import { AccuracyCalculator } from './accuracy-calculator';
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../entities/status-condition.enum';
 import { Weather, Field, Battle, BattleStatus } from '../entities/battle.entity';
+import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 
 describe('AccuracyCalculator', () => {
   // テスト用のヘルパー関数
@@ -39,6 +40,18 @@ describe('AccuracyCalculator', () => {
       overrides.winnerTrainerId ?? null,
     );
   };
+
+  beforeEach(() => {
+    // AbilityRegistryをリセット
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+  });
+
+  afterEach(() => {
+    // テストで追加した特性をクリア
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+  });
 
   describe('checkHit', () => {
     it('必中技（accuracy === null）の場合は常に命中する', () => {
@@ -148,6 +161,167 @@ describe('AccuracyCalculator', () => {
       // 命中率1の技で、最小補正の場合、実効命中率は0%に制限される
       const result = AccuracyCalculator.checkHit(1, attacker, defender);
       expect(result).toBe(false);
+    });
+
+    it('特性による命中率補正が適用される', () => {
+      const attacker = createBattlePokemonStatus({ accuracyRank: 0 });
+      const defender = createBattlePokemonStatus({ evasionRank: 0 });
+
+      // モックの特性効果を作成（命中率を1.5倍にする）
+      const mockAbilityEffect = {
+        modifyAccuracy: jest.fn((_pokemon, accuracy) => accuracy * 1.5),
+      };
+      AbilityRegistry.register('テスト特性', mockAbilityEffect as any);
+
+      // 命中率50の技で、特性により命中率が75%になる
+      // 複数回実行して、命中率が上がっていることを確認
+      let hitCount = 0;
+      for (let i = 0; i < 100; i++) {
+        if (AccuracyCalculator.checkHit(50, attacker, defender, 'テスト特性')) {
+          hitCount++;
+        }
+      }
+      // 命中率が上がっているため、50%より多く命中するはず
+      expect(hitCount).toBeGreaterThan(50);
+      expect(mockAbilityEffect.modifyAccuracy).toHaveBeenCalled();
+    });
+
+    it('特性による命中率補正がundefinedを返す場合、補正が適用されない', () => {
+      const attacker = createBattlePokemonStatus({ accuracyRank: 0 });
+      const defender = createBattlePokemonStatus({ evasionRank: 0 });
+
+      // モックの特性効果を作成（補正しない）
+      const mockAbilityEffect = {
+        modifyAccuracy: jest.fn(() => undefined),
+      };
+      AbilityRegistry.register('テスト特性2', mockAbilityEffect as any);
+
+      // 命中率50の技で、特性が補正しない場合、通常通り動作する
+      let hitCount = 0;
+      for (let i = 0; i < 100; i++) {
+        if (AccuracyCalculator.checkHit(50, attacker, defender, 'テスト特性2')) {
+          hitCount++;
+        }
+      }
+      // 補正がないため、通常の命中率で動作する
+      expect(hitCount).toBeGreaterThan(30);
+      expect(hitCount).toBeLessThan(70);
+      expect(mockAbilityEffect.modifyAccuracy).toHaveBeenCalled();
+    });
+
+    it('特性による回避率補正が適用される', () => {
+      const attacker = createBattlePokemonStatus({ accuracyRank: 0 });
+      const defender = createBattlePokemonStatus({ evasionRank: 0 });
+
+      // モックの特性効果を作成（回避率を0.5倍にする = 命中率が50%になる）
+      const mockAbilityEffect = {
+        modifyEvasion: jest.fn(() => 0.5),
+      };
+      AbilityRegistry.register('テスト特性3', mockAbilityEffect as any);
+
+      // 命中率100の技で、特性により回避率が0.5倍になるため、実効命中率は50%になる
+      // 複数回実行して、命中率が下がっていることを確認
+      let hitCount = 0;
+      for (let i = 0; i < 100; i++) {
+        if (AccuracyCalculator.checkHit(100, attacker, defender, undefined, 'テスト特性3')) {
+          hitCount++;
+        }
+      }
+      // 命中率が下がっているため、100%より少なく命中するはず
+      expect(hitCount).toBeLessThan(80);
+      expect(mockAbilityEffect.modifyEvasion).toHaveBeenCalled();
+    });
+
+    it('特性による回避率補正が1.0の場合、完全回避される', () => {
+      const attacker = createBattlePokemonStatus({ accuracyRank: 0 });
+      const defender = createBattlePokemonStatus({ evasionRank: 0 });
+
+      // モックの特性効果を作成（完全回避）
+      const mockAbilityEffect = {
+        modifyEvasion: jest.fn(() => 1.0),
+      };
+      AbilityRegistry.register('テスト特性4', mockAbilityEffect as any);
+
+      // 命中率100の技で、特性により完全回避される
+      const result = AccuracyCalculator.checkHit(100, attacker, defender, undefined, 'テスト特性4');
+      expect(result).toBe(false);
+      expect(mockAbilityEffect.modifyEvasion).toHaveBeenCalled();
+    });
+
+    it('特性による回避率補正がundefinedを返す場合、補正が適用されない', () => {
+      const attacker = createBattlePokemonStatus({ accuracyRank: 0 });
+      const defender = createBattlePokemonStatus({ evasionRank: 0 });
+
+      // モックの特性効果を作成（補正しない）
+      const mockAbilityEffect = {
+        modifyEvasion: jest.fn(() => undefined),
+      };
+      AbilityRegistry.register('テスト特性5', mockAbilityEffect as any);
+
+      // 命中率100の技で、特性が補正しない場合、通常通り命中する
+      const result = AccuracyCalculator.checkHit(100, attacker, defender, undefined, 'テスト特性5');
+      expect(result).toBe(true);
+      expect(mockAbilityEffect.modifyEvasion).toHaveBeenCalled();
+    });
+
+    it('特性による命中率補正と回避率補正が同時に適用される', () => {
+      const attacker = createBattlePokemonStatus({ accuracyRank: 0 });
+      const defender = createBattlePokemonStatus({ evasionRank: 0 });
+
+      // モックの特性効果を作成
+      const attackerAbilityEffect = {
+        modifyAccuracy: jest.fn((_pokemon, accuracy) => accuracy * 1.5), // 命中率1.5倍
+      };
+      const defenderAbilityEffect = {
+        modifyEvasion: jest.fn(() => 0.2), // 回避率0.2 = 命中率80%
+      };
+      AbilityRegistry.register('テスト特性6', attackerAbilityEffect as any);
+      AbilityRegistry.register('テスト特性7', defenderAbilityEffect as any);
+
+      // 命中率50の技で、攻撃側の特性により75%になり、防御側の特性により60%になる
+      // 複数回実行して、補正が適用されていることを確認
+      let hitCount = 0;
+      for (let i = 0; i < 100; i++) {
+        if (AccuracyCalculator.checkHit(50, attacker, defender, 'テスト特性6', 'テスト特性7')) {
+          hitCount++;
+        }
+      }
+      // 補正が適用されているため、通常の50%とは異なる結果になる
+      expect(hitCount).toBeGreaterThan(30);
+      expect(attackerAbilityEffect.modifyAccuracy).toHaveBeenCalled();
+      expect(defenderAbilityEffect.modifyEvasion).toHaveBeenCalled();
+    });
+
+    it('特性による補正により実効命中率が100を超える場合は100%に制限される', () => {
+      const attacker = createBattlePokemonStatus({ accuracyRank: 0 });
+      const defender = createBattlePokemonStatus({ evasionRank: 0 });
+
+      // モックの特性効果を作成（命中率を2倍にする）
+      const mockAbilityEffect = {
+        modifyAccuracy: jest.fn((_pokemon, accuracy) => accuracy * 2),
+      };
+      AbilityRegistry.register('テスト特性8', mockAbilityEffect as any);
+
+      // 命中率100の技で、特性により200%になるが、100%に制限される
+      const result = AccuracyCalculator.checkHit(100, attacker, defender, 'テスト特性8');
+      expect(result).toBe(true);
+      expect(mockAbilityEffect.modifyAccuracy).toHaveBeenCalled();
+    });
+
+    it('特性による補正により実効命中率が0未満になる場合は0%に制限される', () => {
+      const attacker = createBattlePokemonStatus({ accuracyRank: 0 });
+      const defender = createBattlePokemonStatus({ evasionRank: 0 });
+
+      // モックの特性効果を作成（回避率を1.5倍にする = 実効命中率が負になる）
+      const mockAbilityEffect = {
+        modifyEvasion: jest.fn(() => 1.5), // 1.0を超える値（不正な値だが、テスト用）
+      };
+      AbilityRegistry.register('テスト特性9', mockAbilityEffect as any);
+
+      // 命中率50の技で、特性により実効命中率が負になるが、0%に制限される
+      const result = AccuracyCalculator.checkHit(50, attacker, defender, undefined, 'テスト特性9');
+      expect(result).toBe(false);
+      expect(mockAbilityEffect.modifyEvasion).toHaveBeenCalled();
     });
   });
 });
