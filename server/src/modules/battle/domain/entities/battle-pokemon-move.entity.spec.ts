@@ -1,4 +1,5 @@
 import { BattlePokemonMove } from './battle-pokemon-move.entity';
+import { ValidationException } from '../../../../shared/domain/exceptions/validation.exception';
 
 describe('BattlePokemonMove', () => {
   const createBattlePokemonMove = (
@@ -19,14 +20,37 @@ describe('BattlePokemonMove', () => {
     );
   };
 
+  describe('バリデーション', () => {
+    it('正常な値でBattlePokemonMoveを作成できる', () => {
+      const move = createBattlePokemonMove();
+      expect(move).toBeInstanceOf(BattlePokemonMove);
+    });
+
+    it('IDが0以下の場合、ValidationExceptionを投げる', () => {
+      expect(() => createBattlePokemonMove({ id: 0 })).toThrow(ValidationException);
+      expect(() => createBattlePokemonMove({ id: -1 })).toThrow(ValidationException);
+    });
+
+    it('maxPpが負の値の場合、ValidationExceptionを投げる', () => {
+      expect(() => createBattlePokemonMove({ maxPp: -1 })).toThrow(ValidationException);
+    });
+
+    it('currentPpが負の値の場合、ValidationExceptionを投げる', () => {
+      expect(() => createBattlePokemonMove({ currentPp: -1 })).toThrow(
+        ValidationException,
+      );
+    });
+
+    it('currentPpがmaxPpを超える場合、ValidationExceptionを投げる', () => {
+      expect(() => createBattlePokemonMove({ currentPp: 11, maxPp: 10 })).toThrow(
+        ValidationException,
+      );
+    });
+  });
+
   describe('isPpExhausted', () => {
     it('PPが0の場合はtrueを返す', () => {
       const move = createBattlePokemonMove({ currentPp: 0, maxPp: 10 });
-      expect(move.isPpExhausted()).toBe(true);
-    });
-
-    it('PPが負の値の場合はtrueを返す', () => {
-      const move = createBattlePokemonMove({ currentPp: -1, maxPp: 10 });
       expect(move.isPpExhausted()).toBe(true);
     });
 
@@ -62,12 +86,6 @@ describe('BattlePokemonMove', () => {
 
     it('PPが0の場合、消費しても0のまま', () => {
       const move = createBattlePokemonMove({ currentPp: 0, maxPp: 10 });
-      const newPp = move.consumePp();
-      expect(newPp).toBe(0);
-    });
-
-    it('PPが負の値の場合、消費しても0のまま', () => {
-      const move = createBattlePokemonMove({ currentPp: -1, maxPp: 10 });
       const newPp = move.consumePp();
       expect(newPp).toBe(0);
     });
