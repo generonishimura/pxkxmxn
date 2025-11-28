@@ -20,6 +20,10 @@
       "descriptionEn": {
         "type": "string",
         "description": "技の特殊効果の説明（英語）"
+      },
+      "className": {
+        "type": "string",
+        "description": "生成されるクラス名（省略時は自動生成）"
       }
     },
     "required": ["baseClass", "params", "description"]
@@ -33,7 +37,8 @@
       "message": "was burned!"
     },
     "description": "10%の確率で相手にやけどを付与",
-    "descriptionEn": "10% chance to burn the target"
+    "descriptionEn": "10% chance to burn the target",
+    "className": "FlamethrowerEffect"
   }
 }
 

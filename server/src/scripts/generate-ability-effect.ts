@@ -14,6 +14,7 @@ interface AbilityConfig {
   params: Record<string, any>;
   description: string;
   descriptionEn?: string;
+  className?: string;
 }
 
 interface AbilitiesConfig {
@@ -32,10 +33,18 @@ function toKebabCase(str: string): string {
 
 /**
  * クラス名を生成（特性名から）
+ * @param abilityName 特性名（日本語）
+ * @param config 特性設定（classNameが指定されている場合はそれを使用）
+ * @returns 生成されるクラス名
  */
-function generateClassName(abilityName: string): string {
-  // 日本語名を英語名に変換する簡易的なマッピング
-  // 実際の実装では、より詳細なマッピングが必要
+function generateClassName(abilityName: string, config?: AbilityConfig): string {
+  // 設定ファイルにclassNameが指定されている場合はそれを使用
+  if (config?.className) {
+    return config.className;
+  }
+
+  // 日本語名を英語名に変換する簡易的なマッピング（フォールバック）
+  // 新しい特性を追加する場合は、設定ファイルにclassNameを指定することを推奨
   const nameMap: Record<string, string> = {
     ちくでん: 'VoltAbsorb',
     すいすい: 'SwiftSwim',
@@ -59,7 +68,7 @@ function generateClassName(abilityName: string): string {
     return `${nameMap[abilityName]}Effect`;
   }
 
-  // フォールバック: 特性名をそのまま使用（実際の実装では改善が必要）
+  // フォールバック: 特性名をそのまま使用
   return `${abilityName}Effect`;
 }
 
@@ -202,7 +211,7 @@ function generateImports(baseClass: string): string {
  * クラスファイルを生成
  */
 function generateClassFile(abilityName: string, config: AbilityConfig): string {
-  const className = generateClassName(abilityName);
+  const className = generateClassName(abilityName, config);
   const imports = generateImports(config.baseClass);
   const paramsCode = generateParamsCode(config.params, config.baseClass);
 
@@ -241,12 +250,13 @@ function main() {
   const config: AbilitiesConfig = JSON.parse(configContent);
 
   // 設定ファイルから実際のデータを取得（$schemaなどのメタデータを除外）
+  // JSONスキーマの標準キーワード（$で始まるキー）を除外し、
+  // baseClassプロパティを持つオブジェクトのみを処理対象とする
   const abilities: AbilitiesConfig = {};
   for (const [key, value] of Object.entries(config)) {
-    if (key !== '$schema' && key !== 'description' && key !== 'type' && key !== 'additionalProperties') {
-      if (value && typeof value === 'object' && 'baseClass' in value) {
-        abilities[key] = value as AbilityConfig;
-      }
+    // JSONスキーマの標準キーワード（$で始まる）を除外
+    if (!key.startsWith('$') && value && typeof value === 'object' && 'baseClass' in value) {
+      abilities[key] = value as AbilityConfig;
     }
   }
 
@@ -259,7 +269,7 @@ function main() {
       continue;
     }
 
-    const className = generateClassName(abilityName);
+    const className = generateClassName(abilityName, abilityConfig);
     const category = abilityConfig.category || 'other';
     const categoryDir = path.join(outputDir, category);
 

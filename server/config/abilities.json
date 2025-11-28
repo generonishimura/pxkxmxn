@@ -25,6 +25,10 @@
       "descriptionEn": {
         "type": "string",
         "description": "特性の説明（英語）"
+      },
+      "className": {
+        "type": "string",
+        "description": "生成されるクラス名（省略時は自動生成）"
       }
     },
     "required": ["baseClass", "category", "params", "description"]
@@ -37,7 +41,8 @@
       "healRatio": 0.25
     },
     "description": "でんきタイプの技を無効化し、最大HPの1/4回復",
-    "descriptionEn": "Volt Absorb - Absorbs Electric-type moves and restores HP"
+    "descriptionEn": "Volt Absorb - Absorbs Electric-type moves and restores HP",
+    "className": "VoltAbsorbEffect"
   },
   "すいすい": {
     "baseClass": "BaseWeatherDependentSpeedEffect",
@@ -47,7 +52,8 @@
       "speedMultiplier": 2.0
     },
     "description": "雨の時、素早さ2倍",
-    "descriptionEn": "Swift Swim - Doubles Speed in rain"
+    "descriptionEn": "Swift Swim - Doubles Speed in rain",
+    "className": "SwiftSwimEffect"
   }
 }
 

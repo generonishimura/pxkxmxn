@@ -13,6 +13,7 @@ interface MoveConfig {
   params: Record<string, any>;
   description: string;
   descriptionEn?: string;
+  className?: string;
 }
 
 interface MovesConfig {
@@ -21,9 +22,18 @@ interface MovesConfig {
 
 /**
  * クラス名を生成（技名から）
+ * @param moveName 技名（日本語）
+ * @param config 技設定（classNameが指定されている場合はそれを使用）
+ * @returns 生成されるクラス名
  */
-function generateClassName(moveName: string): string {
-  // 日本語名を英語名に変換する簡易的なマッピング
+function generateClassName(moveName: string, config?: MoveConfig): string {
+  // 設定ファイルにclassNameが指定されている場合はそれを使用
+  if (config?.className) {
+    return config.className;
+  }
+
+  // 日本語名を英語名に変換する簡易的なマッピング（フォールバック）
+  // 新しい技を追加する場合は、設定ファイルにclassNameを指定することを推奨
   const nameMap: Record<string, string> = {
     かえんほうしゃ: 'Flamethrower',
     '10まんボルト': 'Thunderbolt',
@@ -115,6 +125,9 @@ function generateImports(baseClass: string): string {
   const imports: string[] = [];
 
   // 基底クラスのインポート
+  // BaseStatusConditionEffectは、既存のファイル構造に合わせて
+  // base/ディレクトリではなく、effects/ディレクトリ直下に配置されているため、
+  // 特別なインポートパスを使用する
   if (baseClass === 'BaseStatusConditionEffect') {
     imports.push(`import { ${baseClass} } from './base-status-condition-effect';`);
   } else {
@@ -134,7 +147,7 @@ function generateImports(baseClass: string): string {
  * クラスファイルを生成
  */
 function generateClassFile(moveName: string, config: MoveConfig): string {
-  const className = generateClassName(moveName);
+  const className = generateClassName(moveName, config);
   const imports = generateImports(config.baseClass);
   const paramsCode = generateParamsCode(config.params, config.baseClass);
 
@@ -174,12 +187,13 @@ function main() {
   const config: MovesConfig = JSON.parse(configContent);
 
   // 設定ファイルから実際のデータを取得（$schemaなどのメタデータを除外）
+  // JSONスキーマの標準キーワード（$で始まるキー）を除外し、
+  // baseClassプロパティを持つオブジェクトのみを処理対象とする
   const moves: MovesConfig = {};
   for (const [key, value] of Object.entries(config)) {
-    if (key !== '$schema' && key !== 'description' && key !== 'type' && key !== 'additionalProperties') {
-      if (value && typeof value === 'object' && 'baseClass' in value) {
-        moves[key] = value as MoveConfig;
-      }
+    // JSONスキーマの標準キーワード（$で始まる）を除外
+    if (!key.startsWith('$') && value && typeof value === 'object' && 'baseClass' in value) {
+      moves[key] = value as MoveConfig;
     }
   }
 
@@ -192,7 +206,7 @@ function main() {
       continue;
     }
 
-    const className = generateClassName(moveName);
+    const className = generateClassName(moveName, moveConfig);
 
     // クラスファイルを生成
     const classContent = generateClassFile(moveName, moveConfig);
