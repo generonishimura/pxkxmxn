@@ -98,15 +98,17 @@ function generateParamsCode(params: Record<string, any>, baseClass: string): str
       for (const [key, value] of Object.entries(params)) {
         if (typeof value === 'string') {
           // 文字列のエスケープ処理
-          const escaped = value.replace(/'/g, "\\'").replace(/\\/g, '\\\\');
+          // バックスラッシュを先にエスケープ（順序が重要）
+          const escaped = value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
           lines.push(`  protected readonly ${key} = '${escaped}';`);
         } else if (typeof value === 'number') {
           lines.push(`  protected readonly ${key} = ${value};`);
         } else if (Array.isArray(value)) {
           // 配列の要素が文字列の場合は個別にエスケープ
           if (value.length > 0 && value.every(v => typeof v === 'string')) {
+            // バックスラッシュを先にエスケープ（順序が重要）
             const escaped = value
-              .map(v => `'${v.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}'`)
+              .map(v => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`)
               .join(', ');
             lines.push(`  protected readonly ${key} = [${escaped}] as const;`);
           } else {
