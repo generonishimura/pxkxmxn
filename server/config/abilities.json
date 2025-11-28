@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "特性効果クラスの自動生成用設定ファイル",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "properties": {
+      "baseClass": {
+        "type": "string",
+        "description": "基底クラス名（例: BaseTypeAbsorbEffect）"
+      },
+      "category": {
+        "type": "string",
+        "description": "カテゴリ（immunity, stat-change, damage-modify, weather）",
+        "enum": ["immunity", "stat-change", "damage-modify", "weather", "other"]
+      },
+      "params": {
+        "type": "object",
+        "description": "基底クラスに応じたパラメータ"
+      },
+      "description": {
+        "type": "string",
+        "description": "特性の説明（日本語）"
+      },
+      "descriptionEn": {
+        "type": "string",
+        "description": "特性の説明（英語）"
+      }
+    },
+    "required": ["baseClass", "category", "params", "description"]
+  },
+  "ちくでん": {
+    "baseClass": "BaseTypeAbsorbEffect",
+    "category": "immunity",
+    "params": {
+      "immuneTypes": ["でんき"],
+      "healRatio": 0.25
+    },
+    "description": "でんきタイプの技を無効化し、最大HPの1/4回復",
+    "descriptionEn": "Volt Absorb - Absorbs Electric-type moves and restores HP"
+  },
+  "すいすい": {
+    "baseClass": "BaseWeatherDependentSpeedEffect",
+    "category": "stat-change",
+    "params": {
+      "requiredWeathers": ["Rain"],
+      "speedMultiplier": 2.0
+    },
+    "description": "雨の時、素早さ2倍",
+    "descriptionEn": "Swift Swim - Doubles Speed in rain"
+  }
+}
+
