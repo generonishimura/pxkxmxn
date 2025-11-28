@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "技効果クラスの自動生成用設定ファイル",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "properties": {
+      "baseClass": {
+        "type": "string",
+        "description": "基底クラス名（例: BaseStatusConditionEffect）"
+      },
+      "params": {
+        "type": "object",
+        "description": "基底クラスに応じたパラメータ"
+      },
+      "description": {
+        "type": "string",
+        "description": "技の特殊効果の説明（日本語）"
+      },
+      "descriptionEn": {
+        "type": "string",
+        "description": "技の特殊効果の説明（英語）"
+      },
+      "className": {
+        "type": "string",
+        "description": "生成されるクラス名（省略時は自動生成）"
+      }
+    },
+    "required": ["baseClass", "params", "description"]
+  },
+  "かえんほうしゃ": {
+    "baseClass": "BaseStatusConditionEffect",
+    "params": {
+      "statusCondition": "Burn",
+      "chance": 0.1,
+      "immuneTypes": ["ほのお"],
+      "message": "was burned!"
+    },
+    "description": "10%の確率で相手にやけどを付与",
+    "descriptionEn": "10% chance to burn the target",
+    "className": "FlamethrowerEffect"
+  }
+}
+
