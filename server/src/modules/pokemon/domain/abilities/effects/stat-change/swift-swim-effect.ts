@@ -2,11 +2,10 @@ import { BaseWeatherDependentSpeedEffect } from '../base/base-weather-dependent-
 import { Weather } from '@/modules/battle/domain/entities/battle.entity';
 
 /**
- * すいすい（Swift Swim）特性の効果
- * 雨の時、素早さ2倍
+ * すいすい（SwiftSwim）特性の効果
+ * 雨の時、素早さ2倍 (Swift Swim - Doubles Speed in rain)
  */
 export class SwiftSwimEffect extends BaseWeatherDependentSpeedEffect {
   protected readonly requiredWeathers = [Weather.Rain] as const;
   protected readonly speedMultiplier = 2.0;
 }
-

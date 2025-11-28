@@ -59,7 +59,9 @@ function generateParamsCode(params: Record<string, any>, baseClass: string): str
   switch (baseClass) {
     case 'BaseStatusConditionEffect':
       if (params.statusCondition) {
-        lines.push(`  protected readonly statusCondition = StatusCondition.${params.statusCondition};`);
+        lines.push(
+          `  protected readonly statusCondition = StatusCondition.${params.statusCondition};`,
+        );
       }
       if (params.chance !== undefined) {
         lines.push(`  protected readonly chance = ${params.chance};`);
@@ -84,7 +86,9 @@ function generateParamsCode(params: Record<string, any>, baseClass: string): str
           lines.push(`  protected readonly hitCount = ${params.hitCount};`);
         } else {
           // 範囲の場合（例: [2, 5]）
-          lines.push(`  protected readonly hitCount = [${params.hitCount[0]}, ${params.hitCount[1]}] as const;`);
+          lines.push(
+            `  protected readonly hitCount = [${params.hitCount[0]}, ${params.hitCount[1]}] as const;`,
+          );
         }
       }
       break;
@@ -100,8 +104,10 @@ function generateParamsCode(params: Record<string, any>, baseClass: string): str
           lines.push(`  protected readonly ${key} = ${value};`);
         } else if (Array.isArray(value)) {
           // 配列の要素が文字列の場合は個別にエスケープ
-          if (value.length > 0 && value.every((v) => typeof v === 'string')) {
-            const escaped = value.map((v) => `'${v.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}'`).join(', ');
+          if (value.length > 0 && value.every(v => typeof v === 'string')) {
+            const escaped = value
+              .map(v => `'${v.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}'`)
+              .join(', ');
             lines.push(`  protected readonly ${key} = [${escaped}] as const;`);
           } else {
             lines.push(`  protected readonly ${key} = ${JSON.stringify(value)} as const;`);
@@ -145,7 +151,9 @@ function generateImports(baseClass: string): string {
 
   // StatusConditionが必要な場合
   if (baseClass === 'BaseStatusConditionEffect') {
-    imports.push(`import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';`);
+    imports.push(
+      `import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';`,
+    );
   }
 
   return imports.join('\n');
@@ -251,4 +259,3 @@ function main() {
 if (require.main === module) {
   main();
 }
-
