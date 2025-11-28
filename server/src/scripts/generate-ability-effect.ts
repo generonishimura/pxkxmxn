@@ -82,7 +82,9 @@ function generateParamsCode(params: Record<string, any>, baseClass: string): str
   switch (baseClass) {
     case 'BaseTypeAbsorbEffect':
       if (params.immuneTypes) {
-        lines.push(`  protected readonly immuneTypes = ${JSON.stringify(params.immuneTypes)} as const;`);
+        lines.push(
+          `  protected readonly immuneTypes = ${JSON.stringify(params.immuneTypes)} as const;`,
+        );
       }
       if (params.healRatio !== undefined) {
         lines.push(`  protected readonly healRatio = ${params.healRatio};`);
@@ -123,13 +125,17 @@ function generateParamsCode(params: Record<string, any>, baseClass: string): str
 
     case 'BaseTypeImmunityEffect':
       if (params.immuneTypes) {
-        lines.push(`  protected readonly immuneTypes = ${JSON.stringify(params.immuneTypes)} as const;`);
+        lines.push(
+          `  protected readonly immuneTypes = ${JSON.stringify(params.immuneTypes)} as const;`,
+        );
       }
       break;
 
     case 'BaseTypeDependentDamageEffect':
       if (params.affectedTypes) {
-        lines.push(`  protected readonly affectedTypes = ${JSON.stringify(params.affectedTypes)} as const;`);
+        lines.push(
+          `  protected readonly affectedTypes = ${JSON.stringify(params.affectedTypes)} as const;`,
+        );
       }
       if (params.damageMultiplier !== undefined) {
         lines.push(`  protected readonly damageMultiplier = ${params.damageMultiplier};`);
@@ -163,7 +169,9 @@ function generateParamsCode(params: Record<string, any>, baseClass: string): str
 
     case 'BaseTypeAbsorbAndBoostEffect':
       if (params.immuneTypes) {
-        lines.push(`  protected readonly immuneTypes = ${JSON.stringify(params.immuneTypes)} as const;`);
+        lines.push(
+          `  protected readonly immuneTypes = ${JSON.stringify(params.immuneTypes)} as const;`,
+        );
       }
       if (params.damageMultiplier !== undefined) {
         lines.push(`  protected readonly damageMultiplier = ${params.damageMultiplier};`);
@@ -182,9 +190,11 @@ function generateParamsCode(params: Record<string, any>, baseClass: string): str
           lines.push(`  protected readonly ${key} = ${value};`);
         } else if (Array.isArray(value)) {
           // 配列の要素が文字列の場合は個別にエスケープ
-          if (value.length > 0 && value.every((v) => typeof v === 'string')) {
+          if (value.length > 0 && value.every(v => typeof v === 'string')) {
             // バックスラッシュを先にエスケープ（順序が重要）
-            const escaped = value.map((v) => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`).join(', ');
+            const escaped = value
+              .map(v => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`)
+              .join(', ');
             lines.push(`  protected readonly ${key} = [${escaped}] as const;`);
           } else {
             lines.push(`  protected readonly ${key} = ${JSON.stringify(value)} as const;`);
@@ -327,4 +337,3 @@ function main() {
 if (require.main === module) {
   main();
 }
-
