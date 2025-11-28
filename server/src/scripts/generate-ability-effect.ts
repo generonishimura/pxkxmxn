@@ -174,11 +174,19 @@ function generateParamsCode(params: Record<string, any>, baseClass: string): str
       // その他の基底クラスの場合は、paramsをそのまま出力
       for (const [key, value] of Object.entries(params)) {
         if (typeof value === 'string') {
-          lines.push(`  protected readonly ${key} = '${value}';`);
+          // 文字列のエスケープ処理
+          const escaped = value.replace(/'/g, "\\'").replace(/\\/g, '\\\\');
+          lines.push(`  protected readonly ${key} = '${escaped}';`);
         } else if (typeof value === 'number') {
           lines.push(`  protected readonly ${key} = ${value};`);
         } else if (Array.isArray(value)) {
-          lines.push(`  protected readonly ${key} = ${JSON.stringify(value)} as const;`);
+          // 配列の要素が文字列の場合は個別にエスケープ
+          if (value.length > 0 && value.every((v) => typeof v === 'string')) {
+            const escaped = value.map((v) => `'${v.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}'`).join(', ');
+            lines.push(`  protected readonly ${key} = [${escaped}] as const;`);
+          } else {
+            lines.push(`  protected readonly ${key} = ${JSON.stringify(value)} as const;`);
+          }
         } else {
           lines.push(`  protected readonly ${key} = ${JSON.stringify(value)};`);
         }
@@ -311,6 +319,9 @@ function main() {
   console.log(registryLines.join('\n'));
 }
 
+// CommonJSモジュールシステムでの直接実行チェック
+// 注意: package.jsonで"type": "commonjs"が指定されているため、このパターンは有効
+// 将来的にES modulesに移行する場合は、import.meta.urlを使用した判定に変更する必要がある
 if (require.main === module) {
   main();
 }
