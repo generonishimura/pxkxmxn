@@ -95,7 +95,11 @@ function generateParamsCode(params: Record<string, any>, baseClass: string): str
         lines.push(`  protected readonly requiredWeathers = [${weathers}] as const;`);
       }
       if (params.speedMultiplier !== undefined) {
-        lines.push(`  protected readonly speedMultiplier = ${params.speedMultiplier};`);
+        // 数値が整数の場合は小数点以下を表示（一貫性のため）
+        const multiplier = Number.isInteger(params.speedMultiplier)
+          ? `${params.speedMultiplier}.0`
+          : params.speedMultiplier;
+        lines.push(`  protected readonly speedMultiplier = ${multiplier};`);
       }
       break;
 
