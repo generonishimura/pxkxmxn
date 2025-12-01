@@ -27,7 +27,8 @@
     "check:coverage": "ts-node -r tsconfig-paths/register src/scripts/check-registry-coverage.spec.ts",
     "generate:issues": "ts-node -r tsconfig-paths/register src/scripts/generate-category-issues.ts",
     "generate:ability": "ts-node -r tsconfig-paths/register src/scripts/generate-ability-effect.ts",
-    "generate:move": "ts-node -r tsconfig-paths/register src/scripts/generate-move-effect.ts"
+    "generate:move": "ts-node -r tsconfig-paths/register src/scripts/generate-move-effect.ts",
+    "generate:test": "ts-node -r tsconfig-paths/register src/scripts/generate-test.ts"
   },
   "keywords": [],
   "author": "",
