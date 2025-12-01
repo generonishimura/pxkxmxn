@@ -22,38 +22,10 @@ interface AbilitiesConfig {
 }
 
 /**
- * クラス名を生成（特性名から）
- * 将来的に使用される可能性があるため、プレフィックスを付けて保持
+ * 文字列をエスケープする
  */
-function _generateClassName(abilityName: string, config?: AbilityConfig): string {
-  if (config?.className) {
-    return config.className;
-  }
-
-  const nameMap: Record<string, string> = {
-    ちくでん: 'VoltAbsorb',
-    すいすい: 'SwiftSwim',
-    ようりょくそ: 'Chlorophyll',
-    すなかき: 'SandRush',
-    いかく: 'Intimidate',
-    ふゆう: 'Levitate',
-    ちょすい: 'WaterAbsorb',
-    もらいび: 'FlashFire',
-    あついしぼう: 'ThickFat',
-    はがねつかい: 'Steelworker',
-    マルチスケイル: 'Multiscale',
-    ふみん: 'Insomnia',
-    あめふらし: 'Drizzle',
-    ひでり: 'Drought',
-    すなあらし: 'SandStream',
-    ゆきふらし: 'SnowWarning',
-  };
-
-  if (nameMap[abilityName]) {
-    return `${nameMap[abilityName]}Effect`;
-  }
-
-  return `${abilityName}Effect`;
+function escapeString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 /**
@@ -152,15 +124,12 @@ function generateTestClass(className: string, baseClass: string, params: Record<
       // その他の基底クラスの場合は、paramsをそのまま出力
       for (const [key, value] of Object.entries(params)) {
         if (typeof value === 'string') {
-          const escaped = value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          lines.push(`  protected readonly ${key} = '${escaped}';`);
+          lines.push(`  protected readonly ${key} = '${escapeString(value)}';`);
         } else if (typeof value === 'number') {
           lines.push(`  protected readonly ${key} = ${value};`);
         } else if (Array.isArray(value)) {
           if (value.length > 0 && value.every(v => typeof v === 'string')) {
-            const escaped = value
-              .map(v => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`)
-              .join(', ');
+            const escaped = value.map(v => `'${escapeString(v)}'`).join(', ');
             lines.push(`  protected readonly ${key} = [${escaped}] as const;`);
           } else {
             lines.push(`  protected readonly ${key} = ${JSON.stringify(value)} as const;`);
@@ -181,6 +150,7 @@ function generateTestClass(className: string, baseClass: string, params: Record<
  */
 function generateTestCases(baseClass: string, params: Record<string, any>): string {
   const lines: string[] = [];
+  const testClassName = baseClass.replace('Base', '');
 
   switch (baseClass) {
     case 'BaseTypeAbsorbEffect':
@@ -188,13 +158,13 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
       if (params.immuneTypes && Array.isArray(params.immuneTypes) && params.immuneTypes.length > 0) {
         const immuneType = params.immuneTypes[0];
         lines.push(`    it('should return true for immune type', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         lines.push(`      const result = effect.isImmuneToType(pokemon, '${immuneType}', battleContext);`);
         lines.push(`      expect(result).toBe(true);`);
         lines.push(`    });`);
         lines.push(``);
         lines.push(`    it('should return false for non-immune type', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         lines.push(`      const result = effect.isImmuneToType(pokemon, 'ほのお', battleContext);`);
         lines.push(`      expect(result).toBe(false);`);
         lines.push(`    });`);
@@ -203,7 +173,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
       lines.push(``);
       lines.push(`  describe('onAfterTakingDamage', () => {`);
       lines.push(`    it('should heal HP when immune type attack is absorbed', async () => {`);
-      lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+      lines.push(`      const effect = new Test${testClassName}();`);
       lines.push(`      await effect.onAfterTakingDamage(pokemon, 0, battleContext);`);
       lines.push(``);
       lines.push(`      expect(mockBattleRepository.findBattlePokemonStatusById).toHaveBeenCalledWith(1);`);
@@ -216,7 +186,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
       lines.push(`    });`);
       lines.push(``);
       lines.push(`    it('should not heal HP when non-immune type attack', async () => {`);
-      lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+      lines.push(`      const effect = new Test${testClassName}();`);
       lines.push(`      const contextWithFire: BattleContext = {`);
       lines.push(`        ...battleContext,`);
       lines.push(`        moveTypeName: 'ほのお',`);
@@ -227,7 +197,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
       lines.push(`    });`);
       lines.push(``);
       lines.push(`    it('should cap HP at maxHp', async () => {`);
-      lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+      lines.push(`      const effect = new Test${testClassName}();`);
       lines.push(`      const pokemonNearMaxHp = {`);
       lines.push(`        ...pokemon,`);
       lines.push(`        currentHp: 90,`);
@@ -247,7 +217,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
       lines.push(`  describe('modifySpeed', () => {`);
       if (params.requiredWeathers && Array.isArray(params.requiredWeathers) && params.requiredWeathers.length > 0) {
         lines.push(`    it('should return modified speed for required weather', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         if (params.speedMultiplier !== undefined) {
           const expectedSpeed = Math.floor(100 * params.speedMultiplier);
           lines.push(`      const result = effect.modifySpeed(pokemon, 100, battleContext);`);
@@ -256,7 +226,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
         lines.push(`    });`);
         lines.push(``);
         lines.push(`    it('should return undefined for non-required weather', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         lines.push(`      const contextWithoutWeather: BattleContext = {`);
         lines.push(`        ...battleContext,`);
         lines.push(`        battle: {`);
@@ -276,13 +246,13 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
       if (params.immuneTypes && Array.isArray(params.immuneTypes) && params.immuneTypes.length > 0) {
         const immuneType = params.immuneTypes[0];
         lines.push(`    it('should return true for immune type', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         lines.push(`      const result = effect.isImmuneToType(pokemon, '${immuneType}', battleContext);`);
         lines.push(`      expect(result).toBe(true);`);
         lines.push(`    });`);
         lines.push(``);
         lines.push(`    it('should return false for non-immune type', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         lines.push(`      const result = effect.isImmuneToType(pokemon, 'ほのお', battleContext);`);
         lines.push(`      expect(result).toBe(false);`);
         lines.push(`    });`);
@@ -294,7 +264,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
       lines.push(`  describe('modifyDamage', () => {`);
       if (params.conditionType) {
         lines.push(`    it('should modify damage when condition is met', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         lines.push(`      const pokemonWithCondition = createBattlePokemonStatus({`);
         if (params.conditionType === 'hpFull') {
           lines.push(`        currentHp: 100,`);
@@ -319,7 +289,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
         lines.push(`    });`);
         lines.push(``);
         lines.push(`    it('should not modify damage when condition is not met', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         lines.push(`      const pokemonWithoutCondition = createBattlePokemonStatus({`);
         if (params.conditionType === 'hpFull') {
           lines.push(`        currentHp: 99,`);
@@ -347,7 +317,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
       lines.push(`  describe('modifyDamageDealt', () => {`);
       if (params.requiredWeathers && Array.isArray(params.requiredWeathers) && params.requiredWeathers.length > 0) {
         lines.push(`    it('should return modified damage for required weather', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         if (params.damageMultiplier !== undefined) {
           const expectedDamage = Math.floor(100 * params.damageMultiplier);
           lines.push(`      const result = effect.modifyDamageDealt(pokemon, 100, battleContext);`);
@@ -356,7 +326,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
         lines.push(`    });`);
         lines.push(``);
         lines.push(`    it('should return undefined for non-required weather', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         lines.push(`      const contextWithoutWeather: BattleContext = {`);
         lines.push(`        ...battleContext,`);
         lines.push(`        battle: {`);
@@ -376,7 +346,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
       if (params.immuneTypes && Array.isArray(params.immuneTypes) && params.immuneTypes.length > 0) {
         const immuneType = params.immuneTypes[0];
         lines.push(`    it('should return true for immune type', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         lines.push(`      const result = effect.isImmuneToType(pokemon, '${immuneType}', battleContext);`);
         lines.push(`      expect(result).toBe(true);`);
         lines.push(`    });`);
@@ -400,13 +370,13 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
       if (params.immuneStatusConditions && Array.isArray(params.immuneStatusConditions) && params.immuneStatusConditions.length > 0) {
         const immuneCondition = params.immuneStatusConditions[0];
         lines.push(`    it('should return false for immune status condition', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         lines.push(`      const result = effect.canReceiveStatusCondition(pokemon, StatusCondition.${immuneCondition}, battleContext);`);
         lines.push(`      expect(result).toBe(false);`);
         lines.push(`    });`);
         lines.push(``);
         lines.push(`    it('should return true for non-immune status condition', () => {`);
-        lines.push(`      const effect = new Test${baseClass.replace('Base', '')}();`);
+        lines.push(`      const effect = new Test${testClassName}();`);
         lines.push(`      const result = effect.canReceiveStatusCondition(pokemon, StatusCondition.Burn, battleContext);`);
         lines.push(`      expect(result).toBe(true);`);
         lines.push(`    });`);
@@ -431,7 +401,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
 /**
  * 必要なインポートを生成
  */
-function generateImports(baseClass: string, _category: string): string {
+function generateImports(baseClass: string): string {
   const imports: string[] = [];
   const baseClassPath = baseClass.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
   imports.push(`import { ${baseClass} } from './${baseClassPath}';`);
@@ -627,7 +597,7 @@ function generateVariableDeclarations(baseClass: string): string {
 function generateTestFile(abilityName: string, config: AbilityConfig): string {
   const baseClass = config.baseClass;
   const testClassName = `Test${baseClass.replace('Base', '')}`;
-  const imports = generateImports(baseClass, config.category);
+  const imports = generateImports(baseClass);
   const testClass = generateTestClass(testClassName, baseClass, config.params);
   const helpers = generateHelpers(baseClass);
   const variableDeclarations = generateVariableDeclarations(baseClass);
