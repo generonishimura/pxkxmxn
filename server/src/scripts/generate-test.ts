@@ -120,6 +120,47 @@ function generateTestClass(className: string, baseClass: string, params: Record<
       }
       break;
 
+    case 'BaseStatBoostEffect':
+      if (params.statType) {
+        lines.push(`  protected readonly statType = '${params.statType}' as const;`);
+      }
+      if (params.rankChange !== undefined) {
+        lines.push(`  protected readonly rankChange = ${params.rankChange};`);
+      }
+      break;
+
+    case 'BaseTypeBoostEffect':
+      if (params.damageMultiplier !== undefined) {
+        lines.push(`  protected readonly damageMultiplier = ${params.damageMultiplier};`);
+      }
+      break;
+
+    case 'BaseHpThresholdEffect':
+      if (params.thresholdType) {
+        lines.push(`  protected readonly thresholdType = '${params.thresholdType}' as const;`);
+      }
+      if (params.customThreshold !== undefined) {
+        lines.push(`  protected customThreshold = ${params.customThreshold};`);
+      }
+      if (params.damageMultiplier !== undefined) {
+        lines.push(`  protected readonly damageMultiplier = ${params.damageMultiplier};`);
+      }
+      // modifyDamageメソッドをオーバーライド
+      if (params.damageMultiplier !== undefined) {
+        lines.push(``);
+        lines.push(`  modifyDamage(`);
+        lines.push(`    pokemon: BattlePokemonStatus,`);
+        lines.push(`    damage: number,`);
+        lines.push(`    _battleContext?: BattleContext,`);
+        lines.push(`  ): number {`);
+        lines.push(`    if (!this.checkHpThreshold(pokemon)) {`);
+        lines.push(`      return damage;`);
+        lines.push(`    }`);
+        lines.push(`    return Math.floor(damage * this.damageMultiplier);`);
+        lines.push(`  }`);
+      }
+      break;
+
     default:
       // その他の基底クラスの場合は、paramsをそのまま出力
       for (const [key, value] of Object.entries(params)) {
@@ -384,6 +425,260 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
       lines.push(`  });`);
       break;
 
+    case 'BaseOpponentStatChangeEffect':
+      lines.push(`  describe('onEntry', () => {`);
+      lines.push(`    it('battleContextがない場合、何も実行しない', async () => {`);
+      lines.push(`      const effect = new Test${testClassName}();`);
+      lines.push(`      await effect.onEntry(pokemon, undefined);`);
+      lines.push(`      expect(true).toBe(true);`);
+      lines.push(`    });`);
+      lines.push(``);
+      lines.push(`    it('battleRepositoryがない場合、何も実行しない', async () => {`);
+      lines.push(`      const effect = new Test${testClassName}();`);
+      lines.push(`      const contextWithoutRepository: BattleContext = {`);
+      lines.push(`        battle: createBattle(),`);
+      lines.push(`      };`);
+      lines.push(`      await effect.onEntry(pokemon, contextWithoutRepository);`);
+      lines.push(`      expect(true).toBe(true);`);
+      lines.push(`    });`);
+      lines.push(``);
+      if (params.statType && params.rankChange !== undefined) {
+        const statPropMap: Record<string, string> = {
+          attack: 'attackRank',
+          defense: 'defenseRank',
+          specialAttack: 'specialAttackRank',
+          specialDefense: 'specialDefenseRank',
+          speed: 'speedRank',
+          accuracy: 'accuracyRank',
+          evasion: 'evasionRank',
+        };
+        const statProp = statPropMap[params.statType] || 'attackRank';
+        const newRank = params.rankChange > 0 ? params.rankChange : 0;
+        lines.push(`    it('正常に相手の${statProp}を${params.rankChange > 0 ? '+' : ''}${params.rankChange}段階${params.rankChange > 0 ? '上げる' : '下げる'}', async () => {`);
+        lines.push(`      const effect = new Test${testClassName}();`);
+        lines.push(`      const pokemonWithTrainerId = createBattlePokemonStatus({ trainerId: 1 });`);
+        lines.push(`      const opponentPokemon = createBattlePokemonStatus({`);
+        lines.push(`        id: 2,`);
+        lines.push(`        trainerId: 2,`);
+        lines.push(`        ${statProp}: 0,`);
+        lines.push(`      });`);
+        lines.push(`      const battleRepository = createMockBattleRepository();`);
+        lines.push(`      battleRepository.findActivePokemonByBattleIdAndTrainerId.mockResolvedValue(opponentPokemon);`);
+        lines.push(`      battleRepository.updateBattlePokemonStatus.mockResolvedValue(`);
+        lines.push(`        createBattlePokemonStatus({ id: 2, ${statProp}: ${newRank} }),`);
+        lines.push(`      );`);
+        lines.push(`      const battleContext: BattleContext = {`);
+        lines.push(`        battle: createBattle({ trainer1Id: 1, trainer2Id: 2 }),`);
+        lines.push(`        battleRepository,`);
+        lines.push(`      };`);
+        lines.push(``);
+        lines.push(`      await effect.onEntry(pokemonWithTrainerId, battleContext);`);
+        lines.push(``);
+        lines.push(`      expect(battleRepository.findActivePokemonByBattleIdAndTrainerId).toHaveBeenCalledWith(1, 2);`);
+        lines.push(`      expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {`);
+        lines.push(`        ${statProp}: ${newRank},`);
+        lines.push(`      });`);
+        lines.push(`    });`);
+      }
+      lines.push(`  });`);
+      break;
+
+    case 'BaseStatBoostEffect':
+      lines.push(`  describe('onEntry', () => {`);
+      lines.push(`    it('battleContextがない場合、何も実行しない', async () => {`);
+      lines.push(`      const effect = new Test${testClassName}();`);
+      lines.push(`      await effect.onEntry(pokemon, undefined);`);
+      lines.push(`      expect(true).toBe(true);`);
+      lines.push(`    });`);
+      lines.push(``);
+      lines.push(`    it('battleRepositoryがない場合、何も実行しない', async () => {`);
+      lines.push(`      const effect = new Test${testClassName}();`);
+      lines.push(`      const contextWithoutRepository: BattleContext = {`);
+      lines.push(`        battle: createBattle(),`);
+      lines.push(`      };`);
+      lines.push(`      await effect.onEntry(pokemon, contextWithoutRepository);`);
+      lines.push(`      expect(true).toBe(true);`);
+      lines.push(`    });`);
+      lines.push(``);
+      if (params.statType && params.rankChange !== undefined) {
+        const statPropMap: Record<string, string> = {
+          attack: 'attackRank',
+          defense: 'defenseRank',
+          specialAttack: 'specialAttackRank',
+          specialDefense: 'specialDefenseRank',
+          speed: 'speedRank',
+          accuracy: 'accuracyRank',
+          evasion: 'evasionRank',
+        };
+        const statProp = statPropMap[params.statType] || 'attackRank';
+        const newRank = params.rankChange > 0 ? params.rankChange : 0;
+        lines.push(`    it('正常に自分の${statProp}を${params.rankChange > 0 ? '+' : ''}${params.rankChange}段階${params.rankChange > 0 ? '上げる' : '下げる'}', async () => {`);
+        lines.push(`      const effect = new Test${testClassName}();`);
+        lines.push(`      const pokemonWithRank = createBattlePokemonStatus({`);
+        lines.push(`        id: 1,`);
+        lines.push(`        ${statProp}: 0,`);
+        lines.push(`      });`);
+        lines.push(`      const battleRepository = createMockBattleRepository();`);
+        lines.push(`      battleRepository.updateBattlePokemonStatus.mockResolvedValue(`);
+        lines.push(`        createBattlePokemonStatus({ id: 1, ${statProp}: ${newRank} }),`);
+        lines.push(`      );`);
+        lines.push(`      const battleContext: BattleContext = {`);
+        lines.push(`        battle: createBattle(),`);
+        lines.push(`        battleRepository,`);
+        lines.push(`      };`);
+        lines.push(``);
+        lines.push(`      await effect.onEntry(pokemonWithRank, battleContext);`);
+        lines.push(``);
+        lines.push(`      expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {`);
+        lines.push(`        ${statProp}: ${newRank},`);
+        lines.push(`      });`);
+        lines.push(`    });`);
+      }
+      lines.push(`  });`);
+      break;
+
+    case 'BaseTypeBoostEffect':
+      lines.push(`  describe('modifyDamageDealt', () => {`);
+      if (params.damageMultiplier !== undefined) {
+        const expectedDamage = Math.floor(100 * params.damageMultiplier);
+        lines.push(`    it('タイプ一致の場合、ダメージが${params.damageMultiplier}倍になる', async () => {`);
+        lines.push(`      const effect = new Test${testClassName}();`);
+        lines.push(`      const pokemonWithTrainedId = createBattlePokemonStatus({ trainedPokemonId: 1 });`);
+        lines.push(`      const fireType = createType(1, 'ほのお');`);
+        lines.push(`      const trainedPokemon = createTrainedPokemon(1, createPokemon(1, fireType));`);
+        lines.push(`      const trainedPokemonRepository = createMockTrainedPokemonRepository(trainedPokemon);`);
+        lines.push(`      const battleContext: BattleContext = {`);
+        lines.push(`        battle: createBattle(),`);
+        lines.push(`        trainedPokemonRepository,`);
+        lines.push(`        moveTypeName: 'ほのお',`);
+        lines.push(`      };`);
+        lines.push(``);
+        lines.push(`      const result = await effect.modifyDamageDealt(pokemonWithTrainedId, 100, battleContext);`);
+        lines.push(``);
+        lines.push(`      expect(result).toBe(${expectedDamage}); // 100 * ${params.damageMultiplier} = ${expectedDamage}`);
+        lines.push(`    });`);
+        lines.push(``);
+        lines.push(`    it('タイプ不一致の場合、undefinedを返す', async () => {`);
+        lines.push(`      const effect = new Test${testClassName}();`);
+        lines.push(`      const pokemonWithTrainedId = createBattlePokemonStatus({ trainedPokemonId: 1 });`);
+        lines.push(`      const fireType = createType(1, 'ほのお');`);
+        lines.push(`      const waterType = createType(2, 'みず');`);
+        lines.push(`      const trainedPokemon = createTrainedPokemon(1, createPokemon(1, fireType));`);
+        lines.push(`      const trainedPokemonRepository = createMockTrainedPokemonRepository(trainedPokemon);`);
+        lines.push(`      const battleContext: BattleContext = {`);
+        lines.push(`        battle: createBattle(),`);
+        lines.push(`        trainedPokemonRepository,`);
+        lines.push(`        moveTypeName: 'みず',`);
+        lines.push(`      };`);
+        lines.push(``);
+        lines.push(`      const result = await effect.modifyDamageDealt(pokemonWithTrainedId, 100, battleContext);`);
+        lines.push(``);
+        lines.push(`      expect(result).toBeUndefined();`);
+        lines.push(`    });`);
+      }
+      lines.push(`  });`);
+      break;
+
+    case 'BaseHpThresholdEffect':
+      lines.push(`  describe('checkHpThreshold', () => {`);
+      if (params.thresholdType) {
+        if (params.thresholdType === 'full') {
+          lines.push(`    it('HPが満タンの場合、trueを返す', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonFullHp = createBattlePokemonStatus({ currentHp: 100, maxHp: 100 });`);
+          lines.push(`      const result = effect['checkHpThreshold'](pokemonFullHp);`);
+          lines.push(`      expect(result).toBe(true);`);
+          lines.push(`    });`);
+          lines.push(``);
+          lines.push(`    it('HPが満タンでない場合、falseを返す', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonNotFullHp = createBattlePokemonStatus({ currentHp: 99, maxHp: 100 });`);
+          lines.push(`      const result = effect['checkHpThreshold'](pokemonNotFullHp);`);
+          lines.push(`      expect(result).toBe(false);`);
+          lines.push(`    });`);
+        } else if (params.thresholdType === 'half') {
+          lines.push(`    it('HPが半分以下の場合、trueを返す', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonHalfHp = createBattlePokemonStatus({ currentHp: 50, maxHp: 100 });`);
+          lines.push(`      const result = effect['checkHpThreshold'](pokemonHalfHp);`);
+          lines.push(`      expect(result).toBe(true);`);
+          lines.push(`    });`);
+          lines.push(``);
+          lines.push(`    it('HPが半分より多い場合、falseを返す', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonMoreThanHalfHp = createBattlePokemonStatus({ currentHp: 51, maxHp: 100 });`);
+          lines.push(`      const result = effect['checkHpThreshold'](pokemonMoreThanHalfHp);`);
+          lines.push(`      expect(result).toBe(false);`);
+          lines.push(`    });`);
+        } else if (params.thresholdType === 'third') {
+          lines.push(`    it('HPが1/3以下の場合、trueを返す', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonThirdHp = createBattlePokemonStatus({ currentHp: 33, maxHp: 100 });`);
+          lines.push(`      const result = effect['checkHpThreshold'](pokemonThirdHp);`);
+          lines.push(`      expect(result).toBe(true);`);
+          lines.push(`    });`);
+          lines.push(``);
+          lines.push(`    it('HPが1/3より多い場合、falseを返す', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonMoreThanThirdHp = createBattlePokemonStatus({ currentHp: 34, maxHp: 100 });`);
+          lines.push(`      const result = effect['checkHpThreshold'](pokemonMoreThanThirdHp);`);
+          lines.push(`      expect(result).toBe(false);`);
+          lines.push(`    });`);
+        } else if (params.thresholdType === 'quarter') {
+          lines.push(`    it('HPが1/4以下の場合、trueを返す', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonQuarterHp = createBattlePokemonStatus({ currentHp: 25, maxHp: 100 });`);
+          lines.push(`      const result = effect['checkHpThreshold'](pokemonQuarterHp);`);
+          lines.push(`      expect(result).toBe(true);`);
+          lines.push(`    });`);
+          lines.push(``);
+          lines.push(`    it('HPが1/4より多い場合、falseを返す', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonMoreThanQuarterHp = createBattlePokemonStatus({ currentHp: 26, maxHp: 100 });`);
+          lines.push(`      const result = effect['checkHpThreshold'](pokemonMoreThanQuarterHp);`);
+          lines.push(`      expect(result).toBe(false);`);
+          lines.push(`    });`);
+        }
+      }
+      lines.push(`  });`);
+      if (params.damageMultiplier !== undefined) {
+        lines.push(``);
+        lines.push(`  describe('modifyDamage', () => {`);
+        if (params.thresholdType === 'full') {
+          const expectedDamage = Math.floor(100 * params.damageMultiplier);
+          lines.push(`    it('HPが満タンの場合、ダメージが${params.damageMultiplier}倍になる', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonFullHp = createBattlePokemonStatus({ currentHp: 100, maxHp: 100 });`);
+          lines.push(`      const result = effect.modifyDamage(pokemonFullHp, 100);`);
+          lines.push(`      expect(result).toBe(${expectedDamage});`);
+          lines.push(`    });`);
+          lines.push(``);
+          lines.push(`    it('HPが満タンでない場合、ダメージが変更されない', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonNotFullHp = createBattlePokemonStatus({ currentHp: 99, maxHp: 100 });`);
+          lines.push(`      const result = effect.modifyDamage(pokemonNotFullHp, 100);`);
+          lines.push(`      expect(result).toBe(100);`);
+          lines.push(`    });`);
+        } else if (params.thresholdType === 'half') {
+          const expectedDamage = Math.floor(100 * params.damageMultiplier);
+          lines.push(`    it('HPが半分以下の場合、ダメージが${params.damageMultiplier}倍になる', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonHalfHp = createBattlePokemonStatus({ currentHp: 50, maxHp: 100 });`);
+          lines.push(`      const result = effect.modifyDamage(pokemonHalfHp, 100);`);
+          lines.push(`      expect(result).toBe(${expectedDamage});`);
+          lines.push(`    });`);
+          lines.push(``);
+          lines.push(`    it('HPが半分より多い場合、ダメージが変更されない', () => {`);
+          lines.push(`      const effect = new Test${testClassName}();`);
+          lines.push(`      const pokemonMoreThanHalfHp = createBattlePokemonStatus({ currentHp: 51, maxHp: 100 });`);
+          lines.push(`      const result = effect.modifyDamage(pokemonMoreThanHalfHp, 100);`);
+          lines.push(`      expect(result).toBe(100);`);
+          lines.push(`    });`);
+        }
+      }
+      lines.push(`  });`);
+      break;
+
     default:
       // その他の基底クラスの場合は、基本的なテストケースを生成
       lines.push(`  describe('basic functionality', () => {`);
@@ -420,11 +715,24 @@ function generateImports(baseClass: string): string {
   } else if (baseClass === 'BaseStatusConditionImmunityEffect') {
     imports.push(`import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';`);
     imports.push(`import { BattleStatus } from '@/modules/battle/domain/entities/battle.entity';`);
-  } else if (baseClass === 'BaseTypeAbsorbEffect' || baseClass === 'BaseOpponentStatChangeEffect') {
+  } else if (
+    baseClass === 'BaseTypeAbsorbEffect' ||
+    baseClass === 'BaseOpponentStatChangeEffect' ||
+    baseClass === 'BaseStatBoostEffect'
+  ) {
     imports.push(`import { Weather, BattleStatus, Battle } from '@/modules/battle/domain/entities/battle.entity';`);
     imports.push(`import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';`);
   } else if (baseClass === 'BaseTypeAbsorbAndBoostEffect') {
     imports.push(`import { Weather, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';`);
+  } else if (baseClass === 'BaseTypeBoostEffect') {
+    imports.push(`import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';`);
+    imports.push(`import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';`);
+    imports.push(`import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';`);
+    imports.push(`import { Pokemon } from '@/modules/pokemon/domain/entities/pokemon.entity';`);
+    imports.push(`import { Type } from '@/modules/pokemon/domain/entities/type.entity';`);
+    imports.push(`import { Ability } from '@/modules/pokemon/domain/entities/ability.entity';`);
+    imports.push(`import { Gender } from '@/modules/trainer/domain/entities/trained-pokemon.entity';`);
+    imports.push(`import { Nature } from '@/modules/battle/domain/logic/stat-calculator';`);
   } else {
     imports.push(`import { BattleStatus } from '@/modules/battle/domain/entities/battle.entity';`);
   }
@@ -524,6 +832,19 @@ function generateBeforeEach(baseClass: string, params: Record<string, any>): str
       lines.push(`      moveTypeName: '${params.immuneTypes[0]}',`);
     }
     lines.push(`    };`);
+  } else if (baseClass === 'BaseOpponentStatChangeEffect' || baseClass === 'BaseStatBoostEffect') {
+    lines.push(`    mockBattleRepository = createMockBattleRepository();`);
+    lines.push(`    battleContext = {`);
+    lines.push(`      battle: createBattle(),`);
+    lines.push(`      battleRepository: mockBattleRepository,`);
+    lines.push(`    };`);
+  } else if (baseClass === 'BaseTypeBoostEffect') {
+    lines.push(`    battleContext = {`);
+    lines.push(`      battle: createBattle(),`);
+    lines.push(`    };`);
+  } else if (baseClass === 'BaseHpThresholdEffect') {
+    // BaseHpThresholdEffectはbattleContextを必要としない
+    lines.push(`    battleContext = undefined;`);
   } else {
     lines.push(`    battleContext = {`);
     lines.push(`      battle: {`);
@@ -549,7 +870,172 @@ function generateBeforeEach(baseClass: string, params: Record<string, any>): str
  * ヘルパー関数を生成
  */
 function generateHelpers(baseClass: string): string {
-  if (baseClass === 'BaseConditionalDamageEffect' || baseClass === 'BaseOpponentStatChangeEffect') {
+  if (baseClass === 'BaseOpponentStatChangeEffect' || baseClass === 'BaseStatBoostEffect') {
+    return `  // テスト用のヘルパー関数
+  const createBattlePokemonStatus = (
+    overrides?: Partial<BattlePokemonStatus>,
+  ): BattlePokemonStatus => {
+    return new BattlePokemonStatus(
+      overrides?.id ?? 1,
+      overrides?.battleId ?? 1,
+      overrides?.trainedPokemonId ?? 1,
+      overrides?.trainerId ?? 1,
+      overrides?.isActive ?? true,
+      overrides?.currentHp ?? 100,
+      overrides?.maxHp ?? 100,
+      overrides?.attackRank ?? 0,
+      overrides?.defenseRank ?? 0,
+      overrides?.specialAttackRank ?? 0,
+      overrides?.specialDefenseRank ?? 0,
+      overrides?.speedRank ?? 0,
+      overrides?.accuracyRank ?? 0,
+      overrides?.evasionRank ?? 0,
+      overrides?.statusCondition ?? null,
+    );
+  };
+
+  const createBattle = (overrides?: Partial<Battle>): Battle => {
+    return new Battle(
+      overrides?.id ?? 1,
+      overrides?.trainer1Id ?? 1,
+      overrides?.trainer2Id ?? 2,
+      overrides?.team1Id ?? 1,
+      overrides?.team2Id ?? 2,
+      overrides?.turn ?? 1,
+      overrides?.weather ?? null,
+      overrides?.field ?? null,
+      overrides?.status ?? BattleStatus.Active,
+      overrides?.winnerTrainerId ?? null,
+    );
+  };
+
+  const createMockBattleRepository = (): jest.Mocked<IBattleRepository> => {
+    return {
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      findBattlePokemonStatusByBattleId: jest.fn(),
+      createBattlePokemonStatus: jest.fn(),
+      updateBattlePokemonStatus: jest.fn(),
+      findActivePokemonByBattleIdAndTrainerId: jest.fn(),
+      findBattlePokemonStatusById: jest.fn(),
+      findBattlePokemonMovesByBattlePokemonStatusId: jest.fn(),
+      createBattlePokemonMove: jest.fn(),
+      updateBattlePokemonMove: jest.fn(),
+      findBattlePokemonMoveById: jest.fn(),
+    };
+  };
+
+`;
+  }
+  if (baseClass === 'BaseTypeBoostEffect') {
+    return `  // テスト用のヘルパー関数
+  const createBattlePokemonStatus = (
+    overrides?: Partial<BattlePokemonStatus>,
+  ): BattlePokemonStatus => {
+    return new BattlePokemonStatus(
+      overrides?.id ?? 1,
+      overrides?.battleId ?? 1,
+      overrides?.trainedPokemonId ?? 1,
+      overrides?.trainerId ?? 1,
+      overrides?.isActive ?? true,
+      overrides?.currentHp ?? 100,
+      overrides?.maxHp ?? 100,
+      overrides?.attackRank ?? 0,
+      overrides?.defenseRank ?? 0,
+      overrides?.specialAttackRank ?? 0,
+      overrides?.specialDefenseRank ?? 0,
+      overrides?.speedRank ?? 0,
+      overrides?.accuracyRank ?? 0,
+      overrides?.evasionRank ?? 0,
+      overrides?.statusCondition ?? null,
+    );
+  };
+
+  const createBattle = (overrides?: Partial<Battle>): Battle => {
+    return new Battle(
+      overrides?.id ?? 1,
+      overrides?.trainer1Id ?? 1,
+      overrides?.trainer2Id ?? 2,
+      overrides?.team1Id ?? 1,
+      overrides?.team2Id ?? 2,
+      overrides?.turn ?? 1,
+      overrides?.weather ?? null,
+      overrides?.field ?? null,
+      overrides?.status ?? BattleStatus.Active,
+      overrides?.winnerTrainerId ?? null,
+    );
+  };
+
+  const createType = (id: number, name: string = \`Type\${id}\`, nameEn: string = \`Type\${id}En\`): Type => {
+    return new Type(id, name, nameEn);
+  };
+
+  const createPokemon = (
+    id: number,
+    primaryType: Type,
+    secondaryType: Type | null = null,
+  ): Pokemon => {
+    return new Pokemon(
+      id,
+      1,
+      'TestPokemon',
+      'TestPokemon',
+      primaryType,
+      secondaryType,
+      100,
+      100,
+      100,
+      100,
+      100,
+      100,
+    );
+  };
+
+  const createTrainedPokemon = (
+    id: number,
+    pokemon: Pokemon,
+    ability: Ability | null = null,
+  ): TrainedPokemon => {
+    return new TrainedPokemon(
+      id,
+      1,
+      pokemon,
+      null,
+      50,
+      Gender.Male,
+      Nature.Hardy,
+      ability,
+      31,
+      31,
+      31,
+      31,
+      31,
+      31,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+    );
+  };
+
+  const createMockTrainedPokemonRepository = (
+    trainedPokemon: TrainedPokemon | null,
+  ): jest.Mocked<ITrainedPokemonRepository> => {
+    return {
+      findById: jest.fn().mockResolvedValue(trainedPokemon),
+      findByTrainerId: jest.fn(),
+    };
+  };
+
+`;
+  }
+  if (
+    baseClass === 'BaseConditionalDamageEffect' ||
+    baseClass === 'BaseHpThresholdEffect'
+  ) {
     return `  // テスト用のヘルパー関数
   const createBattlePokemonStatus = (
     overrides?: Partial<BattlePokemonStatus>,
@@ -585,7 +1071,11 @@ function generateVariableDeclarations(baseClass: string): string {
   const lines: string[] = [];
   lines.push(`  let pokemon: BattlePokemonStatus;`);
   lines.push(`  let battleContext: BattleContext;`);
-  if (baseClass === 'BaseTypeAbsorbEffect') {
+  if (
+    baseClass === 'BaseTypeAbsorbEffect' ||
+    baseClass === 'BaseOpponentStatChangeEffect' ||
+    baseClass === 'BaseStatBoostEffect'
+  ) {
     lines.push(`  let mockBattleRepository: jest.Mocked<IBattleRepository>;`);
   }
   return lines.join('\n');
