@@ -18,7 +18,7 @@ interface AbilityConfig {
 }
 
 interface AbilitiesConfig {
-  [abilityName: string]: AbilityConfig;
+  [abilityName: string]: AbilityConfig; 
 }
 
 /**
@@ -543,24 +543,24 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
         const expectedDamage = Math.floor(100 * params.damageMultiplier);
         lines.push(`    it('タイプ一致の場合、ダメージが${params.damageMultiplier}倍になる', async () => {`);
         lines.push(`      const effect = new Test${testClassName}();`);
-        lines.push(`      const pokemonWithTrainedId = createBattlePokemonStatus({ trainedPokemonId: 1 });`);
-        lines.push(`      const fireType = createType(1, 'ほのお');`);
-        lines.push(`      const trainedPokemon = createTrainedPokemon(1, createPokemon(1, fireType));`);
-        lines.push(`      const trainedPokemonRepository = createMockTrainedPokemonRepository(trainedPokemon);`);
-        lines.push(`      const battleContext: BattleContext = {`);
-        lines.push(`        battle: createBattle(),`);
-        lines.push(`        trainedPokemonRepository,`);
-        lines.push(`        moveTypeName: 'ほのお',`);
-        lines.push(`      };`);
-        lines.push(``);
-        lines.push(`      const result = await effect.modifyDamageDealt(pokemonWithTrainedId, 100, battleContext);`);
+      lines.push(`      const pokemonWithTrainedPokemonId = createBattlePokemonStatus({ trainedPokemonId: 1 });`);
+      lines.push(`      const fireType = createType(1, 'ほのお');`);
+      lines.push(`      const trainedPokemon = createTrainedPokemon(1, createPokemon(1, fireType));`);
+      lines.push(`      const trainedPokemonRepository = createMockTrainedPokemonRepository(trainedPokemon);`);
+      lines.push(`      const battleContext: BattleContext = {`);
+      lines.push(`        battle: createBattle(),`);
+      lines.push(`        trainedPokemonRepository,`);
+      lines.push(`        moveTypeName: 'ほのお',`);
+      lines.push(`      };`);
+      lines.push(``);
+      lines.push(`      const result = await effect.modifyDamageDealt(pokemonWithTrainedPokemonId, 100, battleContext);`);
         lines.push(``);
         lines.push(`      expect(result).toBe(${expectedDamage}); // 100 * ${params.damageMultiplier} = ${expectedDamage}`);
         lines.push(`    });`);
         lines.push(``);
         lines.push(`    it('タイプ不一致の場合、undefinedを返す', async () => {`);
         lines.push(`      const effect = new Test${testClassName}();`);
-        lines.push(`      const pokemonWithTrainedId = createBattlePokemonStatus({ trainedPokemonId: 1 });`);
+        lines.push(`      const pokemonWithTrainedPokemonId = createBattlePokemonStatus({ trainedPokemonId: 1 });`);
         lines.push(`      const fireType = createType(1, 'ほのお');`);
         lines.push(`      const waterType = createType(2, 'みず');`);
         lines.push(`      const trainedPokemon = createTrainedPokemon(1, createPokemon(1, fireType));`);
@@ -571,7 +571,7 @@ function generateTestCases(baseClass: string, params: Record<string, any>): stri
         lines.push(`        moveTypeName: 'みず',`);
         lines.push(`      };`);
         lines.push(``);
-        lines.push(`      const result = await effect.modifyDamageDealt(pokemonWithTrainedId, 100, battleContext);`);
+        lines.push(`      const result = await effect.modifyDamageDealt(pokemonWithTrainedPokemonId, 100, battleContext);`);
         lines.push(``);
         lines.push(`      expect(result).toBeUndefined();`);
         lines.push(`    });`);
