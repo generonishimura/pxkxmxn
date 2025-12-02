@@ -184,10 +184,10 @@ async function seedPokemon(typeMap: Map<string, number>): Promise<void> {
         if (processed % 10 === 0) {
           process.stdout.write(`\r  Progress: ${processed}/${actualLimit}`);
         }
-      } catch (error) {
+      } catch (err) {
         // 404エラーなどの場合は簡潔に警告のみ表示
-        if (error && typeof error === 'object' && 'response' in error) {
-          const axiosError = error as { response?: { status?: number } };
+        if (err && typeof err === 'object' && 'response' in err) {
+          const axiosError = err as { response?: { status?: number } };
           if (axiosError.response?.status === 404) {
             warn(`\n  Skip ${resource.name}: not found (404)`);
           } else {
@@ -197,7 +197,7 @@ async function seedPokemon(typeMap: Map<string, number>): Promise<void> {
             );
           }
         } else {
-          error(`\n  Error processing ${resource.name}:`, error);
+          error(`\n  Error processing ${resource.name}:`, err);
         }
         processed++; // エラーでもカウントして続行
       }
@@ -312,14 +312,14 @@ async function seedMoves(typeMap: Map<string, number>): Promise<void> {
         if (processed % 10 === 0) {
           process.stdout.write(`\r  Progress: ${processed}/${actualLimit}`);
         }
-      } catch (error) {
+      } catch (err) {
         // Prismaのユニーク制約違反（重複エラー）の場合は警告のみ
-        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
           warn(`\n  Skip move ${resource.name}: duplicate name (already exists)`);
           skipped++;
-        } else if (error && typeof error === 'object' && 'response' in error) {
+        } else if (err && typeof err === 'object' && 'response' in err) {
           // 404エラーなどの場合は簡潔に警告のみ表示
-          const axiosError = error as { response?: { status?: number } };
+          const axiosError = err as { response?: { status?: number } };
           if (axiosError.response?.status === 404) {
             warn(`\n  Skip move ${resource.name}: not found (404)`);
           } else {
@@ -330,7 +330,7 @@ async function seedMoves(typeMap: Map<string, number>): Promise<void> {
           }
           skipped++;
         } else {
-          error(`\n  Error processing move ${resource.name}:`, error);
+          error(`\n  Error processing move ${resource.name}:`, err);
           skipped++;
         }
       }
@@ -390,14 +390,14 @@ async function seedAbilities(): Promise<void> {
         if (processed % 10 === 0) {
           process.stdout.write(`\r  Progress: ${processed}/${actualLimit}`);
         }
-      } catch (error) {
+      } catch (err) {
         // Prismaのユニーク制約違反（重複エラー）の場合は警告のみ
-        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
           warn(`\n  Skip ability ${resource.name}: duplicate name (already exists)`);
           processed++; // エラーでもカウントして続行
-        } else if (error && typeof error === 'object' && 'response' in error) {
+        } else if (err && typeof err === 'object' && 'response' in err) {
           // 404エラーなどの場合は簡潔に警告のみ表示
-          const axiosError = error as { response?: { status?: number } };
+          const axiosError = err as { response?: { status?: number } };
           if (axiosError.response?.status === 404) {
             warn(`\n  Skip ability ${resource.name}: not found (404)`);
           } else {
@@ -408,7 +408,7 @@ async function seedAbilities(): Promise<void> {
           }
           processed++; // エラーでもカウントして続行
         } else {
-          error(`\n  Error processing ability ${resource.name}:`, error);
+          error(`\n  Error processing ability ${resource.name}:`, err);
           processed++; // エラーでもカウントして続行
         }
       }
@@ -481,10 +481,10 @@ async function seedPokemonAbilities(): Promise<void> {
             },
           });
           totalAbilities++;
-        } catch (error) {
+        } catch (err) {
           warn(
             `\n  Error processing ability ${abilityEntry.ability.name} for ${pokemon.nameEn}:`,
-            error,
+            err,
           );
           skipped++;
         }
@@ -495,9 +495,9 @@ async function seedPokemonAbilities(): Promise<void> {
       if (processed % 10 === 0) {
         process.stdout.write(`\r  Progress: ${processed}/${actualLimit}`);
       }
-    } catch (error) {
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status?: number } };
+    } catch (err) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { status?: number } };
         if (axiosError.response?.status === 404) {
           warn(`\n  Skip ${pokemon.nameEn}: not found (404)`);
         } else {
@@ -507,7 +507,7 @@ async function seedPokemonAbilities(): Promise<void> {
           );
         }
       } else {
-        error(`\n  Error processing ${pokemon.nameEn}:`, error);
+        error(`\n  Error processing ${pokemon.nameEn}:`, err);
       }
       processed++; // エラーでもカウントして続行
     }
@@ -604,10 +604,10 @@ async function seedPokemonMoves(): Promise<void> {
             existingMoveKeys.add(key);
             totalMoves++;
           }
-        } catch (error) {
+        } catch (err) {
           warn(
             `\n  Error processing move ${moveEntry.move.name} for ${pokemon.nameEn}:`,
-            error,
+            err,
           );
           skipped++;
         }
@@ -618,9 +618,9 @@ async function seedPokemonMoves(): Promise<void> {
       if (processed % 10 === 0) {
         process.stdout.write(`\r  Progress: ${processed}/${actualLimit}`);
       }
-    } catch (error) {
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status?: number } };
+    } catch (err) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { status?: number } };
         if (axiosError.response?.status === 404) {
           warn(`\n  Skip ${pokemon.nameEn}: not found (404)`);
         } else {
@@ -630,7 +630,7 @@ async function seedPokemonMoves(): Promise<void> {
           );
         }
       } else {
-        error(`\n  Error processing ${pokemon.nameEn}:`, error);
+        error(`\n  Error processing ${pokemon.nameEn}:`, err);
       }
       processed++; // エラーでもカウントして続行
     }
