@@ -10,6 +10,7 @@ import { FlashFireEffect } from './effects/immunity/flash-fire-effect';
 import { WaterAbsorbEffect } from './effects/immunity/water-absorb-effect';
 import { ObliviousEffect } from './effects/oblivious-effect';
 import { MultiscaleEffect } from './effects/damage-modify/multiscale-effect';
+import { GutsEffect } from './effects/stat-change/guts-effect';
 import { ThickFatEffect } from './effects/damage-modify/thick-fat-effect';
 import { SteelworkerEffect } from './effects/damage-modify/steelworker-effect';
 import { DrizzleEffect } from './effects/weather/drizzle-effect';
@@ -45,6 +46,7 @@ export class AbilityRegistry {
       this.registry.set('マルチスケイル', new MultiscaleEffect());
       this.registry.set('ふみん', new InsomniaEffect());
       this.registry.set('どんかん', new ObliviousEffect());
+      this.registry.set('はりきり', new GutsEffect());
       this.registry.set('ふゆう', new LevitateEffect());
       this.registry.set('すいすい', new SwiftSwimEffect());
       this.registry.set('あついしぼう', new ThickFatEffect());
