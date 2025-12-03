@@ -362,4 +362,5 @@ enum StatusCondition {
   Poison
   BadPoison
   Sleep
+  Flinch
 }

@@ -99,6 +99,14 @@ export class StatusConditionProcessorService {
       battleMap.set(status.id, sleepTurnCount + 1);
     }
 
+    // ひるみの自動解除（ターン終了時に自動解除）
+    if (status.statusCondition === StatusCondition.Flinch) {
+      await this.battleRepository.updateBattlePokemonStatus(status.id, {
+        statusCondition: StatusCondition.None,
+      });
+      return;
+    }
+
     // ダメージを計算
     const damage = StatusConditionHandler.calculateTurnEndDamage(status, badPoisonTurnCount);
     if (damage > 0) {
@@ -125,6 +133,7 @@ export class StatusConditionProcessorService {
       [StatusCondition.Poison]: 'poison',
       [StatusCondition.BadPoison]: 'bad poison',
       [StatusCondition.Sleep]: 'sleep',
+      [StatusCondition.Flinch]: 'flinch',
     };
 
     return messages[statusCondition] || 'unknown status';
