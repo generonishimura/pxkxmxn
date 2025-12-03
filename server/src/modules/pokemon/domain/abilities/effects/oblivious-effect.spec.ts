@@ -46,7 +46,10 @@ describe('ObliviousEffect', () => {
   });
 
   describe('canReceiveStatusCondition', () => {
-    it('should return false for Sleep status condition', () => {
+    // 注: どんかん特性は本来メロメロ・あくび無効化だが、
+    // 現在の実装では簡略化のためねむり無効化として実装されている
+    // （メロメロ・あくびは状態異常とは別のメカニズムのため）
+    it('should return false for Sleep status condition (simplified implementation for Infatuation/Yawn)', () => {
       const result = effect.canReceiveStatusCondition(pokemon, StatusCondition.Sleep, battleContext);
       expect(result).toBe(false);
     });
