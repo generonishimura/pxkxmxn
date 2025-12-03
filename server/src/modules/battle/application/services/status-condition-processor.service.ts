@@ -139,4 +139,3 @@ export class StatusConditionProcessorService {
     return messages[statusCondition] || 'unknown status';
   }
 }
-
