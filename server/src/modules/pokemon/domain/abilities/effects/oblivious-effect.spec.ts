@@ -50,17 +50,30 @@ describe('ObliviousEffect', () => {
     // 現在の実装では簡略化のためねむり無効化として実装されている
     // （メロメロ・あくびは状態異常とは別のメカニズムのため）
     it('should return false for Sleep status condition (simplified implementation for Infatuation/Yawn)', () => {
-      const result = effect.canReceiveStatusCondition(pokemon, StatusCondition.Sleep, battleContext);
+      const result = effect.canReceiveStatusCondition(
+        pokemon,
+        StatusCondition.Sleep,
+        battleContext,
+      );
       expect(result).toBe(false);
     });
 
     it('should return true for other status conditions', () => {
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Burn, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Freeze, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Paralysis, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Poison, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.BadPoison, battleContext)).toBe(true);
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Burn, battleContext)).toBe(
+        true,
+      );
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Freeze, battleContext)).toBe(
+        true,
+      );
+      expect(
+        effect.canReceiveStatusCondition(pokemon, StatusCondition.Paralysis, battleContext),
+      ).toBe(true);
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Poison, battleContext)).toBe(
+        true,
+      );
+      expect(
+        effect.canReceiveStatusCondition(pokemon, StatusCondition.BadPoison, battleContext),
+      ).toBe(true);
     });
   });
 });
-
