@@ -42,6 +42,11 @@ describe('StatusConditionHandler', () => {
       expect(StatusConditionHandler.canAct(status)).toBe(false);
     });
 
+    it('ひるみの場合は行動不能', () => {
+      const status = createBattlePokemonStatus(StatusCondition.Flinch);
+      expect(StatusConditionHandler.canAct(status)).toBe(false);
+    });
+
     it('やけど・どく・もうどくの場合は行動可能', () => {
       expect(StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.Burn))).toBe(
         true,
@@ -118,7 +123,7 @@ describe('StatusConditionHandler', () => {
       expect(StatusConditionHandler.calculateTurnEndDamage(status, 100)).toBe(80);
     });
 
-    it('こおり・ねむり・まひの場合はダメージ0', () => {
+    it('こおり・ねむり・まひ・ひるみの場合はダメージ0', () => {
       expect(
         StatusConditionHandler.calculateTurnEndDamage(
           createBattlePokemonStatus(StatusCondition.Freeze, 100),
@@ -132,6 +137,11 @@ describe('StatusConditionHandler', () => {
       expect(
         StatusConditionHandler.calculateTurnEndDamage(
           createBattlePokemonStatus(StatusCondition.Paralysis, 100),
+        ),
+      ).toBe(0);
+      expect(
+        StatusConditionHandler.calculateTurnEndDamage(
+          createBattlePokemonStatus(StatusCondition.Flinch, 100),
         ),
       ).toBe(0);
     });
@@ -174,6 +184,11 @@ describe('StatusConditionHandler', () => {
           createBattlePokemonStatus(StatusCondition.BadPoison),
         ),
       ).toBe(1.0);
+      expect(
+        StatusConditionHandler.getPhysicalAttackMultiplier(
+          createBattlePokemonStatus(StatusCondition.Flinch),
+        ),
+      ).toBe(1.0);
     });
   });
 
@@ -183,13 +198,17 @@ describe('StatusConditionHandler', () => {
       expect(StatusConditionHandler.isClearedOnSwitch(null)).toBe(false);
     });
 
-    it('すべての状態異常は交代時に解除される', () => {
+    it('やけど・どく・もうどく・まひ・こおり・ねむりは交代時に解除される', () => {
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Burn)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Poison)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.BadPoison)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Paralysis)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Freeze)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Sleep)).toBe(true);
+    });
+
+    it('ひるみは交代時に解除されない', () => {
+      expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Flinch)).toBe(false);
     });
   });
 

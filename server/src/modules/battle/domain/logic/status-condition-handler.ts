@@ -34,6 +34,7 @@ export interface StatusConditionProcessResult {
  * - もうどく（BadPoison）: ターン終了時に最大HPの1/16から始まり、毎ターン増加（最大1/2）
  * - ねむり（Sleep）: 行動不能（1-3ターン後に自動解除）
  * - まひ（Paralysis）: 素早さ0.5倍（既存実装あり）、25%の確率で行動不能
+ * - ひるみ（Flinch）: 行動不能（ターン終了時に自動解除、交代時は解除されない）
  */
 export class StatusConditionHandler {
   /**
@@ -106,6 +107,9 @@ export class StatusConditionHandler {
       case StatusCondition.Paralysis:
         // まひ: PARALYSIS_IMMOBILIZE_CHANCEの確率で行動不能
         return Math.random() >= StatusConditionHandler.PARALYSIS_IMMOBILIZE_CHANCE;
+      case StatusCondition.Flinch:
+        // ひるみ: 行動不能（ターン終了時に自動解除）
+        return false;
       default:
         return true;
     }
@@ -170,6 +174,7 @@ export class StatusConditionHandler {
 
     // やけど・どく・もうどく・まひは交代時に解除
     // こおり・ねむりも交代時に解除される（実装簡略化のため）
+    // ひるみは交代時に解除されない（次のターンまで継続）
     return [
       StatusCondition.Burn,
       StatusCondition.Poison,

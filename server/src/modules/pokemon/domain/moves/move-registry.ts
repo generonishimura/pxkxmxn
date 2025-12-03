@@ -4,6 +4,10 @@ import { ThunderboltEffect } from './effects/thunderbolt-effect';
 import { ToxicEffect } from './effects/toxic-effect';
 import { IceBeamEffect } from './effects/ice-beam-effect';
 import { SleepPowderEffect } from './effects/sleep-powder-effect';
+import { AirSlashEffect } from './effects/air-slash-effect';
+import { FireFangEffect } from './effects/fire-fang-effect';
+import { IceFangEffect } from './effects/ice-fang-effect';
+import { ThunderFangEffect } from './effects/thunder-fang-effect';
 
 /**
  * 技のレジストリ
@@ -34,6 +38,10 @@ export class MoveRegistry {
       this.registry.set('どくどく', new ToxicEffect());
       this.registry.set('れいとうビーム', new IceBeamEffect());
       this.registry.set('ねむりごな', new SleepPowderEffect());
+      this.registry.set('エアスラッシュ', new AirSlashEffect());
+      this.registry.set('ほのおのキバ', new FireFangEffect());
+      this.registry.set('こおりのキバ', new IceFangEffect());
+      this.registry.set('かみなりのキバ', new ThunderFangEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
@@ -74,4 +82,3 @@ export class MoveRegistry {
     this.registry.clear();
   }
 }
-

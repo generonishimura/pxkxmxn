@@ -99,6 +99,14 @@ export class StatusConditionProcessorService {
       battleMap.set(status.id, sleepTurnCount + 1);
     }
 
+    // ひるみの自動解除（ターン終了時に必ず解除、ねむりと同様のパターンで早期リターン）
+    if (status.statusCondition === StatusCondition.Flinch) {
+      await this.battleRepository.updateBattlePokemonStatus(status.id, {
+        statusCondition: StatusCondition.None,
+      });
+      return; // 早期リターンにより後続のダメージ計算をスキップ
+    }
+
     // ダメージを計算
     const damage = StatusConditionHandler.calculateTurnEndDamage(status, badPoisonTurnCount);
     if (damage > 0) {
@@ -125,9 +133,9 @@ export class StatusConditionProcessorService {
       [StatusCondition.Poison]: 'poison',
       [StatusCondition.BadPoison]: 'bad poison',
       [StatusCondition.Sleep]: 'sleep',
+      [StatusCondition.Flinch]: 'flinch',
     };
 
     return messages[statusCondition] || 'unknown status';
   }
 }
-
