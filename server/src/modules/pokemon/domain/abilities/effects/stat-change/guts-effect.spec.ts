@@ -50,17 +50,6 @@ describe('GutsEffect', () => {
   });
 
   describe('modifyDamageDealt', () => {
-    it('状態異常がある場合、ダメージが1.5倍になる', () => {
-      const pokemon = createBattlePokemonStatus({
-        statusCondition: StatusCondition.Burn,
-      });
-      const damage = 100;
-
-      const result = effect.modifyDamageDealt(pokemon, damage, battleContext);
-
-      expect(result).toBe(150);
-    });
-
     it('状態異常がある場合（やけど）、ダメージが1.5倍になる', () => {
       const pokemon = createBattlePokemonStatus({
         statusCondition: StatusCondition.Burn,
@@ -92,17 +81,6 @@ describe('GutsEffect', () => {
       const result = effect.modifyDamageDealt(pokemon, damage, battleContext);
 
       expect(result).toBe(150);
-    });
-
-    it('状態異常がない場合、ダメージが変更されない', () => {
-      const pokemon = createBattlePokemonStatus({
-        statusCondition: StatusCondition.None,
-      });
-      const damage = 100;
-
-      const result = effect.modifyDamageDealt(pokemon, damage, battleContext);
-
-      expect(result).toBeUndefined();
     });
 
     it('状態異常がNoneの場合、ダメージが変更されない', () => {
@@ -150,4 +128,3 @@ describe('GutsEffect', () => {
     });
   });
 });
-
