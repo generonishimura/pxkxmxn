@@ -9,3 +9,4 @@ export class GutsEffect extends BaseConditionalDamageDealtEffect {
   protected readonly damageMultiplier = 1.5;
 }
 
+

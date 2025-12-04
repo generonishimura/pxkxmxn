@@ -80,3 +80,4 @@ export abstract class BaseConditionalDamageDealtEffect implements IAbilityEffect
   }
 }
 
+
