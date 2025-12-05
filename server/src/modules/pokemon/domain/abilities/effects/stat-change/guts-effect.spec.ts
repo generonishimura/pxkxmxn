@@ -71,27 +71,32 @@ describe('GutsEffect', () => {
   describe('onEntry', () => {
     it('battleContextがない場合、何も実行しない', async () => {
       const pokemon = createBattlePokemonStatus({
+        id: 1,
+        attackRank: 0,
         statusCondition: StatusCondition.Burn,
       });
 
       await effect.onEntry(pokemon, undefined);
 
-      // エラーが発生しないことを確認
-      expect(true).toBe(true);
+      // 攻撃ランクが変更されていないことを確認
+      expect(pokemon.attackRank).toBe(0);
     });
 
     it('battleRepositoryがない場合、何も実行しない', async () => {
       const pokemon = createBattlePokemonStatus({
+        id: 1,
+        attackRank: 0,
         statusCondition: StatusCondition.Burn,
       });
       const battleContext: BattleContext = {
         battle: createBattle(),
+        // battleRepositoryは含めない
       };
 
       await effect.onEntry(pokemon, battleContext);
 
-      // エラーが発生しないことを確認
-      expect(true).toBe(true);
+      // 攻撃ランクが変更されていないことを確認
+      expect(pokemon.attackRank).toBe(0);
     });
 
     it('状態異常がある場合（やけど）、攻撃ランクが+1される', async () => {
