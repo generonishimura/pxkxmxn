@@ -11,8 +11,12 @@ import { WaterAbsorbEffect } from './effects/immunity/water-absorb-effect';
 import { ObliviousEffect } from './effects/oblivious-effect';
 import { MultiscaleEffect } from './effects/damage-modify/multiscale-effect';
 import { GutsEffect } from './effects/stat-change/guts-effect';
+import { KongyouEffect } from './effects/stat-change/kongyou-effect';
 import { ThickFatEffect } from './effects/damage-modify/thick-fat-effect';
 import { SteelworkerEffect } from './effects/damage-modify/steelworker-effect';
+import { ShinryokuEffect } from './effects/damage-modify/shinryoku-effect';
+import { MoukaEffect } from './effects/damage-modify/mouka-effect';
+import { GekiryuuEffect } from './effects/damage-modify/gekiryuu-effect';
 import { DrizzleEffect } from './effects/weather/drizzle-effect';
 import { DroughtEffect } from './effects/weather/drought-effect';
 import { SandStreamEffect } from './effects/weather/sand-stream-effect';
@@ -60,6 +64,10 @@ export class AbilityRegistry {
       this.registry.set('はがねつかい', new SteelworkerEffect());
       this.registry.set('ようりょくそ', new ChlorophyllEffect());
       this.registry.set('すなかき', new SandRushEffect());
+      this.registry.set('こんじょう', new KongyouEffect());
+      this.registry.set('しんりょく', new ShinryokuEffect());
+      this.registry.set('もうか', new MoukaEffect());
+      this.registry.set('げきりゅう', new GekiryuuEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
