@@ -225,6 +225,22 @@ const abilityMetadataMap: Record<string, AbilityMetadata> = {
     triggerEvent: 'Passive',
     effectCategory: 'Other', // 相手の特性を無視（バトルで重要）
   },
+  いとあみ: {
+    triggerEvent: 'OnSwitchOut',
+    effectCategory: 'StatChange', // 場から下がるとき、相手の素早さを1段階下げる
+  },
+  どくどく: {
+    triggerEvent: 'OnTakingDamage',
+    effectCategory: 'StatusCondition', // 接触技を受けたとき、30%の確率で相手をどくにする
+  },
+  せいでんき: {
+    triggerEvent: 'OnTakingDamage',
+    effectCategory: 'StatusCondition', // 接触技を受けたとき、30%の確率で相手をまひにする
+  },
+  もうふう: {
+    triggerEvent: 'OnTakingDamage',
+    effectCategory: 'StatusCondition', // 接触技を受けたとき、30%の確率で相手をやけどにする
+  },
 };
 
 const defaultMetadata: AbilityMetadata = {
