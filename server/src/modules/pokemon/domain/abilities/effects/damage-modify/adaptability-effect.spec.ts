@@ -240,7 +240,7 @@ describe('AdaptabilityEffect', () => {
         moveTypeName: 'ほのお',
       };
 
-      // STABが適用された後のダメージ（99 * 1.5 = 148.5）を想定
+      // STABが適用された後のダメージ（99 * 1.5 = 148.5 -> 148（切り捨て））を想定
       const stabDamage = 148;
       const result = await effect.modifyDamageDealt(pokemon, stabDamage, battleContext);
 
