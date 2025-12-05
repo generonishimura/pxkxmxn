@@ -20,8 +20,11 @@ const statRankPropMap: Record<StatType, keyof BattlePokemonStatus> = {
 /**
  * こんじょう（Guts）特性の効果
  * HPが1/3以下の時、攻撃ランク+1
+ *
+ * 注意: 既存のGutsEffect（はりきり）とは異なる特性です。
+ * はりきりは状態異常時に攻撃ランク+1、こんじょうはHPが1/3以下の時に攻撃ランク+1します。
  */
-export class KongyouEffect extends BaseHpThresholdEffect {
+export class GutsHpThresholdEffect extends BaseHpThresholdEffect {
   protected readonly thresholdType = 'third' as const;
   protected readonly statType: StatType = 'attack';
   protected readonly rankChange = 1;
@@ -56,4 +59,3 @@ export class KongyouEffect extends BaseHpThresholdEffect {
     await battleContext.battleRepository.updateBattlePokemonStatus(pokemon.id, updateData);
   }
 }
-

@@ -1,16 +1,16 @@
-import { KongyouEffect } from './kongyou-effect';
+import { GutsHpThresholdEffect } from './kongyou-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
 
-describe('KongyouEffect', () => {
-  let effect: KongyouEffect;
+describe('GutsHpThresholdEffect', () => {
+  let effect: GutsHpThresholdEffect;
   let mockBattleRepository: jest.Mocked<IBattleRepository>;
   let battleContext: BattleContext;
 
   beforeEach(() => {
-    effect = new KongyouEffect();
+    effect = new GutsHpThresholdEffect();
     mockBattleRepository = {
       updateBattlePokemonStatus: jest.fn(),
     } as any;
