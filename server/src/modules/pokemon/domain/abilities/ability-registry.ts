@@ -14,6 +14,7 @@ import { GutsEffect } from './effects/stat-change/guts-effect';
 import { GutsHpThresholdEffect } from './effects/stat-change/kongyou-effect';
 import { ThickFatEffect } from './effects/damage-modify/thick-fat-effect';
 import { SteelworkerEffect } from './effects/damage-modify/steelworker-effect';
+import { AdaptabilityEffect } from './effects/damage-modify/adaptability-effect';
 import { ShinryokuEffect } from './effects/damage-modify/shinryoku-effect';
 import { MoukaEffect } from './effects/damage-modify/mouka-effect';
 import { GekiryuuEffect } from './effects/damage-modify/gekiryuu-effect';
@@ -62,6 +63,7 @@ export class AbilityRegistry {
       this.registry.set('ゆきふらし', new SnowWarningEffect());
       this.registry.set('ちょすい', new WaterAbsorbEffect());
       this.registry.set('はがねつかい', new SteelworkerEffect());
+      this.registry.set('てきおうりょく', new AdaptabilityEffect());
       this.registry.set('ようりょくそ', new ChlorophyllEffect());
       this.registry.set('すなかき', new SandRushEffect());
       this.registry.set('こんじょう', new GutsHpThresholdEffect());
