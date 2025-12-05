@@ -44,6 +44,20 @@ export class PokemonSwitcherService {
     );
 
     if (currentActive) {
+      // 特性のOnSwitchOut効果を発動（状態異常解除前に実行）
+      const currentTrainedPokemon = await this.trainedPokemonRepository.findById(
+        currentActive.trainedPokemonId,
+      );
+      if (currentTrainedPokemon?.ability) {
+        const abilityEffect = AbilityRegistry.get(currentTrainedPokemon.ability.name);
+        if (abilityEffect?.onSwitchOut) {
+          await abilityEffect.onSwitchOut(currentActive, {
+            battle,
+            battleRepository: this.battleRepository,
+          });
+        }
+      }
+
       // 状態異常を解除（交代時に解除されるもの）
       const statusCondition = StatusConditionHandler.isClearedOnSwitch(
         currentActive.statusCondition,

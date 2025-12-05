@@ -80,6 +80,7 @@ export class MoveExecutorService {
       trainedPokemonRepository: this.trainedPokemonRepository,
       weather: battle.weather,
       field: battle.field,
+      moveCategory: move.category,
     };
 
     // 命中率判定（変化技の場合は常に命中とみなす）
@@ -177,6 +178,7 @@ export class MoveExecutorService {
           weather: battle.weather,
           field: battle.field,
           moveTypeName: move.type.name,
+          moveCategory: move.category,
         };
         // 元のダメージを計算（タイプ無効化が発動する前のダメージ）
         // 実際には、DamageCalculatorで計算されたダメージが0なので、
@@ -186,20 +188,36 @@ export class MoveExecutorService {
       }
     }
 
+    // 接触技による状態異常付与（防御側の特性）
+    let contactEffectMessage = '';
+    if (damage > 0 && defenderTrainedPokemon?.ability) {
+      const defenderAbilityEffect = AbilityRegistry.get(defenderTrainedPokemon.ability.name);
+      if (defenderAbilityEffect && 'applyContactStatusCondition' in defenderAbilityEffect) {
+        const applied = await (defenderAbilityEffect as any).applyContactStatusCondition(
+          updatedDefender,
+          attacker,
+          battleContext,
+        );
+        if (applied) {
+          contactEffectMessage = ` ${defenderTrainedPokemon.ability.name} activated!`;
+        }
+      }
+    }
+
     // PPを消費
     await this.consumePp(battlePokemonMoveId);
 
     // 技の特殊効果（onHit）を呼び出す
     const moveEffect = MoveRegistry.get(move.name);
-    let effectMessage = '';
+    let moveEffectMessage = '';
     if (moveEffect?.onHit) {
       const hitMessage = await moveEffect.onHit(attacker, updatedDefender, battleContext);
       if (hitMessage) {
-        effectMessage = ` ${hitMessage}`;
+        moveEffectMessage = ` ${hitMessage}`;
       }
     }
 
-    return `Used ${move.name} and dealt ${damage} damage${effectMessage}`;
+    return `Used ${move.name} and dealt ${damage} damage${contactEffectMessage}${moveEffectMessage}`;
   }
 
   /**

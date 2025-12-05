@@ -22,6 +22,10 @@ import { DrizzleEffect } from './effects/weather/drizzle-effect';
 import { DroughtEffect } from './effects/weather/drought-effect';
 import { SandStreamEffect } from './effects/weather/sand-stream-effect';
 import { SnowWarningEffect } from './effects/weather/snow-warning-effect';
+import { StickyWebEffect } from './effects/stat-change/sticky-web-effect';
+import { PoisonPointEffect } from './effects/stat-change/poison-point-effect';
+import { StaticEffect } from './effects/stat-change/static-effect';
+import { FlameBodyEffect } from './effects/stat-change/flame-body-effect';
 
 /**
  * 特性レジストリ
@@ -70,6 +74,10 @@ export class AbilityRegistry {
       this.registry.set('しんりょく', new ShinryokuEffect());
       this.registry.set('もうか', new MoukaEffect());
       this.registry.set('げきりゅう', new GekiryuuEffect());
+      this.registry.set('いとあみ', new StickyWebEffect());
+      this.registry.set('どくどく', new PoisonPointEffect());
+      this.registry.set('せいでんき', new StaticEffect());
+      this.registry.set('もうふう', new FlameBodyEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

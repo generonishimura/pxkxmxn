@@ -53,4 +53,10 @@ export interface BattleContext {
    * BaseMultiHitEffectで設定される
    */
   multiHitCount?: number;
+
+  /**
+   * 技のカテゴリ（Physical, Special, Status）
+   * 接触技の判定などで使用
+   */
+  moveCategory?: 'Physical' | 'Special' | 'Status';
 }
