@@ -11,4 +11,3 @@ export class PsychicEffect extends BaseStatChangeEffect {
   protected readonly chance = 0.1;
 }
 
-

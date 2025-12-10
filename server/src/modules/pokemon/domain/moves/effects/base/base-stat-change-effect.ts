@@ -104,4 +104,3 @@ export abstract class BaseStatChangeEffect implements IMoveEffect {
   }
 }
 
-

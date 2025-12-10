@@ -13,4 +13,3 @@ export class ThunderShockEffect extends BaseStatusConditionEffect {
   protected readonly message = 'was paralyzed!';
 }
 
-
