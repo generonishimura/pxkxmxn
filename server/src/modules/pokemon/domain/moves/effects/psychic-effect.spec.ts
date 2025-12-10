@@ -77,7 +77,7 @@ describe('PsychicEffect', () => {
 
       // 複数回実行して確率的な動作を確認
       const results: (string | null)[] = [];
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 1000; i++) {
         // モックをリセット
         (battleContext.battleRepository?.updateBattlePokemonStatus as jest.Mock).mockClear();
         const result = await effect.onHit(attacker, defender, battleContext);
@@ -85,9 +85,10 @@ describe('PsychicEffect', () => {
       }
 
       const successCount = results.filter(r => r !== null).length;
-      // 10%の確率なので、5%以上15%以下になることが期待される
-      expect(successCount).toBeGreaterThan(5);
-      expect(successCount).toBeLessThan(15);
+      // 10%の確率なので、7%以上13%以下になることが期待される（70-130回）
+      expect(successCount).toBeGreaterThan(70);
+      expect(successCount).toBeLessThan(130);
     });
   });
 });
+
