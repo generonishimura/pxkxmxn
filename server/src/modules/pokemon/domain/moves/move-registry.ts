@@ -8,6 +8,9 @@ import { AirSlashEffect } from './effects/air-slash-effect';
 import { FireFangEffect } from './effects/fire-fang-effect';
 import { IceFangEffect } from './effects/ice-fang-effect';
 import { ThunderFangEffect } from './effects/thunder-fang-effect';
+import { PsychicEffect } from './effects/psychic-effect';
+import { ThunderEffect } from './effects/thunder-effect';
+import { ThunderShockEffect } from './effects/thunder-shock-effect';
 
 /**
  * 技のレジストリ
@@ -42,6 +45,9 @@ export class MoveRegistry {
       this.registry.set('ほのおのキバ', new FireFangEffect());
       this.registry.set('こおりのキバ', new IceFangEffect());
       this.registry.set('かみなりのキバ', new ThunderFangEffect());
+      this.registry.set('サイコキネシス', new PsychicEffect());
+      this.registry.set('かみなり', new ThunderEffect());
+      this.registry.set('でんきショック', new ThunderShockEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
