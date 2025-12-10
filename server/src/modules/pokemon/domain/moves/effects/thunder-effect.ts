@@ -13,3 +13,4 @@ export class ThunderEffect extends BaseStatusConditionEffect {
   protected readonly message = 'was paralyzed!';
 }
 
+
