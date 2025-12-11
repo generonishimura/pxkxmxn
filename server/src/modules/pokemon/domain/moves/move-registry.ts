@@ -11,6 +11,9 @@ import { ThunderFangEffect } from './effects/thunder-fang-effect';
 import { PsychicEffect } from './effects/psychic-effect';
 import { ThunderEffect } from './effects/thunder-effect';
 import { ThunderShockEffect } from './effects/thunder-shock-effect';
+import { FurySwipesEffect } from './effects/fury-swipes-effect';
+import { PeckEffect } from './effects/peck-effect';
+import { PinMissileEffect } from './effects/pin-missile-effect';
 
 /**
  * 技のレジストリ
@@ -48,6 +51,9 @@ export class MoveRegistry {
       this.registry.set('サイコキネシス', new PsychicEffect());
       this.registry.set('かみなり', new ThunderEffect());
       this.registry.set('でんきショック', new ThunderShockEffect());
+      this.registry.set('みだれひっかき', new FurySwipesEffect());
+      this.registry.set('つつく', new PeckEffect());
+      this.registry.set('ダブルニードル', new PinMissileEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
