@@ -10,4 +10,3 @@ export class PsychicEffect extends BaseStatChangeEffect {
   protected readonly rankChange = -1;
   protected readonly chance = 0.1;
 }
-

@@ -103,4 +103,3 @@ export abstract class BaseStatChangeEffect implements IMoveEffect {
     return `${statName} ${direction}!`;
   }
 }
-

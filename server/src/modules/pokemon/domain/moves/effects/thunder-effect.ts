@@ -12,4 +12,3 @@ export class ThunderEffect extends BaseStatusConditionEffect {
   protected readonly immuneTypes = ['でんき'];
   protected readonly message = 'was paralyzed!';
 }
-
