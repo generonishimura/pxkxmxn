@@ -3,7 +3,11 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../abilities/battle-context.interface';
 import { Move, MoveCategory } from '../../entities/move.entity';
 import { Type } from '../../entities/type.entity';
-import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
+import {
+  createBattlePokemonStatus,
+  createBattleContext,
+  createMove,
+} from './__tests__/test-helpers';
 
 describe('PinMissileEffect', () => {
   let effect: PinMissileEffect;
@@ -14,69 +18,28 @@ describe('PinMissileEffect', () => {
 
   beforeEach(() => {
     effect = new PinMissileEffect();
-    attacker = {
+    attacker = createBattlePokemonStatus({
       id: 1,
-      battleId: 1,
       trainedPokemonId: 1,
       trainerId: 1,
-      isActive: true,
-      currentHp: 100,
-      maxHp: 100,
-      attackRank: 0,
-      defenseRank: 0,
-      specialAttackRank: 0,
-      specialDefenseRank: 0,
-      speedRank: 0,
-      accuracyRank: 0,
-      evasionRank: 0,
-      statusCondition: null,
-    } as BattlePokemonStatus;
-
-    defender = {
+    });
+    defender = createBattlePokemonStatus({
       id: 2,
-      battleId: 1,
       trainedPokemonId: 2,
       trainerId: 2,
-      isActive: true,
-      currentHp: 100,
-      maxHp: 100,
-      attackRank: 0,
-      defenseRank: 0,
-      specialAttackRank: 0,
-      specialDefenseRank: 0,
-      speedRank: 0,
-      accuracyRank: 0,
-      evasionRank: 0,
-      statusCondition: null,
-    } as BattlePokemonStatus;
-
-    move = {
-      id: 1,
-      name: 'ダブルニードル',
-      nameEn: 'Pin Missile',
-      type: new Type(7, 'むし', 'Bug'),
-      category: MoveCategory.Physical,
-      power: 14,
-      accuracy: 85,
-      pp: 20,
-      priority: 0,
-      description: null,
-    } as Move;
-
-    battleContext = {
-      battle: {
-        id: 1,
-        trainer1Id: 1,
-        trainer2Id: 2,
-        team1Id: 1,
-        team2Id: 2,
-        turn: 1,
-        weather: null,
-        field: null,
-        status: BattleStatus.Active,
-        winnerTrainerId: null,
+    });
+    move = createMove(
+      'ダブルニードル',
+      'Pin Missile',
+      new Type(7, 'むし', 'Bug'),
+      MoveCategory.Physical,
+      {
+        power: 14,
+        accuracy: 85,
+        pp: 20,
       },
-    };
+    );
+    battleContext = createBattleContext();
   });
 
   describe('beforeDamage', () => {
