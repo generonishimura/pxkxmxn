@@ -338,42 +338,41 @@ describe('AccuracyCalculator', () => {
 
       const battle = createBattle();
 
-      // 攻撃側がかたやぶりを持っている場合
-      const hitWithMoldBreaker = AccuracyCalculator.checkHit(
-        100,
-        attacker,
-        defender,
-        'かたやぶり',
-        'テスト特性10',
-        { battle },
-      );
+      // かたやぶりがある場合は回避率補正が無視されるため、命中率100%の技は常に命中する
+      // 複数回実行して、常に命中することを確認（確率的な動作を統計的に検証）
+      let hitCountWithMoldBreaker = 0;
+      const testIterations = 100;
+      for (let i = 0; i < testIterations; i++) {
+        if (
+          AccuracyCalculator.checkHit(100, attacker, defender, 'かたやぶり', 'テスト特性10', {
+            battle,
+          })
+        ) {
+          hitCountWithMoldBreaker++;
+        }
+      }
+      // かたやぶりがある場合は回避率補正が無視されるため、命中率100%の技は常に命中する
+      expect(hitCountWithMoldBreaker).toBe(testIterations);
 
-      // 攻撃側がかたやぶりを持っていない場合
-      const hitWithoutMoldBreaker = AccuracyCalculator.checkHit(
-        100,
-        attacker,
-        defender,
-        undefined,
-        'テスト特性10',
-        { battle },
-      );
-
-      // かたやぶりがある場合は回避率補正が無視されるため、通常通り命中する
-      expect(hitWithMoldBreaker).toBe(true);
       // かたやぶりがない場合は回避率補正が適用されるため、命中率が低下する
-      // 複数回実行して、補正が適用されていることを確認
-      let hitCount = 0;
-      for (let i = 0; i < 100; i++) {
+      // 複数回実行して、補正が適用されていることを統計的に確認
+      let hitCountWithoutMoldBreaker = 0;
+      for (let i = 0; i < testIterations; i++) {
         if (
           AccuracyCalculator.checkHit(100, attacker, defender, undefined, 'テスト特性10', {
             battle,
           })
         ) {
-          hitCount++;
+          hitCountWithoutMoldBreaker++;
         }
       }
       // 回避率補正が適用されているため、通常の100%とは異なる結果になる
-      expect(hitCount).toBeLessThan(100);
+      // 回避率0.5 = 命中率50%なので、統計的に約50%になるはず
+      expect(hitCountWithoutMoldBreaker).toBeLessThan(testIterations);
+      // 統計的に約50%になることを確認（誤差を考慮して40-60%の範囲）
+      expect(hitCountWithoutMoldBreaker).toBeGreaterThan(testIterations * 0.4);
+      expect(hitCountWithoutMoldBreaker).toBeLessThan(testIterations * 0.6);
+
       expect(mockAbilityEffect.modifyEvasion).toHaveBeenCalled();
     });
   });

@@ -10,11 +10,11 @@ import { IAbilityEffect } from '../ability-effect.interface';
  * - 回避率修正（例: すなかき、すいすいなど）
  * - 状態異常無効化（例: ふみん、どんかん、めんえきなど）
  *
- * 注意: この特性自体は何も効果を発動しません。
+ * 実装の詳細:
+ * この特性自体は何も効果を発動しません（Passive特性として定義されているが、実際には何も効果を発動しない）。
  * 各処理（DamageCalculator、AccuracyCalculatorなど）で、攻撃側がかたやぶりを持っているかチェックし、
  * 持っている場合は防御側の特性効果をスキップします。
  */
 export class MoldBreakerEffect implements IAbilityEffect {
-  // かたやぶり特性はPassive特性だが、実際には何も効果を発動しない
-  // 各処理で攻撃側がかたやぶりを持っているかチェックするために使用される
+  // このクラスは空の実装です。特性効果は各処理でAbilityRegistry.hasMoldBreaker()を呼び出して判定されます。
 }
