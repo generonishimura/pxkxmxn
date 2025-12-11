@@ -323,6 +323,57 @@ describe('AccuracyCalculator', () => {
       expect(result).toBe(false);
       expect(mockAbilityEffect.modifyEvasion).toHaveBeenCalled();
     });
+
+    it('攻撃側がかたやぶりを持っている場合、防御側の回避率補正を無視する', () => {
+      const attacker = createBattlePokemonStatus({ accuracyRank: 0 });
+      const defender = createBattlePokemonStatus({ evasionRank: 0 });
+
+      // モックの特性効果を作成（回避率を0.5倍にする = 命中率が50%になる）
+      const mockAbilityEffect = {
+        modifyEvasion: jest.fn(() => 0.5),
+      };
+      AbilityRegistry.register('テスト特性10', mockAbilityEffect as any);
+
+      const battle = createBattle();
+
+      // 攻撃側がかたやぶりを持っている場合
+      const hitWithMoldBreaker = AccuracyCalculator.checkHit(
+        100,
+        attacker,
+        defender,
+        'かたやぶり',
+        'テスト特性10',
+        { battle },
+      );
+
+      // 攻撃側がかたやぶりを持っていない場合
+      const hitWithoutMoldBreaker = AccuracyCalculator.checkHit(
+        100,
+        attacker,
+        defender,
+        undefined,
+        'テスト特性10',
+        { battle },
+      );
+
+      // かたやぶりがある場合は回避率補正が無視されるため、通常通り命中する
+      expect(hitWithMoldBreaker).toBe(true);
+      // かたやぶりがない場合は回避率補正が適用されるため、命中率が低下する
+      // 複数回実行して、補正が適用されていることを確認
+      let hitCount = 0;
+      for (let i = 0; i < 100; i++) {
+        if (
+          AccuracyCalculator.checkHit(100, attacker, defender, undefined, 'テスト特性10', {
+            battle,
+          })
+        ) {
+          hitCount++;
+        }
+      }
+      // 回避率補正が適用されているため、通常の100%とは異なる結果になる
+      expect(hitCount).toBeLessThan(100);
+      expect(mockAbilityEffect.modifyEvasion).toHaveBeenCalled();
+    });
   });
 });
 

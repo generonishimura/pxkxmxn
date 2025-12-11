@@ -90,7 +90,8 @@ export class AccuracyCalculator {
     }
 
     // 特性による回避率補正（防御側）
-    if (defenderAbilityName) {
+    // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
+    if (defenderAbilityName && !AbilityRegistry.hasMoldBreaker(attackerAbilityName)) {
       const abilityEffect = AbilityRegistry.get(defenderAbilityName);
       if (abilityEffect?.modifyEvasion) {
         const modifiedEvasion = abilityEffect.modifyEvasion(defender, effectiveAccuracy, battleContext);

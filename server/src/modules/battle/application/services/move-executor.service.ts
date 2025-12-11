@@ -81,6 +81,7 @@ export class MoveExecutorService {
       weather: battle.weather,
       field: battle.field,
       moveCategory: move.category,
+      attackerAbilityName: attackerTrainedPokemon.ability?.name,
     };
 
     // 命中率判定（変化技の場合は常に命中とみなす）

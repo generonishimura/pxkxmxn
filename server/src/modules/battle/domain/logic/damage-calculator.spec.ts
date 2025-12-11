@@ -48,8 +48,11 @@ describe('DamageCalculator', () => {
   };
 
   // moveTypeIdからTypeエンティティを作成するヘルパー関数
-  const createMoveType = (typeId: number, nameEn?: string): Type => {
+  const createMoveType = (typeId: number, name?: string, nameEn?: string): Type => {
     // 天候補正テスト用に、ほのおとみずタイプを特別に扱う
+    if (name && nameEn) {
+      return createType(typeId, name, nameEn);
+    }
     if (nameEn) {
       return createType(typeId, `Type${typeId}`, nameEn);
     }
@@ -1007,6 +1010,117 @@ describe('DamageCalculator', () => {
 
       // HPが満タンでない場合は補正なし
       expect(damageWithMultiscale).toBeCloseTo(damageWithoutMultiscale, 0);
+    });
+
+    it('攻撃側がかたやぶりを持っている場合、防御側のタイプ無効化を無視する', async () => {
+      // ふゆう特性（じめんタイプ無効化）を登録
+      const { LevitateEffect } = await import(
+        '@/modules/pokemon/domain/abilities/effects/immunity/levitate-effect'
+      );
+      AbilityRegistry.register('ふゆう', new LevitateEffect());
+
+      const attacker = createBattlePokemonStatus({ attackRank: 0 });
+      const defender = createBattlePokemonStatus({ defenseRank: 0 });
+      const move = createMoveInfo({ power: 100, typeId: 5, category: 'Physical' }); // じめんタイプ
+
+      // 攻撃側がかたやぶりを持っている場合
+      const paramsWithMoldBreaker: DamageCalculationParams = {
+        attacker,
+        defender,
+        move,
+        moveType: createMoveType(move.typeId, 'じめん', 'ground'),
+        attackerTypes: { primary: createType(2), secondary: null },
+        defenderTypes: { primary: createType(3), secondary: null },
+        typeEffectiveness: new Map([['5-3', 1.0]]),
+        weather: null,
+        field: null,
+        attackerAbilityName: 'かたやぶり',
+        defenderAbilityName: 'ふゆう',
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+      };
+
+      // 攻撃側がかたやぶりを持っていない場合
+      const paramsWithoutMoldBreaker: DamageCalculationParams = {
+        ...paramsWithMoldBreaker,
+        attackerAbilityName: undefined,
+      };
+
+      const damageWithMoldBreaker = await DamageCalculator.calculate(paramsWithMoldBreaker);
+      const damageWithoutMoldBreaker = await DamageCalculator.calculate(paramsWithoutMoldBreaker);
+
+      // かたやぶりがある場合はダメージが発生する（タイプ無効化を無視）
+      expect(damageWithMoldBreaker).toBeGreaterThan(0);
+      // かたやぶりがない場合はダメージ0（タイプ無効化が発動）
+      expect(damageWithoutMoldBreaker).toBe(0);
+    });
+
+    it('攻撃側がかたやぶりを持っている場合、防御側のダメージ修正を無視する', async () => {
+      AbilityRegistry.register('マルチスケイル', new MultiscaleEffect());
+
+      const attacker = createBattlePokemonStatus({ attackRank: 0 });
+      const defender = createBattlePokemonStatus({
+        defenseRank: 0,
+        currentHp: 100,
+        maxHp: 100, // HP満タン
+      });
+      const move = createMoveInfo({ power: 100, typeId: 1, category: 'Physical' });
+
+      // 攻撃側がかたやぶりを持っている場合
+      const paramsWithMoldBreaker: DamageCalculationParams = {
+        attacker,
+        defender,
+        move,
+        moveType: createMoveType(move.typeId),
+        attackerTypes: { primary: createType(2), secondary: null },
+        defenderTypes: { primary: createType(3), secondary: null },
+        typeEffectiveness: new Map([['1-3', 1.0]]),
+        weather: null,
+        field: null,
+        attackerAbilityName: 'かたやぶり',
+        defenderAbilityName: 'マルチスケイル',
+        attackerStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+        defenderStats: {
+          attack: 100,
+          defense: 100,
+          specialAttack: 100,
+          specialDefense: 100,
+          speed: 100,
+        },
+      };
+
+      // 攻撃側がかたやぶりを持っていない場合
+      const paramsWithoutMoldBreaker: DamageCalculationParams = {
+        ...paramsWithMoldBreaker,
+        attackerAbilityName: undefined,
+      };
+
+      const damageWithMoldBreaker = await DamageCalculator.calculate(paramsWithMoldBreaker);
+      const damageWithoutMoldBreaker = await DamageCalculator.calculate(paramsWithoutMoldBreaker);
+
+      // かたやぶりがある場合はダメージが大きい（ダメージ修正を無視）
+      expect(damageWithMoldBreaker).toBeGreaterThan(damageWithoutMoldBreaker);
+      // かたやぶりがない場合はダメージが半減（マルチスケイルが発動）
+      const ratio = damageWithoutMoldBreaker / damageWithMoldBreaker;
+      expect(ratio).toBeCloseTo(0.5, 1);
     });
   });
 

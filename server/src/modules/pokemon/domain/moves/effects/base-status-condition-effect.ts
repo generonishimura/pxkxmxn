@@ -67,7 +67,8 @@ export abstract class BaseStatusConditionEffect implements IMoveEffect {
     }
 
     // 特性による無効化チェック
-    if (trainedPokemon.ability) {
+    // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
+    if (trainedPokemon.ability && !AbilityRegistry.hasMoldBreaker(battleContext.attackerAbilityName)) {
       const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
       if (abilityEffect?.canReceiveStatusCondition) {
         const canReceive = abilityEffect.canReceiveStatusCondition(
