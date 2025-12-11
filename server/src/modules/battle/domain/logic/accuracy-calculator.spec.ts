@@ -6,7 +6,9 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 
 describe('AccuracyCalculator', () => {
   // テスト用のヘルパー関数
-  const createBattlePokemonStatus = (overrides: Partial<BattlePokemonStatus> = {}): BattlePokemonStatus => {
+  const createBattlePokemonStatus = (
+    overrides: Partial<BattlePokemonStatus> = {},
+  ): BattlePokemonStatus => {
     return new BattlePokemonStatus(
       overrides.id ?? 1,
       overrides.battleId ?? 1,
@@ -376,4 +378,3 @@ describe('AccuracyCalculator', () => {
     });
   });
 });
-

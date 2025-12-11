@@ -284,6 +284,4 @@ export class MoveExecutorService {
       speed: stats.speed,
     };
   }
-
 }
-
