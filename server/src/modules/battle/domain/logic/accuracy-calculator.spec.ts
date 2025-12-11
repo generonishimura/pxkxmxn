@@ -6,7 +6,9 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 
 describe('AccuracyCalculator', () => {
   // テスト用のヘルパー関数
-  const createBattlePokemonStatus = (overrides: Partial<BattlePokemonStatus> = {}): BattlePokemonStatus => {
+  const createBattlePokemonStatus = (
+    overrides: Partial<BattlePokemonStatus> = {},
+  ): BattlePokemonStatus => {
     return new BattlePokemonStatus(
       overrides.id ?? 1,
       overrides.battleId ?? 1,
@@ -323,6 +325,55 @@ describe('AccuracyCalculator', () => {
       expect(result).toBe(false);
       expect(mockAbilityEffect.modifyEvasion).toHaveBeenCalled();
     });
+
+    it('攻撃側がかたやぶりを持っている場合、防御側の回避率補正を無視する', () => {
+      const attacker = createBattlePokemonStatus({ accuracyRank: 0 });
+      const defender = createBattlePokemonStatus({ evasionRank: 0 });
+
+      // モックの特性効果を作成（回避率を0.5倍にする = 命中率が50%になる）
+      const mockAbilityEffect = {
+        modifyEvasion: jest.fn(() => 0.5),
+      };
+      AbilityRegistry.register('テスト特性10', mockAbilityEffect as any);
+
+      const battle = createBattle();
+
+      // かたやぶりがある場合は回避率補正が無視されるため、命中率100%の技は常に命中する
+      // 複数回実行して、常に命中することを確認（確率的な動作を統計的に検証）
+      let hitCountWithMoldBreaker = 0;
+      const testIterations = 100;
+      for (let i = 0; i < testIterations; i++) {
+        if (
+          AccuracyCalculator.checkHit(100, attacker, defender, 'かたやぶり', 'テスト特性10', {
+            battle,
+          })
+        ) {
+          hitCountWithMoldBreaker++;
+        }
+      }
+      // かたやぶりがある場合は回避率補正が無視されるため、命中率100%の技は常に命中する
+      expect(hitCountWithMoldBreaker).toBe(testIterations);
+
+      // かたやぶりがない場合は回避率補正が適用されるため、命中率が低下する
+      // 複数回実行して、補正が適用されていることを統計的に確認
+      let hitCountWithoutMoldBreaker = 0;
+      for (let i = 0; i < testIterations; i++) {
+        if (
+          AccuracyCalculator.checkHit(100, attacker, defender, undefined, 'テスト特性10', {
+            battle,
+          })
+        ) {
+          hitCountWithoutMoldBreaker++;
+        }
+      }
+      // 回避率補正が適用されているため、通常の100%とは異なる結果になる
+      // 回避率0.5 = 命中率50%なので、統計的に約50%になるはず
+      expect(hitCountWithoutMoldBreaker).toBeLessThan(testIterations);
+      // 統計的に約50%になることを確認（誤差を考慮して40-60%の範囲）
+      expect(hitCountWithoutMoldBreaker).toBeGreaterThan(testIterations * 0.4);
+      expect(hitCountWithoutMoldBreaker).toBeLessThan(testIterations * 0.6);
+
+      expect(mockAbilityEffect.modifyEvasion).toHaveBeenCalled();
+    });
   });
 });
-
