@@ -1,6 +1,7 @@
 import { MoldBreakerEffect } from './mold-breaker-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../battle-context.interface';
+import { AbilityRegistry } from '../ability-registry';
 
 describe('MoldBreakerEffect', () => {
   let effect: MoldBreakerEffect;
@@ -43,16 +44,27 @@ describe('MoldBreakerEffect', () => {
     };
   });
 
+  beforeEach(() => {
+    // AbilityRegistryを初期化（テスト用）
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+  });
+
   describe('基本設定', () => {
     it('インスタンスが作成できること', () => {
       expect(effect).toBeDefined();
     });
 
-    it('IAbilityEffectインターフェースを実装していること', () => {
-      // かたやぶり特性は何も効果を発動しないため、すべてのメソッドは未定義
-      // IAbilityEffectインターフェースのメソッドはオプショナルなので、存在しないプロパティにアクセスできない
-      // 代わりに、effectがIAbilityEffect型であることを確認
-      expect(effect).toBeDefined();
+    it('AbilityRegistryから正しく取得できること', () => {
+      const retrievedEffect = AbilityRegistry.get('かたやぶり');
+      expect(retrievedEffect).toBeDefined();
+      expect(retrievedEffect).toBeInstanceOf(MoldBreakerEffect);
+    });
+
+    it('hasMoldBreakerが正しく動作すること', () => {
+      expect(AbilityRegistry.hasMoldBreaker('かたやぶり')).toBe(true);
+      expect(AbilityRegistry.hasMoldBreaker('いかく')).toBe(false);
+      expect(AbilityRegistry.hasMoldBreaker(undefined)).toBe(false);
     });
   });
 });

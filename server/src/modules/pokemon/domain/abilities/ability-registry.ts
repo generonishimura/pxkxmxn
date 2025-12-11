@@ -41,6 +41,13 @@ export class AbilityRegistry {
   private static registry: Map<string, IAbilityEffect> = new Map();
 
   /**
+   * かたやぶり特性の名前
+   * 防御側の特性効果を無視する特性
+   * 将来的に類似の特性（テラボルテージ、ターボブレイズなど）を追加する際の拡張性を考慮
+   */
+  private static readonly MOLD_BREAKER_ABILITY_NAME = 'かたやぶり' as const;
+
+  /**
    * レジストリを初期化
    * アプリケーション起動時に呼び出されることを想定
    * @throws Error 初期化に失敗した場合
@@ -79,7 +86,7 @@ export class AbilityRegistry {
       this.registry.set('どくどく', new PoisonPointEffect());
       this.registry.set('せいでんき', new StaticEffect());
       this.registry.set('もうふう', new FlameBodyEffect());
-      this.registry.set('かたやぶり', new MoldBreakerEffect());
+      this.registry.set(this.MOLD_BREAKER_ABILITY_NAME, new MoldBreakerEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
@@ -130,6 +137,6 @@ export class AbilityRegistry {
     if (!attackerAbilityName) {
       return false;
     }
-    return attackerAbilityName === 'かたやぶり';
+    return attackerAbilityName === this.MOLD_BREAKER_ABILITY_NAME;
   }
 }
