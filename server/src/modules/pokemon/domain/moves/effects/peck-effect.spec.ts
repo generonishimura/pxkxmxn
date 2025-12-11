@@ -28,17 +28,11 @@ describe('PeckEffect', () => {
       trainedPokemonId: 2,
       trainerId: 2,
     });
-    move = createMove(
-      'つつく',
-      'Peck',
-      new Type(3, 'ひこう', 'Flying'),
-      MoveCategory.Physical,
-      {
-        power: 35,
-        accuracy: 100,
-        pp: 35,
-      },
-    );
+    move = createMove('つつく', 'Peck', new Type(3, 'ひこう', 'Flying'), MoveCategory.Physical, {
+      power: 35,
+      accuracy: 100,
+      pp: 35,
+    });
     battleContext = createBattleContext();
   });
 
