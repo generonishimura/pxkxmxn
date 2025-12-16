@@ -14,6 +14,8 @@ import { ThunderShockEffect } from './effects/thunder-shock-effect';
 import { FurySwipesEffect } from './effects/fury-swipes-effect';
 import { PeckEffect } from './effects/peck-effect';
 import { PinMissileEffect } from './effects/pin-missile-effect';
+import { DoubleEdgeEffect } from './effects/double-edge-effect';
+import { TakeDownEffect } from './effects/take-down-effect';
 
 /**
  * 技のレジストリ
@@ -54,6 +56,8 @@ export class MoveRegistry {
       this.registry.set('みだれひっかき', new FurySwipesEffect());
       this.registry.set('つつく', new PeckEffect());
       this.registry.set('ダブルニードル', new PinMissileEffect());
+      this.registry.set('すてみタックル', new DoubleEdgeEffect());
+      this.registry.set('とっしん', new TakeDownEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
