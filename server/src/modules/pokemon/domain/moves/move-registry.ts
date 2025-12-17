@@ -16,6 +16,13 @@ import { PeckEffect } from './effects/peck-effect';
 import { PinMissileEffect } from './effects/pin-missile-effect';
 import { DoubleEdgeEffect } from './effects/double-edge-effect';
 import { TakeDownEffect } from './effects/take-down-effect';
+import { GrowlEffect } from './effects/growl-effect';
+import { HardenEffect } from './effects/harden-effect';
+import { SwordsDanceEffect } from './effects/swords-dance-effect';
+import { RainDanceEffect } from './effects/rain-dance-effect';
+import { SunnyDayEffect } from './effects/sunny-day-effect';
+import { SandstormMoveEffect } from './effects/sandstorm-effect';
+import { HailMoveEffect } from './effects/hail-effect';
 
 /**
  * 技のレジストリ
@@ -58,6 +65,15 @@ export class MoveRegistry {
       this.registry.set('ダブルニードル', new PinMissileEffect());
       this.registry.set('すてみタックル', new DoubleEdgeEffect());
       this.registry.set('とっしん', new TakeDownEffect());
+      // ステータス変化系の変化技
+      this.registry.set('なきごえ', new GrowlEffect());
+      this.registry.set('かたくなる', new HardenEffect());
+      this.registry.set('つるぎのまい', new SwordsDanceEffect());
+      // 天候変更系の変化技
+      this.registry.set('あめをよぶ', new RainDanceEffect());
+      this.registry.set('にほんばれ', new SunnyDayEffect());
+      this.registry.set('すなあらし', new SandstormMoveEffect());
+      this.registry.set('あられ', new HailMoveEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
