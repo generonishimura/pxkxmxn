@@ -64,4 +64,18 @@ export interface IMoveEffect {
     damage: number,
     battleContext: BattleContext,
   ): Promise<string | null>;
+
+  /**
+   * 変化技を使用したときに発動する効果
+   * 変化技（Status技）はダメージを与えないため、このメソッドで処理する
+   * @param attacker 攻撃側のポケモン
+   * @param defender 防御側のポケモン
+   * @param battleContext バトルコンテキスト
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onUse?(
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): Promise<string | null>;
 }
