@@ -15,6 +15,34 @@ export type StatType =
   | 'evasion';
 
 /**
+ * ステータスタイプからBattlePokemonStatusのプロパティ名へのマッピング
+ * BaseStatChangeEffect、BaseSelfStatChangeMoveEffect、BaseOpponentStatChangeMoveEffectで共有
+ */
+export const STAT_RANK_PROP_MAP: Record<StatType, keyof BattlePokemonStatus> = {
+  attack: 'attackRank',
+  defense: 'defenseRank',
+  specialAttack: 'specialAttackRank',
+  specialDefense: 'specialDefenseRank',
+  speed: 'speedRank',
+  accuracy: 'accuracyRank',
+  evasion: 'evasionRank',
+};
+
+/**
+ * ステータスタイプから表示名へのマッピング
+ * BaseStatChangeEffect、BaseSelfStatChangeMoveEffect、BaseOpponentStatChangeMoveEffectで共有
+ */
+export const STAT_NAME_MAP: Record<StatType, string> = {
+  attack: 'Attack',
+  defense: 'Defense',
+  specialAttack: 'Special Attack',
+  specialDefense: 'Special Defense',
+  speed: 'Speed',
+  accuracy: 'Accuracy',
+  evasion: 'Evasion',
+};
+
+/**
  * 相手のステータスランクを変更する技の基底クラス
  * 技が命中したとき（onHit）に相手のステータスランクを変更する汎用的な実装
  *
@@ -36,18 +64,6 @@ export abstract class BaseStatChangeEffect implements IMoveEffect {
    */
   protected abstract readonly chance: number;
 
-  /**
-   * ステータスタイプからBattlePokemonStatusのプロパティ名へのマッピング
-   */
-  private static readonly statRankPropMap: Record<StatType, keyof BattlePokemonStatus> = {
-    attack: 'attackRank',
-    defense: 'defenseRank',
-    specialAttack: 'specialAttackRank',
-    specialDefense: 'specialDefenseRank',
-    speed: 'speedRank',
-    accuracy: 'accuracyRank',
-    evasion: 'evasionRank',
-  };
 
   /**
    * 技が命中したときに発動
@@ -79,7 +95,7 @@ export abstract class BaseStatChangeEffect implements IMoveEffect {
     }
 
     // statTypeからプロパティ名を取得してupdateDataを構築
-    const propName = BaseStatChangeEffect.statRankPropMap[this.statType];
+    const propName = STAT_RANK_PROP_MAP[this.statType];
     const updateData: Partial<BattlePokemonStatus> = {
       [propName]: newRank,
     } as Partial<BattlePokemonStatus>;
@@ -88,17 +104,7 @@ export abstract class BaseStatChangeEffect implements IMoveEffect {
     await battleContext.battleRepository.updateBattlePokemonStatus(defender.id, updateData);
 
     // メッセージを返す
-    const statNameMap: Record<StatType, string> = {
-      attack: 'Attack',
-      defense: 'Defense',
-      specialAttack: 'Special Attack',
-      specialDefense: 'Special Defense',
-      speed: 'Speed',
-      accuracy: 'Accuracy',
-      evasion: 'Evasion',
-    };
-
-    const statName = statNameMap[this.statType];
+    const statName = STAT_NAME_MAP[this.statType];
     const direction = this.rankChange > 0 ? 'rose' : 'fell';
     return `${statName} ${direction}!`;
   }

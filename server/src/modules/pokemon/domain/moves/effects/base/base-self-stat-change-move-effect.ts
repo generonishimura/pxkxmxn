@@ -1,7 +1,7 @@
 import { IMoveEffect } from '../../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
-import { StatType } from './base-stat-change-effect';
+import { StatType, STAT_RANK_PROP_MAP, STAT_NAME_MAP } from './base-stat-change-effect';
 
 /**
  * 自分のステータスランクを変更する変化技の基底クラス
@@ -19,19 +19,6 @@ export abstract class BaseSelfStatChangeMoveEffect implements IMoveEffect {
    * 変更するランク数（正の値で上昇、負の値で下降）
    */
   protected abstract readonly rankChange: number;
-
-  /**
-   * ステータスタイプからBattlePokemonStatusのプロパティ名へのマッピング
-   */
-  private static readonly statRankPropMap: Record<StatType, keyof BattlePokemonStatus> = {
-    attack: 'attackRank',
-    defense: 'defenseRank',
-    specialAttack: 'specialAttackRank',
-    specialDefense: 'specialDefenseRank',
-    speed: 'speedRank',
-    accuracy: 'accuracyRank',
-    evasion: 'evasionRank',
-  };
 
   /**
    * 変化技を使用したときに発動
@@ -58,7 +45,7 @@ export abstract class BaseSelfStatChangeMoveEffect implements IMoveEffect {
     }
 
     // statTypeからプロパティ名を取得してupdateDataを構築
-    const propName = BaseSelfStatChangeMoveEffect.statRankPropMap[this.statType];
+    const propName = STAT_RANK_PROP_MAP[this.statType];
     const updateData: Partial<BattlePokemonStatus> = {
       [propName]: newRank,
     } as Partial<BattlePokemonStatus>;
@@ -67,17 +54,7 @@ export abstract class BaseSelfStatChangeMoveEffect implements IMoveEffect {
     await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, updateData);
 
     // メッセージを返す
-    const statNameMap: Record<StatType, string> = {
-      attack: 'Attack',
-      defense: 'Defense',
-      specialAttack: 'Special Attack',
-      specialDefense: 'Special Defense',
-      speed: 'Speed',
-      accuracy: 'Accuracy',
-      evasion: 'Evasion',
-    };
-
-    const statName = statNameMap[this.statType];
+    const statName = STAT_NAME_MAP[this.statType];
     const direction = this.rankChange > 0 ? 'rose' : 'fell';
     return `${statName} ${direction}!`;
   }
