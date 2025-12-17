@@ -118,15 +118,14 @@ export class MoveExecutorService {
 
       // 変化技の特殊効果（onUse）を呼び出す
       const moveEffect = MoveRegistry.get(move.name);
-      let moveEffectMessage = '';
+      let moveEffectMessage: string | null = null;
       if (moveEffect?.onUse) {
-        const useMessage = await moveEffect.onUse(attacker, defender, battleContext);
-        if (useMessage) {
-          moveEffectMessage = ` ${useMessage}`;
-        }
+        moveEffectMessage = await moveEffect.onUse(attacker, defender, battleContext);
       }
 
-      return `Used ${move.name}${moveEffectMessage}`;
+      return moveEffectMessage
+        ? `Used ${move.name} ${moveEffectMessage}`
+        : `Used ${move.name}`;
     }
 
     // タイプ相性を取得
