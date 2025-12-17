@@ -115,7 +115,18 @@ export class MoveExecutorService {
     // 変化技の場合はダメージなし(PPは消費される)
     if (move.category === 'Status' || move.power === null) {
       await this.consumePp(battlePokemonMoveId);
-      return `Used ${move.name} (Status move)`;
+
+      // 変化技の特殊効果（onUse）を呼び出す
+      const moveEffect = MoveRegistry.get(move.name);
+      let moveEffectMessage = '';
+      if (moveEffect?.onUse) {
+        const useMessage = await moveEffect.onUse(attacker, defender, battleContext);
+        if (useMessage) {
+          moveEffectMessage = ` ${useMessage}`;
+        }
+      }
+
+      return `Used ${move.name}${moveEffectMessage}`;
     }
 
     // タイプ相性を取得
