@@ -1,7 +1,5 @@
 import { Prisma } from '@generated/prisma/client';
 import { TrainedPokemon, Gender } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
-import { Pokemon } from '@/modules/pokemon/domain/entities/pokemon.entity';
-import { Ability } from '@/modules/pokemon/domain/entities/ability.entity';
 import { Nature } from '@/modules/battle/domain/logic/stat-calculator';
 import { PokemonMapper } from './pokemon.mapper';
 import { AbilityMapper } from './ability.mapper';

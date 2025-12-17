@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/shared/prisma/prisma.service';
-import { Prisma } from '@generated/prisma/client';
 import {
   IPokemonRepository,
   IAbilityRepository,
@@ -12,30 +11,6 @@ import { Pokemon } from '../../domain/entities/pokemon.entity';
 import { Ability } from '../../domain/entities/ability.entity';
 import { Move } from '../../domain/entities/move.entity';
 import { PokemonMapper, AbilityMapper, MoveMapper } from '@/shared/infrastructure/mappers';
-
-/**
- * PokemonのPrismaクエリ結果型（include付き）
- */
-type PokemonWithTypes = Prisma.PokemonGetPayload<{
-  include: {
-    primaryType: true;
-    secondaryType: true;
-  };
-}>;
-
-/**
- * MoveのPrismaクエリ結果型（include付き）
- */
-type MoveWithRelations = Prisma.MoveGetPayload<{
-  include: {
-    type: true;
-  };
-}>;
-
-/**
- * AbilityのPrismaクエリ結果型
- */
-type AbilityData = Prisma.AbilityGetPayload<{}>;
 
 /**
  * PokemonリポジトリのPrisma実装
