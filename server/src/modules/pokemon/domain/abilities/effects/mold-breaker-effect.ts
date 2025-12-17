@@ -16,5 +16,5 @@ import { IAbilityEffect } from '../ability-effect.interface';
  * 持っている場合は防御側の特性効果をスキップします。
  */
 export class MoldBreakerEffect implements IAbilityEffect {
-  // このクラスは空の実装です。特性効果は各処理でAbilityRegistry.hasMoldBreaker()を呼び出して判定されます。
+  // 空の実装。特性効果は各処理でAbilityRegistry.hasMoldBreaker()を呼び出して判定される。
 }

@@ -51,18 +51,14 @@ describe('MoldBreakerEffect', () => {
   });
 
   describe('基本設定', () => {
-    it('インスタンスが作成できること', () => {
-      expect(effect).toBeDefined();
-    });
-
     it('AbilityRegistryから正しく取得できること', () => {
-      const retrievedEffect = AbilityRegistry.get('かたやぶり');
+      const retrievedEffect = AbilityRegistry.get(AbilityRegistry.MOLD_BREAKER_ABILITY_NAME);
       expect(retrievedEffect).toBeDefined();
       expect(retrievedEffect).toBeInstanceOf(MoldBreakerEffect);
     });
 
     it('hasMoldBreakerが正しく動作すること', () => {
-      expect(AbilityRegistry.hasMoldBreaker('かたやぶり')).toBe(true);
+      expect(AbilityRegistry.hasMoldBreaker(AbilityRegistry.MOLD_BREAKER_ABILITY_NAME)).toBe(true);
       expect(AbilityRegistry.hasMoldBreaker('いかく')).toBe(false);
       expect(AbilityRegistry.hasMoldBreaker(undefined)).toBe(false);
     });

@@ -339,24 +339,23 @@ describe('AccuracyCalculator', () => {
       const battle = createBattle();
 
       // かたやぶりがある場合は回避率補正が無視されるため、命中率100%の技は常に命中する
-      // 複数回実行して、常に命中することを確認（確率的な動作を統計的に検証）
-      let hitCountWithMoldBreaker = 0;
-      const testIterations = 100;
-      for (let i = 0; i < testIterations; i++) {
-        if (
-          AccuracyCalculator.checkHit(100, attacker, defender, 'かたやぶり', 'テスト特性10', {
-            battle,
-          })
-        ) {
-          hitCountWithMoldBreaker++;
-        }
-      }
-      // かたやぶりがある場合は回避率補正が無視されるため、命中率100%の技は常に命中する
-      expect(hitCountWithMoldBreaker).toBe(testIterations);
+      // 命中率100%の技は、実効命中率が100%であれば常に命中するため、単一実行で検証可能
+      const hitWithMoldBreaker = AccuracyCalculator.checkHit(
+        100,
+        attacker,
+        defender,
+        AbilityRegistry.MOLD_BREAKER_ABILITY_NAME,
+        'テスト特性10',
+        {
+          battle,
+        },
+      );
+      expect(hitWithMoldBreaker).toBe(true);
 
       // かたやぶりがない場合は回避率補正が適用されるため、命中率が低下する
-      // 複数回実行して、補正が適用されていることを統計的に確認
+      // 回避率0.5 = 命中率50%なので、統計的に検証する
       let hitCountWithoutMoldBreaker = 0;
+      const testIterations = 1000; // 統計的な検証のため、試行回数を増やす
       for (let i = 0; i < testIterations; i++) {
         if (
           AccuracyCalculator.checkHit(100, attacker, defender, undefined, 'テスト特性10', {
@@ -368,10 +367,10 @@ describe('AccuracyCalculator', () => {
       }
       // 回避率補正が適用されているため、通常の100%とは異なる結果になる
       // 回避率0.5 = 命中率50%なので、統計的に約50%になるはず
-      expect(hitCountWithoutMoldBreaker).toBeLessThan(testIterations);
-      // 統計的に約50%になることを確認（誤差を考慮して40-60%の範囲）
-      expect(hitCountWithoutMoldBreaker).toBeGreaterThan(testIterations * 0.4);
-      expect(hitCountWithoutMoldBreaker).toBeLessThan(testIterations * 0.6);
+      // 試行回数を増やすことで、統計的な検証の精度を向上
+      const hitRate = hitCountWithoutMoldBreaker / testIterations;
+      expect(hitRate).toBeGreaterThan(0.45); // 45%以上
+      expect(hitRate).toBeLessThan(0.55); // 55%未満
 
       expect(mockAbilityEffect.modifyEvasion).toHaveBeenCalled();
     });

@@ -45,7 +45,7 @@ export class AbilityRegistry {
    * 防御側の特性効果を無視する特性
    * 将来的に類似の特性（テラボルテージ、ターボブレイズなど）を追加する際の拡張性を考慮
    */
-  private static readonly MOLD_BREAKER_ABILITY_NAME = 'かたやぶり' as const;
+  public static readonly MOLD_BREAKER_ABILITY_NAME = 'かたやぶり' as const;
 
   /**
    * レジストリを初期化

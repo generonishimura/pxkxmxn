@@ -1034,7 +1034,7 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['5-3', 1.0]]),
         weather: null,
         field: null,
-        attackerAbilityName: 'かたやぶり',
+        attackerAbilityName: AbilityRegistry.MOLD_BREAKER_ABILITY_NAME,
         defenderAbilityName: 'ふゆう',
         attackerStats: {
           attack: 100,
@@ -1089,7 +1089,7 @@ describe('DamageCalculator', () => {
         typeEffectiveness: new Map([['1-3', 1.0]]),
         weather: null,
         field: null,
-        attackerAbilityName: 'かたやぶり',
+        attackerAbilityName: AbilityRegistry.MOLD_BREAKER_ABILITY_NAME,
         defenderAbilityName: 'マルチスケイル',
         attackerStats: {
           attack: 100,
