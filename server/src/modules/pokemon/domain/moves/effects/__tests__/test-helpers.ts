@@ -51,6 +51,7 @@ export const createBattleContext = (overrides?: Partial<BattleContext>): BattleC
       status: overrides?.battle?.status ?? BattleStatus.Active,
       winnerTrainerId: overrides?.battle?.winnerTrainerId ?? null,
     } as Battle,
+    battleRepository: overrides?.battleRepository,
   };
 };
 
