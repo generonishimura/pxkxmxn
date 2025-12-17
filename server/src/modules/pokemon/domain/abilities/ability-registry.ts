@@ -26,6 +26,7 @@ import { StickyWebEffect } from './effects/stat-change/sticky-web-effect';
 import { PoisonPointEffect } from './effects/stat-change/poison-point-effect';
 import { StaticEffect } from './effects/stat-change/static-effect';
 import { FlameBodyEffect } from './effects/stat-change/flame-body-effect';
+import { MoldBreakerEffect } from './effects/mold-breaker-effect';
 
 /**
  * 特性レジストリ
@@ -38,6 +39,13 @@ import { FlameBodyEffect } from './effects/stat-change/flame-body-effect';
  */
 export class AbilityRegistry {
   private static registry: Map<string, IAbilityEffect> = new Map();
+
+  /**
+   * かたやぶり特性の名前
+   * 防御側の特性効果を無視する特性
+   * 将来的に類似の特性（テラボルテージ、ターボブレイズなど）を追加する際の拡張性を考慮
+   */
+  public static readonly MOLD_BREAKER_ABILITY_NAME = 'かたやぶり' as const;
 
   /**
    * レジストリを初期化
@@ -78,6 +86,7 @@ export class AbilityRegistry {
       this.registry.set('どくどく', new PoisonPointEffect());
       this.registry.set('せいでんき', new StaticEffect());
       this.registry.set('もうふう', new FlameBodyEffect());
+      this.registry.set(this.MOLD_BREAKER_ABILITY_NAME, new MoldBreakerEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
@@ -116,5 +125,18 @@ export class AbilityRegistry {
    */
   static clear(): void {
     this.registry.clear();
+  }
+
+  /**
+   * 攻撃側がかたやぶり特性を持っているかチェック
+   * かたやぶり特性は、防御側の特性効果を無視する
+   * @param attackerAbilityName 攻撃側の特性名
+   * @returns かたやぶり特性を持っている場合はtrue、そうでない場合はfalse
+   */
+  static hasMoldBreaker(attackerAbilityName?: string): boolean {
+    if (!attackerAbilityName) {
+      return false;
+    }
+    return attackerAbilityName === this.MOLD_BREAKER_ABILITY_NAME;
   }
 }

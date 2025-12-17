@@ -191,7 +191,8 @@ export class DamageCalculator {
     );
 
     // 防御側の特性によるタイプ無効化チェック
-    if (params.defenderAbilityName) {
+    // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
+    if (params.defenderAbilityName && !AbilityRegistry.hasMoldBreaker(params.attackerAbilityName)) {
       const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
       if (abilityEffect?.isImmuneToType) {
         const battleContext = params.battle
@@ -239,7 +240,8 @@ export class DamageCalculator {
     }
 
     // 防御側の特性効果によるダメージ修正
-    if (params.defenderAbilityName) {
+    // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
+    if (params.defenderAbilityName && !AbilityRegistry.hasMoldBreaker(params.attackerAbilityName)) {
       const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
       if (abilityEffect?.modifyDamage) {
         const currentDamage = baseDamage * damageMultiplier;

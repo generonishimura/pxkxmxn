@@ -82,7 +82,11 @@ export class AccuracyCalculator {
     if (attackerAbilityName) {
       const abilityEffect = AbilityRegistry.get(attackerAbilityName);
       if (abilityEffect?.modifyAccuracy) {
-        const modifiedAccuracy = abilityEffect.modifyAccuracy(attacker, finalAccuracy, battleContext);
+        const modifiedAccuracy = abilityEffect.modifyAccuracy(
+          attacker,
+          finalAccuracy,
+          battleContext,
+        );
         if (modifiedAccuracy !== undefined) {
           effectiveAccuracy = modifiedAccuracy;
         }
@@ -90,10 +94,15 @@ export class AccuracyCalculator {
     }
 
     // 特性による回避率補正（防御側）
-    if (defenderAbilityName) {
+    // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
+    if (defenderAbilityName && !AbilityRegistry.hasMoldBreaker(attackerAbilityName)) {
       const abilityEffect = AbilityRegistry.get(defenderAbilityName);
       if (abilityEffect?.modifyEvasion) {
-        const modifiedEvasion = abilityEffect.modifyEvasion(defender, effectiveAccuracy, battleContext);
+        const modifiedEvasion = abilityEffect.modifyEvasion(
+          defender,
+          effectiveAccuracy,
+          battleContext,
+        );
         if (modifiedEvasion !== undefined) {
           // modifiedEvasionの期待値は0.0〜1.0（0.0:回避補正なし, 1.0:完全回避）
           // この計算式により、modifiedEvasionが大きいほど命中率が低下する（例: 0.2なら命中率80%、1.0なら0%）
@@ -109,6 +118,4 @@ export class AccuracyCalculator {
     const randomValue = Math.random() * 100;
     return randomValue < effectiveAccuracy;
   }
-
 }
-

@@ -59,4 +59,10 @@ export interface BattleContext {
    * 接触技の判定などで使用
    */
   moveCategory?: 'Physical' | 'Special' | 'Status';
+
+  /**
+   * 攻撃側の特性名（日本語名、例: "かたやぶり"）
+   * かたやぶり特性の判定などで使用
+   */
+  attackerAbilityName?: string;
 }
