@@ -7,7 +7,11 @@ import * as dotenv from 'dotenv';
 import { PrismaClient } from '@generated/prisma/client';
 import { AbilityRegistry } from '../modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '../modules/pokemon/domain/moves/move-registry';
-import { hasSpecialEffect } from './check-registry-coverage.spec';
+import { hasSpecialEffect } from './move-utils';
+import { spawn } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 // 環境変数を読み込む
 dotenv.config();
@@ -45,7 +49,9 @@ function generateAbilityIssueBody(
     body += `| 日本語名 | 英語名 | トリガー | カテゴリ |\n`;
     body += `|---------|--------|---------|----------|\n`;
     triggerAbilities.forEach(ability => {
-      body += `| ${ability.name} | ${ability.nameEn} | ${ability.triggerEvent} | ${ability.effectCategory} |\n`;
+      // 日本語名が英語名と同じ場合は「-」を表示（PokeAPIに日本語名が存在しない場合）
+      const displayName = ability.name === ability.nameEn ? '-' : ability.name;
+      body += `| ${displayName} | ${ability.nameEn} | ${ability.triggerEvent} | ${ability.effectCategory} |\n`;
     });
     body += `\n`;
   }
@@ -91,10 +97,12 @@ function generateMoveIssueBody(
   body += `| 日本語名 | 英語名 | カテゴリ | 威力 | 命中率 | 説明 |\n`;
   body += `|---------|--------|---------|------|--------|------|\n`;
   moves.forEach(move => {
+    // 日本語名が英語名と同じ場合は「-」を表示（PokeAPIに日本語名が存在しない場合）
+    const displayName = move.name === move.nameEn ? '-' : move.name;
     const power = move.power !== null ? String(move.power) : '-';
     const accuracy = move.accuracy !== null ? String(move.accuracy) : '-';
     const description = move.description ? move.description.replace(/\n/g, ' ') : '-';
-    body += `| ${move.name} | ${move.nameEn} | ${move.category} | ${power} | ${accuracy} | ${description} |\n`;
+    body += `| ${displayName} | ${move.nameEn} | ${move.category} | ${power} | ${accuracy} | ${description} |\n`;
   });
   body += `\n`;
 
@@ -160,9 +168,90 @@ function getMoveCategoryDisplayName(category: string): string {
 }
 
 /**
+ * Issueタイトルを検証
+ * - 改行やその他の制御文字を含まないことを確認する
+ * @param title 検証するタイトル
+ * @throws Error タイトルが無効な場合
+ */
+function validateIssueTitle(title: string): void {
+  // 改行を含むかチェック
+  if (title.includes('\n') || title.includes('\r')) {
+    throw new Error('Issueタイトルに改行文字が含まれています。');
+  }
+  // 制御文字を含むかチェック（ASCII制御文字: 0x00-0x1F, 0x7F）
+  for (let i = 0; i < title.length; i++) {
+    const charCode = title.charCodeAt(i);
+    if ((charCode >= 0x00 && charCode <= 0x1f) || charCode === 0x7f) {
+      throw new Error('Issueタイトルに制御文字が含まれています。');
+    }
+  }
+}
+
+/**
+ * GitHub Issueを作成
+ */
+async function createGitHubIssue(title: string, body: string): Promise<void> {
+  try {
+    // タイトルの検証
+    validateIssueTitle(title);
+
+    // 一時ファイルを作成して本文を書き込む
+    const tempFile = path.join(os.tmpdir(), `issue-body-${Date.now()}.md`);
+    fs.writeFileSync(tempFile, body, 'utf-8');
+
+    try {
+      // gh issue createコマンドを実行（コマンドインジェクション対策のためspawnを使用）
+      const ghProcess = spawn('gh', ['issue', 'create', '--title', title, '--body-file', tempFile]);
+
+      let stdout = '';
+      let stderr = '';
+
+      ghProcess.stdout.on('data', data => {
+        stdout += data.toString();
+      });
+
+      ghProcess.stderr.on('data', data => {
+        stderr += data.toString();
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        ghProcess.on('close', code => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`gh command exited with code ${code}`));
+          }
+        });
+        ghProcess.on('error', error => {
+          reject(error);
+        });
+      });
+
+      if (stderr && !stderr.includes('Creating issue')) {
+        console.error(`エラー: ${stderr}`);
+      } else {
+        console.log(`✅ Issue作成成功: ${stdout.trim()}`);
+      }
+    } finally {
+      // 一時ファイルを削除
+      if (fs.existsSync(tempFile)) {
+        fs.unlinkSync(tempFile);
+      }
+    }
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Issue作成エラー: ${error.message}`);
+    } else {
+      console.error('Issue作成エラー:', error);
+    }
+    // ghコマンドが失敗しても処理を続行
+  }
+}
+
+/**
  * 特性のカテゴリ別Issueを生成
  */
-async function generateAbilityIssues(): Promise<void> {
+async function generateAbilityIssues(createIssues: boolean = false): Promise<void> {
   console.log('=== 特性のカテゴリ別Issue生成 ===\n');
 
   const allAbilities = await prisma.ability.findMany({
@@ -198,14 +287,20 @@ async function generateAbilityIssues(): Promise<void> {
 
     console.log(`---\n`);
     console.log(`タイトル: ${title}\n`);
-    console.log(`本文:\n${body}\n`);
+    if (!createIssues) {
+      console.log(`本文:\n${body}\n`);
+    }
+
+    if (createIssues) {
+      await createGitHubIssue(title, body);
+    }
   }
 }
 
 /**
  * 技のカテゴリ別Issueを生成
  */
-async function generateMoveIssues(): Promise<void> {
+async function generateMoveIssues(createIssues: boolean = false): Promise<void> {
   console.log('\n\n=== 技のカテゴリ別Issue生成 ===\n');
 
   const allMoves = await prisma.move.findMany({
@@ -246,7 +341,13 @@ async function generateMoveIssues(): Promise<void> {
 
     console.log(`---\n`);
     console.log(`タイトル: ${title}\n`);
-    console.log(`本文:\n${body}\n`);
+    if (!createIssues) {
+      console.log(`本文:\n${body}\n`);
+    }
+
+    if (createIssues) {
+      await createGitHubIssue(title, body);
+    }
   }
 }
 
@@ -254,9 +355,20 @@ async function generateMoveIssues(): Promise<void> {
  * メイン処理
  */
 async function main(): Promise<void> {
+  // コマンドライン引数から--createオプションを確認
+  const createIssues = process.argv.includes('--create');
+
   try {
-    await generateAbilityIssues();
-    await generateMoveIssues();
+    await generateAbilityIssues(createIssues);
+    await generateMoveIssues(createIssues);
+
+    if (createIssues) {
+      console.log('\n✅ 全てのIssue作成が完了しました');
+    } else {
+      console.log(
+        '\n💡 Issueを作成するには、--createオプションを付けて実行してください: npm run generate:issues -- --create',
+      );
+    }
   } catch (error) {
     console.error('エラーが発生しました:', error);
     process.exit(1);
