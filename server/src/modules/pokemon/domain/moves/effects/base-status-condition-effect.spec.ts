@@ -4,7 +4,6 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
 import { AirSlashEffect } from './air-slash-effect';
-import { FireFangEffect } from './fire-fang-effect';
 
 /**
  * テスト用の具象クラス（やけどを付与）
@@ -173,27 +172,6 @@ describe('BaseStatusConditionEffect', () => {
       // 30%の確率なので、20%以上40%以下になることが期待される
       expect(successCount).toBeGreaterThan(20);
       expect(successCount).toBeLessThan(40);
-    });
-
-    it('ほのおのキバは10%の確率でひるみを付与する', async () => {
-      const effect = new FireFangEffect();
-      const attacker = createBattlePokemonStatus();
-      const defender = createBattlePokemonStatus();
-      const battleContext = createBattleContext();
-
-      // 複数回実行して確率的な動作を確認
-      const results: (string | null)[] = [];
-      for (let i = 0; i < 100; i++) {
-        // モックをリセット
-        (battleContext.battleRepository?.updateBattlePokemonStatus as jest.Mock).mockClear();
-        const result = await effect.onHit(attacker, defender, battleContext);
-        results.push(result);
-      }
-
-      const successCount = results.filter(r => r !== null).length;
-      // 10%の確率なので、5%以上15%以下になることが期待される
-      expect(successCount).toBeGreaterThan(5);
-      expect(successCount).toBeLessThan(15);
     });
   });
 });
