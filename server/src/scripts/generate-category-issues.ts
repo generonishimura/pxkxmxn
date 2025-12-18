@@ -52,7 +52,9 @@ function generateAbilityIssueBody(
     body += `| 日本語名 | 英語名 | トリガー | カテゴリ |\n`;
     body += `|---------|--------|---------|----------|\n`;
     triggerAbilities.forEach(ability => {
-      body += `| ${ability.name} | ${ability.nameEn} | ${ability.triggerEvent} | ${ability.effectCategory} |\n`;
+      // 日本語名が英語名と同じ場合は「-」を表示（PokeAPIに日本語名が存在しない場合）
+      const displayName = ability.name === ability.nameEn ? '-' : ability.name;
+      body += `| ${displayName} | ${ability.nameEn} | ${ability.triggerEvent} | ${ability.effectCategory} |\n`;
     });
     body += `\n`;
   }
@@ -98,10 +100,12 @@ function generateMoveIssueBody(
   body += `| 日本語名 | 英語名 | カテゴリ | 威力 | 命中率 | 説明 |\n`;
   body += `|---------|--------|---------|------|--------|------|\n`;
   moves.forEach(move => {
+    // 日本語名が英語名と同じ場合は「-」を表示（PokeAPIに日本語名が存在しない場合）
+    const displayName = move.name === move.nameEn ? '-' : move.name;
     const power = move.power !== null ? String(move.power) : '-';
     const accuracy = move.accuracy !== null ? String(move.accuracy) : '-';
     const description = move.description ? move.description.replace(/\n/g, ' ') : '-';
-    body += `| ${move.name} | ${move.nameEn} | ${move.category} | ${power} | ${accuracy} | ${description} |\n`;
+    body += `| ${displayName} | ${move.nameEn} | ${move.category} | ${power} | ${accuracy} | ${description} |\n`;
   });
   body += `\n`;
 
@@ -179,7 +183,7 @@ async function createGitHubIssue(title: string, body: string): Promise<void> {
       // gh issue createコマンドを実行
       const command = `gh issue create --title "${title.replace(/"/g, '\\"')}" --body-file "${tempFile}"`;
       const { stdout, stderr } = await execAsync(command);
-      
+
       if (stderr && !stderr.includes('Creating issue')) {
         console.error(`エラー: ${stderr}`);
       } else {
@@ -310,11 +314,13 @@ async function main(): Promise<void> {
   try {
     await generateAbilityIssues(createIssues);
     await generateMoveIssues(createIssues);
-    
+
     if (createIssues) {
       console.log('\n✅ 全てのIssue作成が完了しました');
     } else {
-      console.log('\n💡 Issueを作成するには、--createオプションを付けて実行してください: npm run generate:issues -- --create');
+      console.log(
+        '\n💡 Issueを作成するには、--createオプションを付けて実行してください: npm run generate:issues -- --create',
+      );
     }
   } catch (error) {
     console.error('エラーが発生しました:', error);
