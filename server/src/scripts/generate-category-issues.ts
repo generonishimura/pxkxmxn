@@ -8,6 +8,13 @@ import { PrismaClient } from '@generated/prisma/client';
 import { AbilityRegistry } from '../modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '../modules/pokemon/domain/moves/move-registry';
 import { hasSpecialEffect } from './check-registry-coverage.spec';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+
+const execAsync = promisify(exec);
 
 // 環境変数を読み込む
 dotenv.config();
@@ -160,9 +167,40 @@ function getMoveCategoryDisplayName(category: string): string {
 }
 
 /**
+ * GitHub Issueを作成
+ */
+async function createGitHubIssue(title: string, body: string): Promise<void> {
+  try {
+    // 一時ファイルを作成して本文を書き込む
+    const tempFile = path.join(os.tmpdir(), `issue-body-${Date.now()}.md`);
+    fs.writeFileSync(tempFile, body, 'utf-8');
+
+    try {
+      // gh issue createコマンドを実行
+      const command = `gh issue create --title "${title.replace(/"/g, '\\"')}" --body-file "${tempFile}"`;
+      const { stdout, stderr } = await execAsync(command);
+      
+      if (stderr && !stderr.includes('Creating issue')) {
+        console.error(`エラー: ${stderr}`);
+      } else {
+        console.log(`✅ Issue作成成功: ${stdout.trim()}`);
+      }
+    } finally {
+      // 一時ファイルを削除
+      if (fs.existsSync(tempFile)) {
+        fs.unlinkSync(tempFile);
+      }
+    }
+  } catch (error: any) {
+    console.error(`Issue作成エラー: ${error.message}`);
+    // ghコマンドが失敗しても処理を続行
+  }
+}
+
+/**
  * 特性のカテゴリ別Issueを生成
  */
-async function generateAbilityIssues(): Promise<void> {
+async function generateAbilityIssues(createIssues: boolean = false): Promise<void> {
   console.log('=== 特性のカテゴリ別Issue生成 ===\n');
 
   const allAbilities = await prisma.ability.findMany({
@@ -198,14 +236,20 @@ async function generateAbilityIssues(): Promise<void> {
 
     console.log(`---\n`);
     console.log(`タイトル: ${title}\n`);
-    console.log(`本文:\n${body}\n`);
+    if (!createIssues) {
+      console.log(`本文:\n${body}\n`);
+    }
+
+    if (createIssues) {
+      await createGitHubIssue(title, body);
+    }
   }
 }
 
 /**
  * 技のカテゴリ別Issueを生成
  */
-async function generateMoveIssues(): Promise<void> {
+async function generateMoveIssues(createIssues: boolean = false): Promise<void> {
   console.log('\n\n=== 技のカテゴリ別Issue生成 ===\n');
 
   const allMoves = await prisma.move.findMany({
@@ -246,7 +290,13 @@ async function generateMoveIssues(): Promise<void> {
 
     console.log(`---\n`);
     console.log(`タイトル: ${title}\n`);
-    console.log(`本文:\n${body}\n`);
+    if (!createIssues) {
+      console.log(`本文:\n${body}\n`);
+    }
+
+    if (createIssues) {
+      await createGitHubIssue(title, body);
+    }
   }
 }
 
@@ -254,9 +304,18 @@ async function generateMoveIssues(): Promise<void> {
  * メイン処理
  */
 async function main(): Promise<void> {
+  // コマンドライン引数から--createオプションを確認
+  const createIssues = process.argv.includes('--create');
+
   try {
-    await generateAbilityIssues();
-    await generateMoveIssues();
+    await generateAbilityIssues(createIssues);
+    await generateMoveIssues(createIssues);
+    
+    if (createIssues) {
+      console.log('\n✅ 全てのIssue作成が完了しました');
+    } else {
+      console.log('\n💡 Issueを作成するには、--createオプションを付けて実行してください: npm run generate:issues -- --create');
+    }
   } catch (error) {
     console.error('エラーが発生しました:', error);
     process.exit(1);
