@@ -178,35 +178,28 @@ async function createGitHubIssue(title: string, body: string): Promise<void> {
 
     try {
       // gh issue createコマンドを実行（コマンドインジェクション対策のためspawnを使用）
-      const ghProcess = spawn('gh', [
-        'issue',
-        'create',
-        '--title',
-        title,
-        '--body-file',
-        tempFile,
-      ]);
+      const ghProcess = spawn('gh', ['issue', 'create', '--title', title, '--body-file', tempFile]);
 
       let stdout = '';
       let stderr = '';
 
-      ghProcess.stdout.on('data', (data) => {
+      ghProcess.stdout.on('data', data => {
         stdout += data.toString();
       });
 
-      ghProcess.stderr.on('data', (data) => {
+      ghProcess.stderr.on('data', data => {
         stderr += data.toString();
       });
 
       await new Promise<void>((resolve, reject) => {
-        ghProcess.on('close', (code) => {
+        ghProcess.on('close', code => {
           if (code === 0) {
             resolve();
           } else {
             reject(new Error(`gh command exited with code ${code}`));
           }
         });
-        ghProcess.on('error', (error) => {
+        ghProcess.on('error', error => {
           reject(error);
         });
       });
