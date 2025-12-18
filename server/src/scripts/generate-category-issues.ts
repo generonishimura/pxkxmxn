@@ -7,14 +7,11 @@ import * as dotenv from 'dotenv';
 import { PrismaClient } from '@generated/prisma/client';
 import { AbilityRegistry } from '../modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '../modules/pokemon/domain/moves/move-registry';
-import { hasSpecialEffect } from './check-registry-coverage.spec';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { hasSpecialEffect } from './move-utils';
+import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-
-const execAsync = promisify(exec);
 
 // 環境変数を読み込む
 dotenv.config();
@@ -180,9 +177,39 @@ async function createGitHubIssue(title: string, body: string): Promise<void> {
     fs.writeFileSync(tempFile, body, 'utf-8');
 
     try {
-      // gh issue createコマンドを実行
-      const command = `gh issue create --title "${title.replace(/"/g, '\\"')}" --body-file "${tempFile}"`;
-      const { stdout, stderr } = await execAsync(command);
+      // gh issue createコマンドを実行（コマンドインジェクション対策のためspawnを使用）
+      const ghProcess = spawn('gh', [
+        'issue',
+        'create',
+        '--title',
+        title,
+        '--body-file',
+        tempFile,
+      ]);
+
+      let stdout = '';
+      let stderr = '';
+
+      ghProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      ghProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        ghProcess.on('close', (code) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`gh command exited with code ${code}`));
+          }
+        });
+        ghProcess.on('error', (error) => {
+          reject(error);
+        });
+      });
 
       if (stderr && !stderr.includes('Creating issue')) {
         console.error(`エラー: ${stderr}`);
@@ -195,8 +222,12 @@ async function createGitHubIssue(title: string, body: string): Promise<void> {
         fs.unlinkSync(tempFile);
       }
     }
-  } catch (error: any) {
-    console.error(`Issue作成エラー: ${error.message}`);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`Issue作成エラー: ${error.message}`);
+    } else {
+      console.error('Issue作成エラー:', error);
+    }
     // ghコマンドが失敗しても処理を続行
   }
 }

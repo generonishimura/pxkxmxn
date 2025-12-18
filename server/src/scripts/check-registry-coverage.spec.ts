@@ -7,32 +7,12 @@ import * as dotenv from 'dotenv';
 import { PrismaClient } from '@generated/prisma/client';
 import { AbilityRegistry } from '../modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '../modules/pokemon/domain/moves/move-registry';
+import { hasSpecialEffect } from './move-utils';
 
 // 環境変数を読み込む
 dotenv.config();
 
 const prisma = new PrismaClient();
-
-/**
- * 技が特殊効果を持つかどうかを判定
- */
-function hasSpecialEffect(move: { description: string | null; category: string }): boolean {
-  const description = move.description?.toLowerCase() || '';
-  return (
-    description.includes('burn') ||
-    description.includes('paralyze') ||
-    description.includes('freeze') ||
-    description.includes('poison') ||
-    description.includes('sleep') ||
-    description.includes('flinch') ||
-    description.includes('stat') ||
-    description.includes('weather') ||
-    description.includes('recoil') ||
-    description.includes('multi-hit') ||
-    description.includes('priority') ||
-    move.category === 'Status' // 変化技は全て特殊効果を持つ可能性がある
-  );
-}
 
 /**
  * 特性レジストリの網羅性をチェック
@@ -378,5 +358,4 @@ export {
   checkMoveRegistryCoverage,
   getAbilityCategoryData,
   getMoveCategoryData,
-  hasSpecialEffect,
 };
