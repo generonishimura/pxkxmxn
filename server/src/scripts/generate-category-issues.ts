@@ -168,10 +168,33 @@ function getMoveCategoryDisplayName(category: string): string {
 }
 
 /**
+ * Issueタイトルを検証
+ * - 改行やその他の制御文字を含まないことを確認する
+ * @param title 検証するタイトル
+ * @throws Error タイトルが無効な場合
+ */
+function validateIssueTitle(title: string): void {
+  // 改行を含むかチェック
+  if (title.includes('\n') || title.includes('\r')) {
+    throw new Error('Issueタイトルに改行文字が含まれています。');
+  }
+  // 制御文字を含むかチェック（ASCII制御文字: 0x00-0x1F, 0x7F）
+  for (let i = 0; i < title.length; i++) {
+    const charCode = title.charCodeAt(i);
+    if ((charCode >= 0x00 && charCode <= 0x1f) || charCode === 0x7f) {
+      throw new Error('Issueタイトルに制御文字が含まれています。');
+    }
+  }
+}
+
+/**
  * GitHub Issueを作成
  */
 async function createGitHubIssue(title: string, body: string): Promise<void> {
   try {
+    // タイトルの検証
+    validateIssueTitle(title);
+
     // 一時ファイルを作成して本文を書き込む
     const tempFile = path.join(os.tmpdir(), `issue-body-${Date.now()}.md`);
     fs.writeFileSync(tempFile, body, 'utf-8');
