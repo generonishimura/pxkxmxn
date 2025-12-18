@@ -164,7 +164,7 @@ describe('BaseMultipleStatusConditionEffect', () => {
       }
 
       const successCount = results.filter(r => r !== null).length;
-      // 10%の確率が2つある場合、少なくとも1つが成功する確率は約19%
+      // 2つの独立した10%の確率で少なくとも1つが成功する確率は約19% (1 - 0.9 × 0.9)
       // そのため、10%以上25%以下になることが期待される
       expect(successCount).toBeGreaterThan(10);
       expect(successCount).toBeLessThan(25);
@@ -186,7 +186,7 @@ describe('BaseMultipleStatusConditionEffect', () => {
       }
 
       const successCount = results.filter(r => r !== null).length;
-      // 10%の確率が2つある場合、少なくとも1つが成功する確率は約19%
+      // 2つの独立した10%の確率で少なくとも1つが成功する確率は約19% (1 - 0.9 × 0.9)
       // そのため、10%以上25%以下になることが期待される
       expect(successCount).toBeGreaterThan(10);
       expect(successCount).toBeLessThan(25);
@@ -214,7 +214,7 @@ describe('BaseMultipleStatusConditionEffect', () => {
       }
 
       const successCount = results.filter(r => r !== null).length;
-      // 10%の確率が2つある場合、少なくとも1つが成功する確率は約19%
+      // 2つの独立した10%の確率で少なくとも1つが成功する確率は約19% (1 - 0.9 × 0.9)
       // そのため、10%以上25%以下になることが期待される
       expect(successCount).toBeGreaterThan(10);
       expect(successCount).toBeLessThan(25);
@@ -242,7 +242,7 @@ describe('BaseMultipleStatusConditionEffect', () => {
       }
 
       const successCount = results.filter(r => r !== null).length;
-      // 10%の確率が2つある場合、少なくとも1つが成功する確率は約19%
+      // 2つの独立した10%の確率で少なくとも1つが成功する確率は約19% (1 - 0.9 × 0.9)
       // そのため、10%以上25%以下になることが期待される
       expect(successCount).toBeGreaterThan(10);
       expect(successCount).toBeLessThan(25);

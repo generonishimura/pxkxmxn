@@ -116,7 +116,7 @@ export abstract class BaseMultipleStatusConditionEffect implements IMoveEffect {
       }
     }
 
-    // メッセージを返す（複数の状態異常が付与された場合は結合）
+    // メッセージを返す（最初に付与された状態異常のメッセージのみ）
     return appliedStatuses.length > 0 ? appliedStatuses.join(' ') : null;
   }
 }
