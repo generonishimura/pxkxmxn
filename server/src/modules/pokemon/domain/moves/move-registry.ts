@@ -23,6 +23,21 @@ import { RainDanceEffect } from './effects/rain-dance-effect';
 import { SunnyDayEffect } from './effects/sunny-day-effect';
 import { SandstormMoveEffect } from './effects/sandstorm-effect';
 import { HailMoveEffect } from './effects/hail-effect';
+import { HazeEffect } from './effects/haze-effect';
+import { ExtremeEvoboostEffect } from './effects/extreme-evoboost-effect';
+import { AcupressureEffect } from './effects/acupressure-effect';
+import { PsychUpEffect } from './effects/psych-up-effect';
+import { HeartSwapEffect } from './effects/heart-swap-effect';
+import { TopsyTurvyEffect } from './effects/topsy-turvy-effect';
+import { PsychoShiftEffect } from './effects/psycho-shift-effect';
+import { HealBellEffect } from './effects/heal-bell-effect';
+import { AromatherapyEffect } from './effects/aromatherapy-effect';
+import { MistyTerrainEffect } from './effects/misty-terrain-effect';
+import { HealingWishEffect } from './effects/healing-wish-effect';
+import { StuffCheeksEffect } from './effects/stuff-cheeks-effect';
+import { MistEffect } from './effects/mist-effect';
+import { SafeguardEffect } from './effects/safeguard-effect';
+import { SubstituteEffect } from './effects/substitute-effect';
 
 /**
  * 技のレジストリ
@@ -74,6 +89,22 @@ export class MoveRegistry {
       this.registry.set('にほんばれ', new SunnyDayEffect());
       this.registry.set('すなあらし', new SandstormMoveEffect());
       this.registry.set('あられ', new HailMoveEffect());
+      // 能力変化系の変化技
+      this.registry.set('くろいきり', new HazeEffect());
+      this.registry.set('ナインエボルブースト', new ExtremeEvoboostEffect());
+      this.registry.set('つぼをつく', new AcupressureEffect());
+      this.registry.set('じこあんじ', new PsychUpEffect());
+      this.registry.set('ハートスワップ', new HeartSwapEffect());
+      this.registry.set('ひっくりかえす', new TopsyTurvyEffect());
+      this.registry.set('サイコシフト', new PsychoShiftEffect());
+      this.registry.set('いやしのすず', new HealBellEffect());
+      this.registry.set('アロマセラピー', new AromatherapyEffect());
+      this.registry.set('ミストフィールド', new MistyTerrainEffect());
+      this.registry.set('いやしのねがい', new HealingWishEffect());
+      this.registry.set('ほおばる', new StuffCheeksEffect());
+      this.registry.set('しろいきり', new MistEffect());
+      this.registry.set('しんぴのまもり', new SafeguardEffect());
+      this.registry.set('みがわり', new SubstituteEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
