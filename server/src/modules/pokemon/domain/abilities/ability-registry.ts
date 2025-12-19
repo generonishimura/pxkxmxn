@@ -27,6 +27,11 @@ import { PoisonPointEffect } from './effects/stat-change/poison-point-effect';
 import { StaticEffect } from './effects/stat-change/static-effect';
 import { FlameBodyEffect } from './effects/stat-change/flame-body-effect';
 import { MoldBreakerEffect } from './effects/mold-breaker-effect';
+import { ImmunityEffect } from './effects/immunity/immunity-effect';
+import { OwnTempoEffect } from './effects/immunity/own-tempo-effect';
+import { WaterVeilEffect } from './effects/immunity/water-veil-effect';
+import { VitalSpiritEffect } from './effects/immunity/vital-spirit-effect';
+import { WaterBubbleEffect } from './effects/immunity/water-bubble-effect';
 
 /**
  * 特性レジストリ
@@ -87,6 +92,12 @@ export class AbilityRegistry {
       this.registry.set('せいでんき', new StaticEffect());
       this.registry.set('もうふう', new FlameBodyEffect());
       this.registry.set(this.MOLD_BREAKER_ABILITY_NAME, new MoldBreakerEffect());
+      // 無効化カテゴリの特性
+      this.registry.set('めんえき', new ImmunityEffect());
+      this.registry.set('マイペース', new OwnTempoEffect());
+      this.registry.set('みずのベール', new WaterVeilEffect());
+      this.registry.set('やるき', new VitalSpiritEffect());
+      this.registry.set('すいほう', new WaterBubbleEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
