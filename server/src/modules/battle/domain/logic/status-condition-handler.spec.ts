@@ -303,9 +303,9 @@ describe('StatusConditionHandler', () => {
       expect(trueCount3).toBeLessThan(45);
     });
 
-    it('confusionTurnCount >= 3の場合は必ず解除', () => {
-      expect(StatusConditionHandler.shouldClearConfusion(3)).toBe(true);
-      expect(StatusConditionHandler.shouldClearConfusion(4)).toBe(true);
+    it('confusionTurnCount >= 4の場合は必ず解除', () => {
+      expect(StatusConditionHandler.shouldClearConfusion(3)).toBe(false); // 3ターン目は確率的に解除
+      expect(StatusConditionHandler.shouldClearConfusion(4)).toBe(true); // 4ターン目は必ず解除
       expect(StatusConditionHandler.shouldClearConfusion(100)).toBe(true);
     });
   });

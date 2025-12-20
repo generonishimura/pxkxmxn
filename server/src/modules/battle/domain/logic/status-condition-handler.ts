@@ -91,12 +91,12 @@ export class StatusConditionHandler {
   /**
    * 混乱による自分を攻撃する確率（33%）
    */
-  private static readonly CONFUSION_SELF_ATTACK_CHANCE = 0.33;
+  private static readonly CONFUSION_SELF_DAMAGE_CHANCE = 0.33;
 
   /**
    * 混乱が解除される確率（33%）
    *
-   * 現在は CONFUSION_SELF_ATTACK_CHANCE と同じ値だが、
+   * 現在は CONFUSION_SELF_DAMAGE_CHANCE と同じ値だが、
    * 「自傷確率」と「解除確率」は別概念のため定数を分離している。
    * 仕様変更時にはそれぞれ独立に調整可能。
    */
@@ -247,8 +247,8 @@ export class StatusConditionHandler {
    * @returns 自分を攻撃するかどうか
    */
   static shouldSelfAttackFromConfusion(): boolean {
-    // 混乱はCONFUSION_SELF_ATTACK_CHANCEの確率で自分を攻撃
-    return Math.random() < StatusConditionHandler.CONFUSION_SELF_ATTACK_CHANCE;
+    // 混乱はCONFUSION_SELF_DAMAGE_CHANCEの確率で自分を攻撃
+    return Math.random() < StatusConditionHandler.CONFUSION_SELF_DAMAGE_CHANCE;
   }
 
   /**
@@ -259,7 +259,7 @@ export class StatusConditionHandler {
    * 混乱の仕様（本メソッドにおける扱い）:
    * - confusionTurnCount は、混乱が付与されたターンを 0 とする累積ターン数。
    * - CONFUSION_MIN_TURNS 未満のターンでは、混乱は解除されない。
-   * - CONFUSION_MAX_TURNS - 1 以上のターンでは、混乱は必ず解除される。
+   * - CONFUSION_MAX_TURNS 以上のターンでは、混乱は必ず解除される。
    * - それ以外のターンでは、一定の確率（現在は33%）で混乱が解除される。
    */
   static shouldClearConfusion(confusionTurnCount: number): boolean {
@@ -267,8 +267,8 @@ export class StatusConditionHandler {
     if (confusionTurnCount < StatusConditionHandler.CONFUSION_MIN_TURNS) {
       return false;
     }
-    // 規定の最大ターン数（CONFUSION_MAX_TURNS - 1）に達したら、混乱は必ず解除される
-    if (confusionTurnCount >= StatusConditionHandler.CONFUSION_MAX_TURNS - 1) {
+    // 規定の最大ターン数（CONFUSION_MAX_TURNS）に達したら、混乱は必ず解除される
+    if (confusionTurnCount >= StatusConditionHandler.CONFUSION_MAX_TURNS) {
       return true;
     }
     // 上記以外のターンでは、一定確率（CONFUSION_CLEAR_CHANCE）で混乱が解除される
