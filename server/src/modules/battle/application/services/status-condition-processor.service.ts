@@ -19,9 +19,10 @@ import { StatusConditionHandler } from '../../domain/logic/status-condition-hand
  */
 @Injectable()
 export class StatusConditionProcessorService {
-  // もうどく・ねむりのターン数を追跡（バトルID -> バトルポケモンステータスID -> ターン数）
+  // もうどく・ねむり・こんらんのターン数を追跡（バトルID -> バトルポケモンステータスID -> ターン数）
   private badPoisonTurnCounts: Map<number, Map<number, number>> = new Map();
   private sleepTurnCounts: Map<number, Map<number, number>> = new Map();
+  private confusionTurnCounts: Map<number, Map<number, number>> = new Map();
 
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
@@ -107,6 +108,27 @@ export class StatusConditionProcessorService {
       return; // 早期リターンにより後続のダメージ計算をスキップ
     }
 
+    // こんらんのターン数を取得・更新
+    let confusionTurnCount = 0;
+    if (status.statusCondition === StatusCondition.Confusion) {
+      if (!this.confusionTurnCounts.has(battleId)) {
+        this.confusionTurnCounts.set(battleId, new Map());
+      }
+      const battleMap = this.confusionTurnCounts.get(battleId)!;
+      confusionTurnCount = battleMap.get(status.id) || 0;
+
+      // こんらんの自動解除判定
+      if (StatusConditionHandler.shouldClearConfusion(confusionTurnCount)) {
+        await this.battleRepository.updateBattlePokemonStatus(status.id, {
+          statusCondition: StatusCondition.None,
+        });
+        battleMap.delete(status.id);
+        return; // 早期リターンにより後続のダメージ計算をスキップ
+      }
+
+      battleMap.set(status.id, confusionTurnCount + 1);
+    }
+
     // ダメージを計算
     const damage = StatusConditionHandler.calculateTurnEndDamage(status, badPoisonTurnCount);
     if (damage > 0) {
@@ -134,6 +156,7 @@ export class StatusConditionProcessorService {
       [StatusCondition.BadPoison]: 'bad poison',
       [StatusCondition.Sleep]: 'sleep',
       [StatusCondition.Flinch]: 'flinch',
+      [StatusCondition.Confusion]: 'confusion',
     };
 
     return messages[statusCondition] || 'unknown status';

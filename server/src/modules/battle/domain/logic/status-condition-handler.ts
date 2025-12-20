@@ -35,6 +35,7 @@ export interface StatusConditionProcessResult {
  * - ねむり（Sleep）: 行動不能（1-3ターン後に自動解除）
  * - まひ（Paralysis）: 素早さ0.5倍（既存実装あり）、25%の確率で行動不能
  * - ひるみ（Flinch）: 行動不能（ターン終了時に自動解除、交代時は解除されない）
+ * - こんらん（Confusion）: 行動時に33%の確率で自分を攻撃（最大HPの1/3ダメージ）、1-4ターン後に自動解除
  */
 export class StatusConditionHandler {
   /**
@@ -88,6 +89,22 @@ export class StatusConditionHandler {
   private static readonly BAD_POISON_MAX_DAMAGE_RATIO = 8 / 16;
 
   /**
+   * 混乱による自分を攻撃する確率（33%）
+   */
+  private static readonly CONFUSION_SELF_ATTACK_CHANCE = 0.33;
+
+
+  /**
+   * 混乱の最小継続ターン数（1ターン）
+   */
+  private static readonly CONFUSION_MIN_TURNS = 1;
+
+  /**
+   * 混乱の最大継続ターン数（4ターン）
+   */
+  private static readonly CONFUSION_MAX_TURNS = 4;
+
+  /**
    * 状態異常による行動可能判定
    * @param status ポケモンの状態
    * @returns 行動可能かどうか
@@ -110,6 +127,9 @@ export class StatusConditionHandler {
       case StatusCondition.Flinch:
         // ひるみ: 行動不能（ターン終了時に自動解除）
         return false;
+      case StatusCondition.Confusion:
+        // こんらん: 行動可能（ただし行動時に自分を攻撃する可能性がある）
+        return true;
       default:
         return true;
     }
@@ -173,7 +193,7 @@ export class StatusConditionHandler {
     }
 
     // やけど・どく・もうどく・まひは交代時に解除
-    // こおり・ねむりも交代時に解除される（実装簡略化のため）
+    // こおり・ねむり・こんらんも交代時に解除される（実装簡略化のため）
     // ひるみは交代時に解除されない（次のターンまで継続）
     return [
       StatusCondition.Burn,
@@ -182,6 +202,7 @@ export class StatusConditionHandler {
       StatusCondition.Paralysis,
       StatusCondition.Freeze,
       StatusCondition.Sleep,
+      StatusCondition.Confusion,
     ].includes(statusCondition);
   }
 
@@ -211,5 +232,37 @@ export class StatusConditionHandler {
   static shouldClearFreeze(): boolean {
     // こおりはFREEZE_THAW_CHANCEの確率で解除（行動前に判定）
     return Math.random() < StatusConditionHandler.FREEZE_THAW_CHANCE;
+  }
+
+  /**
+   * 混乱による自分を攻撃するかどうかの判定
+   * @returns 自分を攻撃するかどうか
+   */
+  static shouldSelfAttackFromConfusion(): boolean {
+    // 混乱はCONFUSION_SELF_ATTACK_CHANCEの確率で自分を攻撃
+    return Math.random() < StatusConditionHandler.CONFUSION_SELF_ATTACK_CHANCE;
+  }
+
+
+  /**
+   * 混乱の自動解除判定
+   * @param confusionTurnCount 混乱のターン数（0から始まる）
+   * @returns 解除されるかどうか
+   */
+  static shouldClearConfusion(confusionTurnCount: number): boolean {
+    // 混乱は1-4ターン後に自動解除
+    // confusionTurnCount = 0: 混乱が付与されたターン（解除されない）
+    // confusionTurnCount = 1: 1ターン目（解除されない）
+    // confusionTurnCount = 2-3: 2-3ターン目（33%の確率で解除）
+    // confusionTurnCount >= 4: 4ターン目以降（必ず解除）
+    if (confusionTurnCount < StatusConditionHandler.CONFUSION_MIN_TURNS) {
+      return false; // 0ターン目は解除されない
+    }
+    // 4ターン目（confusionTurnCount = 3）以降は必ず解除
+    if (confusionTurnCount >= StatusConditionHandler.CONFUSION_MAX_TURNS - 1) {
+      return true;
+    }
+    // 2-3ターン目は33%の確率で解除
+    return Math.random() < StatusConditionHandler.CONFUSION_SELF_ATTACK_CHANCE;
   }
 }

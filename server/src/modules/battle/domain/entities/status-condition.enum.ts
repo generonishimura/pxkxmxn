@@ -10,4 +10,5 @@ export enum StatusCondition {
   BadPoison = 'BadPoison', // もうどく
   Sleep = 'Sleep', // ねむり
   Flinch = 'Flinch', // ひるみ
+  Confusion = 'Confusion', // こんらん
 }

@@ -47,7 +47,7 @@ describe('StatusConditionHandler', () => {
       expect(StatusConditionHandler.canAct(status)).toBe(false);
     });
 
-    it('やけど・どく・もうどくの場合は行動可能', () => {
+    it('やけど・どく・もうどく・こんらんの場合は行動可能', () => {
       expect(StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.Burn))).toBe(
         true,
       );
@@ -56,6 +56,9 @@ describe('StatusConditionHandler', () => {
       );
       expect(
         StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.BadPoison)),
+      ).toBe(true);
+      expect(
+        StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.Confusion)),
       ).toBe(true);
     });
 
@@ -123,7 +126,7 @@ describe('StatusConditionHandler', () => {
       expect(StatusConditionHandler.calculateTurnEndDamage(status, 100)).toBe(80);
     });
 
-    it('こおり・ねむり・まひ・ひるみの場合はダメージ0', () => {
+    it('こおり・ねむり・まひ・ひるみ・こんらんの場合はダメージ0', () => {
       expect(
         StatusConditionHandler.calculateTurnEndDamage(
           createBattlePokemonStatus(StatusCondition.Freeze, 100),
@@ -142,6 +145,11 @@ describe('StatusConditionHandler', () => {
       expect(
         StatusConditionHandler.calculateTurnEndDamage(
           createBattlePokemonStatus(StatusCondition.Flinch, 100),
+        ),
+      ).toBe(0);
+      expect(
+        StatusConditionHandler.calculateTurnEndDamage(
+          createBattlePokemonStatus(StatusCondition.Confusion, 100),
         ),
       ).toBe(0);
     });
@@ -189,6 +197,11 @@ describe('StatusConditionHandler', () => {
           createBattlePokemonStatus(StatusCondition.Flinch),
         ),
       ).toBe(1.0);
+      expect(
+        StatusConditionHandler.getPhysicalAttackMultiplier(
+          createBattlePokemonStatus(StatusCondition.Confusion),
+        ),
+      ).toBe(1.0);
     });
   });
 
@@ -198,13 +211,14 @@ describe('StatusConditionHandler', () => {
       expect(StatusConditionHandler.isClearedOnSwitch(null)).toBe(false);
     });
 
-    it('やけど・どく・もうどく・まひ・こおり・ねむりは交代時に解除される', () => {
+    it('やけど・どく・もうどく・まひ・こおり・ねむり・こんらんは交代時に解除される', () => {
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Burn)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Poison)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.BadPoison)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Paralysis)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Freeze)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Sleep)).toBe(true);
+      expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Confusion)).toBe(true);
     });
 
     it('ひるみは交代時に解除されない', () => {
@@ -252,6 +266,47 @@ describe('StatusConditionHandler', () => {
       // 20%の確率なので、10%以上30%以下になることが期待される
       expect(trueCount).toBeGreaterThan(10);
       expect(trueCount).toBeLessThan(30);
+    });
+  });
+
+  describe('shouldSelfAttackFromConfusion', () => {
+    it('33%の確率で自分を攻撃', () => {
+      const results: boolean[] = [];
+      for (let i = 0; i < 100; i++) {
+        results.push(StatusConditionHandler.shouldSelfAttackFromConfusion());
+      }
+      const trueCount = results.filter(r => r).length;
+      // 33%の確率なので、20%以上45%以下になることが期待される
+      expect(trueCount).toBeGreaterThan(20);
+      expect(trueCount).toBeLessThan(45);
+    });
+  });
+
+  describe('shouldClearConfusion', () => {
+    it('1ターン目は解除されない', () => {
+      expect(StatusConditionHandler.shouldClearConfusion(0)).toBe(false);
+    });
+
+    it('2-3ターン目は33%の確率で解除', () => {
+      const results2: boolean[] = [];
+      const results3: boolean[] = [];
+      for (let i = 0; i < 100; i++) {
+        results2.push(StatusConditionHandler.shouldClearConfusion(1));
+        results3.push(StatusConditionHandler.shouldClearConfusion(2));
+      }
+      const trueCount2 = results2.filter(r => r).length;
+      const trueCount3 = results3.filter(r => r).length;
+      // 33%の確率なので、20%以上45%以下になることが期待される
+      expect(trueCount2).toBeGreaterThan(20);
+      expect(trueCount2).toBeLessThan(45);
+      expect(trueCount3).toBeGreaterThan(20);
+      expect(trueCount3).toBeLessThan(45);
+    });
+
+    it('4ターン目以降は必ず解除', () => {
+      expect(StatusConditionHandler.shouldClearConfusion(3)).toBe(true);
+      expect(StatusConditionHandler.shouldClearConfusion(4)).toBe(true);
+      expect(StatusConditionHandler.shouldClearConfusion(100)).toBe(true);
     });
   });
 });
