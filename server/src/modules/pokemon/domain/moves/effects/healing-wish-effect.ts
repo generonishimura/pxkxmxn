@@ -10,6 +10,11 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
  * 注意: 現時点では、交代ポケモンの特定が難しいため、パーティ全体の状態異常を回復する簡易実装
  */
 export class HealingWishEffect implements IMoveEffect {
+  /**
+   * ひんし状態のHP値
+   */
+  private static readonly FAINTED_HP = 0;
+
   async onUse(
     attacker: BattlePokemonStatus,
     _defender: BattlePokemonStatus,
@@ -48,7 +53,7 @@ export class HealingWishEffect implements IMoveEffect {
 
     // 自分をひんしにする
     await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {
-      currentHp: 0,
+      currentHp: HealingWishEffect.FAINTED_HP,
     });
 
     return 'The user fainted! Its replacement will be healed!';
