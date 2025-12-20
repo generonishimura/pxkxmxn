@@ -251,7 +251,6 @@ export class StatusConditionHandler {
     return Math.random() < StatusConditionHandler.CONFUSION_SELF_ATTACK_CHANCE;
   }
 
-
   /**
    * 混乱の自動解除判定
    * @param confusionTurnCount 混乱が付与されてから経過したターン数（0から始まる）

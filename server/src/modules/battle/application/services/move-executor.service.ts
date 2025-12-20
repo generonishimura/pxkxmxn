@@ -150,9 +150,7 @@ export class MoveExecutorService {
         moveEffectMessage = await moveEffect.onUse(attacker, defender, battleContext);
       }
 
-      return moveEffectMessage
-        ? `Used ${move.name} ${moveEffectMessage}`
-        : `Used ${move.name}`;
+      return moveEffectMessage ? `Used ${move.name} ${moveEffectMessage}` : `Used ${move.name}`;
     }
 
     // タイプ相性を取得
