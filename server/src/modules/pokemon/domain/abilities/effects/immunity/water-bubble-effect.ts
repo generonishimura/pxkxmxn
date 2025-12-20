@@ -43,4 +43,3 @@ export class WaterBubbleEffect extends BaseStatusConditionImmunityEffect {
     return damage;
   }
 }
-
