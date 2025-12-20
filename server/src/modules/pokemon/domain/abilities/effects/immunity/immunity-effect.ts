@@ -2,7 +2,7 @@ import { BaseStatusConditionImmunityEffect } from '../base/base-status-condition
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 
 /**
- * めんえき（Immunity）特性の効果
+ * めんえき特性（英語名: Immunity）の効果
  * どく・もうどく無効化
  */
 export class ImmunityEffect extends BaseStatusConditionImmunityEffect {
