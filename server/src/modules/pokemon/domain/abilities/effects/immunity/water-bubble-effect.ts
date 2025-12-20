@@ -8,6 +8,11 @@ import { BattleContext } from '../../battle-context.interface';
  * やけど無効化 + ほのおタイプのダメージ半減
  */
 export class WaterBubbleEffect extends BaseStatusConditionImmunityEffect {
+  /**
+   * ほのおタイプのダメージを半減する倍率
+   */
+  private static readonly FIRE_TYPE_DAMAGE_MULTIPLIER = 0.5;
+
   protected readonly immuneStatusConditions = [StatusCondition.Burn] as const;
 
   /**
@@ -26,7 +31,7 @@ export class WaterBubbleEffect extends BaseStatusConditionImmunityEffect {
 
     // ほのおタイプの技の場合はダメージを半減
     if (battleContext.moveTypeName === 'ほのお') {
-      return Math.floor(damage * 0.5);
+      return Math.floor(damage * WaterBubbleEffect.FIRE_TYPE_DAMAGE_MULTIPLIER);
     }
 
     // ほのおタイプでない場合は修正しない
