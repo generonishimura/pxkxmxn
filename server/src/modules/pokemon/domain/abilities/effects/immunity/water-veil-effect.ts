@@ -2,7 +2,7 @@ import { BaseStatusConditionImmunityEffect } from '../base/base-status-condition
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 
 /**
- * みずのベール（Water Veil）特性の効果
+ * みずのベール（Water-veil）特性の効果
  * やけど無効化
  */
 export class WaterVeilEffect extends BaseStatusConditionImmunityEffect {

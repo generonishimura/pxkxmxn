@@ -4,16 +4,21 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../battle-context.interface';
 
 /**
- * すいほう（Water Bubble）特性の効果
- * やけど無効化 + ほのおタイプの技のダメージ半減
+ * すいほう（Water-bubble）特性の効果
+ * やけど無効化 + ほのおタイプのダメージ半減
  */
 export class WaterBubbleEffect extends BaseStatusConditionImmunityEffect {
-  protected readonly immuneStatusConditions = [StatusCondition.Burn] as const;
-
   /**
-   * ほのおタイプの技のダメージ倍率
+   * ほのおタイプのダメージを半減する倍率
    */
   private static readonly FIRE_TYPE_DAMAGE_MULTIPLIER = 0.5;
+
+  /**
+   * ほのおタイプの名前（日本語名）
+   */
+  private static readonly FIRE_TYPE_NAME = 'ほのお' as const;
+
+  protected readonly immuneStatusConditions = [StatusCondition.Burn] as const;
 
   /**
    * ダメージを受けるときに発動
@@ -30,7 +35,7 @@ export class WaterBubbleEffect extends BaseStatusConditionImmunityEffect {
     }
 
     // ほのおタイプの技の場合はダメージを半減
-    if (battleContext.moveTypeName === 'ほのお') {
+    if (battleContext.moveTypeName === WaterBubbleEffect.FIRE_TYPE_NAME) {
       return Math.floor(damage * WaterBubbleEffect.FIRE_TYPE_DAMAGE_MULTIPLIER);
     }
 
@@ -38,4 +43,3 @@ export class WaterBubbleEffect extends BaseStatusConditionImmunityEffect {
     return damage;
   }
 }
-

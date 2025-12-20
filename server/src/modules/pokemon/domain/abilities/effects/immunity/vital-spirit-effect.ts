@@ -2,7 +2,7 @@ import { BaseStatusConditionImmunityEffect } from '../base/base-status-condition
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 
 /**
- * やるき（Vital Spirit）特性の効果
+ * やるき（Vital-spirit）特性の効果
  * ねむり無効化
  */
 export class VitalSpiritEffect extends BaseStatusConditionImmunityEffect {
