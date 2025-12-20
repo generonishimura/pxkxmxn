@@ -61,3 +61,4 @@ export class HealingWishEffect implements IMoveEffect {
     return 'The user fainted! Its replacement will be healed!';
   }
 }
+

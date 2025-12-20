@@ -65,3 +65,4 @@ export class AcupressureEffect implements IMoveEffect {
     return `${statName} sharply rose!`;
   }
 }
+

@@ -65,3 +65,4 @@ export class ExtremeEvoboostEffect implements IMoveEffect {
     return 'All stats sharply rose!';
   }
 }
+
