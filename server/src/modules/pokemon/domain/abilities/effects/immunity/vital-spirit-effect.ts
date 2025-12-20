@@ -8,4 +8,3 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 export class VitalSpiritEffect extends BaseStatusConditionImmunityEffect {
   protected readonly immuneStatusConditions = [StatusCondition.Sleep] as const;
 }
-

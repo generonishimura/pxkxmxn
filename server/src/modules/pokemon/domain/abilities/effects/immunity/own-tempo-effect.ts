@@ -11,4 +11,3 @@ import { BaseStatusConditionImmunityEffect } from '../base/base-status-condition
 export class OwnTempoEffect extends BaseStatusConditionImmunityEffect {
   protected readonly immuneStatusConditions = [] as const;
 }
-

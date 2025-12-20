@@ -8,4 +8,3 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 export class WaterVeilEffect extends BaseStatusConditionImmunityEffect {
   protected readonly immuneStatusConditions = [StatusCondition.Burn] as const;
 }
-

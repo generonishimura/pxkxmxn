@@ -11,4 +11,3 @@ export class ImmunityEffect extends BaseStatusConditionImmunityEffect {
     StatusCondition.BadPoison,
   ] as const;
 }
-
