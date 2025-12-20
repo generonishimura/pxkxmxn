@@ -4,10 +4,13 @@ import { BattleContext } from '../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 
 /**
- * 「ほおばる」の特殊効果実装
+ * 「ほおばる」の特殊効果実装（本プロジェクト独自仕様）
  *
- * 効果: ダメージを与えた後、パーティ全体の状態異常を回復
- * 注意: ダメージ技なので、afterDamageで処理する
+ * 効果: ダメージを与えた後、同じトレーナーのポケモン（パーティ）全体の状態異常を回復する
+ * 注意: ダメージ技として扱うため、afterDamageで処理する
+ *
+ * ※公式の『ほおばる』は「きのみを食べて自分の防御を2段階上げる」変化技ですが、
+ *   本実装ではパーティ全体の状態異常回復というカスタム効果になっています。
  */
 export class StuffCheeksEffect implements IMoveEffect {
   async afterDamage(

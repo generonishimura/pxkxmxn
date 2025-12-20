@@ -40,8 +40,8 @@ export class AcupressureEffect implements IMoveEffect {
     const randomIndex = Math.floor(Math.random() * AcupressureEffect.STAT_TYPES.length);
     const statType = AcupressureEffect.STAT_TYPES[randomIndex];
 
-    // 現在のランクを取得
-    const currentRank = attacker.getStatRank(statType);
+    // 現在のランクを取得（STAT_RANK_PROP_MAP 経由でプロパティから取得）
+    const currentRank = attacker[STAT_RANK_PROP_MAP[statType]] as number;
 
     // 2段階上昇
     const newRank = Math.max(-6, Math.min(6, currentRank + AcupressureEffect.RANK_BOOST));

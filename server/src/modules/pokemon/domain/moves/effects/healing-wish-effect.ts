@@ -4,10 +4,12 @@ import { BattleContext } from '../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 
 /**
- * 「いやしのねがい」の特殊効果実装
+ * 「いやしのねがい」の特殊効果実装（簡易実装）
  *
  * 効果: 自分がひんしになり、交代ポケモンのHPと状態異常を回復
- * 注意: 現時点では、交代ポケモンの特定が難しいため、パーティ全体の状態異常を回復する簡易実装
+ * 注意: 現時点では、交代ポケモンの特定が難しいため、同じトレーナーのパーティ全体の
+ *      HPと状態異常を回復する簡易実装となっています。
+ *      本来は次に出てくる1体のポケモンのみを回復する技です。
  */
 export class HealingWishEffect implements IMoveEffect {
   /**
