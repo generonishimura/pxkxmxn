@@ -93,6 +93,14 @@ export class StatusConditionHandler {
    */
   private static readonly CONFUSION_SELF_ATTACK_CHANCE = 0.33;
 
+  /**
+   * 混乱が解除される確率（33%）
+   *
+   * 現在は CONFUSION_SELF_ATTACK_CHANCE と同じ値だが、
+   * 「自傷確率」と「解除確率」は別概念のため定数を分離している。
+   * 仕様変更時にはそれぞれ独立に調整可能。
+   */
+  private static readonly CONFUSION_CLEAR_CHANCE = 0.33;
 
   /**
    * 混乱の最小継続ターン数（1ターン）
@@ -246,23 +254,25 @@ export class StatusConditionHandler {
 
   /**
    * 混乱の自動解除判定
-   * @param confusionTurnCount 混乱のターン数（0から始まる）
+   * @param confusionTurnCount 混乱が付与されてから経過したターン数（0から始まる）
    * @returns 解除されるかどうか
+   *
+   * 混乱の仕様（本メソッドにおける扱い）:
+   * - confusionTurnCount は、混乱が付与されたターンを 0 とする累積ターン数。
+   * - CONFUSION_MIN_TURNS 未満のターンでは、混乱は解除されない。
+   * - CONFUSION_MAX_TURNS - 1 以上のターンでは、混乱は必ず解除される。
+   * - それ以外のターンでは、一定の確率（現在は33%）で混乱が解除される。
    */
   static shouldClearConfusion(confusionTurnCount: number): boolean {
-    // 混乱は1-4ターン後に自動解除
-    // confusionTurnCount = 0: 混乱が付与されたターン（解除されない）
-    // confusionTurnCount = 1: 1ターン目（解除されない）
-    // confusionTurnCount = 2-3: 2-3ターン目（33%の確率で解除）
-    // confusionTurnCount >= 4: 4ターン目以降（必ず解除）
+    // 規定の最小ターン数に満たない場合は、混乱は解除されない
     if (confusionTurnCount < StatusConditionHandler.CONFUSION_MIN_TURNS) {
-      return false; // 0ターン目は解除されない
+      return false;
     }
-    // 4ターン目（confusionTurnCount = 3）以降は必ず解除
+    // 規定の最大ターン数（CONFUSION_MAX_TURNS - 1）に達したら、混乱は必ず解除される
     if (confusionTurnCount >= StatusConditionHandler.CONFUSION_MAX_TURNS - 1) {
       return true;
     }
-    // 2-3ターン目は33%の確率で解除
-    return Math.random() < StatusConditionHandler.CONFUSION_SELF_ATTACK_CHANCE;
+    // 上記以外のターンでは、一定確率（CONFUSION_CLEAR_CHANCE）で混乱が解除される
+    return Math.random() < StatusConditionHandler.CONFUSION_CLEAR_CHANCE;
   }
 }

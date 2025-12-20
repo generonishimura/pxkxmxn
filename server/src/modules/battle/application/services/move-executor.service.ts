@@ -32,6 +32,12 @@ import { NotFoundException } from '@/shared/domain/exceptions';
  */
 @Injectable()
 export class MoveExecutorService {
+  /**
+   * 混乱の自傷専用に使用する「実在しないタイプID」。
+   * 通常のタイプIDが正の値である前提で負の値を利用する。
+   */
+  private static readonly CONFUSION_NON_EXISTENT_TYPE_ID = -1;
+
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
@@ -329,9 +335,6 @@ export class MoveExecutorService {
     attacker: BattlePokemonStatus,
     attackerTrainedPokemon: TrainedPokemon,
   ): Promise<number> {
-    // タイプ相性を取得
-    const typeEffectiveness = await this.typeEffectivenessRepository.getTypeEffectivenessMap();
-
     // 実際のステータス値を計算
     const attackerStats = this.calculateStats(attackerTrainedPokemon);
 
@@ -339,12 +342,14 @@ export class MoveExecutorService {
     // タイプなしの技を作成（タイプ相性は1.0倍、タイプ一致もなし）
     // タイプ相性を1.0倍として扱うため、タイプ相性マップに存在しないタイプIDを使用する
     // タイプ一致を適用しないため、ポケモンのタイプと一致しないタイプIDを使用する
-    // 存在しないタイプID（例: 999）を使用することで、タイプ相性が1.0倍、タイプ一致もなしとして扱われる
-    const nonExistentTypeId = 999; // 存在しないタイプID
-    const nonExistentType = new Type(nonExistentTypeId, 'なし', 'none'); // タイプなしを表現
+    const nonExistentType = new Type(
+      MoveExecutorService.CONFUSION_NON_EXISTENT_TYPE_ID,
+      'なし',
+      'none',
+    ); // タイプなしを表現
     const confusionMoveInfo: MoveInfo = {
       power: 40,
-      typeId: nonExistentTypeId, // 存在しないタイプIDを使用（タイプ相性は1.0倍、タイプ一致もなし）
+      typeId: MoveExecutorService.CONFUSION_NON_EXISTENT_TYPE_ID, // 存在しないタイプIDを使用（タイプ相性は1.0倍、タイプ一致もなし）
       category: 'Physical',
       accuracy: null, // 必中
     };

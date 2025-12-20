@@ -283,11 +283,11 @@ describe('StatusConditionHandler', () => {
   });
 
   describe('shouldClearConfusion', () => {
-    it('1ターン目は解除されない', () => {
+    it('0ターン目（混乱付与ターン）は解除されない', () => {
       expect(StatusConditionHandler.shouldClearConfusion(0)).toBe(false);
     });
 
-    it('2-3ターン目は33%の確率で解除', () => {
+    it('confusionTurnCount = 1, 2の場合は33%の確率で解除', () => {
       const results2: boolean[] = [];
       const results3: boolean[] = [];
       for (let i = 0; i < 100; i++) {
@@ -303,7 +303,7 @@ describe('StatusConditionHandler', () => {
       expect(trueCount3).toBeLessThan(45);
     });
 
-    it('4ターン目以降は必ず解除', () => {
+    it('confusionTurnCount >= 3の場合は必ず解除', () => {
       expect(StatusConditionHandler.shouldClearConfusion(3)).toBe(true);
       expect(StatusConditionHandler.shouldClearConfusion(4)).toBe(true);
       expect(StatusConditionHandler.shouldClearConfusion(100)).toBe(true);
