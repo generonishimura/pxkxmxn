@@ -22,6 +22,11 @@ export class AcupressureEffect implements IMoveEffect {
     'evasion',
   ];
 
+  /**
+   * ステータスランクの上昇量（段階）
+   */
+  private static readonly RANK_BOOST = 2;
+
   async onUse(
     attacker: BattlePokemonStatus,
     _defender: BattlePokemonStatus,
@@ -39,7 +44,7 @@ export class AcupressureEffect implements IMoveEffect {
     const currentRank = attacker.getStatRank(statType);
 
     // 2段階上昇
-    const newRank = Math.max(-6, Math.min(6, currentRank + 2));
+    const newRank = Math.max(-6, Math.min(6, currentRank + AcupressureEffect.RANK_BOOST));
 
     // ランクが変化しない場合は何もしない
     if (newRank === currentRank) {
