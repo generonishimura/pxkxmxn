@@ -19,6 +19,9 @@ import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemo
 import { DamageCalculator, MoveInfo } from '../../domain/logic/damage-calculator';
 import { AccuracyCalculator } from '../../domain/logic/accuracy-calculator';
 import { StatCalculator } from '../../domain/logic/stat-calculator';
+import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
+import { StatusCondition } from '../../domain/entities/status-condition.enum';
+import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { NotFoundException } from '@/shared/domain/exceptions';
@@ -29,6 +32,23 @@ import { NotFoundException } from '@/shared/domain/exceptions';
  */
 @Injectable()
 export class MoveExecutorService {
+  /**
+   * 混乱の自傷専用に使用する「実在しないタイプID」。
+   *
+   * この値は混乱時の自傷ダメージ計算で使用され、タイプ相性を1.0倍（無効化なし）として扱うために使用される。
+   *
+   * 前提条件:
+   * - Prismaスキーマでは、TypeのIDは`@id @default(autoincrement())`で定義されており、
+   *   PostgreSQLのSERIAL型（自動インクリメント）を使用している。
+   * - これにより、データベースに保存されるTypeのIDは常に正の値（1以上）となる。
+   *
+   * この前提が破られた場合の影響:
+   * - もし将来的にTypeのIDとして負の値や0が使用されるようになった場合、
+   *   この定数と衝突する可能性がある。
+   * - その場合は、この定数の値を変更するか、別の方法（例: 特別な定数値の使用）を検討する必要がある。
+   */
+  private static readonly CONFUSION_NON_EXISTENT_TYPE_ID = -1;
+
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
@@ -71,6 +91,24 @@ export class MoveExecutorService {
         ? attacker.trainedPokemonId
         : defender.trainedPokemonId;
       throw new NotFoundException('TrainedPokemon', missingId);
+    }
+
+    // 混乱状態の判定（技を使おうとしたときに自分を攻撃する可能性がある）
+    if (attacker.statusCondition === StatusCondition.Confusion) {
+      if (StatusConditionHandler.shouldSelfAttackFromConfusion()) {
+        // 自分を攻撃する場合、技を使わずに自分にダメージを与える
+        // 混乱の自傷ダメージはタイプなしで威力40の物理攻撃として計算
+        const selfDamage = await this.calculateConfusionSelfDamage(
+          battle,
+          attacker,
+          attackerTrainedPokemon,
+        );
+        const newHp = Math.max(0, attacker.currentHp - selfDamage);
+        await this.battleRepository.updateBattlePokemonStatus(attacker.id, {
+          currentHp: newHp,
+        });
+        return `Pokemon is confused and hurt itself in confusion (${selfDamage} damage)`;
+      }
     }
 
     // バトルコンテキストを作成（技の特殊効果用）
@@ -123,9 +161,7 @@ export class MoveExecutorService {
         moveEffectMessage = await moveEffect.onUse(attacker, defender, battleContext);
       }
 
-      return moveEffectMessage
-        ? `Used ${move.name} ${moveEffectMessage}`
-        : `Used ${move.name}`;
+      return moveEffectMessage ? `Used ${move.name} ${moveEffectMessage}` : `Used ${move.name}`;
     }
 
     // タイプ相性を取得
@@ -293,5 +329,68 @@ export class MoveExecutorService {
       specialDefense: stats.specialDefense,
       speed: stats.speed,
     };
+  }
+
+  /**
+   * 混乱による自分へのダメージを計算
+   * 混乱の自傷ダメージはタイプなしで威力40の物理攻撃として計算
+   * @param battle バトル
+   * @param attacker 攻撃側（自分自身）
+   * @param attackerTrainedPokemon 攻撃側の育成個体
+   * @returns 受けるダメージ
+   */
+  private async calculateConfusionSelfDamage(
+    battle: Battle,
+    attacker: BattlePokemonStatus,
+    attackerTrainedPokemon: TrainedPokemon,
+  ): Promise<number> {
+    // 実際のステータス値を計算
+    const attackerStats = this.calculateStats(attackerTrainedPokemon);
+
+    // 混乱の自傷ダメージはタイプなしで威力40の物理攻撃
+    // タイプなしの技を作成（タイプ相性は1.0倍、タイプ一致もなし）
+    // タイプ相性を1.0倍として扱うため、タイプ相性マップに存在しないタイプIDを使用する
+    // タイプ一致を適用しないため、ポケモンのタイプと一致しないタイプIDを使用する
+    const nonExistentType = new Type(
+      MoveExecutorService.CONFUSION_NON_EXISTENT_TYPE_ID,
+      'なし',
+      'none',
+    ); // タイプなしを表現
+    const confusionMoveInfo: MoveInfo = {
+      power: 40,
+      typeId: MoveExecutorService.CONFUSION_NON_EXISTENT_TYPE_ID, // 存在しないタイプIDを使用（タイプ相性は1.0倍、タイプ一致もなし）
+      category: 'Physical',
+      accuracy: null, // 必中
+    };
+
+    // タイプ相性を1.0倍として扱うため、タイプ相性マップを空にする
+    // タイプ相性マップに存在しないタイプIDを使用することで、タイプ相性が1.0倍として扱われる
+    const emptyTypeEffectiveness = new Map<string, number>();
+
+    // 自分自身を攻撃する（attacker = defender）
+    const damage = await DamageCalculator.calculate({
+      attacker,
+      defender: attacker, // 自分自身
+      move: confusionMoveInfo,
+      moveType: nonExistentType,
+      attackerTypes: {
+        primary: attackerTrainedPokemon.pokemon.primaryType,
+        secondary: attackerTrainedPokemon.pokemon.secondaryType,
+      },
+      defenderTypes: {
+        primary: attackerTrainedPokemon.pokemon.primaryType,
+        secondary: attackerTrainedPokemon.pokemon.secondaryType,
+      },
+      typeEffectiveness: emptyTypeEffectiveness, // タイプ相性を1.0倍として扱う
+      weather: battle.weather,
+      field: battle.field,
+      attackerAbilityName: attackerTrainedPokemon.ability?.name,
+      defenderAbilityName: attackerTrainedPokemon.ability?.name,
+      attackerStats: attackerStats,
+      defenderStats: attackerStats, // 自分自身なので同じステータス
+      battle,
+    });
+
+    return damage;
   }
 }

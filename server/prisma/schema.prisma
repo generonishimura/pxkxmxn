@@ -363,4 +363,5 @@ enum StatusCondition {
   BadPoison
   Sleep
   Flinch
+  Confusion
 }
