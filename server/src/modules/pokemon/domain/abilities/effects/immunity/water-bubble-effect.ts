@@ -13,6 +13,11 @@ export class WaterBubbleEffect extends BaseStatusConditionImmunityEffect {
    */
   private static readonly FIRE_TYPE_DAMAGE_MULTIPLIER = 0.5;
 
+  /**
+   * ほのおタイプの名前（日本語名）
+   */
+  private static readonly FIRE_TYPE_NAME = 'ほのお' as const;
+
   protected readonly immuneStatusConditions = [StatusCondition.Burn] as const;
 
   /**
@@ -30,7 +35,7 @@ export class WaterBubbleEffect extends BaseStatusConditionImmunityEffect {
     }
 
     // ほのおタイプの技の場合はダメージを半減
-    if (battleContext.moveTypeName === 'ほのお') {
+    if (battleContext.moveTypeName === WaterBubbleEffect.FIRE_TYPE_NAME) {
       return Math.floor(damage * WaterBubbleEffect.FIRE_TYPE_DAMAGE_MULTIPLIER);
     }
 
