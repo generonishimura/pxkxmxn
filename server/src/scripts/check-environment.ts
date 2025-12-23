@@ -16,6 +16,23 @@ interface CheckResult {
 
 const checks: CheckResult[] = [];
 
+/**
+ * エラーオブジェクトからエラーメッセージを取得する
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 async function checkNodeModules(): Promise<void> {
   const nodeModulesPath = path.join(__dirname, '../../node_modules');
   const exists = fs.existsSync(nodeModulesPath);
@@ -80,12 +97,13 @@ async function checkDockerContainer(): Promise<void> {
       passed: true,
       message: `PostgreSQLコンテナが起動しています: ${output.trim()}`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
     checks.push({
       name: 'PostgreSQLコンテナ',
       passed: false,
-      message: `Dockerコマンドの実行に失敗しました: ${error.message}`,
-      error: error.message,
+      message: `Dockerコマンドの実行に失敗しました: ${errorMessage}`,
+      error: errorMessage,
     });
   }
 }
@@ -110,28 +128,29 @@ async function checkPrismaClient(): Promise<void> {
 }
 
 async function checkDatabaseConnection(): Promise<void> {
+  const prisma = new PrismaClient();
   try {
     // Prismaクライアントを使用してデータベース接続をテスト
-    const prisma = new PrismaClient();
-
     await prisma.$connect();
 
     // 簡単なクエリを実行して接続を確認
     await prisma.$queryRaw`SELECT 1`;
 
-    await prisma.$disconnect();
     checks.push({
       name: 'データベース接続',
       passed: true,
       message: 'データベースへの接続に成功しました。',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
     checks.push({
       name: 'データベース接続',
       passed: false,
-      message: `データベースへの接続に失敗しました: ${error.message}`,
-      error: error.message,
+      message: `データベースへの接続に失敗しました: ${errorMessage}`,
+      error: errorMessage,
     });
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
@@ -168,12 +187,13 @@ async function checkApplicationStartup(): Promise<void> {
       passed: true,
       message: 'アプリケーションの起動に必要なファイルが存在します。',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
     checks.push({
       name: 'アプリケーション起動',
       passed: false,
-      message: `アプリケーション起動チェックに失敗しました: ${error.message}`,
-      error: error.message,
+      message: `アプリケーション起動チェックに失敗しました: ${errorMessage}`,
+      error: errorMessage,
     });
   }
 }
