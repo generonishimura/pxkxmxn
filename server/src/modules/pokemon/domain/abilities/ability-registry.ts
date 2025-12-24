@@ -32,6 +32,10 @@ import { OwnTempoEffect } from './effects/immunity/own-tempo-effect';
 import { WaterVeilEffect } from './effects/immunity/water-veil-effect';
 import { VitalSpiritEffect } from './effects/immunity/vital-spirit-effect';
 import { WaterBubbleEffect } from './effects/immunity/water-bubble-effect';
+import { CompoundEyesEffect } from './effects/other/compound-eyes-effect';
+import { InnerFocusEffect } from './effects/other/inner-focus-effect';
+import { LimberEffect } from './effects/other/limber-effect';
+import { MagmaArmorEffect } from './effects/other/magma-armor-effect';
 
 /**
  * 特性レジストリ
@@ -98,6 +102,11 @@ export class AbilityRegistry {
       this.registry.set('みずのベール', new WaterVeilEffect());
       this.registry.set('やるき', new VitalSpiritEffect());
       this.registry.set('すいほう', new WaterBubbleEffect());
+      // その他カテゴリの特性
+      this.registry.set('ふくがん', new CompoundEyesEffect());
+      this.registry.set('せいしんりょく', new InnerFocusEffect());
+      this.registry.set('じゅうなん', new LimberEffect());
+      this.registry.set('マグマのよろい', new MagmaArmorEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
