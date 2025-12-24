@@ -11,13 +11,13 @@ export class MagmaArmorEffect implements IAbilityEffect {
   /**
    * 状態異常を受けられるかどうかを判定
    * こおり状態異常を無効化する
-   * @param pokemon 対象のポケモン
+   * @param _pokemon 対象のポケモン
    * @param statusCondition 付与されようとしている状態異常
-   * @param battleContext バトルコンテキスト
+   * @param _battleContext バトルコンテキスト
    * @returns こおりの場合はfalse（無効化）、それ以外はundefined（判定しない）
    */
   canReceiveStatusCondition(
-    pokemon: BattlePokemonStatus,
+    _pokemon: BattlePokemonStatus,
     statusCondition: StatusCondition,
     _battleContext?: BattleContext,
   ): boolean | undefined {

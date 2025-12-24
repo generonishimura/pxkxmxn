@@ -11,13 +11,13 @@ export class CompoundEyesEffect implements IAbilityEffect {
 
   /**
    * 命中率を修正
-   * @param pokemon 対象のポケモン
+   * @param _pokemon 対象のポケモン
    * @param accuracy 現在の命中率（0-100）
-   * @param battleContext バトルコンテキスト
+   * @param _battleContext バトルコンテキスト
    * @returns 修正後の命中率（1.3倍）
    */
   modifyAccuracy(
-    pokemon: BattlePokemonStatus,
+    _pokemon: BattlePokemonStatus,
     accuracy: number,
     _battleContext?: BattleContext,
   ): number | undefined {

@@ -39,11 +39,7 @@ describe('LimberEffect', () => {
     });
 
     it('やけど状態異常は判定しない', () => {
-      const result = effect.canReceiveStatusCondition(
-        pokemon,
-        StatusCondition.Burn,
-        battleContext,
-      );
+      const result = effect.canReceiveStatusCondition(pokemon, StatusCondition.Burn, battleContext);
       expect(result).toBeUndefined();
     });
 
