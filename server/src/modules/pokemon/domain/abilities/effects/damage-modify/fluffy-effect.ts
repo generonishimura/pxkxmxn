@@ -42,6 +42,7 @@ export class FluffyEffect implements IAbilityEffect {
       // 接触技の判定は、moveCategoryがPhysicalの場合に接触技とみなす
       // 実際のゲームでは、技ごとに接触技かどうかの判定が必要だが、
       // 現時点ではPhysical技を接触技とみなす
+      // TODO: 技データに基づいて「接触技」かどうかを判定する実装に置き換える（Physical＝接触技という簡略化を解消する）
       return Math.floor(damage * FluffyEffect.CONTACT_MOVE_DAMAGE_MULTIPLIER);
     }
 

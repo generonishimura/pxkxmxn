@@ -22,10 +22,11 @@ export class SturdyEffect implements IAbilityEffect {
     }
 
     // 一撃必殺技の判定
-    // 現時点では、一撃必殺技の判定方法が不明のため、
-    // 将来的にBattleContextに一撃必殺技のフラグを追加する必要がある
+    // 現時点では、一撃必殺技であるかどうかを判定する情報がBattleContextに存在しないため、
+    // 将来的に BattleContext に「isOneHitKO（仮称）」のような一撃必殺技フラグを追加し、
+    // このメソッドの第3引数 battleContext からそのフラグを参照してがんじょう効果の適用可否を判定する必要がある。
     // 現時点では、すべてのダメージに対して効果を発動する
-    // TODO: 一撃必殺技の判定を追加
+    // TODO: BattleContext に一撃必殺技判定用フラグを追加し、battleContext.isOneHitKO が true の場合は本ダメージ補正処理をスキップする条件分岐を実装する
 
     // HP満タン時、ダメージが最大HP以上の場合、HPを1残すようにダメージを調整
     if (damage >= pokemon.maxHp) {
