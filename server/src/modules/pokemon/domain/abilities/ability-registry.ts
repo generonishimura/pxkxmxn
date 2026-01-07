@@ -22,6 +22,10 @@ import { DrizzleEffect } from './effects/weather/drizzle-effect';
 import { DroughtEffect } from './effects/weather/drought-effect';
 import { SandStreamEffect } from './effects/weather/sand-stream-effect';
 import { SnowWarningEffect } from './effects/weather/snow-warning-effect';
+import { MotorDriveEffect } from './effects/weather/motor-drive-effect';
+import { PsychicSurgeEffect } from './effects/weather/psychic-surge-effect';
+import { MistySurgeEffect } from './effects/weather/misty-surge-effect';
+import { GrassySurgeEffect } from './effects/weather/grassy-surge-effect';
 import { StickyWebEffect } from './effects/stat-change/sticky-web-effect';
 import { PoisonPointEffect } from './effects/stat-change/poison-point-effect';
 import { StaticEffect } from './effects/stat-change/static-effect';
@@ -90,6 +94,12 @@ export class AbilityRegistry {
       this.registry.set('ひでり', new DroughtEffect());
       this.registry.set('すなあらし', new SandStreamEffect());
       this.registry.set('ゆきふらし', new SnowWarningEffect());
+      // でんきエンジン: でんきタイプの技を無効化し、素早さを上げる特性
+      this.registry.set('でんきエンジン', new MotorDriveEffect());
+      // フィールドカテゴリの特性（フィールド展開）
+      this.registry.set('サイコメイカー', new PsychicSurgeEffect());
+      this.registry.set('ミストメイカー', new MistySurgeEffect());
+      this.registry.set('グラスメイカー', new GrassySurgeEffect());
       this.registry.set('ちょすい', new WaterAbsorbEffect());
       this.registry.set('はがねつかい', new SteelworkerEffect());
       this.registry.set('てきおうりょく', new AdaptabilityEffect());
