@@ -36,6 +36,14 @@ import { CompoundEyesEffect } from './effects/other/compound-eyes-effect';
 import { InnerFocusEffect } from './effects/other/inner-focus-effect';
 import { LimberEffect } from './effects/other/limber-effect';
 import { MagmaArmorEffect } from './effects/other/magma-armor-effect';
+import { SteelySpiritEffect } from './effects/damage-modify/steely-spirit-effect';
+import { SandForceEffect } from './effects/damage-modify/sand-force-effect';
+import { FluffyEffect } from './effects/damage-modify/fluffy-effect';
+import { SturdyEffect } from './effects/damage-modify/sturdy-effect';
+import { SniperEffect } from './effects/damage-modify/sniper-effect';
+import { TechnicianEffect } from './effects/damage-modify/technician-effect';
+import { RecklessEffect } from './effects/damage-modify/reckless-effect';
+import { SheerForceEffect } from './effects/damage-modify/sheer-force-effect';
 
 /**
  * 特性レジストリ
@@ -107,6 +115,15 @@ export class AbilityRegistry {
       this.registry.set('せいしんりょく', new InnerFocusEffect());
       this.registry.set('じゅうなん', new LimberEffect());
       this.registry.set('マグマのよろい', new MagmaArmorEffect());
+      // ダメージ修正カテゴリの特性
+      this.registry.set('はがねのせいしん', new SteelySpiritEffect());
+      this.registry.set('すなのちから', new SandForceEffect());
+      this.registry.set('もふもふ', new FluffyEffect());
+      this.registry.set('がんじょう', new SturdyEffect());
+      this.registry.set('スナイパー', new SniperEffect());
+      this.registry.set('テクニシャン', new TechnicianEffect());
+      this.registry.set('すてみ', new RecklessEffect());
+      this.registry.set('ちからずく', new SheerForceEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
