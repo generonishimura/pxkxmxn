@@ -65,4 +65,28 @@ export interface BattleContext {
    * かたやぶり特性の判定などで使用
    */
   attackerAbilityName?: string;
+
+  /**
+   * 技の威力
+   * テクニシャンなどの特性で使用
+   */
+  movePower?: number | null;
+
+  /**
+   * 急所が発生したかどうか
+   * スナイパーなどの特性で使用
+   */
+  isCriticalHit?: boolean;
+
+  /**
+   * 反動ダメージがある技かどうか
+   * すてみなどの特性で使用
+   */
+  hasRecoil?: boolean;
+
+  /**
+   * 追加効果がある技かどうか
+   * ちからずくなどの特性で使用
+   */
+  hasSecondaryEffect?: boolean;
 }
