@@ -71,27 +71,24 @@ describe('DefiantEffect', () => {
   });
 
   describe('onTurnEnd', () => {
-    it('should increase attack rank by 2 when opponent has stat decrease', async () => {
-      const opponentWithDecrease = new BattlePokemonStatus(
-        2, 1, 2, 2, true, 100, 100, -1, 0, 0, 0, 0, 0, 0, null,
+    it('should increase attack rank by 2 when pokemon has stat decrease', async () => {
+      const pokemonWithDecrease = new BattlePokemonStatus(
+        1, 1, 1, 1, true, 100, 100, -1, 0, 0, 0, 0, 0, 0, null,
       );
-      mockBattleRepository.findActivePokemonByBattleIdAndTrainerId.mockResolvedValue(opponentWithDecrease);
-      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(pokemon);
 
-      await effect.onTurnEnd(pokemon, battleContext);
+      await effect.onTurnEnd(pokemonWithDecrease, battleContext);
 
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        attackRank: 2,
+        attackRank: 1,
       });
     });
 
-    it('should not increase attack rank when opponent has no stat decrease', async () => {
-      const opponentWithoutDecrease = new BattlePokemonStatus(
-        2, 1, 2, 2, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, null,
+    it('should not increase attack rank when pokemon has no stat decrease', async () => {
+      const pokemonWithoutDecrease = new BattlePokemonStatus(
+        1, 1, 1, 1, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, null,
       );
-      mockBattleRepository.findActivePokemonByBattleIdAndTrainerId.mockResolvedValue(opponentWithoutDecrease);
 
-      await effect.onTurnEnd(pokemon, battleContext);
+      await effect.onTurnEnd(pokemonWithoutDecrease, battleContext);
 
       expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
@@ -101,21 +98,19 @@ describe('DefiantEffect', () => {
         ...battleContext,
         battleRepository: undefined,
       };
+      const pokemonWithDecrease = new BattlePokemonStatus(
+        1, 1, 1, 1, true, 100, 100, -1, 0, 0, 0, 0, 0, 0, null,
+      );
 
-      await effect.onTurnEnd(pokemon, contextWithoutRepository);
+      await effect.onTurnEnd(pokemonWithDecrease, contextWithoutRepository);
 
       expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
     it('should cap attack rank at 6', async () => {
       const pokemonWithHighRank = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 100, 100, 5, 0, 0, 0, 0, 0, 0, null,
+        1, 1, 1, 1, true, 100, 100, 5, -1, 0, 0, 0, 0, 0, null,
       );
-      const opponentWithDecrease = new BattlePokemonStatus(
-        2, 1, 2, 2, true, 100, 100, -1, 0, 0, 0, 0, 0, 0, null,
-      );
-      mockBattleRepository.findActivePokemonByBattleIdAndTrainerId.mockResolvedValue(opponentWithDecrease);
-      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(pokemonWithHighRank);
 
       await effect.onTurnEnd(pokemonWithHighRank, battleContext);
 
@@ -126,13 +121,8 @@ describe('DefiantEffect', () => {
 
     it('should not update when rank does not change', async () => {
       const pokemonAtMax = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 100, 100, 6, 0, 0, 0, 0, 0, 0, null,
+        1, 1, 1, 1, true, 100, 100, 6, -1, 0, 0, 0, 0, 0, null,
       );
-      const opponentWithDecrease = new BattlePokemonStatus(
-        2, 1, 2, 2, true, 100, 100, -1, 0, 0, 0, 0, 0, 0, null,
-      );
-      mockBattleRepository.findActivePokemonByBattleIdAndTrainerId.mockResolvedValue(opponentWithDecrease);
-      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(pokemonAtMax);
 
       await effect.onTurnEnd(pokemonAtMax, battleContext);
 
