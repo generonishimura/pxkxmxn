@@ -62,13 +62,49 @@ describe('MotorDriveEffect', () => {
     });
   });
 
-  describe('onEntry', () => {
-    it('should increase speed rank by 1 when onEntry is called', async () => {
-      await effect.onEntry(pokemon, battleContext);
+  describe('onAfterTakingDamage', () => {
+    beforeEach(() => {
+      battleContext.moveTypeName = 'でんき';
+      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(pokemon);
+    });
 
+    it('should increase speed rank by 1 when Electric type attack is absorbed', async () => {
+      await effect.onAfterTakingDamage(pokemon, 0, battleContext);
+
+      expect(mockBattleRepository.findBattlePokemonStatusById).toHaveBeenCalledWith(1);
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
         speedRank: 1,
       });
+    });
+
+    it('should not increase speed rank when non-Electric type attack', async () => {
+      const contextWithFire: BattleContext = {
+        ...battleContext,
+        moveTypeName: 'ほのお',
+      };
+      await effect.onAfterTakingDamage(pokemon, 0, contextWithFire);
+
+      expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+    });
+
+    it('should not increase speed rank when moveTypeName is undefined', async () => {
+      const contextWithoutType: BattleContext = {
+        ...battleContext,
+        moveTypeName: undefined,
+      };
+      await effect.onAfterTakingDamage(pokemon, 0, contextWithoutType);
+
+      expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+    });
+
+    it('should not increase speed rank when battleRepository is undefined', async () => {
+      const contextWithoutRepository: BattleContext = {
+        ...battleContext,
+        battleRepository: undefined,
+      };
+      await effect.onAfterTakingDamage(pokemon, 0, contextWithoutRepository);
+
+      expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
     it('should not exceed maximum speed rank of 6', async () => {
@@ -89,7 +125,9 @@ describe('MotorDriveEffect', () => {
         0, // evasionRank
         null, // statusCondition
       );
-      await effect.onEntry(pokemonWithMaxSpeed, battleContext);
+      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(pokemonWithMaxSpeed);
+
+      await effect.onAfterTakingDamage(pokemonWithMaxSpeed, 0, battleContext);
 
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
         speedRank: 6,
@@ -114,21 +152,13 @@ describe('MotorDriveEffect', () => {
         0, // evasionRank
         null, // statusCondition
       );
-      await effect.onEntry(pokemonWithMinSpeed, battleContext);
+      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(pokemonWithMinSpeed);
+
+      await effect.onAfterTakingDamage(pokemonWithMinSpeed, 0, battleContext);
 
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
         speedRank: -5,
       });
-    });
-
-    it('should not change speed rank when battleRepository is not provided', async () => {
-      const contextWithoutRepository: BattleContext = {
-        ...battleContext,
-        battleRepository: undefined,
-      };
-      await effect.onEntry(pokemon, contextWithoutRepository);
-
-      expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
   });
 });

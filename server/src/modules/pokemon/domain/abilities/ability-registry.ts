@@ -94,8 +94,9 @@ export class AbilityRegistry {
       this.registry.set('ひでり', new DroughtEffect());
       this.registry.set('すなあらし', new SandStreamEffect());
       this.registry.set('ゆきふらし', new SnowWarningEffect());
-      // 天候カテゴリの特性（フィールド展開）
+      // でんきエンジン: でんきタイプの技を無効化し、素早さを上げる特性
       this.registry.set('でんきエンジン', new MotorDriveEffect());
+      // フィールドカテゴリの特性（フィールド展開）
       this.registry.set('サイコメイカー', new PsychicSurgeEffect());
       this.registry.set('ミストメイカー', new MistySurgeEffect());
       this.registry.set('グラスメイカー', new GrassySurgeEffect());
