@@ -228,6 +228,7 @@ export class DamageCalculator {
               weather: params.weather,
               field: params.field,
               moveTypeName: params.moveType.name,
+              moveCategory: params.move.category,
             }
           : undefined;
         const modifiedDamage = await Promise.resolve(

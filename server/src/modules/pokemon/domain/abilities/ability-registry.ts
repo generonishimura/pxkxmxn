@@ -48,6 +48,13 @@ import { SniperEffect } from './effects/damage-modify/sniper-effect';
 import { TechnicianEffect } from './effects/damage-modify/technician-effect';
 import { RecklessEffect } from './effects/damage-modify/reckless-effect';
 import { SheerForceEffect } from './effects/damage-modify/sheer-force-effect';
+import { HugePowerEffect } from './effects/stat-change/huge-power-effect';
+import { QuickFeetEffect } from './effects/stat-change/quick-feet-effect';
+import { BigPecksEffect } from './effects/stat-change/big-pecks-effect';
+import { ScrappyEffect } from './effects/stat-change/scrappy-effect';
+import { DefiantEffect } from './effects/stat-change/defiant-effect';
+import { CompetitiveEffect } from './effects/stat-change/competitive-effect';
+import { BerserkEffect } from './effects/stat-change/berserk-effect';
 
 /**
  * 特性レジストリ
@@ -134,6 +141,14 @@ export class AbilityRegistry {
       this.registry.set('テクニシャン', new TechnicianEffect());
       this.registry.set('すてみ', new RecklessEffect());
       this.registry.set('ちからずく', new SheerForceEffect());
+      // ステータス変化カテゴリの特性
+      this.registry.set('ちからもち', new HugePowerEffect());
+      this.registry.set('はやあし', new QuickFeetEffect());
+      this.registry.set('はとむね', new BigPecksEffect());
+      this.registry.set('きもったま', new ScrappyEffect());
+      this.registry.set('まけんき', new DefiantEffect());
+      this.registry.set('かちき', new CompetitiveEffect());
+      this.registry.set('ぎゃくじょう', new BerserkEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
