@@ -38,6 +38,19 @@ import { StuffCheeksEffect } from './effects/stuff-cheeks-effect';
 import { MistEffect } from './effects/mist-effect';
 import { SafeguardEffect } from './effects/safeguard-effect';
 import { SubstituteEffect } from './effects/substitute-effect';
+import { EmberEffect } from './effects/ember-effect';
+import { FireBlastEffect } from './effects/fire-blast-effect';
+import { TriAttackEffect } from './effects/tri-attack-effect';
+import { HeatWaveEffect } from './effects/heat-wave-effect';
+import { LavaPlumeEffect } from './effects/lava-plume-effect';
+import { InfernoEffect } from './effects/inferno-effect';
+import { SearingShotEffect } from './effects/searing-shot-effect';
+import { ScaldEffect } from './effects/scald-effect';
+import { IceBurnEffect } from './effects/ice-burn-effect';
+import { SteamEruptionEffect } from './effects/steam-eruption-effect';
+import { BlueFlareEffect } from './effects/blue-flare-effect';
+import { SparklingAriaEffect } from './effects/sparkling-aria-effect';
+import { ScorchingSandsEffect } from './effects/scorching-sands-effect';
 
 /**
  * 技のレジストリ
@@ -105,6 +118,20 @@ export class MoveRegistry {
       this.registry.set('しろいきり', new MistEffect());
       this.registry.set('しんぴのまもり', new SafeguardEffect());
       this.registry.set('みがわり', new SubstituteEffect());
+      // やけど付与系の特殊技（Issue #93）
+      this.registry.set('ひのこ', new EmberEffect());
+      this.registry.set('だいもんじ', new FireBlastEffect());
+      this.registry.set('トライアタック', new TriAttackEffect());
+      this.registry.set('ねっぷう', new HeatWaveEffect());
+      this.registry.set('ふんえん', new LavaPlumeEffect());
+      this.registry.set('れんごく', new InfernoEffect());
+      this.registry.set('かえんだん', new SearingShotEffect());
+      this.registry.set('ねっとう', new ScaldEffect());
+      this.registry.set('コールドフレア', new IceBurnEffect());
+      this.registry.set('スチームバースト', new SteamEruptionEffect());
+      this.registry.set('あおいほのお', new BlueFlareEffect());
+      this.registry.set('うたかたのアリア', new SparklingAriaEffect());
+      this.registry.set('ねっさのだいち', new ScorchingSandsEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
