@@ -692,7 +692,11 @@ describe('ExecuteTurnUseCase', () => {
 
       // Assert
       expect(result.battle.turn).toBe(2);
-      expect(result.actions.some(a => a.result.includes('Status move'))).toBe(true);
+      // 変化技「なきごえ」が使われ、ダメージ表現（dealt, damage）が含まれないこと
+      expect(result.actions.some(a => a.result.includes('なきごえ'))).toBe(true);
+      expect(result.actions.some(a => a.result.includes('dealt') && a.result.includes('damage'))).toBe(
+        false,
+      );
       // 変化技はダメージを与えない
       expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalledWith(
         defenderStatus.id,
