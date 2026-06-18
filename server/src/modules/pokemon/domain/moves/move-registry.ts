@@ -89,6 +89,7 @@ import { TeeterDanceEffect } from './effects/teeter-dance-effect';
 import { SwaggerEffect } from './effects/swagger-effect';
 import { FlatterEffect } from './effects/flatter-effect';
 import { NoRetreatEffect } from './effects/no-retreat-effect';
+import { LightOfRuinEffect } from './effects/light-of-ruin-effect';
 
 /**
  * 技のレジストリ
@@ -221,6 +222,8 @@ export class MoveRegistry {
       this.registry.set('おだてる', new FlatterEffect());
       // 変化カテゴリひるみ付与系（Issue #121）
       this.registry.set('はいすいのじん', new NoRetreatEffect());
+      // 特殊カテゴリ反動ダメージ系（Issue #101）
+      this.registry.set('はめつのひかり', new LightOfRuinEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
