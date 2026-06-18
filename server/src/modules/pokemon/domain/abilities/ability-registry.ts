@@ -23,6 +23,8 @@ import { MultiscaleEffect } from './effects/damage-modify/multiscale-effect';
 import { GutsEffect } from './effects/stat-change/guts-effect';
 import { GutsHpThresholdEffect } from './effects/stat-change/kongyou-effect';
 import { ThickFatEffect } from './effects/damage-modify/thick-fat-effect';
+import { HeatproofEffect } from './effects/damage-modify/heatproof-effect';
+import { SpeedBoostEffect } from './effects/stat-change/speed-boost-effect';
 import { SteelworkerEffect } from './effects/damage-modify/steelworker-effect';
 import { AdaptabilityEffect } from './effects/damage-modify/adaptability-effect';
 import { ShinryokuEffect } from './effects/damage-modify/shinryoku-effect';
@@ -114,6 +116,9 @@ export class AbilityRegistry {
       this.registry.set('ふゆう', new LevitateEffect());
       this.registry.set('すいすい', new SwiftSwimEffect());
       this.registry.set('あついしぼう', new ThickFatEffect());
+      // たいねつ / かそく（Issue #84 一部）
+      this.registry.set('たいねつ', new HeatproofEffect());
+      this.registry.set('かそく', new SpeedBoostEffect());
       this.registry.set('ちくでん', new VoltAbsorbEffect());
       this.registry.set('もらいび', new FlashFireEffect());
       this.registry.set('あめふらし', new DrizzleEffect());
