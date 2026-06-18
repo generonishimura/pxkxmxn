@@ -63,6 +63,9 @@ import { IcePunchEffect } from './effects/ice-punch-effect';
 import { WakeUpSlapEffect } from './effects/wake-up-slap-effect';
 import { BlizzardEffect } from './effects/blizzard-effect';
 import { PowderSnowEffect } from './effects/powder-snow-effect';
+import { TwisterEffect } from './effects/twister-effect';
+import { ExtrasensoryEffect } from './effects/extrasensory-effect';
+import { DarkPulseEffect } from './effects/dark-pulse-effect';
 
 /**
  * 技のレジストリ
@@ -161,6 +164,10 @@ export class MoveRegistry {
       // 特殊カテゴリこおり付与系（Issue #95）
       this.registry.set('ふぶき', new BlizzardEffect());
       this.registry.set('こなゆき', new PowderSnowEffect());
+      // 特殊カテゴリひるみ付与系（Issue #98）
+      this.registry.set('たつまき', new TwisterEffect());
+      this.registry.set('じんつうりき', new ExtrasensoryEffect());
+      this.registry.set('あくのはどう', new DarkPulseEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
