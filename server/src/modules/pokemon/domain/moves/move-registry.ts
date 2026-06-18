@@ -76,6 +76,9 @@ import { SmogEffect } from './effects/smog-effect';
 import { SludgeEffect } from './effects/sludge-effect';
 import { SludgeBombEffect } from './effects/sludge-bomb-effect';
 import { SludgeWaveEffect } from './effects/sludge-wave-effect';
+import { StunSporeEffect } from './effects/stun-spore-effect';
+import { ThunderWaveEffect } from './effects/thunder-wave-effect';
+import { GlareEffect } from './effects/glare-effect';
 
 /**
  * 技のレジストリ
@@ -191,6 +194,10 @@ export class MoveRegistry {
       this.registry.set('ヘドロこうげき', new SludgeEffect());
       this.registry.set('ヘドロばくだん', new SludgeBombEffect());
       this.registry.set('ヘドロウェーブ', new SludgeWaveEffect());
+      // 変化カテゴリまひ付与系（Issue #109）
+      this.registry.set('しびれごな', new StunSporeEffect());
+      this.registry.set('でんじは', new ThunderWaveEffect());
+      this.registry.set('へびにらみ', new GlareEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
