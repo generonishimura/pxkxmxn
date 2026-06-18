@@ -8,6 +8,7 @@ import { LevitateEffect } from './effects/immunity/levitate-effect';
 import { VoltAbsorbEffect } from './effects/immunity/volt-absorb-effect';
 import { FlashFireEffect } from './effects/immunity/flash-fire-effect';
 import { WaterAbsorbEffect } from './effects/immunity/water-absorb-effect';
+import { SapSipperEffect } from './effects/immunity/sap-sipper-effect';
 import { ObliviousEffect } from './effects/oblivious-effect';
 import { MultiscaleEffect } from './effects/damage-modify/multiscale-effect';
 import { GutsEffect } from './effects/stat-change/guts-effect';
@@ -113,6 +114,8 @@ export class AbilityRegistry {
       this.registry.set('ミストメイカー', new MistySurgeEffect());
       this.registry.set('グラスメイカー', new GrassySurgeEffect());
       this.registry.set('ちょすい', new WaterAbsorbEffect());
+      // そうしょく: くさ無効 + 攻撃 +1（Issue #84 一部、Motor Drive と同パターン）
+      this.registry.set('そうしょく', new SapSipperEffect());
       this.registry.set('はがねつかい', new SteelworkerEffect());
       this.registry.set('てきおうりょく', new AdaptabilityEffect());
       this.registry.set('ようりょくそ', new ChlorophyllEffect());
