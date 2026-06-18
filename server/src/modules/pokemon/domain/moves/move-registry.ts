@@ -199,6 +199,9 @@ import { ShellSmashEffect } from './effects/shell-smash-effect';
 import { TickleEffect } from './effects/tickle-effect';
 import { NobleRoarEffect } from './effects/noble-roar-effect';
 import { TearfulLookEffect } from './effects/tearful-look-effect';
+import { BellyDrumEffect } from './effects/belly-drum-effect';
+import { PainSplitEffect } from './effects/pain-split-effect';
+import { MementoEffect } from './effects/memento-effect';
 
 /**
  * 技のレジストリ
@@ -458,6 +461,10 @@ export class MoveRegistry {
       this.registry.set('くすぐる', new TickleEffect());
       this.registry.set('おたけび', new NobleRoarEffect());
       this.registry.set('なみだめ', new TearfulLookEffect());
+      // 変化カテゴリ「その他」: HP 操作系（Issue #103 一部）
+      this.registry.set('はらだいこ', new BellyDrumEffect());
+      this.registry.set('いたみわけ', new PainSplitEffect());
+      this.registry.set('おきみやげ', new MementoEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
