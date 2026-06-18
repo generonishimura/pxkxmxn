@@ -138,6 +138,14 @@ import { HeartStampEffect } from './effects/heart-stamp-effect';
 import { SteamrollerEffect } from './effects/steamroller-effect';
 import { IcicleCrashEffect } from './effects/icicle-crash-effect';
 import { ZingZapEffect } from './effects/zing-zap-effect';
+import { SingEffect } from './effects/sing-effect';
+import { HypnosisEffect } from './effects/hypnosis-effect';
+import { LovelyKissEffect } from './effects/lovely-kiss-effect';
+import { SporeEffect } from './effects/spore-effect';
+import { GrassWhistleEffect } from './effects/grass-whistle-effect';
+import { DarkVoidEffect } from './effects/dark-void-effect';
+import { RestEffect } from './effects/rest-effect';
+import { ElectricTerrainEffect } from './effects/electric-terrain-effect';
 
 /**
  * 技のレジストリ
@@ -333,6 +341,15 @@ export class MoveRegistry {
       this.registry.set('ハードローラー', new SteamrollerEffect());
       this.registry.set('つららおとし', new IcicleCrashEffect());
       this.registry.set('びりびりちくちく', new ZingZapEffect());
+      // 変化カテゴリねむり関連（Issue #104）
+      this.registry.set('うたう', new SingEffect());
+      this.registry.set('さいみんじゅつ', new HypnosisEffect());
+      this.registry.set('あくまのキッス', new LovelyKissEffect());
+      this.registry.set('キノコのほうし', new SporeEffect());
+      this.registry.set('くさぶえ', new GrassWhistleEffect());
+      this.registry.set('ダークホール', new DarkVoidEffect());
+      this.registry.set('ねむる', new RestEffect());
+      this.registry.set('エレキフィールド', new ElectricTerrainEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
