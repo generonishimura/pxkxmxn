@@ -138,6 +138,7 @@ export class MoveRegistry {
       this.registry.set('つるぎのまい', new SwordsDanceEffect());
       // 天候変更系の変化技
       this.registry.set('あめをよぶ', new RainDanceEffect());
+      this.registry.set('あまごい', new RainDanceEffect()); // Issue #115: あめをよぶの別表記
       this.registry.set('にほんばれ', new SunnyDayEffect());
       this.registry.set('すなあらし', new SandstormMoveEffect());
       this.registry.set('あられ', new HailMoveEffect());
