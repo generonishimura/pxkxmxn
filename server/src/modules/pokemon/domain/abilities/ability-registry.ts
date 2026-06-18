@@ -50,6 +50,8 @@ import { WaterVeilEffect } from './effects/immunity/water-veil-effect';
 import { VitalSpiritEffect } from './effects/immunity/vital-spirit-effect';
 import { WaterBubbleEffect } from './effects/immunity/water-bubble-effect';
 import { CompoundEyesEffect } from './effects/other/compound-eyes-effect';
+import { PranksterEffect } from './effects/other/prankster-effect';
+import { NoGuardEffect } from './effects/other/no-guard-effect';
 import { InnerFocusEffect } from './effects/other/inner-focus-effect';
 import { LimberEffect } from './effects/other/limber-effect';
 import { MagmaArmorEffect } from './effects/other/magma-armor-effect';
@@ -163,6 +165,9 @@ export class AbilityRegistry {
       this.registry.set('リーフガード', new LeafGuardEffect());
       // その他カテゴリの特性
       this.registry.set('ふくがん', new CompoundEyesEffect());
+      // 優先度+命中率系（Issue #84 一部）
+      this.registry.set('いたずらごころ', new PranksterEffect());
+      this.registry.set('ノーガード', new NoGuardEffect());
       this.registry.set('せいしんりょく', new InnerFocusEffect());
       this.registry.set('じゅうなん', new LimberEffect());
       this.registry.set('マグマのよろい', new MagmaArmorEffect());
