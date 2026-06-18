@@ -53,6 +53,12 @@ import { SparklingAriaEffect } from './effects/sparkling-aria-effect';
 import { ScorchingSandsEffect } from './effects/scorching-sands-effect';
 import { WillOWispEffect } from './effects/will-o-wisp-effect';
 import { RefreshEffect } from './effects/refresh-effect';
+import { FirePunchEffect } from './effects/fire-punch-effect';
+import { FlameWheelEffect } from './effects/flame-wheel-effect';
+import { SacredFireEffect } from './effects/sacred-fire-effect';
+import { BlazeKickEffect } from './effects/blaze-kick-effect';
+import { FlareBlitzEffect } from './effects/flare-blitz-effect';
+import { PyroBallEffect } from './effects/pyro-ball-effect';
 
 /**
  * 技のレジストリ
@@ -137,6 +143,13 @@ export class MoveRegistry {
       // やけど付与系の変化技（Issue #116）
       this.registry.set('おにび', new WillOWispEffect());
       this.registry.set('リフレッシュ', new RefreshEffect());
+      // 物理カテゴリやけど付与系（Issue #123）
+      this.registry.set('ほのおのパンチ', new FirePunchEffect());
+      this.registry.set('かえんぐるま', new FlameWheelEffect());
+      this.registry.set('せいなるほのお', new SacredFireEffect());
+      this.registry.set('ブレイズキック', new BlazeKickEffect());
+      this.registry.set('フレアドライブ', new FlareBlitzEffect());
+      this.registry.set('かえんボール', new PyroBallEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
