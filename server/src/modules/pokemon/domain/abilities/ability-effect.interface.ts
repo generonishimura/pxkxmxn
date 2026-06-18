@@ -109,6 +109,29 @@ export interface IAbilityEffect {
   ): boolean | undefined;
 
   /**
+   * 能力ランク変更を受けられるかどうかを判定する効果
+   * @param pokemon 対象のポケモン
+   * @param statType 変更されようとしている能力（'attack'/'defense'/etc）
+   * @param rankChange ランク変化量（負の値は下降）
+   * @param battleContext バトルコンテキスト
+   * @returns 受けられる場合はtrue、無効化する場合はfalse、判定しない場合はundefined
+   *          典型用途: クリアボディ / ホワイトスモーク（全ステ低下無効）、はとむね（防御低下無効）など
+   */
+  canReceiveStatChange?(
+    _pokemon: BattlePokemonStatus,
+    _statType:
+      | 'attack'
+      | 'defense'
+      | 'specialAttack'
+      | 'specialDefense'
+      | 'speed'
+      | 'accuracy'
+      | 'evasion',
+    _rankChange: number,
+    _battleContext?: BattleContext,
+  ): boolean | undefined;
+
+  /**
    * 特定のタイプの技に対して無効化を持つかどうかを判定する効果
    * @param pokemon 対象のポケモン
    * @param typeName 技のタイプ名（日本語名、例: "じめん"）
