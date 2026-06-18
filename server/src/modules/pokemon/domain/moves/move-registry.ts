@@ -79,6 +79,9 @@ import { SludgeWaveEffect } from './effects/sludge-wave-effect';
 import { StunSporeEffect } from './effects/stun-spore-effect';
 import { ThunderWaveEffect } from './effects/thunder-wave-effect';
 import { GlareEffect } from './effects/glare-effect';
+import { PoisonPowderEffect } from './effects/poison-powder-effect';
+import { PoisonGasEffect } from './effects/poison-gas-effect';
+import { ToxicThreadEffect } from './effects/toxic-thread-effect';
 
 /**
  * 技のレジストリ
@@ -198,6 +201,10 @@ export class MoveRegistry {
       this.registry.set('しびれごな', new StunSporeEffect());
       this.registry.set('でんじは', new ThunderWaveEffect());
       this.registry.set('へびにらみ', new GlareEffect());
+      // 変化カテゴリどく付与系（Issue #108）
+      this.registry.set('どくのこな', new PoisonPowderEffect());
+      this.registry.set('どくガス', new PoisonGasEffect());
+      this.registry.set('どくのいと', new ToxicThreadEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
