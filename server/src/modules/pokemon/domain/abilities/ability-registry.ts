@@ -13,6 +13,8 @@ import { WaterAbsorbEffect } from './effects/immunity/water-absorb-effect';
 import { SapSipperEffect } from './effects/immunity/sap-sipper-effect';
 import { LightningRodEffect } from './effects/immunity/lightning-rod-effect';
 import { StormDrainEffect } from './effects/immunity/storm-drain-effect';
+import { HydrationEffect } from './effects/immunity/hydration-effect';
+import { ShedSkinEffect } from './effects/immunity/shed-skin-effect';
 import { ObliviousEffect } from './effects/oblivious-effect';
 import { MultiscaleEffect } from './effects/damage-modify/multiscale-effect';
 import { GutsEffect } from './effects/stat-change/guts-effect';
@@ -145,6 +147,9 @@ export class AbilityRegistry {
       this.registry.set('みずのベール', new WaterVeilEffect());
       this.registry.set('やるき', new VitalSpiritEffect());
       this.registry.set('すいほう', new WaterBubbleEffect());
+      // ターン終了時の自己状態異常治癒（Issue #84 一部）
+      this.registry.set('うるおいボディ', new HydrationEffect());
+      this.registry.set('だっぴ', new ShedSkinEffect());
       // その他カテゴリの特性
       this.registry.set('ふくがん', new CompoundEyesEffect());
       this.registry.set('せいしんりょく', new InnerFocusEffect());
