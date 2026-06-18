@@ -73,6 +73,7 @@ import { SheerForceEffect } from './effects/damage-modify/sheer-force-effect';
 import { HugePowerEffect } from './effects/stat-change/huge-power-effect';
 import { QuickFeetEffect } from './effects/stat-change/quick-feet-effect';
 import { BigPecksEffect } from './effects/stat-change/big-pecks-effect';
+import { ClearBodyEffect } from './effects/stat-change/clear-body-effect';
 import { ScrappyEffect } from './effects/stat-change/scrappy-effect';
 import { DefiantEffect } from './effects/stat-change/defiant-effect';
 import { CompetitiveEffect } from './effects/stat-change/competitive-effect';
@@ -204,6 +205,10 @@ export class AbilityRegistry {
       this.registry.set('ヨガパワー', new HugePowerEffect());
       this.registry.set('はやあし', new QuickFeetEffect());
       this.registry.set('はとむね', new BigPecksEffect());
+      // クリアボディ / ホワイトスモーク: 能力ランク低下無効化マーカー（Issue #84 一部、BigPecks と同パターン）
+      const clearBody = new ClearBodyEffect();
+      this.registry.set('クリアボディ', clearBody);
+      this.registry.set('ホワイトスモーク', clearBody);
       this.registry.set('きもったま', new ScrappyEffect());
       this.registry.set('まけんき', new DefiantEffect());
       this.registry.set('かちき', new CompetitiveEffect());
