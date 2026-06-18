@@ -183,6 +183,22 @@ import { FeatherDanceEffect } from './effects/feather-dance-effect';
 import { FakeTearsEffect } from './effects/fake-tears-effect';
 import { MetalSoundEffect } from './effects/metal-sound-effect';
 import { EerieImpulseEffect } from './effects/eerie-impulse-effect';
+// Issue #103: 複数ステータス変化系
+import { GrowthEffect } from './effects/growth-effect';
+import { CosmicPowerEffect } from './effects/cosmic-power-effect';
+import { BulkUpEffect } from './effects/bulk-up-effect';
+import { CalmMindEffect } from './effects/calm-mind-effect';
+import { DragonDanceEffect } from './effects/dragon-dance-effect';
+import { DefendOrderEffect } from './effects/defend-order-effect';
+import { HoneClawsEffect } from './effects/hone-claws-effect';
+import { WorkUpEffect } from './effects/work-up-effect';
+import { QuiverDanceEffect } from './effects/quiver-dance-effect';
+import { CoilEffect } from './effects/coil-effect';
+import { ShiftGearEffect } from './effects/shift-gear-effect';
+import { ShellSmashEffect } from './effects/shell-smash-effect';
+import { TickleEffect } from './effects/tickle-effect';
+import { NobleRoarEffect } from './effects/noble-roar-effect';
+import { TearfulLookEffect } from './effects/tearful-look-effect';
 
 /**
  * 技のレジストリ
@@ -426,6 +442,22 @@ export class MoveRegistry {
       this.registry.set('うそなき', new FakeTearsEffect());
       this.registry.set('きんぞくおん', new MetalSoundEffect());
       this.registry.set('かいでんぱ', new EerieImpulseEffect());
+      // 変化カテゴリ「その他」: 複数ステータス変化系（Issue #103 一部）
+      this.registry.set('せいちょう', new GrowthEffect());
+      this.registry.set('コスモパワー', new CosmicPowerEffect());
+      this.registry.set('ビルドアップ', new BulkUpEffect());
+      this.registry.set('めいそう', new CalmMindEffect());
+      this.registry.set('りゅうのまい', new DragonDanceEffect());
+      this.registry.set('ぼうぎょしれい', new DefendOrderEffect());
+      this.registry.set('つめとぎ', new HoneClawsEffect());
+      this.registry.set('ふるいたてる', new WorkUpEffect());
+      this.registry.set('ちょうのまい', new QuiverDanceEffect());
+      this.registry.set('とぐろをまく', new CoilEffect());
+      this.registry.set('ギアチェンジ', new ShiftGearEffect());
+      this.registry.set('からをやぶる', new ShellSmashEffect());
+      this.registry.set('くすぐる', new TickleEffect());
+      this.registry.set('おたけび', new NobleRoarEffect());
+      this.registry.set('なみだめ', new TearfulLookEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
