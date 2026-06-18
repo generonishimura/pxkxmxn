@@ -19,6 +19,8 @@ import { ShinryokuEffect } from './effects/damage-modify/shinryoku-effect';
 import { MoukaEffect } from './effects/damage-modify/mouka-effect';
 import { GekiryuuEffect } from './effects/damage-modify/gekiryuu-effect';
 import { DrizzleEffect } from './effects/weather/drizzle-effect';
+import { RainDishEffect } from './effects/weather/rain-dish-effect';
+import { IceBodyEffect } from './effects/weather/ice-body-effect';
 import { DroughtEffect } from './effects/weather/drought-effect';
 import { SandStreamEffect } from './effects/weather/sand-stream-effect';
 import { SnowWarningEffect } from './effects/weather/snow-warning-effect';
@@ -101,6 +103,9 @@ export class AbilityRegistry {
       this.registry.set('ひでり', new DroughtEffect());
       this.registry.set('すなあらし', new SandStreamEffect());
       this.registry.set('ゆきふらし', new SnowWarningEffect());
+      // 天候依存の HP 回復特性（Issue #84 一部）
+      this.registry.set('あめうけざら', new RainDishEffect());
+      this.registry.set('アイスボディ', new IceBodyEffect());
       // でんきエンジン: でんきタイプの技を無効化し、素早さを上げる特性
       this.registry.set('でんきエンジン', new MotorDriveEffect());
       // フィールドカテゴリの特性（フィールド展開）
