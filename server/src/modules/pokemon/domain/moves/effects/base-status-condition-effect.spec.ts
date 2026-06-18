@@ -153,25 +153,48 @@ describe('BaseStatusConditionEffect', () => {
       );
     });
 
-    it('エアスラッシュは30%の確率でひるみを付与する', async () => {
-      const effect = new AirSlashEffect();
-      const attacker = createBattlePokemonStatus();
-      const defender = createBattlePokemonStatus();
-      const battleContext = createBattleContext();
+    describe('エアスラッシュ（30%でひるみ）', () => {
+      // 元の確率テスト（100回試行で 20-40 件期待）は ~3% の確率で flake していたため、
+      // Math.random を決定的にモックする形に置き換える
+      afterEach(() => {
+        jest.restoreAllMocks();
+      });
 
-      // 複数回実行して確率的な動作を確認
-      const results: (string | null)[] = [];
-      for (let i = 0; i < 100; i++) {
-        // モックをリセット
-        (battleContext.battleRepository?.updateBattlePokemonStatus as jest.Mock).mockClear();
+      it('Math.random < 0.3 ならひるみを付与する', async () => {
+        const effect = new AirSlashEffect();
+        const attacker = createBattlePokemonStatus();
+        const defender = createBattlePokemonStatus();
+        const battleContext = createBattleContext();
+        jest.spyOn(Math, 'random').mockReturnValue(0.1);
+
         const result = await effect.onHit(attacker, defender, battleContext);
-        results.push(result);
-      }
 
-      const successCount = results.filter(r => r !== null).length;
-      // 30%の確率なので、20%以上40%以下になることが期待される
-      expect(successCount).toBeGreaterThan(20);
-      expect(successCount).toBeLessThan(40);
+        expect(result).toBe('flinched!');
+      });
+
+      it('Math.random >= 0.3 ならひるみを付与しない', async () => {
+        const effect = new AirSlashEffect();
+        const attacker = createBattlePokemonStatus();
+        const defender = createBattlePokemonStatus();
+        const battleContext = createBattleContext();
+        jest.spyOn(Math, 'random').mockReturnValue(0.5);
+
+        const result = await effect.onHit(attacker, defender, battleContext);
+
+        expect(result).toBeNull();
+      });
+
+      it('境界値: Math.random === 0.3 ならひるみを付与しない（chance < 1.0 のとき >= で判定）', async () => {
+        const effect = new AirSlashEffect();
+        const attacker = createBattlePokemonStatus();
+        const defender = createBattlePokemonStatus();
+        const battleContext = createBattleContext();
+        jest.spyOn(Math, 'random').mockReturnValue(0.3);
+
+        const result = await effect.onHit(attacker, defender, battleContext);
+
+        expect(result).toBeNull();
+      });
     });
   });
 });
