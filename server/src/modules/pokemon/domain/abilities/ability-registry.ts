@@ -59,6 +59,7 @@ import { PranksterEffect } from './effects/other/prankster-effect';
 import { NoGuardEffect } from './effects/other/no-guard-effect';
 import { NaturalCureEffect } from './effects/other/natural-cure-effect';
 import { RegeneratorEffect } from './effects/other/regenerator-effect';
+import { NoBattleEffectAbility } from './effects/other/no-battle-effect-ability';
 import { InnerFocusEffect } from './effects/other/inner-focus-effect';
 import { LimberEffect } from './effects/other/limber-effect';
 import { MagmaArmorEffect } from './effects/other/magma-armor-effect';
@@ -187,6 +188,12 @@ export class AbilityRegistry {
       // 場から下がるとき発動（Issue #84 一部）
       this.registry.set('しぜんかいふく', new NaturalCureEffect());
       this.registry.set('さいせいりょく', new RegeneratorEffect());
+      // バトル中効果なしの特性（Issue #84 一部）
+      // 単一の NoBattleEffectAbility インスタンスを複数の特性で共有
+      const noBattleEffect = new NoBattleEffectAbility();
+      this.registry.set('にげあし', noBattleEffect);
+      this.registry.set('はっこう', noBattleEffect);
+      this.registry.set('ハッピータイム', noBattleEffect);
       this.registry.set('せいしんりょく', new InnerFocusEffect());
       this.registry.set('じゅうなん', new LimberEffect());
       this.registry.set('マグマのよろい', new MagmaArmorEffect());
