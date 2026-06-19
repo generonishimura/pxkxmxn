@@ -66,6 +66,8 @@ import { PowderSnowEffect } from './effects/powder-snow-effect';
 import { TwisterEffect } from './effects/twister-effect';
 import { ExtrasensoryEffect } from './effects/extrasensory-effect';
 import { DarkPulseEffect } from './effects/dark-pulse-effect';
+import { RelicSongEffect } from './effects/relic-song-effect';
+import { SnoreEffect } from './effects/snore-effect';
 
 /**
  * 技のレジストリ
@@ -168,6 +170,9 @@ export class MoveRegistry {
       this.registry.set('たつまき', new TwisterEffect());
       this.registry.set('じんつうりき', new ExtrasensoryEffect());
       this.registry.set('あくのはどう', new DarkPulseEffect());
+      // 特殊カテゴリねむり関連（Issue #97）
+      this.registry.set('いにしえのうた', new RelicSongEffect());
+      this.registry.set('いびき', new SnoreEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
