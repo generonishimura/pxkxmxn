@@ -148,109 +148,77 @@ describe('BaseMultipleStatusConditionEffect', () => {
       );
     });
 
-    it('確率に基づいて状態異常を付与する', async () => {
-      const effect = new FireFangEffect();
-      const attacker = createBattlePokemonStatus();
-      const defender = createBattlePokemonStatus();
-      const battleContext = createBattleContext();
-
-      // 複数回実行して確率的な動作を確認
-      const results: (string | null)[] = [];
-      for (let i = 0; i < 100; i++) {
-        // モックをリセット
-        (battleContext.battleRepository?.updateBattlePokemonStatus as jest.Mock).mockClear();
-        const result = await effect.onHit(attacker, defender, battleContext);
-        results.push(result);
-      }
-
-      const successCount = results.filter(r => r !== null).length;
-      // 2つの独立した10%の確率で少なくとも1つが成功する確率は約19% (1 - 0.9 × 0.9)
-      // 100試行での標準偏差は約3.9のため、10以上35未満で統計的なばらつきを許容する
-      expect(successCount).toBeGreaterThan(9);
-      expect(successCount).toBeLessThan(35);
-    });
-
-    it('ほのおのキバは10%の確率でひるみまたはやけどを付与する', async () => {
-      const effect = new FireFangEffect();
-      const attacker = createBattlePokemonStatus();
-      const defender = createBattlePokemonStatus();
-      const battleContext = createBattleContext();
-
-      // 複数回実行して確率的な動作を確認
-      const results: (string | null)[] = [];
-      for (let i = 0; i < 100; i++) {
-        // モックをリセット
-        (battleContext.battleRepository?.updateBattlePokemonStatus as jest.Mock).mockClear();
-        const result = await effect.onHit(attacker, defender, battleContext);
-        results.push(result);
-      }
-
-      const successCount = results.filter(r => r !== null).length;
-      // 2つの独立した10%の確率で少なくとも1つが成功する確率は約19% (1 - 0.9 × 0.9)
-      // 100試行での標準偏差は約3.9のため、10以上35未満で統計的なばらつきを許容する
-      expect(successCount).toBeGreaterThan(9);
-      expect(successCount).toBeLessThan(35);
-
-      // 成功した場合、ひるみまたはやけどが付与される
-      const successResults = results.filter(r => r !== null);
-      successResults.forEach(result => {
-        expect(result).toMatch(/flinched!|was burned!/);
+    // 旧テスト群は 100 試行で 10-34 件のヒットを期待する統計テストで、二項分布の
+    // 揺らぎで flake する設計だった（PR #230 と同パターン）。`Math.random` を
+    // 決定的にモックして確率分岐を直接検証する形に置き換える。
+    describe('確率分岐（Math.random 決定モック）', () => {
+      afterEach(() => {
+        jest.restoreAllMocks();
       });
-    });
 
-    it('こおりのキバは10%の確率でひるみまたはこおりを付与する', async () => {
-      const effect = new IceFangEffect();
-      const attacker = createBattlePokemonStatus();
-      const defender = createBattlePokemonStatus();
-      const battleContext = createBattleContext();
+      it('1 つ目の効果（ひるみ）の確率を通過したらそれが適用される', async () => {
+        const effect = new FireFangEffect();
+        const attacker = createBattlePokemonStatus();
+        const defender = createBattlePokemonStatus();
+        const battleContext = createBattleContext();
+        // 1つ目のロールで成功
+        jest.spyOn(Math, 'random').mockReturnValue(0.05);
 
-      // 複数回実行して確率的な動作を確認
-      const results: (string | null)[] = [];
-      for (let i = 0; i < 100; i++) {
-        // モックをリセット
-        (battleContext.battleRepository?.updateBattlePokemonStatus as jest.Mock).mockClear();
         const result = await effect.onHit(attacker, defender, battleContext);
-        results.push(result);
-      }
 
-      const successCount = results.filter(r => r !== null).length;
-      // 2つの独立した10%の確率で少なくとも1つが成功する確率は約19% (1 - 0.9 × 0.9)
-      // 100試行での標準偏差は約3.9のため、10以上35未満で統計的なばらつきを許容する
-      expect(successCount).toBeGreaterThan(9);
-      expect(successCount).toBeLessThan(35);
-
-      // 成功した場合、ひるみまたはこおりが付与される
-      const successResults = results.filter(r => r !== null);
-      successResults.forEach(result => {
-        expect(result).toMatch(/flinched!|was frozen solid!/);
+        expect(result).toBe('flinched!');
       });
-    });
 
-    it('かみなりのキバは10%の確率でひるみまたはまひを付与する', async () => {
-      const effect = new ThunderFangEffect();
-      const attacker = createBattlePokemonStatus();
-      const defender = createBattlePokemonStatus();
-      const battleContext = createBattleContext();
+      it('1 つ目を外し 2 つ目（やけど）が通れば 2 つ目が適用される', async () => {
+        const effect = new FireFangEffect();
+        const attacker = createBattlePokemonStatus();
+        const defender = createBattlePokemonStatus();
+        const battleContext = createBattleContext();
+        // 1回目: 0.2 で外す（>= 0.1）、2回目: 0.05 で通す
+        const rand = jest.spyOn(Math, 'random');
+        rand.mockReturnValueOnce(0.2).mockReturnValueOnce(0.05);
 
-      // 複数回実行して確率的な動作を確認
-      const results: (string | null)[] = [];
-      for (let i = 0; i < 100; i++) {
-        // モックをリセット
-        (battleContext.battleRepository?.updateBattlePokemonStatus as jest.Mock).mockClear();
         const result = await effect.onHit(attacker, defender, battleContext);
-        results.push(result);
-      }
 
-      const successCount = results.filter(r => r !== null).length;
-      // 2つの独立した10%の確率で少なくとも1つが成功する確率は約19% (1 - 0.9 × 0.9)
-      // 100試行での標準偏差は約3.9のため、10以上35未満で統計的なばらつきを許容する
-      expect(successCount).toBeGreaterThan(9);
-      expect(successCount).toBeLessThan(35);
+        expect(result).toBe('was burned!');
+      });
 
-      // 成功した場合、ひるみまたはまひが付与される
-      const successResults = results.filter(r => r !== null);
-      successResults.forEach(result => {
-        expect(result).toMatch(/flinched!|is paralyzed! It may be unable to move!/);
+      it('両方とも確率を外すと何も付与されない', async () => {
+        const effect = new FireFangEffect();
+        const attacker = createBattlePokemonStatus();
+        const defender = createBattlePokemonStatus();
+        const battleContext = createBattleContext();
+        jest.spyOn(Math, 'random').mockReturnValue(0.5);
+
+        const result = await effect.onHit(attacker, defender, battleContext);
+
+        expect(result).toBeNull();
+      });
+
+      it('こおりのキバ: 2 つ目を通すとこおりが付与される', async () => {
+        const effect = new IceFangEffect();
+        const attacker = createBattlePokemonStatus();
+        const defender = createBattlePokemonStatus();
+        const battleContext = createBattleContext();
+        const rand = jest.spyOn(Math, 'random');
+        rand.mockReturnValueOnce(0.5).mockReturnValueOnce(0.05);
+
+        const result = await effect.onHit(attacker, defender, battleContext);
+
+        expect(result).toBe('was frozen solid!');
+      });
+
+      it('かみなりのキバ: 2 つ目を通すとまひが付与される', async () => {
+        const effect = new ThunderFangEffect();
+        const attacker = createBattlePokemonStatus();
+        const defender = createBattlePokemonStatus();
+        const battleContext = createBattleContext();
+        const rand = jest.spyOn(Math, 'random');
+        rand.mockReturnValueOnce(0.5).mockReturnValueOnce(0.05);
+
+        const result = await effect.onHit(attacker, defender, battleContext);
+
+        expect(result).toMatch(/paralyzed/);
       });
     });
   });
