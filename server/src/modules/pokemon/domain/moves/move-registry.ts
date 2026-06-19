@@ -146,6 +146,43 @@ import { GrassWhistleEffect } from './effects/grass-whistle-effect';
 import { DarkVoidEffect } from './effects/dark-void-effect';
 import { RestEffect } from './effects/rest-effect';
 import { ElectricTerrainEffect } from './effects/electric-terrain-effect';
+// Issue #103: 単一ステータス変化系
+import { MeditateEffect } from './effects/meditate-effect';
+import { SharpenEffect } from './effects/sharpen-effect';
+import { HowlEffect } from './effects/howl-effect';
+import { WithdrawEffect } from './effects/withdraw-effect';
+import { DefenseCurlEffect } from './effects/defense-curl-effect';
+import { DoubleTeamEffect } from './effects/double-team-effect';
+import { AgilityEffect } from './effects/agility-effect';
+import { AmnesiaEffect } from './effects/amnesia-effect';
+import { AcidArmorEffect } from './effects/acid-armor-effect';
+import { BarrierEffect } from './effects/barrier-effect';
+import { IronDefenseEffect } from './effects/iron-defense-effect';
+import { MinimizeEffect } from './effects/minimize-effect';
+import { RockPolishEffect } from './effects/rock-polish-effect';
+import { NastyPlotEffect } from './effects/nasty-plot-effect';
+import { AutotomizeEffect } from './effects/autotomize-effect';
+import { TailGlowEffect } from './effects/tail-glow-effect';
+import { CottonGuardEffect } from './effects/cotton-guard-effect';
+import { SandAttackEffect } from './effects/sand-attack-effect';
+import { TailWhipEffect } from './effects/tail-whip-effect';
+import { LeerEffect } from './effects/leer-effect';
+import { KinesisEffect } from './effects/kinesis-effect';
+import { FlashEffect } from './effects/flash-effect';
+import { SmokescreenEffect } from './effects/smokescreen-effect';
+import { SweetScentEffect } from './effects/sweet-scent-effect';
+import { PlayNiceEffect } from './effects/play-nice-effect';
+import { BabyDollEyesEffect } from './effects/baby-doll-eyes-effect';
+import { ConfideEffect } from './effects/confide-effect';
+import { StringShotEffect } from './effects/string-shot-effect';
+import { ScreechEffect } from './effects/screech-effect';
+import { CottonSporeEffect } from './effects/cotton-spore-effect';
+import { ScaryFaceEffect } from './effects/scary-face-effect';
+import { CharmEffect } from './effects/charm-effect';
+import { FeatherDanceEffect } from './effects/feather-dance-effect';
+import { FakeTearsEffect } from './effects/fake-tears-effect';
+import { MetalSoundEffect } from './effects/metal-sound-effect';
+import { EerieImpulseEffect } from './effects/eerie-impulse-effect';
 
 /**
  * 技のレジストリ
@@ -350,6 +387,45 @@ export class MoveRegistry {
       this.registry.set('ダークホール', new DarkVoidEffect());
       this.registry.set('ねむる', new RestEffect());
       this.registry.set('エレキフィールド', new ElectricTerrainEffect());
+      // 変化カテゴリ「その他」: 単一ステータス変化系（Issue #103 一部）
+      // 自分の能力上昇
+      this.registry.set('ヨガのポーズ', new MeditateEffect());
+      this.registry.set('かくばる', new SharpenEffect());
+      this.registry.set('とおぼえ', new HowlEffect());
+      this.registry.set('からにこもる', new WithdrawEffect());
+      this.registry.set('まるくなる', new DefenseCurlEffect());
+      this.registry.set('かげぶんしん', new DoubleTeamEffect());
+      this.registry.set('こうそくいどう', new AgilityEffect());
+      this.registry.set('ドわすれ', new AmnesiaEffect());
+      this.registry.set('とける', new AcidArmorEffect());
+      this.registry.set('バリアー', new BarrierEffect());
+      this.registry.set('てっぺき', new IronDefenseEffect());
+      this.registry.set('ちいさくなる', new MinimizeEffect());
+      this.registry.set('ロックカット', new RockPolishEffect());
+      this.registry.set('わるだくみ', new NastyPlotEffect());
+      this.registry.set('ボディパージ', new AutotomizeEffect());
+      this.registry.set('ほたるび', new TailGlowEffect());
+      this.registry.set('コットンガード', new CottonGuardEffect());
+      // 相手の能力下降
+      this.registry.set('すなかけ', new SandAttackEffect());
+      this.registry.set('しっぽをふる', new TailWhipEffect());
+      this.registry.set('にらみつける', new LeerEffect());
+      this.registry.set('スプーンまげ', new KinesisEffect());
+      this.registry.set('フラッシュ', new FlashEffect());
+      this.registry.set('えんまく', new SmokescreenEffect());
+      this.registry.set('あまいかおり', new SweetScentEffect());
+      this.registry.set('なかよくする', new PlayNiceEffect());
+      this.registry.set('つぶらなひとみ', new BabyDollEyesEffect());
+      this.registry.set('ないしょばなし', new ConfideEffect());
+      this.registry.set('いとをはく', new StringShotEffect());
+      this.registry.set('いやなおと', new ScreechEffect());
+      this.registry.set('わたほうし', new CottonSporeEffect());
+      this.registry.set('こわいかお', new ScaryFaceEffect());
+      this.registry.set('あまえる', new CharmEffect());
+      this.registry.set('フェザーダンス', new FeatherDanceEffect());
+      this.registry.set('うそなき', new FakeTearsEffect());
+      this.registry.set('きんぞくおん', new MetalSoundEffect());
+      this.registry.set('かいでんぱ', new EerieImpulseEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
