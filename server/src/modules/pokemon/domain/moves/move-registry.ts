@@ -91,6 +91,7 @@ import { FlatterEffect } from './effects/flatter-effect';
 import { NoRetreatEffect } from './effects/no-retreat-effect';
 import { LightOfRuinEffect } from './effects/light-of-ruin-effect';
 import { ChargeEffect } from './effects/charge-effect';
+import { NoOpEffect } from './effects/no-op-effect';
 
 /**
  * 技のレジストリ
@@ -228,6 +229,12 @@ export class MoveRegistry {
       this.registry.set('はめつのひかり', new LightOfRuinEffect());
       // 変化カテゴリ威力変化系（Issue #122）
       this.registry.set('じゅうでん', new ChargeEffect());
+      // 変化カテゴリ「効果なし」系（Issue #113）
+      // 何もしない変化技は単一の NoOpEffect インスタンスを複数の技名で共有
+      const noOpEffect = new NoOpEffect();
+      this.registry.set('はねる', noOpEffect);
+      this.registry.set('おいわい', noOpEffect);
+      this.registry.set('てをつなぐ', noOpEffect);
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
