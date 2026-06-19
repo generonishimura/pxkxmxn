@@ -2,6 +2,7 @@ import { IMoveEffect } from '../../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
 import { StatType, STAT_RANK_PROP_MAP, STAT_NAME_MAP } from './base-stat-change-effect';
+import { AbilityRegistry } from '../../../abilities/ability-registry';
 
 /**
  * 相手のステータスランクを変更する変化技の基底クラス
@@ -31,6 +32,32 @@ export abstract class BaseOpponentStatChangeMoveEffect implements IMoveEffect {
   ): Promise<string | null> {
     if (!battleContext.battleRepository) {
       return null;
+    }
+
+    // 能力ランク変化を防御側の特性で無効化チェック
+    // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視（既存パターン踏襲）
+    if (
+      this.rankChange < 0 &&
+      battleContext.trainedPokemonRepository &&
+      !AbilityRegistry.hasMoldBreaker(battleContext.attackerAbilityName)
+    ) {
+      const defenderTrainedPokemon = await battleContext.trainedPokemonRepository.findById(
+        defender.trainedPokemonId,
+      );
+      if (defenderTrainedPokemon?.ability) {
+        const defenderAbility = AbilityRegistry.get(defenderTrainedPokemon.ability.name);
+        if (defenderAbility?.canReceiveStatChange) {
+          const canReceive = defenderAbility.canReceiveStatChange(
+            defender,
+            this.statType,
+            this.rankChange,
+            battleContext,
+          );
+          if (canReceive === false) {
+            return null;
+          }
+        }
+      }
     }
 
     // 現在のランクを取得
