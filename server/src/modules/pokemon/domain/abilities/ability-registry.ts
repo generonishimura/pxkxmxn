@@ -5,6 +5,8 @@ import { ChlorophyllEffect } from './effects/stat-change/chlorophyll-effect';
 import { SandRushEffect } from './effects/stat-change/sand-rush-effect';
 import { SlushRushEffect } from './effects/stat-change/slush-rush-effect';
 import { SurgeSurferEffect } from './effects/stat-change/surge-surfer-effect';
+import { SandVeilEffect } from './effects/stat-change/sand-veil-effect';
+import { SnowCloakEffect } from './effects/stat-change/snow-cloak-effect';
 import { InsomniaEffect } from './effects/immunity/insomnia-effect';
 import { LevitateEffect } from './effects/immunity/levitate-effect';
 import { VoltAbsorbEffect } from './effects/immunity/volt-absorb-effect';
@@ -138,6 +140,9 @@ export class AbilityRegistry {
       // 天候/フィールド依存 SPE2倍特性（Issue #84 一部、ようりょくそ・すいすい・すなかきと同パターン）
       this.registry.set('ゆきがき', new SlushRushEffect());
       this.registry.set('サーフテール', new SurgeSurferEffect());
+      // 天候依存の回避率ブースト（Issue #84 一部）
+      this.registry.set('すながくれ', new SandVeilEffect());
+      this.registry.set('ゆきがくれ', new SnowCloakEffect());
       this.registry.set('こんじょう', new GutsHpThresholdEffect());
       this.registry.set('しんりょく', new ShinryokuEffect());
       this.registry.set('もうか', new MoukaEffect());
