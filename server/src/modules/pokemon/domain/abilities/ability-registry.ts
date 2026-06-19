@@ -197,6 +197,8 @@ export class AbilityRegistry {
       this.registry.set('ちからずく', new SheerForceEffect());
       // ステータス変化カテゴリの特性
       this.registry.set('ちからもち', new HugePowerEffect());
+      // ヨガパワー: ちからもちと同効果（物理攻撃 2 倍）（Issue #84 一部）
+      this.registry.set('ヨガパワー', new HugePowerEffect());
       this.registry.set('はやあし', new QuickFeetEffect());
       this.registry.set('はとむね', new BigPecksEffect());
       this.registry.set('きもったま', new ScrappyEffect());
