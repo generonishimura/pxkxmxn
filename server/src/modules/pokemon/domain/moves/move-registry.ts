@@ -88,6 +88,7 @@ import { SweetKissEffect } from './effects/sweet-kiss-effect';
 import { TeeterDanceEffect } from './effects/teeter-dance-effect';
 import { SwaggerEffect } from './effects/swagger-effect';
 import { FlatterEffect } from './effects/flatter-effect';
+import { NoRetreatEffect } from './effects/no-retreat-effect';
 
 /**
  * 技のレジストリ
@@ -218,6 +219,8 @@ export class MoveRegistry {
       this.registry.set('フラフラダンス', new TeeterDanceEffect());
       this.registry.set('いばる', new SwaggerEffect());
       this.registry.set('おだてる', new FlatterEffect());
+      // 変化カテゴリひるみ付与系（Issue #121）
+      this.registry.set('はいすいのじん', new NoRetreatEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
