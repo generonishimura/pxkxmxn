@@ -82,25 +82,36 @@ describe('ThunderShockEffect', () => {
   });
 
   describe('onHit', () => {
-    it('10%の確率でまひを付与する', async () => {
-      const effect = new ThunderShockEffect();
-      const attacker = createBattlePokemonStatus();
-      const defender = createBattlePokemonStatus();
-      const battleContext = createBattleContext();
+    describe('10%でまひを付与する確率分岐', () => {
+      // 旧テストは 1000 回試行で 70-130 回を期待していた確率テスト。
+      // 二項分布の揺らぎを避けるため Math.random を決定的にモックする形に置き換える
+      afterEach(() => {
+        jest.restoreAllMocks();
+      });
 
-      // 複数回実行して確率的な動作を確認
-      const results: (string | null)[] = [];
-      for (let i = 0; i < 1000; i++) {
-        // モックをリセット
-        (battleContext.battleRepository?.updateBattlePokemonStatus as jest.Mock).mockClear();
+      it('Math.random < 0.1 ならまひを付与', async () => {
+        const effect = new ThunderShockEffect();
+        const attacker = createBattlePokemonStatus();
+        const defender = createBattlePokemonStatus();
+        const battleContext = createBattleContext();
+        jest.spyOn(Math, 'random').mockReturnValue(0.05);
+
         const result = await effect.onHit(attacker, defender, battleContext);
-        results.push(result);
-      }
 
-      const successCount = results.filter(r => r !== null).length;
-      // 10%の確率なので、7%以上13%以下になることが期待される（70-130回）
-      expect(successCount).toBeGreaterThan(70);
-      expect(successCount).toBeLessThan(130);
+        expect(result).toBe('was paralyzed!');
+      });
+
+      it('Math.random >= 0.1 ならまひを付与しない', async () => {
+        const effect = new ThunderShockEffect();
+        const attacker = createBattlePokemonStatus();
+        const defender = createBattlePokemonStatus();
+        const battleContext = createBattleContext();
+        jest.spyOn(Math, 'random').mockReturnValue(0.5);
+
+        const result = await effect.onHit(attacker, defender, battleContext);
+
+        expect(result).toBeNull();
+      });
     });
   });
 });
