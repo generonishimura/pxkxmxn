@@ -59,6 +59,7 @@ import { SacredFireEffect } from './effects/sacred-fire-effect';
 import { BlazeKickEffect } from './effects/blaze-kick-effect';
 import { FlareBlitzEffect } from './effects/flare-blitz-effect';
 import { PyroBallEffect } from './effects/pyro-ball-effect';
+import { IcePunchEffect } from './effects/ice-punch-effect';
 
 /**
  * 技のレジストリ
@@ -150,6 +151,8 @@ export class MoveRegistry {
       this.registry.set('ブレイズキック', new BlazeKickEffect());
       this.registry.set('フレアドライブ', new FlareBlitzEffect());
       this.registry.set('かえんボール', new PyroBallEffect());
+      // 物理カテゴリこおり付与系（Issue #124）
+      this.registry.set('れいとうパンチ', new IcePunchEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
