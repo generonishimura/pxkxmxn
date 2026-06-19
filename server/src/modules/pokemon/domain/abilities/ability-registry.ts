@@ -11,6 +11,8 @@ import { VoltAbsorbEffect } from './effects/immunity/volt-absorb-effect';
 import { FlashFireEffect } from './effects/immunity/flash-fire-effect';
 import { WaterAbsorbEffect } from './effects/immunity/water-absorb-effect';
 import { SapSipperEffect } from './effects/immunity/sap-sipper-effect';
+import { LightningRodEffect } from './effects/immunity/lightning-rod-effect';
+import { StormDrainEffect } from './effects/immunity/storm-drain-effect';
 import { ObliviousEffect } from './effects/oblivious-effect';
 import { MultiscaleEffect } from './effects/damage-modify/multiscale-effect';
 import { GutsEffect } from './effects/stat-change/guts-effect';
@@ -118,6 +120,9 @@ export class AbilityRegistry {
       this.registry.set('ちょすい', new WaterAbsorbEffect());
       // そうしょく: くさ無効 + 攻撃 +1（Issue #84 一部、Motor Drive と同パターン）
       this.registry.set('そうしょく', new SapSipperEffect());
+      // タイプ無効化 + 特攻 +1（Issue #84 一部）
+      this.registry.set('ひらいしん', new LightningRodEffect());
+      this.registry.set('よびみず', new StormDrainEffect());
       this.registry.set('はがねつかい', new SteelworkerEffect());
       this.registry.set('てきおうりょく', new AdaptabilityEffect());
       this.registry.set('ようりょくそ', new ChlorophyllEffect());
