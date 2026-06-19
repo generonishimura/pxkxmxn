@@ -68,6 +68,10 @@ import { ExtrasensoryEffect } from './effects/extrasensory-effect';
 import { DarkPulseEffect } from './effects/dark-pulse-effect';
 import { RelicSongEffect } from './effects/relic-song-effect';
 import { SnoreEffect } from './effects/snore-effect';
+import { ZapCannonEffect } from './effects/zap-cannon-effect';
+import { DragonBreathEffect } from './effects/dragon-breath-effect';
+import { DischargeEffect } from './effects/discharge-effect';
+import { StokedSparksurferEffect } from './effects/stoked-sparksurfer-effect';
 
 /**
  * 技のレジストリ
@@ -173,6 +177,11 @@ export class MoveRegistry {
       // 特殊カテゴリねむり関連（Issue #97）
       this.registry.set('いにしえのうた', new RelicSongEffect());
       this.registry.set('いびき', new SnoreEffect());
+      // 特殊カテゴリまひ付与系（Issue #94）
+      this.registry.set('でんじほう', new ZapCannonEffect());
+      this.registry.set('りゅうのいぶき', new DragonBreathEffect());
+      this.registry.set('ほうでん', new DischargeEffect());
+      this.registry.set('ライトニングサーフライド', new StokedSparksurferEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
