@@ -105,6 +105,16 @@ import { HeadSmashEffect } from './effects/head-smash-effect';
 import { WoodHammerEffect } from './effects/wood-hammer-effect';
 import { WildChargeEffect } from './effects/wild-charge-effect';
 import { HeadChargeEffect } from './effects/head-charge-effect';
+import { ThunderPunchEffect } from './effects/thunder-punch-effect';
+import { BodySlamEffect } from './effects/body-slam-effect';
+import { LickEffect } from './effects/lick-effect';
+import { SparkEffect } from './effects/spark-effect';
+import { SmellingSaltsEffect } from './effects/smelling-salts-effect';
+import { VoltTackleEffect } from './effects/volt-tackle-effect';
+import { ForcePalmEffect } from './effects/force-palm-effect';
+import { FreezeShockEffect } from './effects/freeze-shock-effect';
+import { NuzzleEffect } from './effects/nuzzle-effect';
+import { BoltStrikeEffect } from './effects/bolt-strike-effect';
 
 /**
  * 技のレジストリ
@@ -264,6 +274,17 @@ export class MoveRegistry {
       this.registry.set('ウッドハンマー', new WoodHammerEffect());
       this.registry.set('ワイルドボルト', new WildChargeEffect());
       this.registry.set('アフロブレイク', new HeadChargeEffect());
+      // 物理カテゴリまひ付与系（Issue #125）
+      this.registry.set('かみなりパンチ', new ThunderPunchEffect());
+      this.registry.set('のしかかり', new BodySlamEffect());
+      this.registry.set('したでなめる', new LickEffect());
+      this.registry.set('スパーク', new SparkEffect());
+      this.registry.set('きつけ', new SmellingSaltsEffect());
+      this.registry.set('ボルテッカー', new VoltTackleEffect());
+      this.registry.set('はっけい', new ForcePalmEffect());
+      this.registry.set('フリーズボルト', new FreezeShockEffect());
+      this.registry.set('ほっぺすりすり', new NuzzleEffect());
+      this.registry.set('らいげき', new BoltStrikeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
