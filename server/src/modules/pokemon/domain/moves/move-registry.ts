@@ -72,6 +72,10 @@ import { ZapCannonEffect } from './effects/zap-cannon-effect';
 import { DragonBreathEffect } from './effects/dragon-breath-effect';
 import { DischargeEffect } from './effects/discharge-effect';
 import { StokedSparksurferEffect } from './effects/stoked-sparksurfer-effect';
+import { SmogEffect } from './effects/smog-effect';
+import { SludgeEffect } from './effects/sludge-effect';
+import { SludgeBombEffect } from './effects/sludge-bomb-effect';
+import { SludgeWaveEffect } from './effects/sludge-wave-effect';
 
 /**
  * 技のレジストリ
@@ -182,6 +186,11 @@ export class MoveRegistry {
       this.registry.set('りゅうのいぶき', new DragonBreathEffect());
       this.registry.set('ほうでん', new DischargeEffect());
       this.registry.set('ライトニングサーフライド', new StokedSparksurferEffect());
+      // 特殊カテゴリどく付与系（Issue #96）
+      this.registry.set('スモッグ', new SmogEffect());
+      this.registry.set('ヘドロこうげき', new SludgeEffect());
+      this.registry.set('ヘドロばくだん', new SludgeBombEffect());
+      this.registry.set('ヘドロウェーブ', new SludgeWaveEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
