@@ -92,6 +92,7 @@ import { NoRetreatEffect } from './effects/no-retreat-effect';
 import { LightOfRuinEffect } from './effects/light-of-ruin-effect';
 import { ChargeEffect } from './effects/charge-effect';
 import { NoOpEffect } from './effects/no-op-effect';
+import { PsychicTerrainEffect } from './effects/psychic-terrain-effect';
 
 /**
  * 技のレジストリ
@@ -235,6 +236,8 @@ export class MoveRegistry {
       this.registry.set('はねる', noOpEffect);
       this.registry.set('おいわい', noOpEffect);
       this.registry.set('てをつなぐ', noOpEffect);
+      // 変化カテゴリ防御技系（Issue #120）
+      this.registry.set('サイコフィールド', new PsychicTerrainEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
