@@ -82,6 +82,12 @@ import { GlareEffect } from './effects/glare-effect';
 import { PoisonPowderEffect } from './effects/poison-powder-effect';
 import { PoisonGasEffect } from './effects/poison-gas-effect';
 import { ToxicThreadEffect } from './effects/toxic-thread-effect';
+import { SupersonicEffect } from './effects/supersonic-effect';
+import { ConfuseRayEffect } from './effects/confuse-ray-effect';
+import { SweetKissEffect } from './effects/sweet-kiss-effect';
+import { TeeterDanceEffect } from './effects/teeter-dance-effect';
+import { SwaggerEffect } from './effects/swagger-effect';
+import { FlatterEffect } from './effects/flatter-effect';
 
 /**
  * 技のレジストリ
@@ -205,6 +211,13 @@ export class MoveRegistry {
       this.registry.set('どくのこな', new PoisonPowderEffect());
       this.registry.set('どくガス', new PoisonGasEffect());
       this.registry.set('どくのいと', new ToxicThreadEffect());
+      // 変化カテゴリこんらん付与系（Issue #105）
+      this.registry.set('ちょうおんぱ', new SupersonicEffect());
+      this.registry.set('あやしいひかり', new ConfuseRayEffect());
+      this.registry.set('てんしのキッス', new SweetKissEffect());
+      this.registry.set('フラフラダンス', new TeeterDanceEffect());
+      this.registry.set('いばる', new SwaggerEffect());
+      this.registry.set('おだてる', new FlatterEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
