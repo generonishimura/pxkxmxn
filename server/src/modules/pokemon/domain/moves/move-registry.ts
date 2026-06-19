@@ -119,6 +119,25 @@ import { AncientPowerEffect } from './effects/ancient-power-effect';
 import { SilverWindEffect } from './effects/silver-wind-effect';
 import { OminousWindEffect } from './effects/ominous-wind-effect';
 import { ClearSmogEffect } from './effects/clear-smog-effect';
+import { StompEffect } from './effects/stomp-effect';
+import { RollingKickEffect } from './effects/rolling-kick-effect';
+import { HeadbuttEffect } from './effects/headbutt-effect';
+import { BiteEffect } from './effects/bite-effect';
+import { BoneClubEffect } from './effects/bone-club-effect';
+import { WaterfallEffect } from './effects/waterfall-effect';
+import { SkyAttackEffect } from './effects/sky-attack-effect';
+import { RockSlideEffect } from './effects/rock-slide-effect';
+import { HyperFangEffect } from './effects/hyper-fang-effect';
+import { FakeOutEffect } from './effects/fake-out-effect';
+import { AstonishEffect } from './effects/astonish-effect';
+import { NeedleArmEffect } from './effects/needle-arm-effect';
+import { DragonRushEffect } from './effects/dragon-rush-effect';
+import { ZenHeadbuttEffect } from './effects/zen-headbutt-effect';
+import { IronHeadEffect } from './effects/iron-head-effect';
+import { HeartStampEffect } from './effects/heart-stamp-effect';
+import { SteamrollerEffect } from './effects/steamroller-effect';
+import { IcicleCrashEffect } from './effects/icicle-crash-effect';
+import { ZingZapEffect } from './effects/zing-zap-effect';
 
 /**
  * 技のレジストリ
@@ -294,6 +313,26 @@ export class MoveRegistry {
       this.registry.set('ぎんいろのかぜ', new SilverWindEffect());
       this.registry.set('あやしいかぜ', new OminousWindEffect());
       this.registry.set('クリアスモッグ', new ClearSmogEffect());
+      // 物理カテゴリひるみ付与系（Issue #126）
+      this.registry.set('ふみつけ', new StompEffect());
+      this.registry.set('まわしげり', new RollingKickEffect());
+      this.registry.set('ずつき', new HeadbuttEffect());
+      this.registry.set('かみつく', new BiteEffect());
+      this.registry.set('ホネこんぼう', new BoneClubEffect());
+      this.registry.set('たきのぼり', new WaterfallEffect());
+      this.registry.set('ゴッドバード', new SkyAttackEffect());
+      this.registry.set('いわなだれ', new RockSlideEffect());
+      this.registry.set('ひっさつまえば', new HyperFangEffect());
+      this.registry.set('ねこだまし', new FakeOutEffect());
+      this.registry.set('おどろかす', new AstonishEffect());
+      this.registry.set('ニードルアーム', new NeedleArmEffect());
+      this.registry.set('ドラゴンダイブ', new DragonRushEffect());
+      this.registry.set('しねんのずつき', new ZenHeadbuttEffect());
+      this.registry.set('アイアンヘッド', new IronHeadEffect());
+      this.registry.set('ハートスタンプ', new HeartStampEffect());
+      this.registry.set('ハードローラー', new SteamrollerEffect());
+      this.registry.set('つららおとし', new IcicleCrashEffect());
+      this.registry.set('びりびりちくちく', new ZingZapEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
