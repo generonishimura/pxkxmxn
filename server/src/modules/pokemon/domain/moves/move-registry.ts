@@ -115,6 +115,10 @@ import { ForcePalmEffect } from './effects/force-palm-effect';
 import { FreezeShockEffect } from './effects/freeze-shock-effect';
 import { NuzzleEffect } from './effects/nuzzle-effect';
 import { BoltStrikeEffect } from './effects/bolt-strike-effect';
+import { AncientPowerEffect } from './effects/ancient-power-effect';
+import { SilverWindEffect } from './effects/silver-wind-effect';
+import { OminousWindEffect } from './effects/ominous-wind-effect';
+import { ClearSmogEffect } from './effects/clear-smog-effect';
 
 /**
  * 技のレジストリ
@@ -285,6 +289,11 @@ export class MoveRegistry {
       this.registry.set('フリーズボルト', new FreezeShockEffect());
       this.registry.set('ほっぺすりすり', new NuzzleEffect());
       this.registry.set('らいげき', new BoltStrikeEffect());
+      // 特殊カテゴリ能力変化系（Issue #99）
+      this.registry.set('げんしのちから', new AncientPowerEffect());
+      this.registry.set('ぎんいろのかぜ', new SilverWindEffect());
+      this.registry.set('あやしいかぜ', new OminousWindEffect());
+      this.registry.set('クリアスモッグ', new ClearSmogEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
