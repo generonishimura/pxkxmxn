@@ -51,6 +51,8 @@ import { SteamEruptionEffect } from './effects/steam-eruption-effect';
 import { BlueFlareEffect } from './effects/blue-flare-effect';
 import { SparklingAriaEffect } from './effects/sparkling-aria-effect';
 import { ScorchingSandsEffect } from './effects/scorching-sands-effect';
+import { WillOWispEffect } from './effects/will-o-wisp-effect';
+import { RefreshEffect } from './effects/refresh-effect';
 
 /**
  * 技のレジストリ
@@ -132,6 +134,9 @@ export class MoveRegistry {
       this.registry.set('あおいほのお', new BlueFlareEffect());
       this.registry.set('うたかたのアリア', new SparklingAriaEffect());
       this.registry.set('ねっさのだいち', new ScorchingSandsEffect());
+      // やけど付与系の変化技（Issue #116）
+      this.registry.set('おにび', new WillOWispEffect());
+      this.registry.set('リフレッシュ', new RefreshEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
