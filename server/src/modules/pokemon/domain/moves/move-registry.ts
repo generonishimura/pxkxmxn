@@ -206,6 +206,9 @@ import { PowerSwapEffect } from './effects/power-swap-effect';
 import { GuardSwapEffect } from './effects/guard-swap-effect';
 import { FilletAwayEffect } from './effects/fillet-away-effect';
 import { TakeHeartEffect } from './effects/take-heart-effect';
+import { DefogEffect } from './effects/defog-effect';
+import { CaptivateEffect } from './effects/captivate-effect';
+import { SnowscapeEffect } from './effects/snowscape-effect';
 
 /**
  * 技のレジストリ
@@ -474,6 +477,10 @@ export class MoveRegistry {
       this.registry.set('ガードスワップ', new GuardSwapEffect());
       this.registry.set('みをけずる', new FilletAwayEffect());
       this.registry.set('ブレイブチャージ', new TakeHeartEffect());
+      // 変化カテゴリ「その他」: 小粒（Issue #103 一部）
+      this.registry.set('きりばらい', new DefogEffect());
+      this.registry.set('ゆうわく', new CaptivateEffect());
+      this.registry.set('ゆきげしき', new SnowscapeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
