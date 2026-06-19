@@ -202,6 +202,10 @@ import { TearfulLookEffect } from './effects/tearful-look-effect';
 import { BellyDrumEffect } from './effects/belly-drum-effect';
 import { PainSplitEffect } from './effects/pain-split-effect';
 import { MementoEffect } from './effects/memento-effect';
+import { PowerSwapEffect } from './effects/power-swap-effect';
+import { GuardSwapEffect } from './effects/guard-swap-effect';
+import { FilletAwayEffect } from './effects/fillet-away-effect';
+import { TakeHeartEffect } from './effects/take-heart-effect';
 
 /**
  * 技のレジストリ
@@ -465,6 +469,11 @@ export class MoveRegistry {
       this.registry.set('はらだいこ', new BellyDrumEffect());
       this.registry.set('いたみわけ', new PainSplitEffect());
       this.registry.set('おきみやげ', new MementoEffect());
+      // 変化カテゴリ「その他」: 能力交換/HP操作/ステ+治癒の複合系（Issue #103 一部）
+      this.registry.set('パワースワップ', new PowerSwapEffect());
+      this.registry.set('ガードスワップ', new GuardSwapEffect());
+      this.registry.set('みをけずる', new FilletAwayEffect());
+      this.registry.set('ブレイブチャージ', new TakeHeartEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
