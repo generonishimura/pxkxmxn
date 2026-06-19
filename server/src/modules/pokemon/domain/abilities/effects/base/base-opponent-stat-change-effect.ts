@@ -56,6 +56,32 @@ export abstract class BaseOpponentStatChangeEffect implements IAbilityEffect {
       return;
     }
 
+    // 能力ランク低下を相手の特性で gating（クリアボディ/はとむね 等）
+    // 攻撃側がかたやぶりを持っている場合は無視（既存パターン踏襲）
+    // 動的インポートで循環参照を回避（既存 base-contact-status-condition-effect.ts と同方針）
+    if (this.rankChange < 0 && battleContext.trainedPokemonRepository) {
+      const { AbilityRegistry } = await import('../../ability-registry');
+      if (!AbilityRegistry.hasMoldBreaker(battleContext.attackerAbilityName)) {
+        const opponentTrainedPokemon = await battleContext.trainedPokemonRepository.findById(
+          opponentPokemon.trainedPokemonId,
+        );
+        if (opponentTrainedPokemon?.ability) {
+          const opponentAbility = AbilityRegistry.get(opponentTrainedPokemon.ability.name);
+          if (opponentAbility?.canReceiveStatChange) {
+            const canReceive = opponentAbility.canReceiveStatChange(
+              opponentPokemon,
+              this.statType,
+              this.rankChange,
+              battleContext,
+            );
+            if (canReceive === false) {
+              return;
+            }
+          }
+        }
+      }
+    }
+
     // 現在のランクを取得
     const currentRank = opponentPokemon.getStatRank(this.statType);
 
