@@ -99,6 +99,12 @@ import { PoisonTailEffect } from './effects/poison-tail-effect';
 import { PoisonJabEffect } from './effects/poison-jab-effect';
 import { CrossPoisonEffect } from './effects/cross-poison-effect';
 import { GunkShotEffect } from './effects/gunk-shot-effect';
+import { SubmissionEffect } from './effects/submission-effect';
+import { BraveBirdEffect } from './effects/brave-bird-effect';
+import { HeadSmashEffect } from './effects/head-smash-effect';
+import { WoodHammerEffect } from './effects/wood-hammer-effect';
+import { WildChargeEffect } from './effects/wild-charge-effect';
+import { HeadChargeEffect } from './effects/head-charge-effect';
 
 /**
  * 技のレジストリ
@@ -251,6 +257,13 @@ export class MoveRegistry {
       this.registry.set('どくづき', new PoisonJabEffect());
       this.registry.set('クロスポイズン', new CrossPoisonEffect());
       this.registry.set('ダストシュート', new GunkShotEffect());
+      // 物理カテゴリ反動ダメージ系（Issue #127）
+      this.registry.set('じごくぐるま', new SubmissionEffect());
+      this.registry.set('ブレイブバード', new BraveBirdEffect());
+      this.registry.set('もろはのずつき', new HeadSmashEffect());
+      this.registry.set('ウッドハンマー', new WoodHammerEffect());
+      this.registry.set('ワイルドボルト', new WildChargeEffect());
+      this.registry.set('アフロブレイク', new HeadChargeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
