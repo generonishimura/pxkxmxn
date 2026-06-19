@@ -25,6 +25,7 @@ import { AdaptabilityEffect } from './effects/damage-modify/adaptability-effect'
 import { ShinryokuEffect } from './effects/damage-modify/shinryoku-effect';
 import { MoukaEffect } from './effects/damage-modify/mouka-effect';
 import { GekiryuuEffect } from './effects/damage-modify/gekiryuu-effect';
+import { SwarmEffect } from './effects/damage-modify/swarm-effect';
 import { DrizzleEffect } from './effects/weather/drizzle-effect';
 import { RainDishEffect } from './effects/weather/rain-dish-effect';
 import { IceBodyEffect } from './effects/weather/ice-body-effect';
@@ -136,6 +137,8 @@ export class AbilityRegistry {
       this.registry.set('しんりょく', new ShinryokuEffect());
       this.registry.set('もうか', new MoukaEffect());
       this.registry.set('げきりゅう', new GekiryuuEffect());
+      // むしのしらせ: HP 1/3 以下でむし技 1.5 倍（しんりょく/もうか/げきりゅうと同パターン、Issue #84 一部）
+      this.registry.set('むしのしらせ', new SwarmEffect());
       this.registry.set('いとあみ', new StickyWebEffect());
       this.registry.set('どくどく', new PoisonPointEffect());
       this.registry.set('せいでんき', new StaticEffect());
