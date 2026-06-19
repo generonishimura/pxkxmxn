@@ -93,6 +93,12 @@ import { LightOfRuinEffect } from './effects/light-of-ruin-effect';
 import { ChargeEffect } from './effects/charge-effect';
 import { NoOpEffect } from './effects/no-op-effect';
 import { PsychicTerrainEffect } from './effects/psychic-terrain-effect';
+import { PoisonStingEffect } from './effects/poison-sting-effect';
+import { PoisonFangEffect } from './effects/poison-fang-effect';
+import { PoisonTailEffect } from './effects/poison-tail-effect';
+import { PoisonJabEffect } from './effects/poison-jab-effect';
+import { CrossPoisonEffect } from './effects/cross-poison-effect';
+import { GunkShotEffect } from './effects/gunk-shot-effect';
 
 /**
  * 技のレジストリ
@@ -238,6 +244,13 @@ export class MoveRegistry {
       this.registry.set('てをつなぐ', noOpEffect);
       // 変化カテゴリ防御技系（Issue #120）
       this.registry.set('サイコフィールド', new PsychicTerrainEffect());
+      // 物理カテゴリどく付与系（Issue #128）
+      this.registry.set('どくばり', new PoisonStingEffect());
+      this.registry.set('どくどくのキバ', new PoisonFangEffect());
+      this.registry.set('ポイズンテール', new PoisonTailEffect());
+      this.registry.set('どくづき', new PoisonJabEffect());
+      this.registry.set('クロスポイズン', new CrossPoisonEffect());
+      this.registry.set('ダストシュート', new GunkShotEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
