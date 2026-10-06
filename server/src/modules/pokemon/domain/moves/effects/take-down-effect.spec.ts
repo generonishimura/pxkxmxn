@@ -94,7 +94,7 @@ describe('TakeDownEffect', () => {
 
     it('反動ダメージがHPを0未満にしない', async () => {
       const damage = 400; // 与えたダメージ
-      const expectedRecoilDamage = Math.floor(damage * 0.25); // 400 * 0.25 = 100
+      const dealtRecoilDamage = 50; // 400 * 0.25 = 100 だが、残りHPの50だけ減る
       const attackerWithLowHp = {
         ...attacker,
         currentHp: 50,
@@ -107,20 +107,19 @@ describe('TakeDownEffect', () => {
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
         currentHp: 0, // 50 - 100 = -50 -> capped at 0
       });
-      expect(result).toBe(`反動で${expectedRecoilDamage}ダメージを受けた`);
+      expect(result).toBe(`反動で${dealtRecoilDamage}ダメージを受けた`);
     });
 
-    it('反動ダメージを切り捨てて計算する', async () => {
-      const damage = 10; // 10 * 0.25 = 2.5 -> 2
-      const expectedRecoilDamage = Math.floor(damage * 0.25); // 2
+    it('反動ダメージを四捨五入して計算する', async () => {
+      const damage = 10; // 10 * 0.25 = 2.5 -> 3
+      const expectedRecoilDamage = 3;
 
       const result = await effect.afterDamage(attacker, defender, damage, battleContext);
 
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        currentHp: 100 - expectedRecoilDamage, // 100 - 2 = 98
+        currentHp: 100 - expectedRecoilDamage, // 100 - 3 = 97
       });
       expect(result).toBe(`反動で${expectedRecoilDamage}ダメージを受けた`);
     });
   });
 });
-
