@@ -259,8 +259,9 @@ import { FoulPlayEffect } from './effects/foul-play-effect';
 import { ChipAwayEffect } from './effects/chip-away-effect';
 // 相手のランクを奪う技（Issue #129 一部）
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
-// PP を減らす技（Issue #103 一部）
+// PP を減らす技（Issue #103, #107 一部）
 import { SpiteEffect } from './effects/spite-effect';
+import { GrudgeEffect } from './effects/grudge-effect';
 
 /**
  * 技のレジストリ
@@ -628,8 +629,9 @@ export class MoveRegistry {
       this.registry.set('ＤＤラリアット', chipAwayEffect);
       // 相手のランクを奪う技（Issue #129 一部）
       this.registry.set('シャドースチール', new SpectralThiefEffect());
-      // PP を減らす技（Issue #103 一部）
+      // PP を減らす技（Issue #103, #107 一部）
       this.registry.set('うらみ', new SpiteEffect());
+      this.registry.set('おんねん', new GrudgeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
