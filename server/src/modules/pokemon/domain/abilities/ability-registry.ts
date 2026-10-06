@@ -100,6 +100,15 @@ import { TabletsOfRuinEffect } from './effects/damage-modify/tablets-of-ruin-eff
 import { BeadsOfRuinEffect } from './effects/damage-modify/beads-of-ruin-effect';
 import { FlowerGiftEffect } from './effects/damage-modify/flower-gift-effect';
 import { PurifyingSaltEffect } from './effects/immunity/purifying-salt-effect';
+import { ElectricSurgeEffect } from './effects/weather/electric-surge-effect';
+import { OrichalcumPulseEffect } from './effects/weather/orichalcum-pulse-effect';
+import { HadronEngineEffect } from './effects/weather/hadron-engine-effect';
+import { IntrepidSwordEffect } from './effects/stat-change/intrepid-sword-effect';
+import { DauntlessShieldEffect } from './effects/stat-change/dauntless-shield-effect';
+import { SupersweetSyrupEffect } from './effects/stat-change/supersweet-syrup-effect';
+import { EarthEaterEffect } from './effects/immunity/earth-eater-effect';
+import { DrySkinEffect } from './effects/immunity/dry-skin-effect';
+import { WellBakedBodyEffect } from './effects/immunity/well-baked-body-effect';
 
 /**
  * 特性レジストリ
@@ -267,6 +276,16 @@ export class AbilityRegistry {
       this.registry.set('わざわいのたま', new BeadsOfRuinEffect());
       this.registry.set('フラワーギフト', new FlowerGiftEffect());
       this.registry.set('きよめのしお', new PurifyingSaltEffect());
+      // 登場時・無効化系の特性（Issue #135 一部）
+      this.registry.set('エレキメイカー', new ElectricSurgeEffect());
+      this.registry.set('ひひいろのこどう', new OrichalcumPulseEffect());
+      this.registry.set('ハドロンエンジン', new HadronEngineEffect());
+      this.registry.set('ふとうのけん', new IntrepidSwordEffect());
+      this.registry.set('ふくつのたて', new DauntlessShieldEffect());
+      this.registry.set('かんろなミツ', new SupersweetSyrupEffect());
+      this.registry.set('どしょく', new EarthEaterEffect());
+      this.registry.set('かんそうはだ', new DrySkinEffect());
+      this.registry.set('こんがりボディ', new WellBakedBodyEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
