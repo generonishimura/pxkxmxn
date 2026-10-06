@@ -109,6 +109,13 @@ import { SupersweetSyrupEffect } from './effects/stat-change/supersweet-syrup-ef
 import { EarthEaterEffect } from './effects/immunity/earth-eater-effect';
 import { DrySkinEffect } from './effects/immunity/dry-skin-effect';
 import { WellBakedBodyEffect } from './effects/immunity/well-baked-body-effect';
+import { TangledFeetEffect } from './effects/stat-change/tangled-feet-effect';
+import { StallEffect } from './effects/stat-change/stall-effect';
+import { BadDreamsEffect } from './effects/other/bad-dreams-effect';
+import { MoodyEffect } from './effects/stat-change/moody-effect';
+import { VictoryStarEffect } from './effects/other/victory-star-effect';
+import { SweetVeilEffect } from './effects/immunity/sweet-veil-effect';
+import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 
 /**
  * 特性レジストリ
@@ -286,6 +293,17 @@ export class AbilityRegistry {
       this.registry.set('どしょく', new EarthEaterEffect());
       this.registry.set('かんそうはだ', new DrySkinEffect());
       this.registry.set('こんがりボディ', new WellBakedBodyEffect());
+      // その他の特性（Issue #135 一部）
+      this.registry.set('ちどりあし', new TangledFeetEffect());
+      this.registry.set('あとだし', new StallEffect());
+      this.registry.set('ナイトメア', new BadDreamsEffect());
+      this.registry.set('ムラっけ', new MoodyEffect());
+      this.registry.set('しょうりのほし', new VictoryStarEffect());
+      this.registry.set('スイートベール', new SweetVeilEffect());
+      this.registry.set('パステルベール', new PastelVeilEffect());
+      // メタルプロテクト: クリアボディと同効果、ファントムガード: マルチスケイルと同効果
+      this.registry.set('メタルプロテクト', clearBody);
+      this.registry.set('ファントムガード', new MultiscaleEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
