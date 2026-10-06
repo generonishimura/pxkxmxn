@@ -2,12 +2,14 @@ import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 import { isContactMove } from '../../../moves/move-flags';
+import { applyIndirectDamage } from '../../../battle-events/indirect-damage';
 
 /**
  * 接触技を受けたときに攻撃側へダメージを与える基底クラス
  * さめはだ（Rough Skin）、ゆうばく（Aftermath）などで使用
  *
  * 攻撃側の最大HPの 1/damageDivisor（切り捨て、最低1）のダメージを与える。
+ * ダメージは applyIndirectDamage で与えるため、攻撃側がマジックガードなら減らない。
  * MoveExecutorService が接触時に呼び出す applyContactStatusCondition フックを利用する。
  * 接触技の判定は isContactMove（技フラグの contact）で行う。
  */
@@ -68,11 +70,10 @@ export abstract class BaseContactRecoilDamageEffect implements IAbilityEffect {
       return false;
     }
 
+    // 技以外のダメージなので、攻撃側のマジックガードで防がれる
     const damage = Math.max(1, Math.floor(attacker.maxHp / this.damageDivisor));
-    await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {
-      currentHp: Math.max(0, attacker.currentHp - damage),
-    });
+    const dealt = await applyIndirectDamage(attacker, damage, battleContext);
 
-    return true;
+    return dealt > 0;
   }
 }

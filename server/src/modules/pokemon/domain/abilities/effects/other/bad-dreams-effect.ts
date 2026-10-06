@@ -2,6 +2,7 @@ import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { isIndirectDamagePrevented } from '../../../battle-events/indirect-damage';
 
 /**
  * ナイトメア（Bad Dreams）特性の効果
@@ -33,6 +34,10 @@ export class BadDreamsEffect implements IAbilityEffect {
     }
 
     if (opponentPokemon.statusCondition !== StatusCondition.Sleep) {
+      return;
+    }
+    // 技以外のダメージを受けない特性（マジックガード）の相手には効かない
+    if (await isIndirectDamagePrevented(opponentPokemon, battleContext)) {
       return;
     }
 

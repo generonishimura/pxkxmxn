@@ -2,13 +2,15 @@ import { IMoveEffect } from '../../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
 import { AbilityRegistry } from '../../../abilities/ability-registry';
+import { applyIndirectDamage } from '../../../battle-events/indirect-damage';
 
 /**
  * 反動ダメージの基底クラス
  * 技を使用した後に、使用者自身に反動ダメージを与える汎用的な実装
  *
  * 各技の特殊効果は、このクラスを継承して反動率を設定するだけで実装できる
- * 使用者の特性が反動を受けない特性（いしあたま・マジックガード）なら反動を受けない
+ * 使用者の特性が反動を受けない特性（いしあたま）なら反動を受けない。
+ * 反動は applyIndirectDamage で与えるため、技以外のダメージを受けない特性（マジックガード）でも受けない
  */
 export abstract class BaseRecoilEffect implements IMoveEffect {
   /**
@@ -70,13 +72,11 @@ export abstract class BaseRecoilEffect implements IMoveEffect {
       return null;
     }
 
-    // 反動ダメージを適用（HPが0未満にならないように制限）
-    const newHp = Math.max(0, currentStatus.currentHp - recoilDamage);
-
-    // HPを更新
-    await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {
-      currentHp: newHp,
-    });
+    // 反動ダメージを適用（技以外のダメージなので、マジックガードで防がれる）
+    const dealt = await applyIndirectDamage(currentStatus, recoilDamage, battleContext);
+    if (dealt <= 0) {
+      return null;
+    }
 
     // メッセージを返す（反動ダメージの値を含める）
     // メッセージに{damage}が含まれている場合は置換、含まれていない場合はそのまま返す

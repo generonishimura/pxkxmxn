@@ -1,3 +1,4 @@
+import { isIndirectDamagePrevented } from '../../../battle-events/indirect-damage';
 import { BattleContext } from '../../../abilities/battle-context.interface';
 
 /**
@@ -24,6 +25,10 @@ export async function applyMaxHpSelfDamage(
   const currentStatus =
     await battleContext.battleRepository.findBattlePokemonStatusById(attackerId);
   if (!currentStatus) {
+    return null;
+  }
+  // 技以外のダメージを受けない特性（マジックガード）なら自傷せず、null を返す
+  if (await isIndirectDamagePrevented(currentStatus, battleContext)) {
     return null;
   }
 

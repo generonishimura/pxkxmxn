@@ -427,4 +427,11 @@ export interface IAbilityEffect {
    * BaseRecoilEffect の afterDamage で参照される
    */
   readonly preventsRecoil?: boolean;
+
+  /**
+   * 技以外のダメージを受けない特性かどうか（例: マジックガード）
+   * applyIndirectDamage（状態異常・反動・外したときの自傷・わるあがき・さめはだ・ナイトメア・ヘドロえき）で参照される。
+   * 混乱の自傷は防がない（本家と同じ）
+   */
+  readonly preventsIndirectDamage?: boolean;
 }

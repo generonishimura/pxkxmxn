@@ -13,6 +13,8 @@ import {
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
+import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
+import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
 
 /**
  * StatusConditionProcessorService
@@ -51,8 +53,20 @@ export class StatusConditionProcessorService {
     const weather = resolveEffectiveWeather(battle.weather, activeAbilityNames);
 
     for (const status of activePokemon) {
+      const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
+      const abilityEffect = trainedPokemon?.ability
+        ? AbilityRegistry.get(trainedPokemon.ability.name)
+        : undefined;
+      const battleContext: BattleContext = {
+        battle,
+        battleRepository: this.battleRepository,
+        trainedPokemonRepository: this.trainedPokemonRepository,
+        weather,
+        field: battle.field,
+      };
+
       // 状態異常によるダメージ処理
-      await this.processStatusConditionDamage(battle.id, status);
+      await this.processStatusConditionDamage(battle.id, status, battleContext);
 
       // 状態異常ダメージを反映した最新のステータスを読み直す
       // 古いステータスのまま特性が HP を書くと、状態異常ダメージが上書きされてしまうため
@@ -62,20 +76,8 @@ export class StatusConditionProcessorService {
       }
 
       // 特性効果の処理
-      const trainedPokemon = await this.trainedPokemonRepository.findById(
-        latestStatus.trainedPokemonId,
-      );
-
-      if (trainedPokemon?.ability) {
-        const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
-        if (abilityEffect?.onTurnEnd) {
-          await abilityEffect.onTurnEnd(latestStatus, {
-            battle,
-            battleRepository: this.battleRepository,
-            weather,
-            field: battle.field,
-          });
-        }
+      if (abilityEffect?.onTurnEnd) {
+        await abilityEffect.onTurnEnd(latestStatus, battleContext);
       }
     }
   }
@@ -86,6 +88,7 @@ export class StatusConditionProcessorService {
   private async processStatusConditionDamage(
     battleId: number,
     status: BattlePokemonStatus,
+    battleContext: BattleContext,
   ): Promise<void> {
     if (!status.statusCondition || status.statusCondition === StatusCondition.None) {
       return;
@@ -152,14 +155,9 @@ export class StatusConditionProcessorService {
       battleMap.set(status.id, confusionTurnCount + 1);
     }
 
-    // ダメージを計算
+    // ダメージを計算（マジックガードなど、技以外のダメージを受けない特性なら減らさない）
     const damage = StatusConditionHandler.calculateTurnEndDamage(status, badPoisonTurnCount);
-    if (damage > 0) {
-      const newHp = Math.max(0, status.currentHp - damage);
-      await this.battleRepository.updateBattlePokemonStatus(status.id, {
-        currentHp: newHp,
-      });
-    }
+    await applyIndirectDamage(status, damage, battleContext);
   }
 
   /**
