@@ -7,6 +7,12 @@ import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
+import { isEmptyObject } from '../../domain/state/state-field-parser';
+import {
+  clearVolatileOnSwitchOut,
+  tickVolatileStateAtTurnEnd,
+} from '../../domain/state/volatile-state';
+import { tickSideStateAtTurnEnd } from '../../domain/state/side-state';
 import { NotFoundException, InvalidStateException } from '@/shared/domain/exceptions';
 import { ActionOrderDeterminerService } from '../services/action-order-determiner.service';
 import { WinnerCheckerService } from '../services/winner-checker.service';
@@ -236,15 +242,50 @@ export class ExecuteTurnUseCase {
     const battleAtTurnEnd = await this.findBattle(battle.id);
     await this.statusConditionProcessor.processTurnEndAbilities(battleAtTurnEnd);
 
-    // ターン数を増やす
+    // 状態の残りターン数を減らし、このターンだけの状態を消す。
+    // 切れる直前の値（1）を読む効果は上のターン終了時の処理で済んでいるので、そのあとで行う
+    await this.settleVolatileStatesAtTurnEnd(battle.id);
+
+    // ターン終了時の処理が書いた sideState も残すよう、読み直してから減らす
+    const battleBeforeNextTurn = await this.findBattle(battle.id);
+    const tickedSideState = tickSideStateAtTurnEnd(battleBeforeNextTurn.sideState);
+
+    // ターン数を増やす（sideState が変わったときだけ一緒に書く）
     const updatedBattle = await this.battleRepository.update(battle.id, {
-      turn: battleAtTurnEnd.turn + 1,
+      turn: battleBeforeNextTurn.turn + 1,
+      ...(tickedSideState !== battleBeforeNextTurn.sideState ? { sideState: tickedSideState } : {}),
     });
 
     return {
       battle: updatedBattle,
       actions: actionResults,
     };
+  }
+
+  /**
+   * ターン終了時に、場のポケモンの volatileState を片付ける
+   * - ひんしのポケモンは、すべてのキーを消す（ほろびのうたのカウントやみがわりを持ち越さない）
+   * - それ以外は、残りターン数を 1 減らし、このターンだけのフラグを消す
+   * 変える所がないポケモンには書き込まない
+   */
+  private async settleVolatileStatesAtTurnEnd(battleId: number): Promise<void> {
+    const statuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
+    for (const status of statuses.filter(s => s.isActive)) {
+      if (status.isFainted()) {
+        if (!isEmptyObject(status.volatileState)) {
+          await this.battleRepository.updateBattlePokemonStatus(status.id, {
+            volatileState: clearVolatileOnSwitchOut(),
+          });
+        }
+        continue;
+      }
+      const ticked = tickVolatileStateAtTurnEnd(status.volatileState);
+      if (ticked !== status.volatileState) {
+        await this.battleRepository.updateBattlePokemonStatus(status.id, {
+          volatileState: ticked,
+        });
+      }
+    }
   }
 
   /**

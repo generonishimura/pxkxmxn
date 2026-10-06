@@ -23,13 +23,13 @@ import { MoveExecutorService } from '../services/move-executor.service';
  * 行動のたびに、バトルと場のポケモンを読み直すことを確かめる
  * リポジトリはメモリ上で状態を持ち、先に行動した側の書き込みが後の行動に見えるようにする
  */
-describe('ExecuteTurnUseCase - 行動のたびに最新の状態を読む', () => {
+describe('ExecuteTurnUseCase - ターン中の状態の読み書き', () => {
   const createStatus = (id: number, trainerId: number, isActive = true): BattlePokemonStatus =>
     new BattlePokemonStatus(id, 1, id, trainerId, isActive, 100, 100, 0, 0, 0, 0, 0, 0, 0, null);
 
-  const withVolatileState = (
+  const withChanges = (
     status: BattlePokemonStatus,
-    volatileState: VolatileState,
+    changes: { volatileState?: VolatileState; currentHp?: number },
   ): BattlePokemonStatus =>
     new BattlePokemonStatus(
       status.id,
@@ -37,7 +37,7 @@ describe('ExecuteTurnUseCase - 行動のたびに最新の状態を読む', () =
       status.trainedPokemonId,
       status.trainerId,
       status.isActive,
-      status.currentHp,
+      changes.currentHp ?? status.currentHp,
       status.maxHp,
       0,
       0,
@@ -47,7 +47,7 @@ describe('ExecuteTurnUseCase - 行動のたびに最新の状態を読む', () =
       0,
       0,
       null,
-      volatileState,
+      changes.volatileState ?? status.volatileState,
     );
 
   const withBattleChanges = (
@@ -87,7 +87,11 @@ describe('ExecuteTurnUseCase - 行動のたびに最新の状態を読む', () =
         Promise.resolve([...statuses.values()]),
       ),
       createBattlePokemonStatus: jest.fn(),
-      updateBattlePokemonStatus: jest.fn(),
+      updateBattlePokemonStatus: jest.fn((id: number, data: Partial<BattlePokemonStatus>) => {
+        const updated = withChanges(statuses.get(id), data);
+        statuses.set(id, updated);
+        return Promise.resolve(updated);
+      }),
       findActivePokemonByBattleIdAndTrainerId: jest.fn((_battleId: number, trainerId: number) =>
         Promise.resolve(
           [...statuses.values()].find(s => s.trainerId === trainerId && s.isActive) ?? null,
@@ -159,9 +163,22 @@ describe('ExecuteTurnUseCase - 行動のたびに最新の状態を読む', () =
       battle = withBattleChanges(battle, changes);
     };
     const setVolatileState = (id: number, volatileState: VolatileState) => {
-      statuses.set(id, withVolatileState(statuses.get(id), volatileState));
+      statuses.set(id, withChanges(statuses.get(id), { volatileState }));
     };
-    return { useCase, executeMove, processTurnEnd, battleRepository, setBattle, setVolatileState };
+    const setHp = (id: number, currentHp: number) => {
+      statuses.set(id, withChanges(statuses.get(id), { currentHp }));
+    };
+    const getStatus = (id: number): BattlePokemonStatus => statuses.get(id);
+    return {
+      useCase,
+      executeMove,
+      processTurnEnd,
+      battleRepository,
+      setBattle,
+      setVolatileState,
+      setHp,
+      getStatus,
+    };
   };
 
   const bothMove: DeterminedAction[] = [
@@ -260,5 +277,112 @@ describe('ExecuteTurnUseCase - 行動のたびに最新の状態を読む', () =
 
     // Assert
     expect(processTurnEnd.mock.calls[0][0].weather).toBe(Weather.Rain);
+  });
+
+  describe('ターン終了時の片付け', () => {
+    it('場のポケモンの残りターン数を 1 減らし、このターンだけのフラグを消す', async () => {
+      // Arrange
+      const { useCase, setVolatileState, getStatus } = setup(bothMove);
+      setVolatileState(1, { tauntTurns: 3, protection: 'protect', leechSeed: true });
+
+      // Act
+      await useCase.execute(params);
+
+      // Assert
+      expect(getStatus(1).volatileState).toEqual({ tauntTurns: 2, leechSeed: true });
+    });
+
+    it('特性・状態異常のターン終了時の処理は、減らす前の値を読む', async () => {
+      // Arrange
+      const { useCase, processTurnEnd, setVolatileState, getStatus } = setup(bothMove);
+      setVolatileState(2, { yawnTurns: 1 });
+      const seenAtTurnEnd: VolatileState[] = [];
+      processTurnEnd.mockImplementation(() => {
+        seenAtTurnEnd.push(getStatus(2).volatileState);
+        return Promise.resolve();
+      });
+
+      // Act
+      await useCase.execute(params);
+
+      // Assert
+      expect(seenAtTurnEnd).toEqual([{ yawnTurns: 1 }]);
+      expect(getStatus(2).volatileState).toEqual({});
+    });
+
+    it('ひんしになった場のポケモンの volatileState を消す', async () => {
+      // Arrange
+      const { useCase, setVolatileState, setHp, getStatus } = setup(bothMove);
+      setVolatileState(2, { perishCount: 0, substituteHp: 10, leechSeed: true });
+      setHp(2, 0);
+
+      // Act
+      await useCase.execute(params);
+
+      // Assert
+      expect(getStatus(2).volatileState).toEqual({});
+    });
+
+    it('変える所がないポケモンには書き込まない', async () => {
+      // Arrange
+      const { useCase, battleRepository, setVolatileState } = setup(bothMove);
+      setVolatileState(1, { leechSeed: true });
+
+      // Act
+      await useCase.execute(params);
+
+      // Assert
+      expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+    });
+
+    it('sideState の残りターン数を減らし、ターン数と一緒に書き込む', async () => {
+      // Arrange
+      const { useCase, battleRepository, setBattle } = setup(bothMove);
+      setBattle({
+        sideState: {
+          sides: { '1': { reflectTurns: 5, wideGuard: true } },
+          global: { trickRoomTurns: 1 },
+        },
+      });
+
+      // Act
+      await useCase.execute(params);
+
+      // Assert
+      expect(battleRepository.update).toHaveBeenCalledWith(1, {
+        turn: 4,
+        sideState: { sides: { '1': { reflectTurns: 4 } } },
+      });
+    });
+
+    it('ターン終了時の処理が書いた sideState も消さずに減らす', async () => {
+      // Arrange
+      const { useCase, battleRepository, processTurnEnd, setBattle } = setup(bothMove);
+      processTurnEnd.mockImplementation(() => {
+        setBattle({ sideState: { sides: { '2': { tailwindTurns: 3 } } } });
+        return Promise.resolve();
+      });
+
+      // Act
+      await useCase.execute(params);
+
+      // Assert
+      expect(battleRepository.update).toHaveBeenCalledWith(1, {
+        turn: 4,
+        sideState: { sides: { '2': { tailwindTurns: 2 } } },
+      });
+    });
+
+    it('sideState に変える所がないときは、ターン数だけを書き込む', async () => {
+      // Arrange
+      const { useCase, battleRepository, setBattle } = setup(bothMove);
+      setBattle({ sideState: { sides: { '1': { stealthRock: true } } } });
+
+      // Act
+      await useCase.execute(params);
+
+      // Assert
+      expect(battleRepository.update).toHaveBeenCalledWith(1, { turn: 4 });
+    });
   });
 });
