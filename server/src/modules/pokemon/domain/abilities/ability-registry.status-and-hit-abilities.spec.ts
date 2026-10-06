@@ -3,6 +3,8 @@ import { PoisonHealEffect } from './effects/other/poison-heal-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
 import { PoisonTouchEffect } from './effects/other/poison-touch-effect';
 import { MoxieEffect } from './effects/stat-change/moxie-effect';
+import { JustifiedEffect } from './effects/stat-change/justified-effect';
+import { RattledEffect } from './effects/stat-change/rattled-effect';
 
 describe('AbilityRegistry（状態異常ダメージ・ヒット後の特性）', () => {
   beforeEach(() => {
@@ -15,6 +17,8 @@ describe('AbilityRegistry（状態異常ダメージ・ヒット後の特性）'
     ['マジックガード', MagicGuardEffect],
     ['どくしゅ', PoisonTouchEffect],
     ['じしんかじょう', MoxieEffect],
+    ['せいぎのこころ', JustifiedEffect],
+    ['びびり', RattledEffect],
   ])('%s が DB の特性名で登録されている', (name, effectClass) => {
     // Act
     const effect = AbilityRegistry.get(name);

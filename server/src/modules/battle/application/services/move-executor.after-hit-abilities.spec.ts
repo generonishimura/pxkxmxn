@@ -1,8 +1,15 @@
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
+import { Move, MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
+import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { ATTACKER_ID, DEFENDER_ID, setupMoveExecutor } from './__tests__/move-executor-test-setup';
 
 describe('MoveExecutorService - ヒット後に発動する特性', () => {
+  const moveOfType = (name: string, type: Type): Move =>
+    new Move(1, name, 'Test Move', type, MoveCategory.Physical, 80, 100, 10, 0, null);
+  const DARK = new Type(17, 'あく', 'Dark');
+  const BUG = new Type(7, 'むし', 'Bug');
+
   beforeEach(() => {
     AbilityRegistry.clear();
     AbilityRegistry.initialize();
@@ -58,5 +65,37 @@ describe('MoveExecutorService - ヒット後に発動する特性', () => {
     // Assert
     expect(statuses.get(DEFENDER_ID)?.statusCondition).toBe(StatusCondition.Poison);
     expect(message).toBe('Used ほのおのパンチ and dealt 30 damage どくしゅ activated!');
+  });
+
+  it('せいぎのこころ: あくタイプの技でダメージを受けると、攻撃が1段階上がる', async () => {
+    // Arrange
+    const { execute, statuses } = setupMoveExecutor({
+      move: moveOfType('かみくだく', DARK),
+      defenderAbility: 'せいぎのこころ',
+      damage: 30,
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(statuses.get(DEFENDER_ID)?.attackRank).toBe(1);
+    expect(message).toBe('Used かみくだく and dealt 30 damage Attack rose!');
+  });
+
+  it('びびり: むしタイプの技でダメージを受けると、素早さが1段階上がる', async () => {
+    // Arrange
+    const { execute, statuses } = setupMoveExecutor({
+      move: moveOfType('シザークロス', BUG),
+      defenderAbility: 'びびり',
+      damage: 30,
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(statuses.get(DEFENDER_ID)?.speedRank).toBe(1);
+    expect(message).toBe('Used シザークロス and dealt 30 damage Speed rose!');
   });
 });

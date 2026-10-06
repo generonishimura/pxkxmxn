@@ -123,6 +123,8 @@ import { MagicGuardEffect } from './effects/other/magic-guard-effect';
 import { PoisonHealEffect } from './effects/other/poison-heal-effect';
 import { PoisonTouchEffect } from './effects/other/poison-touch-effect';
 import { MoxieEffect } from './effects/stat-change/moxie-effect';
+import { JustifiedEffect } from './effects/stat-change/justified-effect';
+import { RattledEffect } from './effects/stat-change/rattled-effect';
 
 /**
  * 特性レジストリ
@@ -340,6 +342,8 @@ export class AbilityRegistry {
       this.registry.set('ポイズンヒール', new PoisonHealEffect());
       this.registry.set('どくしゅ', new PoisonTouchEffect());
       this.registry.set('じしんかじょう', new MoxieEffect());
+      this.registry.set('せいぎのこころ', new JustifiedEffect());
+      this.registry.set('びびり', new RattledEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
