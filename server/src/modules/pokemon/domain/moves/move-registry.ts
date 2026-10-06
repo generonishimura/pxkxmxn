@@ -243,6 +243,11 @@ import { TwoToFiveHitEffect } from './effects/two-to-five-hit-effect';
 import { TwoHitEffect } from './effects/two-hit-effect';
 import { TripleDiveEffect } from './effects/triple-dive-effect';
 import { TwineedleEffect } from './effects/twineedle-effect';
+// 威力・タイプが変わる技（Issue #96, #99, #100 一部）
+import { VenoshockEffect } from './effects/venoshock-effect';
+import { HexEffect } from './effects/hex-effect';
+import { StoredPowerEffect } from './effects/stored-power-effect';
+import { WeatherBallEffect } from './effects/weather-ball-effect';
 
 /**
  * 技のレジストリ
@@ -592,6 +597,11 @@ export class MoveRegistry {
       this.registry.set('タキオンカッター', twoHitEffect);
       this.registry.set('ダブルニードル', new TwineedleEffect());
       this.registry.set('トリプルダイブ', new TripleDiveEffect());
+      // 威力・タイプが変わる技（Issue #96, #99, #100 一部）
+      this.registry.set('ベノムショック', new VenoshockEffect());
+      this.registry.set('たたりめ', new HexEffect());
+      this.registry.set('アシストパワー', new StoredPowerEffect());
+      this.registry.set('ウェザーボール', new WeatherBallEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
