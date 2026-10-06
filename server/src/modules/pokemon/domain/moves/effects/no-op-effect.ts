@@ -11,7 +11,6 @@ import { BattleContext } from '../../abilities/battle-context.interface';
  * ダブルバトル専用の技（シングルバトルでは対象がいないか、意味がない）:
  * - サイドチェンジ（Ally Switch）: 味方と場所を入れ替える
  * - てだすけ（Helping Hand）: 味方の技の威力を上げる
- * - デコレーション（Decorate）: 味方の攻撃と特攻を 2 段階上げる
  * - コーチング（Coaching）: 味方の攻撃と防御を上げる
  * - アロマミスト（Aromatic Mist）: 味方の特防を上げる
  * - ドラゴンエール（Dragon Cheer）: 味方の急所率を上げる

@@ -209,6 +209,7 @@ import { TakeHeartEffect } from './effects/take-heart-effect';
 import { DefogEffect } from './effects/defog-effect';
 import { CaptivateEffect } from './effects/captivate-effect';
 import { SnowscapeEffect } from './effects/snowscape-effect';
+import { DecorateEffect } from './effects/decorate-effect';
 
 /**
  * 技のレジストリ
@@ -485,7 +486,8 @@ export class MoveRegistry {
       // 味方や複数の相手が必要なダブルバトル専用の技は NoOpEffect を共有
       this.registry.set('サイドチェンジ', noOpEffect);
       this.registry.set('てだすけ', noOpEffect);
-      this.registry.set('デコレーション', noOpEffect);
+      // デコレーションは相手も対象にできるため、シングルバトルでも相手の攻撃と特攻が上がる
+      this.registry.set('デコレーション', new DecorateEffect());
       this.registry.set('コーチング', noOpEffect);
       this.registry.set('アロマミスト', noOpEffect);
       this.registry.set('ドラゴンエール', noOpEffect);
