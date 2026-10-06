@@ -4,6 +4,7 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 import type { MoveFlag } from '../moves/move-flags';
 import type { StatType } from '../moves/effects/base/base-stat-change-effect';
 import type { HitResult } from '../battle-events/hit-result';
+import type { EffectSource } from '../battle-events/effect-source';
 
 /**
  * 特性効果のインターフェース
@@ -126,13 +127,58 @@ export interface IAbilityEffect {
    * @param pokemon 対象のポケモン
    * @param statusCondition 付与されようとしている状態異常
    * @param battleContext バトルコンテキスト
+   * @param source 付与しようとしたもの（canInflictStatus から呼ばれたときに入る）
    * @returns 受けられる場合はtrue、無効化する場合はfalse、判定しない場合はundefined
    */
   canReceiveStatusCondition?(
     _pokemon: BattlePokemonStatus,
     _statusCondition: StatusCondition,
     _battleContext?: BattleContext,
+    _source?: EffectSource,
   ): boolean | undefined;
+
+  /**
+   * 付与元: 相手のタイプによる状態異常の免疫を無視する効果（例: ふしょく）
+   * canInflictStatus で、対象がタイプで防ぐ状態異常のときに付与元の特性として呼ばれる
+   * @param holder この特性を持つ付与元のポケモン
+   * @param statusCondition 付与しようとしている状態異常
+   * @returns 免疫を無視する場合はtrue
+   */
+  bypassesStatusTypeImmunity?(
+    _holder: BattlePokemonStatus,
+    _statusCondition: StatusCondition,
+    _battleContext?: BattleContext,
+  ): boolean | undefined;
+
+  /**
+   * 状態異常を付与されたあとに発動する効果（例: シンクロ）
+   * inflictStatus で状態異常を書き込んだあとに、付与された側の特性として呼ばれる
+   * @param holder この特性を持つ、付与された側のポケモン（付与後の状態）
+   * @param statusCondition 付与された状態異常
+   * @param source 付与したもの（source.pokemon が自分なら自分で付与した）
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onStatusInflicted?(
+    _holder: BattlePokemonStatus,
+    _statusCondition: StatusCondition,
+    _source: EffectSource | undefined,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 付与元: 相手に状態異常を付与したあとに発動する効果（例: どくくぐつ）
+   * inflictStatus で状態異常を書き込んだあとに、付与元の特性として呼ばれる。自分に付与したときは呼ばれない
+   * @param holder この特性を持つ付与元のポケモン
+   * @param target 状態異常を付与された相手（付与後の状態）
+   * @param statusCondition 付与した状態異常
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onInflictStatus?(
+    _holder: BattlePokemonStatus,
+    _target: BattlePokemonStatus,
+    _statusCondition: StatusCondition,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
 
   /**
    * 能力ランク変更を受けられるかどうかを判定する効果

@@ -3,6 +3,11 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 import { isContactMove } from '../../../moves/move-flags';
+import {
+  StatusInflictionOptions,
+  canInflictStatus,
+  inflictStatus,
+} from '../../../battle-events/status-infliction';
 
 /**
  * 接触技を受けたときに状態異常を付与する基底クラス
@@ -85,16 +90,8 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       return false;
     }
 
-    // 既に状態異常がある場合は付与しない
+    // 既に状態異常がある場合は付与しない（確率判定の前に判定する）
     if (attacker.statusCondition && attacker.statusCondition !== StatusCondition.None) {
-      return false;
-    }
-
-    // 攻撃側のポケモンのタイプを取得
-    const attackerTrainedPokemon = await battleContext.trainedPokemonRepository.findById(
-      attacker.trainedPokemonId,
-    );
-    if (!attackerTrainedPokemon) {
       return false;
     }
 
@@ -104,38 +101,22 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       return false;
     }
 
-    // タイプによる免疫チェック（選ばれた状態異常ごとに判定する）
-    const immuneTypes = this.immuneTypesFor(statusCondition);
-    const hasImmuneType =
-      immuneTypes.includes(attackerTrainedPokemon.pokemon.primaryType.name) ||
-      (attackerTrainedPokemon.pokemon.secondaryType &&
-        immuneTypes.includes(attackerTrainedPokemon.pokemon.secondaryType.name));
-    if (hasImmuneType) {
+    // 付与できるか（選ばれた状態異常ごとのタイプ免疫・攻撃側の特性）。付与元はこの特性と持ち主
+    const options: StatusInflictionOptions = {
+      source: {
+        pokemon: defender,
+        abilityName: battleContext.defenderAbilityName,
+        kind: 'ability',
+        name: battleContext.defenderAbilityName,
+      },
+      immuneTypes: this.immuneTypesFor(statusCondition),
+    };
+    if (!(await canInflictStatus(attacker, statusCondition, battleContext, options))) {
       return false;
     }
 
-    // 特性による無効化チェック（動的に取得して循環参照を回避）
-    if (attackerTrainedPokemon.ability) {
-      // 動的インポートで循環参照を回避
-      const { AbilityRegistry } = await import('../../ability-registry');
-      const abilityEffect = AbilityRegistry.get(attackerTrainedPokemon.ability.name);
-      if (abilityEffect?.canReceiveStatusCondition) {
-        const canReceive = abilityEffect.canReceiveStatusCondition(
-          attacker,
-          statusCondition,
-          battleContext,
-        );
-        // canReceiveがfalseの場合は無効化（undefinedの場合は判定しない）
-        if (canReceive === false) {
-          return false;
-        }
-      }
-    }
-
-    // 状態異常を付与
-    await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {
-      statusCondition,
-    });
+    // 状態異常を付与（付与されたあとの特性も呼ぶ。メッセージは「<特性名> activated!」だけ）
+    await inflictStatus(attacker, statusCondition, battleContext, options);
 
     return true;
   }
