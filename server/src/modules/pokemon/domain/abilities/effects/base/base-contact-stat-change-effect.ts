@@ -3,6 +3,7 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../battle-context.interface';
 import { StatType } from './base-opponent-stat-change-effect';
 import { isContactMove } from '../../../moves/move-flags';
+import { applyStatChanges } from '../../../battle-events/stat-change';
 
 /**
  * 能力ランクを変更する対象
@@ -20,29 +21,12 @@ export interface ContactStatChange {
 }
 
 /**
- * 能力の種類と BattlePokemonStatus のランクのプロパティ名の対応
- */
-const STAT_RANK_PROP_MAP = {
-  attack: 'attackRank',
-  defense: 'defenseRank',
-  specialAttack: 'specialAttackRank',
-  specialDefense: 'specialDefenseRank',
-  speed: 'speedRank',
-  accuracy: 'accuracyRank',
-  evasion: 'evasionRank',
-} as const satisfies Record<StatType, keyof BattlePokemonStatus>;
-
-type StatRankProp = (typeof STAT_RANK_PROP_MAP)[StatType];
-
-const MIN_RANK = -6;
-const MAX_RANK = 6;
-
-/**
  * 接触技を受けたときに能力ランクを変更する基底クラス
  * ぬめぬめ（Gooey）、カーリーヘアー（Tangling Hair）、くだけるよろい（Weak Armor）などで使用
  *
  * MoveExecutorService が接触時に呼び出す applyContactStatusCondition フックを利用する。
- * 対象が攻撃側で、ランクを下げる場合は、攻撃側の特性の canReceiveStatChange で無効化を判定する。
+ * ランクは applyStatChanges で変える。対象が攻撃側でランクを下げる場合は、攻撃側の特性
+ * （canReceiveStatChange・reflectsStatDrops など）で無効化・反射を判定する。
  * 発動条件は trigger で選ぶ。'contact' は isContactMove（技フラグの contact）、'physical' は物理技で判定する。
  */
 export abstract class BaseContactStatChangeEffect implements IAbilityEffect {
@@ -104,61 +88,16 @@ export abstract class BaseContactStatChangeEffect implements IAbilityEffect {
       return false;
     }
 
-    const updateData: Partial<Record<StatRankProp, number>> = {};
-    let changed = false;
-    for (const change of this.statChanges) {
-      if (!(await this.canApply(targetPokemon, change, battleContext))) {
-        continue;
-      }
-      const currentRank = targetPokemon.getStatRank(change.statType);
-      const newRank = Math.max(MIN_RANK, Math.min(MAX_RANK, currentRank + change.rankChange));
-      if (newRank === currentRank) {
-        continue;
-      }
-      updateData[STAT_RANK_PROP_MAP[change.statType]] = newRank;
-      changed = true;
-    }
-
-    if (!changed) {
-      return false;
-    }
-
-    await battleContext.battleRepository.updateBattlePokemonStatus(targetPokemon.id, updateData);
-    return true;
-  }
-
-  /**
-   * 能力ランク変化を対象に適用できるかを判定する
-   * 攻撃側のランクを下げる場合のみ、攻撃側の特性（クリアボディなど）で無効化を判定する
-   */
-  private async canApply(
-    targetPokemon: BattlePokemonStatus,
-    change: ContactStatChange,
-    battleContext: BattleContext,
-  ): Promise<boolean> {
-    if (this.target !== 'attacker' || change.rankChange >= 0) {
-      return true;
-    }
-    if (!battleContext.trainedPokemonRepository) {
-      return true;
-    }
-
-    const trainedPokemon = await battleContext.trainedPokemonRepository.findById(
-      targetPokemon.trainedPokemonId,
-    );
-    if (!trainedPokemon?.ability) {
-      return true;
-    }
-
-    // 動的インポートで循環参照を回避（base-contact-status-condition-effect.ts と同方針）
-    const { AbilityRegistry } = await import('../../ability-registry');
-    const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
-    const canReceive = abilityEffect?.canReceiveStatChange?.(
-      targetPokemon,
-      change.statType,
-      change.rankChange,
-      battleContext,
-    );
-    return canReceive !== false;
+    // ランクを変える。原因はこの特性と持ち主（防御側）
+    // 攻撃側のランクを下げるときは、攻撃側の特性（クリアボディ・ミラーアーマーなど）を applyStatChanges が判定する
+    const result = await applyStatChanges(targetPokemon, this.statChanges, battleContext, {
+      source: {
+        pokemon: defender,
+        abilityName: battleContext.defenderAbilityName,
+        kind: 'ability',
+        name: battleContext.defenderAbilityName,
+      },
+    });
+    return result.applied.length > 0 || result.reflected.length > 0;
   }
 }

@@ -1,7 +1,8 @@
 import { IMoveEffect } from '../../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
-import { StatType, STAT_RANK_PROP_MAP, STAT_NAME_MAP } from './base-stat-change-effect';
+import { StatType, joinStatChangeMessages, moveEffectSource } from './base-stat-change-effect';
+import { applyStatChanges } from '../../../battle-events/stat-change';
 
 /**
  * 自分のステータスランクを変更する変化技の基底クラス
@@ -33,30 +34,13 @@ export abstract class BaseSelfStatChangeMoveEffect implements IMoveEffect {
       return null;
     }
 
-    // 現在のランクを取得
-    const currentRank = attacker.getStatRank(this.statType);
-
-    // 新しいランクを計算（-6から+6の範囲内で）
-    const newRank = Math.max(-6, Math.min(6, currentRank + this.rankChange));
-
-    // ランクが変化しない場合は何もしない
-    if (newRank === currentRank) {
-      return null;
-    }
-
-    // statTypeからプロパティ名を取得してupdateDataを構築
-    const propName = STAT_RANK_PROP_MAP[this.statType];
-    const updateData: Partial<BattlePokemonStatus> = {
-      [propName]: newRank,
-    } as Partial<BattlePokemonStatus>;
-
-    // 自分のステータスランクを更新
-    await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, updateData);
-
-    // メッセージを返す
-    const statName = STAT_NAME_MAP[this.statType];
-    const direction = this.rankChange > 0 ? 'rose' : 'fell';
-    return `${statName} ${direction}!`;
+    // 自分のランクを変える（自分の特性: たんじゅん・あまのじゃくなどが効く）
+    const result = await applyStatChanges(
+      attacker,
+      [{ statType: this.statType, rankChange: this.rankChange }],
+      battleContext,
+      { source: moveEffectSource(attacker, battleContext) },
+    );
+    return joinStatChangeMessages(result);
   }
 }
-

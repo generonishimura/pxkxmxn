@@ -5,6 +5,7 @@ import type { MoveFlag } from '../moves/move-flags';
 import type { StatType } from '../moves/effects/base/base-stat-change-effect';
 import type { HitResult } from '../battle-events/hit-result';
 import type { EffectSource } from '../battle-events/effect-source';
+import type { StatChange } from '../battle-events/stat-change';
 
 /**
  * 特性効果のインターフェース
@@ -208,6 +209,7 @@ export interface IAbilityEffect {
    * @param statType 変更されようとしている能力（'attack'/'defense'/etc）
    * @param rankChange ランク変化量（負の値は下降）
    * @param battleContext バトルコンテキスト
+   * @param source 変化を起こしたもの（applyStatChanges から呼ばれたときに入る。いかくなら name が 'いかく'）
    * @returns 受けられる場合はtrue、無効化する場合はfalse、判定しない場合はundefined
    *          典型用途: クリアボディ / しろいけむり（全ステ低下無効）、はとむね（防御低下無効）など
    */
@@ -223,7 +225,62 @@ export interface IAbilityEffect {
       | 'evasion',
     _rankChange: number,
     _battleContext?: BattleContext,
+    _source?: EffectSource,
   ): boolean | undefined;
+
+  /**
+   * 能力ランクが変わる前に、変化量を変える効果（例: たんじゅん = 2倍、あまのじゃく = 逆、ばんけん = いかくで上昇）
+   * applyStatChanges で、この特性を持つポケモンのランクが変わるたびに呼ばれる（自分で起こした変化も含む）。
+   * 相手の技による変化では、かたやぶりで無視される
+   * @param holder この特性を持つ、ランクが変わるポケモン
+   * @param change 変化（能力と変化量）
+   * @param source 変化を起こしたもの
+   * @returns 変更後の変化量（0なら変化なし）、変更しない場合はundefined
+   */
+  modifyIncomingStatChange?(
+    _holder: BattlePokemonStatus,
+    _change: StatChange,
+    _source: EffectSource | undefined,
+    _battleContext?: BattleContext,
+  ): number | undefined;
+
+  /**
+   * 相手が起こした能力ランクの低下を、受けずに相手へ返す特性かどうか（例: ミラーアーマー）
+   * applyStatChanges で参照される。相手の技による低下では、かたやぶりで無視される
+   */
+  readonly reflectsStatDrops?: boolean;
+
+  /**
+   * 自分の能力ランクが変わったあとに発動する効果（例: まけんき、かちき、びびりのいかくへの反応）
+   * applyStatChanges でランクを書き込んだあとに呼ばれる。かたやぶりでは無視されない
+   * @param holder この特性を持つポケモン（変化後の状態）
+   * @param applied 実際に変わった量
+   * @param source 変化を起こしたもの
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onStatChanged?(
+    _holder: BattlePokemonStatus,
+    _applied: readonly StatChange[],
+    _source: EffectSource | undefined,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 相手の能力ランクが変わったあとに発動する効果（例: びんじょう）
+   * applyStatChanges で相手のランクを書き込んだあと、対象の onStatChanged のあとに呼ばれる
+   * @param holder この特性を持つポケモン
+   * @param opponent ランクが変わった相手（変化後の状態）
+   * @param applied 実際に変わった量
+   * @param source 変化を起こしたもの（びんじょう自身が起こした変化なら name が 'びんじょう'）
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onOpponentStatChanged?(
+    _holder: BattlePokemonStatus,
+    _opponent: BattlePokemonStatus,
+    _applied: readonly StatChange[],
+    _source: EffectSource | undefined,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
 
   /**
    * 特定のタイプの技に対して無効化を持つかどうかを判定する効果
