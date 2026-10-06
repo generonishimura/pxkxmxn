@@ -81,6 +81,11 @@ import { BerserkEffect } from './effects/stat-change/berserk-effect';
 import { HyperCutterEffect } from './effects/stat-change/hyper-cutter-effect';
 import { KeenEyeEffect } from './effects/stat-change/keen-eye-effect';
 import { FurCoatEffect } from './effects/damage-modify/fur-coat-effect';
+import { TangledFeetEffect } from './effects/stat-change/tangled-feet-effect';
+import { StallEffect } from './effects/stat-change/stall-effect';
+import { VictoryStarEffect } from './effects/other/victory-star-effect';
+import { SweetVeilEffect } from './effects/immunity/sweet-veil-effect';
+import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 
 /**
  * 特性レジストリ
@@ -226,6 +231,12 @@ export class AbilityRegistry {
       this.registry.set('するどいめ', new KeenEyeEffect());
       // ファーコート: 物理ダメージ半減（Issue #84 一部、ふしぎなうろこと同パターン）
       this.registry.set('ファーコート', new FurCoatEffect());
+      // その他の特性（Issue #135 一部）
+      this.registry.set('ちどりあし', new TangledFeetEffect());
+      this.registry.set('あとだし', new StallEffect());
+      this.registry.set('しょうりのほし', new VictoryStarEffect());
+      this.registry.set('スイートベール', new SweetVeilEffect());
+      this.registry.set('パステルベール', new PastelVeilEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
