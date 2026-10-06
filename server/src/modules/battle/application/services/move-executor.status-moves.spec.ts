@@ -3,6 +3,7 @@ import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { ToxicEffect } from '@/modules/pokemon/domain/moves/effects/toxic-effect';
 import { ThunderWaveEffect } from '@/modules/pokemon/domain/moves/effects/thunder-wave-effect';
+import { StrengthSapEffect } from '@/modules/pokemon/domain/moves/effects/strength-sap-effect';
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import {
@@ -106,5 +107,59 @@ describe('MoveExecutorService - 状態異常を付与する変化技', () => {
     // Assert
     expect(statuses.get(DEFENDER_ID)?.statusCondition).toBeNull();
     expect(message).toBe('Used でんじは');
+  });
+
+  describe('ちからをすいとる', () => {
+    it('相手の特性が吸収を反転する（ヘドロえき）なら、回復せずに同じ量のダメージを受ける', async () => {
+      // Arrange
+      AbilityRegistry.register('テストヘドロえき', { reversesDrainHeal: true });
+      const { execute, statuses } = setupMoveExecutor({
+        move: createMove('ちからをすいとる', MoveCategory.Status, null),
+        moveEffect: new StrengthSapEffect(),
+        defenderAbility: 'テストヘドロえき',
+        attacker: { currentHp: 200, maxHp: 300 },
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert（相手の攻撃の実数値は120）
+      expect(statuses.get(ATTACKER_ID)?.currentHp).toBe(80);
+      expect(statuses.get(DEFENDER_ID)?.attackRank).toBe(-1);
+      expect(message).toBe('Used ちからをすいとる sucked up the liquid ooze! Attack fell!');
+    });
+
+    it('自分のHPが満タンでも、相手がヘドロえきならダメージを受ける', async () => {
+      // Arrange
+      AbilityRegistry.register('テストヘドロえき', { reversesDrainHeal: true });
+      const { execute, statuses } = setupMoveExecutor({
+        move: createMove('ちからをすいとる', MoveCategory.Status, null),
+        moveEffect: new StrengthSapEffect(),
+        defenderAbility: 'テストヘドロえき',
+        attacker: { currentHp: 300, maxHp: 300 },
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID)?.currentHp).toBe(180);
+    });
+
+    it('相手がヘドロえきでなければ、相手の攻撃の実数値だけ回復する', async () => {
+      // Arrange
+      const { execute, statuses } = setupMoveExecutor({
+        move: createMove('ちからをすいとる', MoveCategory.Status, null),
+        moveEffect: new StrengthSapEffect(),
+        attacker: { currentHp: 100, maxHp: 300 },
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID)?.currentHp).toBe(220);
+      expect(message).toBe('Used ちからをすいとる HP was restored! Attack fell!');
+    });
   });
 });
