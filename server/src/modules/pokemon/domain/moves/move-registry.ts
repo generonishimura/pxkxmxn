@@ -262,6 +262,7 @@ import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 // 何ターンかにわたる技（Issue #97, #107, #123 一部）
 import { UproarEffect } from './effects/uproar-effect';
 import { GeomancyEffect } from './effects/geomancy-effect';
+import { BeakBlastEffect } from './effects/beak-blast-effect';
 
 /**
  * 技のレジストリ
@@ -632,6 +633,7 @@ export class MoveRegistry {
       // 何ターンかにわたる技（Issue #97, #107, #123 一部）
       this.registry.set('さわぐ', new UproarEffect());
       this.registry.set('ジオコントロール', new GeomancyEffect());
+      this.registry.set('くちばしキャノン', new BeakBlastEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
