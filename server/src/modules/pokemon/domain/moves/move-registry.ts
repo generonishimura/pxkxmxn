@@ -230,6 +230,10 @@ import { SpicyExtractEffect } from './effects/spicy-extract-effect';
 import { TidyUpEffect } from './effects/tidy-up-effect';
 import { ClangorousSoulEffect } from './effects/clangorous-soul-effect';
 import { VenomDrenchEffect } from './effects/venom-drench-effect';
+import { RototillerEffect } from './effects/rototiller-effect';
+import { FlowerShieldEffect } from './effects/flower-shield-effect';
+import { MagneticFluxEffect } from './effects/magnetic-flux-effect';
+import { GearUpEffect } from './effects/gear-up-effect';
 
 /**
  * 技のレジストリ
@@ -526,6 +530,12 @@ export class MoveRegistry {
       this.registry.set('おかたづけ', new TidyUpEffect());
       this.registry.set('ソウルビート', new ClangorousSoulEffect());
       this.registry.set('ベノムトラップ', new VenomDrenchEffect());
+      // タイプ・特性条件つき能力変化技（Issue #103 一部）
+      this.registry.set('たがやす', new RototillerEffect());
+      this.registry.set('フラワーガード', new FlowerShieldEffect());
+      this.registry.set('じばそうさ', new MagneticFluxEffect());
+      this.registry.set('アシストギア', new GearUpEffect());
+      this.registry.set('ハッピータイム', noOpEffect);
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
