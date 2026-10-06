@@ -42,7 +42,8 @@ const SALT_CURE_WEAK_TYPES: readonly string[] = ['みず', 'はがね'];
  * - applyWish: ねがいごと（wish.turns が 1 の陣営の場のポケモンを回復）
  * - applyBeforeStatusDamage: アクアリング・ねをはる（1/16 回復）→ やどりぎのタネ（1/8 を吸う）
  * - applyAfterStatusDamage: あくむ（1/4）→ のろい（1/4）→ バインド（1/8）→ しおづけ（1/8、みず・はがねは 1/4）→
- *   たこがため（防御・特防 -1）→ あくび（残り 1 でねむり）→ ほろびのうた（0 でひんし、それ以外は 1 減らす）
+ *   たこがため（防御・特防 -1）→ あくび（残り 1 でねむり）→ ほろびのうた（0 でひんし、それ以外は 1 減らす）。
+ *   バインド・たこがためは、かけたポケモンがひんし・場にいなければ、効果なしで解ける
  *
  * ダメージはすべて applyIndirectDamage で与える（マジックガードなら受けない。ほろびのうたは除く）。
  * 回復は applyHeal で行う（かいふくふうじ中は回復しない）。
@@ -170,9 +171,18 @@ export class VolatileResidualProcessor {
       await damage(4);
     }
 
-    // バインド: 残りターン数を 1 減らし、0 なら解ける（ダメージなし）。残っていれば 1/8
+    // バインド: しめつけたポケモンがひんし・場にいなければ解ける（ダメージなし）。
+    // そうでなければ残りターン数を 1 減らし、0 なら解ける（ダメージなし）。残っていれば 1/8
     const partialTrap = latest.volatileState.partialTrap;
-    if (partialTrap !== undefined && !latest.isFainted()) {
+    if (
+      partialTrap !== undefined &&
+      !latest.isFainted() &&
+      !(await this.isSourceOnField(partialTrap.sourceStatusId))
+    ) {
+      latest =
+        (await this.battleRepository.patchVolatileState(latest.id, { partialTrap: null })) ??
+        latest;
+    } else if (partialTrap !== undefined && !latest.isFainted()) {
       const turns = partialTrap.turns - 1;
       latest =
         (await this.battleRepository.patchVolatileState(latest.id, {
@@ -193,10 +203,20 @@ export class VolatileResidualProcessor {
       await damage(weak ? 4 : 8);
     }
 
-    // たこがため: 防御・特防 -1（たこがためを使ったポケモンが起こした、技による変化として扱う）
+    // たこがため: 防御・特防 -1（たこがためを使ったポケモンが起こした、技による変化として扱う）。
+    // たこがためを使ったポケモンがひんし・場にいなければ、ランクは下げずに解ける
     if (latest.volatileState.octolock === true && !latest.isFainted()) {
-      await this.applyOctolock(latest, battleContext);
-      latest = await this.refresh(latest);
+      const sourceId = latest.volatileState.trappedByStatusId;
+      if (sourceId !== undefined && (await this.isSourceOnField(sourceId))) {
+        await this.applyOctolock(latest, battleContext);
+        latest = await this.refresh(latest);
+      } else {
+        latest =
+          (await this.battleRepository.patchVolatileState(latest.id, {
+            octolock: null,
+            trappedByStatusId: null,
+          })) ?? latest;
+      }
     }
 
     // あくび: 残りターン数が 1 なら、ねむりにする（yawnTurns はこのあとの tickVolatileStateAtTurnEnd で消える）
@@ -246,6 +266,14 @@ export class VolatileResidualProcessor {
         },
       },
     );
+  }
+
+  /**
+   * 状態をかけたポケモンが、ひんしでなく場にいるか（本家の partiallytrapped・octolock の source.isActive と hp の判定）
+   */
+  private async isSourceOnField(sourceStatusId: number): Promise<boolean> {
+    const source = await this.battleRepository.findBattlePokemonStatusById(sourceStatusId);
+    return source !== null && source !== undefined && source.isActive && !source.isFainted();
   }
 
   /**

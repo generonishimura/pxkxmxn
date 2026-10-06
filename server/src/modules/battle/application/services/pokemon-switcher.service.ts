@@ -64,7 +64,8 @@ export class PokemonSwitcherService {
 
   /**
    * 交代できない理由を返す（交代できるなら undefined）
-   * ねをはる・逃げられない状態・バインド状態を見る。ゴーストタイプは、ねをはる以外では交代できる
+   * ねをはる・逃げられない状態・バインド状態を見る。ゴーストタイプは、ねをはる以外では交代できる。
+   * かけたポケモンがひんし・場にいない、逃げられない状態とバインド状態は見ない
    * @param active 交代しようとしている場のポケモン
    */
   async findSwitchBlocker(active: BattlePokemonStatus): Promise<SwitchBlocker | undefined> {
@@ -81,7 +82,26 @@ export class PokemonSwitcherService {
       trainedPokemon?.pokemon.primaryType.name,
       trainedPokemon?.pokemon.secondaryType?.name,
     ].filter((name): name is string => name !== undefined);
-    return findSwitchBlocker(state, typeNames);
+    return findSwitchBlocker(await this.withoutReleasedTraps(state), typeNames);
+  }
+
+  /**
+   * かけたポケモンがひんし・場にいない、逃げられない状態とバインド状態を除いた状態
+   * 本家の trapped（linked volatile）・partiallytrapped の onTrapPokemon は、かけたポケモンが場にいるときだけ効く
+   */
+  private async withoutReleasedTraps(state: VolatileState): Promise<VolatileState> {
+    const isGone = async (statusId: number | undefined): Promise<boolean> => {
+      if (statusId === undefined) {
+        return false;
+      }
+      const source = await this.battleRepository.findBattlePokemonStatusById(statusId);
+      return !source || !source.isActive || source.isFainted();
+    };
+    const patch: StatePatch<VolatileState> = {
+      ...((await isGone(state.trappedByStatusId)) ? { trappedByStatusId: null } : {}),
+      ...((await isGone(state.partialTrap?.sourceStatusId)) ? { partialTrap: null } : {}),
+    };
+    return updateVolatileState(state, patch);
   }
 
   /**

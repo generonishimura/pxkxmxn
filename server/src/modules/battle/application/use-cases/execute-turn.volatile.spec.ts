@@ -518,6 +518,69 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
     });
   });
 
+  describe('ひんしになったポケモンを指す状態', () => {
+    const faint = (status: BattlePokemonStatus): BattlePokemonStatus =>
+      new BattlePokemonStatus(
+        status.id,
+        status.battleId,
+        status.trainedPokemonId,
+        status.trainerId,
+        status.isActive,
+        0,
+        status.maxHp,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        status.statusCondition,
+        status.volatileState,
+      );
+
+    it('相手を技で倒すと、その相手による逃げられない状態・バインド・メロメロが消える', async () => {
+      // Arrange
+      const { useCase, executeMove, statuses } = setup({
+        volatileOf1: {
+          trappedByStatusId: 2,
+          octolock: true,
+          partialTrap: { sourceStatusId: 2, moveId: 1, turns: 3 },
+          infatuatedWithStatusId: 2,
+        },
+      });
+      executeMove.mockImplementation((_battle, trainerId) => {
+        if (trainerId === 1) {
+          statuses.set(2, faint(statuses.get(2)));
+        }
+        return Promise.resolve('ok');
+      });
+
+      // Act
+      await useCase.execute(params({ trainerId: 1, moveId: TACKLE.id }));
+
+      // Assert
+      expect(statuses.get(1).volatileState).toEqual({});
+    });
+
+    it('しめつけたポケモン・逃げられなくしたポケモンがひんしなら、交代できる', async () => {
+      // Arrange
+      const { useCase, executeSwitch, statuses } = setup({
+        volatileOf1: {
+          trappedByStatusId: 2,
+          partialTrap: { sourceStatusId: 2, moveId: 1, turns: 3 },
+        },
+      });
+      statuses.set(2, faint(statuses.get(2)));
+
+      // Act
+      await useCase.execute(params({ trainerId: 1, switchPokemonId: 10 }));
+
+      // Assert
+      expect(executeSwitch).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('ターン終了時', () => {
     it('みらいよちを当てる処理を呼ぶ', async () => {
       // Arrange

@@ -112,6 +112,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | バトル開始で先発が場に出たとき | `StartBattleUseCase.execute` | `switchedInTurn` に `0` を書く |
 | 交代で引っ込むとき | `PokemonSwitcherService.executeSwitch` | 引っ込むポケモンの `volatileState` をすべて消す（`clearVolatileOnSwitchOut`）。`persistentState` は残す |
 | 交代で引っ込んだあと | `PokemonSwitcherService.executeSwitch` | ほかのポケモンの、引っ込んだポケモンによる `trappedByStatusId`・`octolock`・`infatuatedWithStatusId` を消す（`releaseVolatileReferencesTo`） |
+| 場のポケモンがひんしになったとき | `ExecuteTurnUseCase.execute`（技を出すたびと、ターン終了時の片付けの前） | ほかのポケモンの、ひんしのポケモンによる `trappedByStatusId`・`octolock`・`infatuatedWithStatusId`・`partialTrap` を消す（`releaseVolatileReferencesTo`）。ひんしのポケモンは交代するまで場に残るので、交代を待たずに消す |
 | 交代で場に出たとき | `PokemonSwitcherService.executeSwitch` | `switchedInTurn` に今の `Battle.turn` を書く。`transfer` を渡したときは、引っ込む前の状態から引き継ぐキーも書く（10 章） |
 | 技を出そうとしたとき | `BeforeMoveChecker.check` | 最初に `grudge` を消す。反動のターンは `mustRecharge` を消す。こんらんの `confusionTurns` を 1 減らす。技を出せなかったら（反動のターンも）`destinyBond`・`protectCount` を消し、反動以外で止まったら `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` も消す。でんき技（じゅうでんを除く）で止まったら `charged` も消す |
 | 技を出す前の判定を通ったとき | `MoveLifecycle.recordMoveUse` | 使用者の `destinyBond`・`grudge` を消す（`clearVolatileOnBeforeMove`。技を出せなかったときは `BeforeMoveChecker` が消す）。`lastMoveId`・`GlobalFieldState.lastMoveId`・`choiceLockedMoveId` を書き、`protectCount` を消す |
@@ -515,7 +516,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 - `encore` があれば、選んだ技にかかわらずアンコールされた技を出す（交代はできる）。その技の PP が 0 ならアンコールを消す
 - 技の欄は `moveSlotOverrides` を先に見る
 - PP がない・技の制限で出せない技を選び、ほかに出せる技もなければ、わるあがきを出す
-- `ingrain`・`trappedByStatusId`・`partialTrap` があれば交代できない（ゴーストタイプは `ingrain` 以外では交代できる。`findSwitchBlocker`）
+- `ingrain`・`trappedByStatusId`・`partialTrap` があれば交代できない（ゴーストタイプは `ingrain` 以外では交代できる。`findSwitchBlocker`）。かけたポケモンがひんし・場にいない `trappedByStatusId`・`partialTrap` は見ない
 
 ### 技の処理の中
 
@@ -546,9 +547,9 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
    3. 状態異常（ねむりの解除・どく・もうどく・やけど）
    4. `nightmare`: ねむっていれば（ぜったいねむりを含む）1/4。目を覚ましていればキーを消す
    5. `cursed`: 1/4
-   6. `partialTrap`: `turns` を 1 減らし、残っていれば 1/8、0 なら解ける
+   6. `partialTrap`: しめつけたポケモンがひんし・場にいなければ解ける（ダメージなし）。そうでなければ `turns` を 1 減らし、残っていれば 1/8、0 なら解ける
    7. `saltCure`: 1/8（みず・はがねタイプは 1/4）
-   8. `octolock`: 防御・特防 -1（たこがためを使ったポケモンが起こした、技による変化）
+   8. `octolock`: 防御・特防 -1（たこがためを使ったポケモンが起こした、技による変化）。使ったポケモンがひんし・場にいなければ、下げずに `octolock`・`trappedByStatusId` を消す
    9. `yawnTurns === 1`: ねむりにする
    10. `perishCount`: 0 ならひんし（マジックガードでも防げない）、それ以外は 1 減らす
    11. 特性の `onTurnEnd`

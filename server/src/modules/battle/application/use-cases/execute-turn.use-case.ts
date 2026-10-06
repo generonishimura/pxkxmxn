@@ -5,9 +5,15 @@ import {
 } from '../../domain/battle.repository.interface';
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
-import { isEmptyObject } from '../../domain/state/state-field-parser';
 import {
+  MutableStatePatch,
+  isEmptyObject,
+  markRemoved,
+} from '../../domain/state/state-field-parser';
+import {
+  VolatileState,
   clearVolatileOnSwitchOut,
+  releaseVolatileReferencesTo,
   tickVolatileStateAtTurnEnd,
 } from '../../domain/state/volatile-state';
 import { tickSideStateAtTurnEnd } from '../../domain/state/side-state';
@@ -222,6 +228,9 @@ export class ExecuteTurnUseCase {
           result,
         });
 
+        // 技でひんしになったポケモンによる、ほかのポケモンの状態（逃げられない・バインド・メロメロ）を消す
+        await this.releaseReferencesToFainted(battle.id);
+
         // 勝敗判定
         const winner = await this.winnerChecker.checkWinner(battle.id);
         if (winner) {
@@ -423,11 +432,13 @@ export class ExecuteTurnUseCase {
 
   /**
    * ターン終了時に、場のポケモンの volatileState を片付ける
+   * - ひんしのポケモンを指す、ほかのポケモンの状態を消す（releaseReferencesToFainted）
    * - ひんしのポケモンは、すべてのキーを消す（ほろびのうたのカウントやみがわりを持ち越さない）
    * - それ以外は、残りターン数を 1 減らし、このターンだけのフラグを消す
    * 変える所がないポケモンには書き込まない
    */
   private async settleVolatileStatesAtTurnEnd(battleId: number): Promise<void> {
+    await this.releaseReferencesToFainted(battleId);
     const statuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
     for (const status of statuses.filter(s => s.isActive)) {
       if (status.isFainted()) {
@@ -444,6 +455,36 @@ export class ExecuteTurnUseCase {
           volatileState: ticked,
         });
       }
+    }
+  }
+
+  /**
+   * 場でひんしになったポケモンを指している、ほかのポケモンの状態を消す
+   * 逃げられない状態・たこがため・メロメロ・バインド状態（releaseVolatileReferencesTo）。
+   * ひんしのポケモンは交代で引っ込むまで場に残るので、交代の処理を待たずにここで消す（本家はひんしになったときに消す）
+   */
+  private async releaseReferencesToFainted(battleId: number): Promise<void> {
+    const statuses =
+      (await this.battleRepository.findBattlePokemonStatusByBattleId(battleId)) ?? [];
+    const faintedIds = statuses.filter(s => s.isActive && s.isFainted()).map(s => s.id);
+    for (const status of statuses) {
+      let released = status.volatileState;
+      for (const faintedId of faintedIds) {
+        if (faintedId !== status.id) {
+          released = releaseVolatileReferencesTo(released, faintedId);
+        }
+      }
+      if (released === status.volatileState) {
+        continue;
+      }
+      // 消えたキーだけを部分更新で消す
+      const patch: MutableStatePatch<VolatileState> = {};
+      for (const key of Object.keys(status.volatileState) as Array<keyof VolatileState>) {
+        if (released[key] === undefined) {
+          markRemoved(patch, key);
+        }
+      }
+      await this.battleRepository.patchVolatileState(status.id, patch);
     }
   }
 

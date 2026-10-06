@@ -65,9 +65,14 @@ describe('PokemonSwitcherService - バトンタッチ・しっぽきりの引き
   const setup = (leavingState: VolatileState, type = new Type(1, 'ノーマル', 'Normal')) => {
     const leaving = createStatus(LEAVING_ID, true, leavingState, 2);
     const incoming = createStatus(INCOMING_ID, false);
+    // 逃げられなくした相手（ID 3）は場にいる
+    const trapper = createStatus(3, true);
     const battleRepository = {
       findActivePokemonByBattleIdAndTrainerId: jest.fn().mockResolvedValue(leaving),
       findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([leaving, incoming]),
+      findBattlePokemonStatusById: jest.fn((id: number) =>
+        Promise.resolve(id === trapper.id ? trapper : null),
+      ),
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(incoming),
     };
     const trainedPokemonRepository: jest.Mocked<ITrainedPokemonRepository> = {

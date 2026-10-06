@@ -216,6 +216,30 @@ describe('StatusConditionProcessorService - ターン終了時の一時的な状
       expect(get(1).volatileState.partialTrap).toBeUndefined();
     });
 
+    it('しめつけたポケモンがひんしなら、バインド状態はダメージを与えずに解ける', async () => {
+      // Act
+      const { get } = await runTurnEnd(
+        { status: { volatileState: { partialTrap: { sourceStatusId: 2, moveId: 9, turns: 3 } } } },
+        { status: { currentHp: 0 } },
+      );
+
+      // Assert
+      expect(get(1).currentHp).toBe(100);
+      expect(get(1).volatileState.partialTrap).toBeUndefined();
+    });
+
+    it('しめつけたポケモンが場にいなければ、バインド状態はダメージを与えずに解ける', async () => {
+      // Act
+      const { get } = await runTurnEnd(
+        { status: { volatileState: { partialTrap: { sourceStatusId: 2, moveId: 9, turns: 3 } } } },
+        { status: { isActive: false } },
+      );
+
+      // Assert
+      expect(get(1).currentHp).toBe(100);
+      expect(get(1).volatileState.partialTrap).toBeUndefined();
+    });
+
     it('しおづけは最大 HP の 1/8、みず・はがねタイプには 1/4 のダメージ', async () => {
       // Act
       const { get } = await runTurnEnd(
@@ -252,6 +276,19 @@ describe('StatusConditionProcessorService - ターン終了時の一時的な状
       // Assert
       expect(get(2).defenseRank).toBe(-1);
       expect(get(2).specialDefenseRank).toBe(-1);
+    });
+
+    it('たこがためをかけたポケモンがひんしなら、ランクは下がらずに解ける', async () => {
+      // Act
+      const { get } = await runTurnEnd(
+        { status: { currentHp: 0 } },
+        { status: { volatileState: { trappedByStatusId: 1, octolock: true } } },
+      );
+
+      // Assert
+      expect(get(2).defenseRank).toBe(0);
+      expect(get(2).volatileState.octolock).toBeUndefined();
+      expect(get(2).volatileState.trappedByStatusId).toBeUndefined();
     });
   });
 
