@@ -175,6 +175,12 @@ import { SeedSowerEffect } from './effects/weather/seed-sower-effect';
 import { ThermalExchangeEffect } from './effects/immunity/thermal-exchange-effect';
 import { AngerShellEffect } from './effects/stat-change/anger-shell-effect';
 import { ToxicChainEffect } from './effects/other/toxic-chain-effect';
+// タイプ相性で発動する特性（Issue #135 一部）
+import { WonderGuardEffect } from './effects/immunity/wonder-guard-effect';
+import { TintedLensEffect } from './effects/damage-modify/tinted-lens-effect';
+import { FilterEffect } from './effects/damage-modify/filter-effect';
+import { PrismArmorEffect } from './effects/damage-modify/prism-armor-effect';
+import { NeuroforceEffect } from './effects/damage-modify/neuroforce-effect';
 
 /**
  * 特性レジストリ
@@ -446,6 +452,15 @@ export class AbilityRegistry {
       this.registry.set('ねつこうかん', new ThermalExchangeEffect());
       this.registry.set('いかりのこうら', new AngerShellEffect());
       this.registry.set('どくのくさり', new ToxicChainEffect());
+      // タイプ相性で発動する特性（Issue #135 一部）
+      // ハードロックはフィルターと同効果のため FilterEffect を共有
+      const filter = new FilterEffect();
+      this.registry.set('ふしぎなまもり', new WonderGuardEffect());
+      this.registry.set('いろめがね', new TintedLensEffect());
+      this.registry.set('フィルター', filter);
+      this.registry.set('ハードロック', filter);
+      this.registry.set('プリズムアーマー', new PrismArmorEffect());
+      this.registry.set('ブレインフォース', new NeuroforceEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
