@@ -31,9 +31,11 @@ describe('DrizzleEffect', () => {
     } as BattlePokemonStatus;
 
     mockBattleRepository = {
-      update: jest.fn().mockResolvedValue(
-        new Battle(1, 1, 2, 1, 2, 1, Weather.Rain, null, BattleStatus.Active, null),
-      ),
+      update: jest
+        .fn()
+        .mockResolvedValue(
+          new Battle(1, 1, 2, 1, 2, 1, Weather.Rain, null, BattleStatus.Active, null),
+        ),
       findById: jest.fn(),
       create: jest.fn(),
       findBattlePokemonStatusByBattleId: jest.fn(),
@@ -80,4 +82,3 @@ describe('DrizzleEffect', () => {
     });
   });
 });
-

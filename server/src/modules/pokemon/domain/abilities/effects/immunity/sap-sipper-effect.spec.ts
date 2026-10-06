@@ -1,7 +1,12 @@
 import { SapSipperEffect } from './sap-sipper-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
-import { Weather, Field, BattleStatus, Battle } from '@/modules/battle/domain/entities/battle.entity';
+import {
+  Weather,
+  Field,
+  BattleStatus,
+  Battle,
+} from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
 
 describe('SapSipperEffect', () => {
@@ -12,23 +17,7 @@ describe('SapSipperEffect', () => {
 
   beforeEach(() => {
     effect = new SapSipperEffect();
-    pokemon = new BattlePokemonStatus(
-      1,
-      1,
-      1,
-      1,
-      true,
-      100,
-      100,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      null,
-    );
+    pokemon = new BattlePokemonStatus(1, 1, 1, 1, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, null);
 
     mockBattleRepository = {
       update: jest.fn(),
@@ -94,7 +83,21 @@ describe('SapSipperEffect', () => {
     it('既に攻撃ランクが +6 のときは更新しない', async () => {
       battleContext.moveTypeName = 'くさ';
       const maxRankPokemon = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 100, 100, 6, 0, 0, 0, 0, 0, 0, null,
+        1,
+        1,
+        1,
+        1,
+        true,
+        100,
+        100,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
       );
       mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(maxRankPokemon);
 

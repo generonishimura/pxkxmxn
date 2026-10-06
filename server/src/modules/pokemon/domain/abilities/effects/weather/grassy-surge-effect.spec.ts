@@ -1,7 +1,12 @@
 import { GrassySurgeEffect } from './grassy-surge-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
-import { Weather, Field, BattleStatus, Battle } from '@/modules/battle/domain/entities/battle.entity';
+import {
+  Weather,
+  Field,
+  BattleStatus,
+  Battle,
+} from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
 
 describe('GrassySurgeEffect', () => {
@@ -31,9 +36,22 @@ describe('GrassySurgeEffect', () => {
     );
 
     mockBattleRepository = {
-      update: jest.fn().mockResolvedValue(
-        new Battle(1, 1, 2, 1, 2, 1, Weather.None, Field.GrassyTerrain, BattleStatus.Active, null),
-      ),
+      update: jest
+        .fn()
+        .mockResolvedValue(
+          new Battle(
+            1,
+            1,
+            2,
+            1,
+            2,
+            1,
+            Weather.None,
+            Field.GrassyTerrain,
+            BattleStatus.Active,
+            null,
+          ),
+        ),
       findById: jest.fn(),
       create: jest.fn(),
       findBattlePokemonStatusByBattleId: jest.fn(),

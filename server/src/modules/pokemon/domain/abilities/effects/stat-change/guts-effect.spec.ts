@@ -133,7 +133,11 @@ describe('GutsEffect', () => {
       });
       const battleRepository = createMockBattleRepository();
       battleRepository.updateBattlePokemonStatus.mockResolvedValue(
-        createBattlePokemonStatus({ id: 1, attackRank: 1, statusCondition: StatusCondition.Poison }),
+        createBattlePokemonStatus({
+          id: 1,
+          attackRank: 1,
+          statusCondition: StatusCondition.Poison,
+        }),
       );
       const battleContext: BattleContext = {
         battle: createBattle(),
@@ -155,7 +159,11 @@ describe('GutsEffect', () => {
       });
       const battleRepository = createMockBattleRepository();
       battleRepository.updateBattlePokemonStatus.mockResolvedValue(
-        createBattlePokemonStatus({ id: 1, attackRank: 1, statusCondition: StatusCondition.Paralysis }),
+        createBattlePokemonStatus({
+          id: 1,
+          attackRank: 1,
+          statusCondition: StatusCondition.Paralysis,
+        }),
       );
       const battleContext: BattleContext = {
         battle: createBattle(),

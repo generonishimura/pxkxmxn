@@ -1,7 +1,12 @@
 import { BaseFieldEffect } from './base-field-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
-import { Field, Weather, BattleStatus, Battle } from '@/modules/battle/domain/entities/battle.entity';
+import {
+  Field,
+  Weather,
+  BattleStatus,
+  Battle,
+} from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
 
 /**
@@ -38,9 +43,22 @@ describe('BaseFieldEffect', () => {
     );
 
     mockBattleRepository = {
-      update: jest.fn().mockResolvedValue(
-        new Battle(1, 1, 2, 1, 2, 1, Weather.None, Field.ElectricTerrain, BattleStatus.Active, null),
-      ),
+      update: jest
+        .fn()
+        .mockResolvedValue(
+          new Battle(
+            1,
+            1,
+            2,
+            1,
+            2,
+            1,
+            Weather.None,
+            Field.ElectricTerrain,
+            BattleStatus.Active,
+            null,
+          ),
+        ),
       findById: jest.fn(),
       create: jest.fn(),
       findBattlePokemonStatusByBattleId: jest.fn(),

@@ -32,11 +32,7 @@ export class PokemonSwitcherService {
    * @param trainerId トレーナーID
    * @param trainedPokemonId 交代するポケモンのTrainedPokemonID
    */
-  async executeSwitch(
-    battle: Battle,
-    trainerId: number,
-    trainedPokemonId: number,
-  ): Promise<void> {
+  async executeSwitch(battle: Battle, trainerId: number, trainedPokemonId: number): Promise<void> {
     // 現在のアクティブなポケモンを非アクティブにする
     const currentActive = await this.battleRepository.findActivePokemonByBattleIdAndTrainerId(
       battle.id,
@@ -81,7 +77,10 @@ export class PokemonSwitcherService {
     );
 
     if (!targetStatus) {
-      throw new NotFoundException('BattlePokemonStatus', `trainedPokemonId: ${trainedPokemonId}, trainerId: ${trainerId}`);
+      throw new NotFoundException(
+        'BattlePokemonStatus',
+        `trainedPokemonId: ${trainedPokemonId}, trainerId: ${trainerId}`,
+      );
     }
 
     await this.battleRepository.updateBattlePokemonStatus(targetStatus.id, {
@@ -104,4 +103,3 @@ export class PokemonSwitcherService {
     }
   }
 }
-
