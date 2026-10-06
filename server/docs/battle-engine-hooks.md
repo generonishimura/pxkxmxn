@@ -157,7 +157,7 @@ shouldFail(_attacker: BattlePokemonStatus, defender: BattlePokemonStatus): boole
 
 - シグネチャ: `modifyBasePower?(pokemon, power, battleContext): number | undefined`
 - 呼ばれる場所: `DamageCalculator`。ダメージ計算式に入る前の威力に掛かる
-- 使う特性: てつのこぶし、がんじょうあご、メガランチャー、かたいツメ、きれあじ、パンクロック（攻撃側）、アナライズ、テクニシャン
+- 使う特性: てつのこぶし、がんじょうあご、メガランチャー、かたいツメ、きれあじ、パンクロック（攻撃側）、アナライズ、テクニシャン、はりこみ（近似。7章）
 - `power` はヒットごとの威力です（技の `modifyMovePower` のあと。おやこあいの2回目も同じ威力）。威力で判定する特性（テクニシャンなど）は `battleContext.movePower` ではなくこの値を使います。
 - 補正は `modifyByFixedPoint` で4096分率を使います（1.2倍 = 4915、1.3倍 = 5325、1.5倍 = 6144）。
 
@@ -576,6 +576,10 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - `onOpponentStatChanged`（びんじょう）の「相手」は、相手が起こした変化ならその相手、技の実行中ならコンテキストの `attacker` / `defender` です。場に出たとき・ターン終了時に相手が自分で上げた変化（ふとうのつるぎなど）では呼ばれません。また本家は行動の終わりにまとめて写しますが、ここではすぐに写します。
 - `onKnockOut` は「自分の技で相手をひんしにした」ときだけです。ソウルハートは本家では誰がひんしになっても発動しますが、ここでは自分の技で倒したときだけになります（反動・状態異常・さめはだで相手が倒れたときは発動しない）。
 - 場に出たときの特性のコンテキスト（バトル開始時・交代時）には `trainedPokemonRepository` が入ります。いかくに対するクリアボディ・ばんけん・ミラーアーマーなどはこれで判定します。
+- はりこみは、本家では攻撃・特攻を2倍にしますが、ここでは `modifyBasePower` で威力を2倍にします。ダメージ式では威力と攻撃を掛けるので、ほかの威力補正と重なったときの丸め以外は同じ結果になります。
+- はりこみは、ひんしになったポケモンの代わりに出てきたポケモンにも発動します。本家では発動しません（代わりはターンの終わりに出るため）。このエンジンは、ひんしの代わりを次のターンの交代の行動で出し、`switchedInTurn` にそのターンを書きます。交代の処理（`PokemonSwitcherService.executeSwitch`）が「自分で交代したか、ひんしの代わりか」を書かないため、特性からは見分けられません。
+- とうそうしんは、本家では威力に掛けますが、ここでは `modifyDamageDealt` でダメージに掛けます。`modifyBasePower` は同期の処理で、育成ポケモンの性別を引けないためです。ダメージ式の +2 や途中の切り捨てにも倍率が掛かるので、本家と1〜2違うことがあります。
+- バトル開始時は、トレーナー1の先発の `onEntry` が、トレーナー2の先発が場に出る前に呼ばれます（`StartBattleUseCase` がチームごとに順に作るため）。そのため、トレーナー1の先発のダウンロード・いかくは、相手がいないので発動しません。本家は両方の先発が場に出てから、素早さ順に発動します。直すには `StartBattleUseCase` で両方の先発を出してから `onEntry` を呼ぶ必要があります。
 
 ### まだ作れない効果
 
@@ -617,3 +621,6 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | せいぎのこころ・じきゅうりょく・みずがため・じょうききかん・わたげ・すなはき・こぼれダネ・ねつこうかん | `onDamagingHit`（タイプは `hit.moveTypeName`。わたげは攻撃側に `applyStatChanges`、すなはき・こぼれダネは天候・フィールドを書き込む） |
 | いかりのこうら・ぎゃくじょう（作成済み） | `onAfterMoveHit`（`hit.hpBefore > maxHp / 2` かつ今のHPが半分以下。ぎゃくじょうは特攻+1を `applyStatChanges` で行う） |
 | じしんかじょう・しろのいななき・くろのいななき・ビーストブースト・ソウルハート | `onKnockOut` |
+| はりこみ | `modifyBasePower`（相手の `volatileState.switchedInTurn === battle.turn` なら威力2倍。ボディプレスは対象外。近似は7章） |
+| とうそうしん | `modifyDamageDealt`（`trainedPokemonRepository` で両方の性別を引き、同じなら1.25倍・違えば0.75倍。性別不明なら補正しない。近似は7章） |
+| ダウンロード | `onEntry`（相手のランク込みの防御と特防を比べ、防御が低ければ攻撃+1、そうでなければ特攻+1を `applyStatChanges` で行う。バトル開始時の制限は7章） |
