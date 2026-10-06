@@ -119,6 +119,10 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// 被弾・接触で発動する特性（Issue #135 一部）
+import { IronBarbsEffect } from './effects/other/iron-barbs-effect';
+import { StaminaEffect } from './effects/stat-change/stamina-effect';
+import { WaterCompactionEffect } from './effects/stat-change/water-compaction-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +336,10 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // 被弾・接触で発動する特性（Issue #135 一部）
+      this.registry.set('てつのトゲ', new IronBarbsEffect());
+      this.registry.set('じきゅうりょく', new StaminaEffect());
+      this.registry.set('みずがため', new WaterCompactionEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
