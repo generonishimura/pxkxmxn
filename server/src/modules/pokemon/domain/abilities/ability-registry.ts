@@ -121,6 +121,8 @@ import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
 // 状態異常ダメージ・ヒット後の特性（Issue #135 一部）
 import { PoisonHealEffect } from './effects/other/poison-heal-effect';
+import { PoisonTouchEffect } from './effects/other/poison-touch-effect';
+import { MoxieEffect } from './effects/stat-change/moxie-effect';
 
 /**
  * 特性レジストリ
@@ -336,6 +338,8 @@ export class AbilityRegistry {
       this.registry.set('マジックガード', new MagicGuardEffect());
       // 状態異常ダメージ・ヒット後の特性（Issue #135 一部）
       this.registry.set('ポイズンヒール', new PoisonHealEffect());
+      this.registry.set('どくしゅ', new PoisonTouchEffect());
+      this.registry.set('じしんかじょう', new MoxieEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
