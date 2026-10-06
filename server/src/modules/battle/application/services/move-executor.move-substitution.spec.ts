@@ -219,6 +219,25 @@ describe('MoveExecutorService - 別の技を出す技・特性', () => {
     expect(onUse.mock.calls[1][0].id).toBe(DEFENDER_ID);
   });
 
+  it('おどりこ: はなびらのまいをまねても、自分は出し続ける状態にならない', async () => {
+    // Arrange
+    const petalDance = moveOf(1, 'はなびらのまい', MoveCategory.Special, 120);
+    const { execute, statuses } = setupMoveExecutor({
+      move: petalDance,
+      defenderAbility: 'おどりこ',
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe(
+      'Used はなびらのまい and dealt 10 damage Used はなびらのまい and dealt 10 damage',
+    );
+    expect(statuses.get(DEFENDER_ID).volatileState.lockedInMove).toBeUndefined();
+    expect(statuses.get(ATTACKER_ID).volatileState.lockedInMove?.moveId).toBe(petalDance.id);
+  });
+
   it('おどりこ: ねむっていれば、おどり技を出せない', async () => {
     // Arrange
     const quiverDance = moveOf(1, 'ちょうのまい', MoveCategory.Status, null);
