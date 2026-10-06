@@ -205,6 +205,7 @@ import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 // 状態異常・素早さ・タイプ相性で発動する特性（Issue #135 一部）
 import { GutsAttackBoostEffect } from './effects/damage-modify/guts-attack-boost-effect';
 import { QuickDrawEffect } from './effects/other/quick-draw-effect';
+import { TeraShellEffect } from './effects/damage-modify/tera-shell-effect';
 
 /**
  * 特性レジストリ
@@ -509,6 +510,7 @@ export class AbilityRegistry {
       // 状態異常・素早さ・タイプ相性で発動する特性（Issue #135 一部）
       this.registry.set('こんじょう', new GutsAttackBoostEffect());
       this.registry.set('クイックドロウ', new QuickDrawEffect());
+      this.registry.set('テラスシェル', new TeraShellEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
