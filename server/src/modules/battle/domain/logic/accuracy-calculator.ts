@@ -66,11 +66,17 @@ export class AccuracyCalculator {
     // 基本命中率（0-100）
     let effectiveAccuracy = moveAccuracy;
 
-    // 命中ランク補正を取得
-    const accuracyMultiplier = this.calculateRankMultiplier(attacker.accuracyRank);
+    // 命中ランク補正を取得（てんねんの防御側などで無視される）
+    const accuracyRank = battleContext?.ignoredAttackerRanks?.has('accuracy')
+      ? 0
+      : attacker.accuracyRank;
+    const accuracyMultiplier = this.calculateRankMultiplier(accuracyRank);
 
-    // 回避ランク補正を取得
-    const evasionMultiplier = this.calculateRankMultiplier(defender.evasionRank);
+    // 回避ランク補正を取得（なしくずし・てんねんの攻撃側・しんがんなどで無視される）
+    const evasionRank = battleContext?.ignoredDefenderRanks?.has('evasion')
+      ? 0
+      : defender.evasionRank;
+    const evasionMultiplier = this.calculateRankMultiplier(evasionRank);
 
     // 実効命中率を計算: accuracy * (accuracyMultiplier / evasionMultiplier)
     // ランク補正は命中率と回避率の比率で適用される
