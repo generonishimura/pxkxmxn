@@ -121,6 +121,7 @@ import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
 // ひるみ・状態異常・ねむり・吸収に反応する特性（Issue #135 一部）
 import { StenchEffect } from './effects/other/stench-effect';
+import { SynchronizeEffect } from './effects/other/synchronize-effect';
 
 /**
  * 特性レジストリ
@@ -336,6 +337,7 @@ export class AbilityRegistry {
       this.registry.set('マジックガード', new MagicGuardEffect());
       // ひるみ・状態異常・ねむり・吸収に反応する特性（Issue #135 一部）
       this.registry.set('あくしゅう', new StenchEffect());
+      this.registry.set('シンクロ', new SynchronizeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
