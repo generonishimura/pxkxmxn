@@ -209,6 +209,11 @@ import { TakeHeartEffect } from './effects/take-heart-effect';
 import { DefogEffect } from './effects/defog-effect';
 import { CaptivateEffect } from './effects/captivate-effect';
 import { SnowscapeEffect } from './effects/snowscape-effect';
+import { HealPulseEffect } from './effects/heal-pulse-effect';
+import { FloralHealingEffect } from './effects/floral-healing-effect';
+import { JungleHealingEffect } from './effects/jungle-healing-effect';
+import { LifeDewEffect } from './effects/life-dew-effect';
+import { LunarBlessingEffect } from './effects/lunar-blessing-effect';
 
 /**
  * 技のレジストリ
@@ -481,6 +486,12 @@ export class MoveRegistry {
       this.registry.set('きりばらい', new DefogEffect());
       this.registry.set('ゆうわく', new CaptivateEffect());
       this.registry.set('ゆきげしき', new SnowscapeEffect());
+      // 回復・状態異常回復技（相手/自分）（Issue #103, #110 一部）
+      this.registry.set('いやしのはどう', new HealPulseEffect());
+      this.registry.set('フラワーヒール', new FloralHealingEffect());
+      this.registry.set('ジャングルヒール', new JungleHealingEffect());
+      this.registry.set('いのちのしずく', new LifeDewEffect());
+      this.registry.set('みかづきのいのり', new LunarBlessingEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
