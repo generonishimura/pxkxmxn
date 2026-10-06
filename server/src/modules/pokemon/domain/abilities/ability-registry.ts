@@ -119,6 +119,10 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// ダメージを受けたとき・相手を倒したときに発動する特性（Issue #135 一部）
+import { CottonDownEffect } from './effects/stat-change/cotton-down-effect';
+import { SteamEngineEffect } from './effects/stat-change/steam-engine-effect';
+import { SandSpitEffect } from './effects/weather/sand-spit-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +336,10 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // ダメージを受けたとき・相手を倒したときに発動する特性（Issue #135 一部）
+      this.registry.set('わたげ', new CottonDownEffect());
+      this.registry.set('じょうききかん', new SteamEngineEffect());
+      this.registry.set('すなはき', new SandSpitEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
