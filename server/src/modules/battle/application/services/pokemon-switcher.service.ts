@@ -2,10 +2,15 @@ import { Injectable, Inject } from '@nestjs/common';
 import { Battle } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import {
+  VolatileState,
+  batonPassPatch,
   clearVolatileOnSwitchOut,
   releaseVolatileReferencesTo,
+  shedTailPatch,
   updateVolatileState,
 } from '../../domain/state/volatile-state';
+import { StatePatch } from '../../domain/state/state-field-parser';
+import { SwitchBlocker, findSwitchBlocker } from '../../domain/logic/switch-restriction';
 import {
   IBattleRepository,
   BATTLE_REPOSITORY_TOKEN,
@@ -18,6 +23,31 @@ import { StatusConditionHandler } from '../../domain/logic/status-condition-hand
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { NotFoundException } from '@/shared/domain/exceptions';
+
+/**
+ * 交代のオプション
+ */
+export interface SwitchOptions {
+  /**
+   * 引っ込むポケモンから次のポケモンに引き継ぐもの
+   * - batonPass: バトンタッチ（BATON_PASS_KEYS の一時的な状態と、能力ランク）
+   * - shedTail: しっぽきり（みがわりだけ）
+   */
+  readonly transfer?: 'batonPass' | 'shedTail';
+}
+
+/**
+ * バトンタッチで引き継ぐ能力ランクの列
+ */
+const BATON_PASS_RANK_KEYS = [
+  'attackRank',
+  'defenseRank',
+  'specialAttackRank',
+  'specialDefenseRank',
+  'speedRank',
+  'accuracyRank',
+  'evasionRank',
+] as const satisfies ReadonlyArray<keyof BattlePokemonStatus>;
 
 /**
  * PokemonSwitcherService
@@ -33,12 +63,40 @@ export class PokemonSwitcherService {
   ) {}
 
   /**
+   * 交代できない理由を返す（交代できるなら undefined）
+   * ねをはる・逃げられない状態・バインド状態を見る。ゴーストタイプは、ねをはる以外では交代できる
+   * @param active 交代しようとしている場のポケモン
+   */
+  async findSwitchBlocker(active: BattlePokemonStatus): Promise<SwitchBlocker | undefined> {
+    const state = active.volatileState;
+    if (
+      state.ingrain === undefined &&
+      state.trappedByStatusId === undefined &&
+      state.partialTrap === undefined
+    ) {
+      return undefined;
+    }
+    const trainedPokemon = await this.trainedPokemonRepository.findById(active.trainedPokemonId);
+    const typeNames = [
+      trainedPokemon?.pokemon.primaryType.name,
+      trainedPokemon?.pokemon.secondaryType?.name,
+    ].filter((name): name is string => name !== undefined);
+    return findSwitchBlocker(state, typeNames);
+  }
+
+  /**
    * ポケモンを交代
    * @param battle バトル
    * @param trainerId トレーナーID
    * @param trainedPokemonId 交代するポケモンのTrainedPokemonID
+   * @param options バトンタッチ・しっぽきりで引き継ぐもの（引っ込む前の状態を読み、場に出たポケモンに書く）
    */
-  async executeSwitch(battle: Battle, trainerId: number, trainedPokemonId: number): Promise<void> {
+  async executeSwitch(
+    battle: Battle,
+    trainerId: number,
+    trainedPokemonId: number,
+    options: SwitchOptions = {},
+  ): Promise<void> {
     // 現在のアクティブなポケモンを非アクティブにする
     const currentActive = await this.battleRepository.findActivePokemonByBattleIdAndTrainerId(
       battle.id,
@@ -98,10 +156,15 @@ export class PokemonSwitcherService {
       );
     }
 
-    // 場に出たターンを書く（ねこだまし・たたみがえし・はりこみなどが読む）
+    // 場に出たターンを書く（ねこだまし・たたみがえし・はりこみなどが読む）。
+    // バトンタッチ・しっぽきりなら、引っ込む前の状態から引き継ぐものも書く
     await this.battleRepository.updateBattlePokemonStatus(targetStatus.id, {
       isActive: true,
+      ...(options.transfer === 'batonPass' && currentActive
+        ? this.batonPassRanks(currentActive)
+        : {}),
       volatileState: updateVolatileState(targetStatus.volatileState, {
+        ...this.transferPatch(currentActive, options),
         switchedInTurn: battle.turn,
       }),
     });
@@ -120,6 +183,32 @@ export class PokemonSwitcherService {
         });
       }
     }
+  }
+
+  /**
+   * 引き継ぐ一時的な状態の patch（引き継がないときは空）
+   */
+  private transferPatch(
+    leaving: BattlePokemonStatus | null,
+    options: SwitchOptions,
+  ): StatePatch<VolatileState> {
+    if (!leaving || !options.transfer) {
+      return {};
+    }
+    return options.transfer === 'batonPass'
+      ? batonPassPatch(leaving.volatileState)
+      : shedTailPatch(leaving.volatileState);
+  }
+
+  /**
+   * バトンタッチで引き継ぐ能力ランク
+   */
+  private batonPassRanks(leaving: BattlePokemonStatus): Partial<BattlePokemonStatus> {
+    const ranks: Partial<Record<(typeof BATON_PASS_RANK_KEYS)[number], number>> = {};
+    for (const key of BATON_PASS_RANK_KEYS) {
+      ranks[key] = leaving[key];
+    }
+    return ranks;
   }
 
   /**
