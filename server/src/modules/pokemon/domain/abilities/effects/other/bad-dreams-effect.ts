@@ -5,7 +5,11 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 
 /**
  * ナイトメア（Bad Dreams）特性の効果
- * ターン終了時、ねむり状態の相手のHPを最大HPの1/8減らす
+ * ターン終了時、ねむり状態の相手のHPを最大HPの1/8（切り捨て、最低1）減らす
+ *
+ * 注: ターン終了時の処理は場のポケモンを1匹ずつ順に処理する。相手が先に処理され、
+ * ねむりのターン数が尽きて目を覚ますと、この効果は発動しない。
+ * 本家ではねむりは行動時に解除されるため、ターン終了時はまだねむっていてダメージを受ける
  */
 export class BadDreamsEffect implements IAbilityEffect {
   /**
@@ -36,7 +40,7 @@ export class BadDreamsEffect implements IAbilityEffect {
       return;
     }
 
-    const damage = Math.floor(opponentPokemon.maxHp / BadDreamsEffect.DAMAGE_DIVISOR);
+    const damage = Math.max(1, Math.floor(opponentPokemon.maxHp / BadDreamsEffect.DAMAGE_DIVISOR));
     const newHp = Math.max(0, opponentPokemon.currentHp - damage);
 
     await battleContext.battleRepository.updateBattlePokemonStatus(opponentPokemon.id, {

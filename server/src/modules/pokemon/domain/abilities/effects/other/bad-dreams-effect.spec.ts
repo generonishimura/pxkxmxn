@@ -60,6 +60,36 @@ describe('BadDreamsEffect', () => {
     });
   });
 
+  it('最大HPが小さくても最低 1 ダメージを与える', async () => {
+    // Arrange
+    const opponent = new BattlePokemonStatus(
+      2,
+      1,
+      2,
+      2,
+      true,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      StatusCondition.Sleep,
+    );
+    const ctx = createCtx(opponent);
+
+    // Act
+    await effect.onTurnEnd(owner, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(opponent.id, {
+      currentHp: 0,
+    });
+  });
+
   it('相手がねむり以外の状態ならHPを減らさない', async () => {
     // Arrange
     const opponent = createOpponent(StatusCondition.Paralysis);
