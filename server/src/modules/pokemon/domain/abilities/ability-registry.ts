@@ -119,6 +119,12 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// フェアリーオーラ・オーラブレイク・こだいかっせい・クォークチャージ・しんがん（Issue #135 一部）
+import { FairyAuraEffect } from './effects/damage-modify/fairy-aura-effect';
+import { AuraBreakEffect } from './effects/damage-modify/aura-break-effect';
+import { ProtosynthesisEffect } from './effects/stat-change/protosynthesis-effect';
+import { QuarkDriveEffect } from './effects/stat-change/quark-drive-effect';
+import { MindsEyeEffect } from './effects/stat-change/minds-eye-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +338,12 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // フェアリーオーラ・オーラブレイク・こだいかっせい・クォークチャージ・しんがん（Issue #135 一部）
+      this.registry.set('フェアリーオーラ', new FairyAuraEffect());
+      this.registry.set('オーラブレイク', new AuraBreakEffect());
+      this.registry.set('こだいかっせい', new ProtosynthesisEffect());
+      this.registry.set('クォークチャージ', new QuarkDriveEffect());
+      this.registry.set('しんがん', new MindsEyeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
