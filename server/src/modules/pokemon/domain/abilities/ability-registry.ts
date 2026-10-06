@@ -119,6 +119,9 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// 技フラグで判定する特性（Issue #135 一部）
+import { SoundproofEffect } from './effects/immunity/soundproof-effect';
+import { BulletproofEffect } from './effects/immunity/bulletproof-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +335,9 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // 技フラグで判定する特性（Issue #135 一部）
+      this.registry.set('ぼうおん', new SoundproofEffect());
+      this.registry.set('ぼうだん', new BulletproofEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
