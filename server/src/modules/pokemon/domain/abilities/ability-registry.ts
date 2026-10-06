@@ -156,6 +156,13 @@ import { PoisonTouchEffect } from './effects/other/poison-touch-effect';
 import { MoxieEffect } from './effects/stat-change/moxie-effect';
 import { JustifiedEffect } from './effects/stat-change/justified-effect';
 import { RattledEffect } from './effects/stat-change/rattled-effect';
+// 被弾・接触・ひんし・どくの付与で発動する特性（Issue #135 一部）
+import { IronBarbsEffect } from './effects/other/iron-barbs-effect';
+import { StaminaEffect } from './effects/stat-change/stamina-effect';
+import { WaterCompactionEffect } from './effects/stat-change/water-compaction-effect';
+import { CorrosionEffect } from './effects/other/corrosion-effect';
+import { SoulHeartEffect } from './effects/stat-change/soul-heart-effect';
+import { BeastBoostEffect } from './effects/stat-change/beast-boost-effect';
 
 /**
  * 特性レジストリ
@@ -408,6 +415,13 @@ export class AbilityRegistry {
       this.registry.set('じしんかじょう', new MoxieEffect());
       this.registry.set('せいぎのこころ', new JustifiedEffect());
       this.registry.set('びびり', new RattledEffect());
+      // 被弾・接触・ひんし・どくの付与で発動する特性（Issue #135 一部）
+      this.registry.set('てつのトゲ', new IronBarbsEffect());
+      this.registry.set('じきゅうりょく', new StaminaEffect());
+      this.registry.set('みずがため', new WaterCompactionEffect());
+      this.registry.set('ふしょく', new CorrosionEffect());
+      this.registry.set('ソウルハート', new SoulHeartEffect());
+      this.registry.set('ビーストブースト', new BeastBoostEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
