@@ -121,6 +121,12 @@ import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
 // 最後に行動したときの威力補正（Issue #135 一部）
 import { AnalyticEffect } from './effects/damage-modify/analytic-effect';
+// 技を出す前に失敗・無効にする特性（Issue #135 一部）
+import { DampEffect } from './effects/other/damp-effect';
+import { QueenlyMajestyEffect } from './effects/other/queenly-majesty-effect';
+import { DazzlingEffect } from './effects/other/dazzling-effect';
+import { ArmorTailEffect } from './effects/other/armor-tail-effect';
+import { GoodAsGoldEffect } from './effects/immunity/good-as-gold-effect';
 
 /**
  * 特性レジストリ
@@ -336,6 +342,12 @@ export class AbilityRegistry {
       this.registry.set('マジックガード', new MagicGuardEffect());
       // 最後に行動したときの威力補正（Issue #135 一部）
       this.registry.set('アナライズ', new AnalyticEffect());
+      // 技を出す前に失敗・無効にする特性（Issue #135 一部）
+      this.registry.set('しめりけ', new DampEffect());
+      this.registry.set('じょおうのいげん', new QueenlyMajestyEffect());
+      this.registry.set('ビビッドボディ', new DazzlingEffect());
+      this.registry.set('テイルアーマー', new ArmorTailEffect());
+      this.registry.set('おうごんのからだ', new GoodAsGoldEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

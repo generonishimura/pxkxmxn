@@ -252,6 +252,8 @@ import { WeatherBallEffect } from './effects/weather-ball-effect';
 import { FacadeEffect } from './effects/facade-effect';
 import { PunishmentEffect } from './effects/punishment-effect';
 import { PowerTripEffect } from './effects/power-trip-effect';
+// 相手がねむりのときだけ当たる吸収技（Issue #97 一部）
+import { DreamEaterEffect } from './effects/dream-eater-effect';
 
 /**
  * 技のレジストリ
@@ -610,6 +612,8 @@ export class MoveRegistry {
       this.registry.set('からげんき', new FacadeEffect());
       this.registry.set('おしおき', new PunishmentEffect());
       this.registry.set('つけあがる', new PowerTripEffect());
+      // 相手がねむりのときだけ当たる吸収技（Issue #97 一部）
+      this.registry.set('ゆめくい', new DreamEaterEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
