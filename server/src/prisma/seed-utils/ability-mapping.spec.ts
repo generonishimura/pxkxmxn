@@ -94,7 +94,7 @@ describe('ability-mapping', () => {
         effectCategory: 'Weather',
       });
 
-      expect(getAbilityMetadata('すなあらし')).toEqual({
+      expect(getAbilityMetadata('すなおこし')).toEqual({
         triggerEvent: 'OnEntry',
         effectCategory: 'Weather',
       });
@@ -136,7 +136,7 @@ describe('ability-mapping', () => {
         'すなかき',
         'あめふらし',
         'ひでり',
-        'すなあらし',
+        'すなおこし',
         'ゆきふらし',
       ];
 
@@ -179,7 +179,7 @@ describe('ability-mapping', () => {
         'すなかき',
         'あめふらし',
         'ひでり',
-        'すなあらし',
+        'すなおこし',
         'ゆきふらし',
       ];
 
@@ -216,7 +216,7 @@ describe('ability-mapping', () => {
         'すなかき',
         'あめふらし',
         'ひでり',
-        'すなあらし',
+        'すなおこし',
         'ゆきふらし',
       ];
 

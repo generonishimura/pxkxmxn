@@ -2,17 +2,36 @@ import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 
+type StatType =
+  | 'attack'
+  | 'defense'
+  | 'specialAttack'
+  | 'specialDefense'
+  | 'speed'
+  | 'accuracy'
+  | 'evasion';
+
 /**
- * クリアボディ（Clear Body）特性の効果
- * 自分の能力ランクが下がらない
+ * クリアボディ（Clear Body）/ しろいけむり（White Smoke）/ メタルプロテクト（Full Metal Body）特性の効果
+ * 相手によって能力ランクを下げられない
  *
- * 注意: 既存の `BigPecksEffect`（はとむね）と同じく、現状はマーカー扱い。
- *       実際の無効化処理は、能力ランクを下げる側（`BaseOpponentStatChangeMoveEffect` 等）で
- *       本特性を参照して gating する必要がある（engine 拡張余地）。
- *       将来的に `canReceiveStatChange` フックを追加してロジック実装に置き換える想定。
+ * `canReceiveStatChange` フックで、すべての能力の低下を無効化する。
+ * 本フックは相手が能力変化を適用する側（`BaseOpponentStatChangeMoveEffect` /
+ * `BaseOpponentStatChangeEffect`）でのみ参照されるため、自分の技による低下には影響しない。
+ *
+ * 注: メタルプロテクトは本来かたやぶりで無視されないが、ここではクリアボディと同じく
+ * 攻撃側がかたやぶりを持つと判定がスキップされる。
  */
 export class ClearBodyEffect implements IAbilityEffect {
-  passiveEffect?(_pokemon: BattlePokemonStatus, _battleContext?: BattleContext): void {
-    // マーカー特性。実際の無効化処理は能力ランク変更側で gating される想定。
+  canReceiveStatChange(
+    _pokemon: BattlePokemonStatus,
+    _statType: StatType,
+    rankChange: number,
+    _battleContext?: BattleContext,
+  ): boolean | undefined {
+    if (rankChange < 0) {
+      return false;
+    }
+    return undefined;
   }
 }
