@@ -139,6 +139,10 @@ export class StatusConditionProcessorService {
     battleContext: BattleContext,
     abilityEffect: IAbilityEffect | undefined,
   ): Promise<void> {
+    // ねむっていなければ、ねむりのターン数を捨てる（さわぐ・めざましビンタなどで起きたあと、次のねむりを 0 から数える）
+    if (status.statusCondition !== StatusCondition.Sleep) {
+      this.sleepTurnCounts.get(battleId)?.delete(status.id);
+    }
     if (!status.statusCondition || status.statusCondition === StatusCondition.None) {
       return;
     }

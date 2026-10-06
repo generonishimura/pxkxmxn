@@ -98,6 +98,34 @@ describe('StatusConditionProcessorService - ターン終了時の一時的な状
     });
   });
 
+  describe('ねむりのターン数', () => {
+    it('ねむりから覚めたら（さわぐなどで起こされたら）、次のねむりはターン数を 0 から数える', async () => {
+      // Arrange
+      const shouldClearSleep = jest.spyOn(StatusConditionHandler, 'shouldClearSleep');
+      const memory = createInMemoryBattle({ status: { statusCondition: StatusCondition.Sleep } });
+      const processor = new StatusConditionProcessorService(
+        memory.battleRepository,
+        memory.trainedPokemonRepository,
+      );
+      const battle = await memory.battleRepository.findById(1);
+      await processor.processTurnEndAbilities(battle);
+      await memory.battleRepository.updateBattlePokemonStatus(1, {
+        statusCondition: StatusCondition.None,
+      });
+      await processor.processTurnEndAbilities(battle);
+      await memory.battleRepository.updateBattlePokemonStatus(1, {
+        statusCondition: StatusCondition.Sleep,
+      });
+      shouldClearSleep.mockClear();
+
+      // Act
+      await processor.processTurnEndAbilities(battle);
+
+      // Assert
+      expect(shouldClearSleep).toHaveBeenCalledWith(0, 1);
+    });
+  });
+
   describe('ねがいごと', () => {
     it('残りターン数が 1 なら、その陣営の場のポケモンを healAmount だけ回復する', async () => {
       // Act

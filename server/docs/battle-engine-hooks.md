@@ -757,7 +757,7 @@ readonly chargeTurn: ChargeTurnConfig = {
 #### lockedIn（技のプロパティ）と MoveBehaviors の lockedMove
 
 - 型: `readonly lockedIn?: { turns: number | [min, max]; confusesAtEnd?: boolean; preventsSleep?: boolean; endsOnMiss?: boolean }`
-- 呼ばれる場所: `MoveLifecycle.afterMove`。1 ターン目に当たったら `lockedInMove`（使ったターンのあとの残りターン数）を書き、次からは選んだ行動にかかわらずその技を出す（PP は減らない）。失敗・技を出せなかった・`endsOnMiss` で外れたら止まる。最後まで出したら `confusesAtEnd` でこんらんする。`preventsSleep` なら `uproar` を書き、場のねむっているポケモンを起こす
+- 呼ばれる場所: `MoveLifecycle.afterMove`。1 ターン目に当たったら `lockedInMove`（使ったターンのあとの残りターン数）を書き、次からは選んだ行動にかかわらずその技を出す（PP は減らない）。失敗・技を出せなかった・`endsOnMiss` で外れたら止まる。最後まで出したら `confusesAtEnd` でこんらんする。`preventsSleep` なら `uproar` を書き、当たるたびに場のねむっているポケモンを起こす。最後まで出したターンは、ターン終了時まで `uproar` が残る（そのターンの終わりのあくびでも眠らない）
 - `MoveBehaviors` の `lockedMove`（あばれる・げきりん・はなびらのまいなど、Showdown で lockedmove になる技）は、`lockedIn` がなくても `{ turns: [2, 3], confusesAtEnd: true }` で動く
 - 使う技: さわぐ（`{ turns: 3, preventsSleep: true }`）、ころがる・アイスボール（`{ turns: 5, endsOnMiss: true }`）
 - ころがるの威力は、`lockedInMove` から何ターン目かを求める（1 ターン目は `lockedInMove` がない）

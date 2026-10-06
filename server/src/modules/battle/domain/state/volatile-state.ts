@@ -275,7 +275,7 @@ export type VolatileState = {
    * 技が失敗・外れたとき、別の技を出したときにエンジンが書き直す
    */
   readonly consecutiveMoveCount?: number;
-  /** さわぐで、場の誰も眠れない。lockedInMove が終わるときにエンジンが消す */
+  /** さわぐで、場の誰も眠れない。lockedInMove が終わったターンのターン終了時に消える（失敗・技を出せなかったときはすぐ消える） */
   readonly uproar?: boolean;
 
   // ---- そのほか ----
@@ -536,7 +536,8 @@ export const shedTailPatch = (state: VolatileState): StatePatch<VolatileState> =
 
 /**
  * ターン終了時の VolatileState を返す
- * 残りターン数を 1 減らして 0 になったキーを消し、このターンだけのフラグを消す
+ * 残りターン数を 1 減らして 0 になったキーを消し、このターンだけのフラグを消す。
+ * さわぐが終わったあと（lockedInMove がない uproar）も消す
  * 変える所がないときは、同じオブジェクトを返す（書き込みが要るかを === で判定できる）
  */
 export const tickVolatileStateAtTurnEnd = (state: VolatileState): VolatileState => {
@@ -558,6 +559,10 @@ export const tickVolatileStateAtTurnEnd = (state: VolatileState): VolatileState 
     if (state[key] !== undefined) {
       markRemoved(patch, key);
     }
+  }
+  // さわぐは、最後のターンのターン終了時まで場の誰も眠れない（本家の uproar は residual の最後で終わる）
+  if (state.uproar !== undefined && state.lockedInMove === undefined) {
+    markRemoved(patch, 'uproar');
   }
   return applyIfChanged(state, patch);
 };

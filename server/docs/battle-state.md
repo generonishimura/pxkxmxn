@@ -144,7 +144,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 - `toxicCounter`: もうどくのダメージのたびに増やす
 - `perishCount`・`partialTrap`: ターン終了時に `VolatileResidualProcessor` が減らす（10 章）
 - `lockedInMove`: 技を出すたびに `MoveLifecycle.afterMove` が減らす
-- `chargingMoveId`・`semiInvulnerable`・`mustRecharge`・`consecutiveMoveCount`・`uproar`: 技の流れの中で `MoveLifecycle` / `BeforeMoveChecker` が書き、消す
+- `chargingMoveId`・`semiInvulnerable`・`mustRecharge`・`consecutiveMoveCount`・`uproar`: 技の流れの中で `MoveLifecycle` / `BeforeMoveChecker` が書き、消す。ただし `uproar` は、さわぐを最後まで出したターン（`lockedInMove` がない）のターン終了時に `tickVolatileStateAtTurnEnd` が消す
 
 ### 切れたときに効果があるもの
 
@@ -169,7 +169,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `choiceLockedMoveId` | `recordMoveUse` | 特性の `locksMoveChoice`（ごりむちゅう）なら、最初に出した技（わるあがきを除く） |
 | `chargingMoveId`・`semiInvulnerable` | `MoveLifecycle.handleChargeTurn` | ため技の 1 ターン目に書き、2 ターン目・技を出せなかったときに消す |
 | `mustRecharge` | `afterMove` / `BeforeMoveChecker` | 反動技（`MoveBehaviors` の `recharge`）が当たったら書き、次の行動で消す |
-| `lockedInMove`・`uproar` | `afterMove` | 出し続ける技の残りターン数（使ったターンを含まない）。終わり・失敗・技を出せなかったときに消す |
+| `lockedInMove`・`uproar` | `afterMove` | 出し続ける技の残りターン数（使ったターンを含まない）。終わり・失敗・技を出せなかったときに消す。`uproar` だけは、最後まで出したときはそのターンの終わりまで残す（本家の uproar は residual の最後で終わる） |
 | `charged` | `afterMove` / `BeforeMoveChecker` | でんき技を出したら消す（じゅうでんそのものは除く）。でんき技を出そうとして止まったときも消す（第 9 世代の本家と同じ）。書くのは技・特性 |
 | `confusionTurns` | `BeforeMoveChecker` | 技を出そうとするたびに 1 減らす。書くのは `inflictStatus`（こんらん） |
 | `SideConditions.futureAttack` | `MoveLifecycle.scheduleFutureAttack` | みらいよち・はめつのねがい（`MoveBehaviors` の `futureMove`）を使ったら相手の陣営に書く |

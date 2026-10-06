@@ -348,6 +348,53 @@ describe('MoveExecutorService - 技の流れでエンジンが書く状態（Mov
     });
   });
 
+  describe('さわぐ', () => {
+    const uproarEffect = { lockedIn: { turns: 3, preventsSleep: true } };
+
+    it('2 ターン目以降も、当たるたびに場のねむっているポケモンを起こす', async () => {
+      // Arrange
+      const { execute, statuses, battleRepository } = setupMoveExecutor({
+        move: createMove('さわぐ', MoveCategory.Special, 90),
+        moveEffect: uproarEffect,
+        attacker: {
+          volatileState: { lastMoveId: 1, uproar: true, lockedInMove: { moveId: 1, turns: 2 } },
+        },
+        defender: { statusCondition: StatusCondition.Sleep },
+      });
+      battleRepository.findBattlePokemonStatusByBattleId.mockImplementation(() =>
+        Promise.resolve([...statuses.values()]),
+      );
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(statuses.get(DEFENDER_ID).statusCondition).toBe(StatusCondition.None);
+      expect(message).toContain('The uproar woke up the sleeping Pokemon!');
+    });
+
+    it('最後のターンは、そのターンの終わりまで uproar を残す（ターン終了時のあくびで眠らない）', async () => {
+      // Arrange
+      const { execute, statuses, battleRepository } = setupMoveExecutor({
+        move: createMove('さわぐ', MoveCategory.Special, 90),
+        moveEffect: uproarEffect,
+        attacker: {
+          volatileState: { lastMoveId: 1, uproar: true, lockedInMove: { moveId: 1, turns: 1 } },
+        },
+      });
+      battleRepository.findBattlePokemonStatusByBattleId.mockImplementation(() =>
+        Promise.resolve([...statuses.values()]),
+      );
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID).volatileState.lockedInMove).toBeUndefined();
+      expect(statuses.get(ATTACKER_ID).volatileState.uproar).toBe(true);
+    });
+  });
+
   describe('じゅうでん（charged）', () => {
     it('でんき技を出すと、charged を消す', async () => {
       // Arrange

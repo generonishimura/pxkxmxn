@@ -426,6 +426,28 @@ describe('VolatileState', () => {
       expect(ticked).toEqual({});
     });
 
+    it('さわぐが終わったあと（lockedInMove がない uproar）は、ターン終了時に uproar を消す', () => {
+      // Arrange
+      const state: VolatileState = { uproar: true };
+
+      // Act
+      const ticked = tickVolatileStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({});
+    });
+
+    it('さわいでいる途中（lockedInMove がある）なら、uproar は残す', () => {
+      // Arrange
+      const state: VolatileState = { uproar: true, lockedInMove: { moveId: 253, turns: 1 } };
+
+      // Act
+      const ticked = tickVolatileStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual(state);
+    });
+
     it('ターン終了時に減らさないキーは、そのまま残す', () => {
       // Arrange
       const state: VolatileState = {

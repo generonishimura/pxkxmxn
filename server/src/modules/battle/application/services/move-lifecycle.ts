@@ -242,7 +242,9 @@ export class MoveLifecycle {
    * - 続けて出した回数（consecutiveMoveCount）
    * - じゅうでん（charged）: でんき技を出したら消す（じゅうでんそのものは除く。外れても消す）
    * - くちばしキャノン: 撃ったら加熱（beakBlast）を消す
-   * - さわぐ: 始めたときに、場のねむっているポケモンを起こす（ぼうおんは起きない）
+   * - さわぐ: 当たるたびに、場のねむっているポケモンを起こす（ぼうおんは起きない）。最後まで出したら、uproar は
+   *   このターンの終わりまで残す（ターン終了時のあくびでも眠らない）
+   *   注: 本家は技を当てる前（onTryHit）に起こすが、ここでは技が当たったときだけ起こす
    * @param moveTypeName 出した技のタイプ（タイプ変更の反映後。ダメージ技でなければ技本来のタイプ）
    * @returns メッセージ（こんらんした、など）
    */
@@ -309,7 +311,10 @@ export class MoveLifecycle {
         const interrupted = outcome === 'failed' || (outcome === 'missed' && lockedIn.endsOnMiss);
         if (interrupted || remaining <= 0) {
           patch.lockedInMove = null;
-          patch.uproar = null;
+          // 最後まで出したさわぐは、このターンの終わりまで uproar を残す（tickVolatileStateAtTurnEnd が消す）
+          if (interrupted) {
+            patch.uproar = null;
+          }
           fatigue = !interrupted && lockedIn.confusesAtEnd === true;
         } else {
           patch.lockedInMove = { moveId: move.id, turns: remaining };
@@ -321,8 +326,11 @@ export class MoveLifecycle {
       await this.battleRepository.patchVolatileState(attacker.id, patch);
       attacker = await this.refresh(attacker);
     }
+    // さわぐが当たるたびに、場のねむっているポケモンを起こす（本家の uproar の onTryHit）
     const uproarMessage =
-      patch.uproar === true ? await this.wakeUpSleepers(attacker, params.battleContext) : null;
+      lockedIn?.preventsSleep === true && outcome === 'hit'
+        ? await this.wakeUpSleepers(attacker, params.battleContext)
+        : null;
     if (!fatigue) {
       return uproarMessage;
     }
@@ -359,7 +367,7 @@ export class MoveLifecycle {
   }
 
   /**
-   * さわぐを始めたときに、場のねむっているポケモンを起こす（ぼうおんの特性は起きない）
+   * さわぐが当たったときに、場のねむっているポケモンを起こす（ぼうおんの特性は起きない）
    * @returns メッセージ（起こしたポケモンがいなければ null）
    */
   private async wakeUpSleepers(
