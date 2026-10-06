@@ -135,6 +135,10 @@ import { SereneGraceEffect } from './effects/other/serene-grace-effect';
 import { AirLockEffect } from './effects/weather/air-lock-effect';
 import { SkillLinkEffect } from './effects/other/skill-link-effect';
 import { UnawareEffect } from './effects/other/unaware-effect';
+// かたやぶり系・はやてのつばさ・おやこあい・ダークオーラ（Issue #135 一部）
+import { GaleWingsEffect } from './effects/other/gale-wings-effect';
+import { ParentalBondEffect } from './effects/other/parental-bond-effect';
+import { DarkAuraEffect } from './effects/damage-modify/dark-aura-effect';
 
 /**
  * 特性レジストリ
@@ -364,6 +368,12 @@ export class AbilityRegistry {
       this.registry.set('エアロック', new AirLockEffect());
       this.registry.set('スキルリンク', new SkillLinkEffect());
       this.registry.set('てんねん', new UnawareEffect());
+      // かたやぶり系・はやてのつばさ・おやこあい・ダークオーラ（Issue #135 一部）
+      this.registry.set('ターボブレイズ', new MoldBreakerEffect());
+      this.registry.set('テラボルテージ', new MoldBreakerEffect());
+      this.registry.set('はやてのつばさ', new GaleWingsEffect());
+      this.registry.set('おやこあい', new ParentalBondEffect());
+      this.registry.set('ダークオーラ', new DarkAuraEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
