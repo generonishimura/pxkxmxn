@@ -55,6 +55,22 @@ describe('LifeDewEffect', () => {
     });
   });
 
+  it('回復量は四捨五入で計算する（最大 HP 102 なら 26 回復）', async () => {
+    // Arrange
+    const effect = new LifeDewEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 10, maxHp: 102 });
+    const defender = createBattlePokemonStatus({ id: 2, currentHp: 10 });
+    const ctx = createBattleContext();
+
+    // Act
+    await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
+      currentHp: 36,
+    });
+  });
+
   it('状態異常は治さない', async () => {
     // Arrange
     const effect = new LifeDewEffect();

@@ -36,7 +36,7 @@ describe('ClangorousSoulEffect', () => {
     };
   };
 
-  it('最大 HP の 1/3 を支払い、攻撃・防御・特攻・特防・素早さを 1 段階ずつ上げる', async () => {
+  it('最大 HP の 33% を支払い、攻撃・防御・特攻・特防・素早さを 1 段階ずつ上げる', async () => {
     // Arrange
     const effect = new ClangorousSoulEffect();
     const attacker = createBattlePokemonStatus({ currentHp: 100, maxHp: 100 });
@@ -58,10 +58,88 @@ describe('ClangorousSoulEffect', () => {
     });
   });
 
-  it('現在 HP が最大 HP の 1/3 以下なら失敗する', async () => {
+  it('現在 HP が最大 HP の 33% 以下なら失敗する', async () => {
     // Arrange
     const effect = new ClangorousSoulEffect();
     const attacker = createBattlePokemonStatus({ currentHp: 33, maxHp: 100 });
+    const defender = createBattlePokemonStatus({ id: 2 });
+    const ctx = createBattleContext();
+
+    // Act
+    const result = await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(result).toBeNull();
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
+  });
+
+  it('支払う HP は最大 HP × 33 / 100 の切り捨て（最大 HP 300 なら 99）', async () => {
+    // Arrange
+    const effect = new ClangorousSoulEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 300, maxHp: 300 });
+    const defender = createBattlePokemonStatus({ id: 2 });
+    const ctx = createBattleContext();
+
+    // Act
+    await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
+      currentHp: 201,
+      attackRank: 1,
+      defenseRank: 1,
+      specialAttackRank: 1,
+      specialDefenseRank: 1,
+      speedRank: 1,
+    });
+  });
+
+  it('現在 HP が最大 HP の 33% を超えていれば成功する（最大 HP 300、現在 HP 100）', async () => {
+    // Arrange
+    const effect = new ClangorousSoulEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 100, maxHp: 300 });
+    const defender = createBattlePokemonStatus({ id: 2 });
+    const ctx = createBattleContext();
+
+    // Act
+    await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
+      currentHp: 1,
+      attackRank: 1,
+      defenseRank: 1,
+      specialAttackRank: 1,
+      specialDefenseRank: 1,
+      speedRank: 1,
+    });
+  });
+
+  it('支払う HP は最低 1（最大 HP 2 なら 1）', async () => {
+    // Arrange
+    const effect = new ClangorousSoulEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 2, maxHp: 2 });
+    const defender = createBattlePokemonStatus({ id: 2 });
+    const ctx = createBattleContext();
+
+    // Act
+    await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
+      currentHp: 1,
+      attackRank: 1,
+      defenseRank: 1,
+      specialAttackRank: 1,
+      specialDefenseRank: 1,
+      speedRank: 1,
+    });
+  });
+
+  it('最大 HP が 1 なら失敗する', async () => {
+    // Arrange
+    const effect = new ClangorousSoulEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 1, maxHp: 1 });
     const defender = createBattlePokemonStatus({ id: 2 });
     const ctx = createBattleContext();
 
