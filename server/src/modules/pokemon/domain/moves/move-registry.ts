@@ -264,6 +264,7 @@ import { StockpileEffect } from './effects/stockpile-effect';
 import { PowerTrickEffect } from './effects/power-trick-effect';
 import { OdorSleuthEffect } from './effects/odor-sleuth-effect';
 import { MiracleEyeEffect } from './effects/miracle-eye-effect';
+import { TarShotEffect } from './effects/tar-shot-effect';
 
 /**
  * 技のレジストリ
@@ -636,6 +637,7 @@ export class MoveRegistry {
       this.registry.set('パワートリック', new PowerTrickEffect());
       this.registry.set('かぎわける', new OdorSleuthEffect());
       this.registry.set('ミラクルアイ', new MiracleEyeEffect());
+      this.registry.set('タールショット', new TarShotEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
