@@ -1,5 +1,5 @@
 import type { BattleContext } from '../abilities/battle-context.interface';
-import { MOVE_FLAG_TABLE } from './move-flag-table';
+import { MOVE_FLAG_TABLE, NON_OPPONENT_TARGET_MOVE_NAMES } from './move-flag-table';
 
 /**
  * 技の静的なフラグ
@@ -28,6 +28,8 @@ export type MoveFlag =
 
 const EMPTY_FLAGS: ReadonlySet<MoveFlag> = new Set<MoveFlag>();
 
+const NON_OPPONENT_TARGET_MOVES: ReadonlySet<string> = new Set(NON_OPPONENT_TARGET_MOVE_NAMES);
+
 const FLAGS_BY_MOVE_NAME: ReadonlyMap<string, ReadonlySet<MoveFlag>> = new Map(
   MOVE_FLAG_TABLE.map(([moveName, flags]) => [moveName, new Set<MoveFlag>(flags)]),
 );
@@ -50,6 +52,14 @@ export class MoveFlags {
    */
   static has(moveName: string, flag: MoveFlag): boolean {
     return MoveFlags.get(moveName).has(flag);
+  }
+
+  /**
+   * 技が相手のポケモンを対象にするかどうか
+   * 自分・味方・場全体・相手の場を対象にする技（つるぎのまい、とおぼえ、すなあらし、まきびし など）はfalse
+   */
+  static targetsOpponent(moveName: string): boolean {
+    return !NON_OPPONENT_TARGET_MOVES.has(moveName);
   }
 }
 

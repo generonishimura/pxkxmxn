@@ -52,6 +52,24 @@ describe('MoveFlags', () => {
     });
   });
 
+  describe('targetsOpponent', () => {
+    it('相手を対象にする技はtrueを返す', () => {
+      // Arrange & Act
+      const result = MoveFlags.targetsOpponent('なきごえ');
+
+      // Assert
+      expect(result).toBe(true);
+    });
+
+    it('自分を対象にする技はfalseを返す', () => {
+      // Arrange & Act
+      const result = MoveFlags.targetsOpponent('とおぼえ');
+
+      // Assert
+      expect(result).toBe(false);
+    });
+  });
+
   describe('isContactMove', () => {
     it('moveFlagsがある場合はcontactフラグで判定する', () => {
       // Arrange
