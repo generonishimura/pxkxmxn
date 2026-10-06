@@ -41,6 +41,7 @@ describe('InsomniaEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });

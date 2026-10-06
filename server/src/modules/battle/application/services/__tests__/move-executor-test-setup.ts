@@ -58,6 +58,7 @@ export const withChanges = (
     merged.accuracyRank,
     merged.evasionRank,
     merged.statusCondition,
+    merged.volatileState,
   );
 };
 

@@ -41,6 +41,7 @@ describe('ImmunityEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });

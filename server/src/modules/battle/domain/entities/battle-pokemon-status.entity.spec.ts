@@ -1,6 +1,7 @@
 import { BattlePokemonStatus } from './battle-pokemon-status.entity';
 import { StatusCondition } from './status-condition.enum';
 import { ValidationException } from '../../../../shared/domain/exceptions/validation.exception';
+import { VolatileState } from '../state/volatile-state';
 
 describe('BattlePokemonStatus', () => {
   const createBattlePokemonStatus = (
@@ -98,6 +99,44 @@ describe('BattlePokemonStatus', () => {
     it('HPが1以上の場合はfalseを返す', () => {
       const status = createBattlePokemonStatus({ currentHp: 1, maxHp: 100 });
       expect(status.isFainted()).toBe(false);
+    });
+  });
+
+  describe('volatileState', () => {
+    it('指定しないときは空の状態を持つ', () => {
+      // Act
+      const status = createBattlePokemonStatus();
+
+      // Assert
+      expect(status.volatileState).toEqual({});
+    });
+
+    it('指定した状態を持つ', () => {
+      // Arrange
+      const volatileState: VolatileState = { leechSeed: true, tauntTurns: 3 };
+
+      // Act
+      const status = new BattlePokemonStatus(
+        1,
+        1,
+        1,
+        1,
+        true,
+        100,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        volatileState,
+      );
+
+      // Assert
+      expect(status.volatileState).toEqual({ leechSeed: true, tauntTurns: 3 });
     });
   });
 });

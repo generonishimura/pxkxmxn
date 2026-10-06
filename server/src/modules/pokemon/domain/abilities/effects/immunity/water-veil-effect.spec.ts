@@ -41,6 +41,7 @@ describe('WaterVeilEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });

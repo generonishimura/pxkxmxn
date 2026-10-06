@@ -54,6 +54,7 @@ describe('BaseWeatherDependentDamageEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });

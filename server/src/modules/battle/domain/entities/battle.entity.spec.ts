@@ -1,5 +1,6 @@
 import { Battle, Weather, Field, BattleStatus } from './battle.entity';
 import { ValidationException } from '../../../../shared/domain/exceptions/validation.exception';
+import { SideState } from '../state/side-state';
 
 describe('Battle', () => {
   const createBattle = (
@@ -82,6 +83,27 @@ describe('Battle', () => {
     it('winnerTrainerIdがnullの場合は正常', () => {
       const battle = createBattle({ winnerTrainerId: null });
       expect(battle.winnerTrainerId).toBeNull();
+    });
+  });
+
+  describe('sideState', () => {
+    it('指定しないときは空の状態を持つ', () => {
+      // Act
+      const battle = createBattle();
+
+      // Assert
+      expect(battle.sideState).toEqual({});
+    });
+
+    it('指定した状態を持つ', () => {
+      // Arrange
+      const sideState: SideState = { sides: { '1': { reflectTurns: 5 } } };
+
+      // Act
+      const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null, sideState);
+
+      // Assert
+      expect(battle.sideState).toEqual({ sides: { '1': { reflectTurns: 5 } } });
     });
   });
 });

@@ -1,5 +1,6 @@
 import { StatusCondition } from './status-condition.enum';
 import { ValidationException } from '../../../../shared/domain/exceptions/validation.exception';
+import { VolatileState, emptyVolatileState } from '../state/volatile-state';
 
 /**
  * BattlePokemonStatusエンティティ
@@ -42,6 +43,11 @@ export class BattlePokemonStatus {
     public readonly accuracyRank: number,
     public readonly evasionRank: number,
     public readonly statusCondition: StatusCondition | null,
+    /**
+     * 場に出ている間だけ続く状態（やどりぎのタネ・みがわりなど）
+     * 交代で引っ込むときに消す処理はまだない（docs/battle-state.md）
+     */
+    public readonly volatileState: VolatileState = emptyVolatileState(),
   ) {
     // IDのバリデーション
     if (id < BattlePokemonStatus.MIN_ID) {

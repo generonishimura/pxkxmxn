@@ -40,6 +40,7 @@ describe('ChlorophyllEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });
