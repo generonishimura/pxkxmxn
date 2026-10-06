@@ -209,6 +209,15 @@ import { TakeHeartEffect } from './effects/take-heart-effect';
 import { DefogEffect } from './effects/defog-effect';
 import { CaptivateEffect } from './effects/captivate-effect';
 import { SnowscapeEffect } from './effects/snowscape-effect';
+import { RecoverEffect } from './effects/recover-effect';
+import { SoftBoiledEffect } from './effects/soft-boiled-effect';
+import { MilkDrinkEffect } from './effects/milk-drink-effect';
+import { SlackOffEffect } from './effects/slack-off-effect';
+import { HealOrderEffect } from './effects/heal-order-effect';
+import { MorningSunEffect } from './effects/morning-sun-effect';
+import { SynthesisEffect } from './effects/synthesis-effect';
+import { MoonlightEffect } from './effects/moonlight-effect';
+import { ShoreUpEffect } from './effects/shore-up-effect';
 
 /**
  * 技のレジストリ
@@ -481,6 +490,16 @@ export class MoveRegistry {
       this.registry.set('きりばらい', new DefogEffect());
       this.registry.set('ゆうわく', new CaptivateEffect());
       this.registry.set('ゆきげしき', new SnowscapeEffect());
+      // HP回復技（自分を回復）（Issue #110 一部）
+      this.registry.set('じこさいせい', new RecoverEffect());
+      this.registry.set('タマゴうみ', new SoftBoiledEffect());
+      this.registry.set('ミルクのみ', new MilkDrinkEffect());
+      this.registry.set('なまける', new SlackOffEffect());
+      this.registry.set('かいふくしれい', new HealOrderEffect());
+      this.registry.set('あさのひざし', new MorningSunEffect());
+      this.registry.set('こうごうせい', new SynthesisEffect());
+      this.registry.set('つきのひかり', new MoonlightEffect());
+      this.registry.set('すなあつめ', new ShoreUpEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
