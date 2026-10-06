@@ -557,7 +557,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - ポケモンの重さのデータがないため、重さを使う効果（ヘヴィメタル、ライトメタル、けたぐり等）は実装できません。
 - `onDamagingHit` / `onSourceDamagingHit` はヒットごとですが、`applyContactStatusCondition` と技の `onHit` は今までどおり技全体で1回です。
 - 状態異常は1つの欄（`statusCondition`）に入るため、ひるみ・こんらんは状態異常と同時に持てません。あくしゅうのひるみも、相手が状態異常なら付与できません（ひるみ技と同じ）。
-- 次の効果は `applyStatChanges` を通らず、ランクを直接書きます。たんじゅん・あまのじゃく・ミラーアーマー・びんじょうなどは効きません: はらだいこ、はいすいのじん、ソウルビート、みをけずる、つぼをつく、ナインエボルブースト、ブレイブチャージ、ほおばる、じばそうさ・ギアアップ（`BasePlusMinusSelfStatBoostEffect`）、たがやす・フラワーガード（`BaseGrassTypeStatBoostEffect`）、いばる・おだてる（`BaseConfuseWithStatBoostEffect`）、おきみやげ、どくのいと、ひっくりかえす、くろいきり・クリアスモッグ、じこあんじ、ガードスワップなどの入れ替え技、かそく・ムラっけ・ぎゃくじょう・まけんき・かちき・そうしょく・でんきエンジンなどの既存の特性。必要になったら `applyStatChanges` に乗せ換えます。
+- 次の効果は `applyStatChanges` を通らず、ランクを直接書きます。たんじゅん・あまのじゃく・ミラーアーマー・びんじょうなどは効きません: はらだいこ、はいすいのじん、ソウルビート、みをけずる、つぼをつく、ナインエボルブースト、ブレイブチャージ、ほおばる、じばそうさ・ギアアップ（`BasePlusMinusSelfStatBoostEffect`）、たがやす・フラワーガード（`BaseGrassTypeStatBoostEffect`）、いばる・おだてる（`BaseConfuseWithStatBoostEffect`）、おきみやげ、どくのいと、ひっくりかえす、くろいきり・クリアスモッグ、じこあんじ、ガードスワップなどの入れ替え技、かそく・ムラっけ・まけんき・かちき・そうしょく・でんきエンジンなどの既存の特性。必要になったら `applyStatChanges` に乗せ換えます。
 - `onOpponentStatChanged`（びんじょう）の「相手」は、相手が起こした変化ならその相手、技の実行中ならコンテキストの `attacker` / `defender` です。場に出たとき・ターン終了時に相手が自分で上げた変化（ふとうのつるぎなど）では呼ばれません。また本家は行動の終わりにまとめて写しますが、ここではすぐに写します。
 - `onKnockOut` は「自分の技で相手をひんしにした」ときだけです。ソウルハートは本家では誰がひんしになっても発動しますが、ここでは自分の技で倒したときだけになります（反動・状態異常・さめはだで相手が倒れたときは発動しない）。
 - ちからをすいとるは回復を直接書いているため、ヘドロえきを効かせるには `applyDrainHeal` に乗せ換えます。
@@ -602,5 +602,5 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | びんじょう | `onOpponentStatChanged`（上がった分を `applyStatChanges` で写す。`source?.name === 'びんじょう'` なら何もしない） |
 | びびり | `onDamagingHit`（むし・ゴースト・あくで素早さ+1）+ `onStatChanged`（`source?.name === 'いかく'` で素早さ+1） |
 | せいぎのこころ・じきゅうりょく・みずがため・じょうききかん・わたげ・すなはき・こぼれダネ・ねつこうかん | `onDamagingHit`（タイプは `hit.moveTypeName`。わたげは攻撃側に `applyStatChanges`、すなはき・こぼれダネは天候・フィールドを書き込む） |
-| いかりのこうら | `onAfterMoveHit`（`hit.hpBefore > maxHp / 2` かつ今のHPが半分以下） |
+| いかりのこうら・ぎゃくじょう（作成済み） | `onAfterMoveHit`（`hit.hpBefore > maxHp / 2` かつ今のHPが半分以下。ぎゃくじょうは特攻+1を `applyStatChanges` で行う） |
 | じしんかじょう・しろのいななき・くろのいななき・ビーストブースト・ソウルハート | `onKnockOut` |
