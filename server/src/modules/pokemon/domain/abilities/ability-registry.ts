@@ -124,6 +124,7 @@ import { ShieldDustEffect } from './effects/other/shield-dust-effect';
 import { SereneGraceEffect } from './effects/other/serene-grace-effect';
 import { AirLockEffect } from './effects/weather/air-lock-effect';
 import { SkillLinkEffect } from './effects/other/skill-link-effect';
+import { UnawareEffect } from './effects/other/unaware-effect';
 
 /**
  * 特性レジストリ
@@ -342,6 +343,7 @@ export class AbilityRegistry {
       this.registry.set('てんのめぐみ', new SereneGraceEffect());
       this.registry.set('エアロック', new AirLockEffect());
       this.registry.set('スキルリンク', new SkillLinkEffect());
+      this.registry.set('てんねん', new UnawareEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
