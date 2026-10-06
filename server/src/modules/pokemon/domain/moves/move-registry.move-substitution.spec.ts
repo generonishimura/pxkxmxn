@@ -3,6 +3,7 @@ import { MimicEffect } from './effects/mimic-effect';
 import { SketchEffect } from './effects/sketch-effect';
 import { MetronomeEffect } from './effects/metronome-effect';
 import { MirrorMoveEffect } from './effects/mirror-move-effect';
+import { AssistEffect } from './effects/assist-effect';
 
 describe('MoveRegistry: ほかの技をまねる・呼ぶ技の登録', () => {
   beforeAll(() => {
@@ -14,6 +15,7 @@ describe('MoveRegistry: ほかの技をまねる・呼ぶ技の登録', () => {
     ['スケッチ', SketchEffect],
     ['ゆびをふる', MetronomeEffect],
     ['オウムがえし', MirrorMoveEffect],
+    ['ねこのて', AssistEffect],
   ])('%s が登録されている', (moveName, effectClass) => {
     // Act
     const effect = MoveRegistry.get(moveName);
