@@ -1,5 +1,6 @@
 import type { Prisma } from '@generated/prisma/client';
 import type { PrismaService } from '@/shared/prisma/prisma.service';
+import { NotFoundException } from '@/shared/domain/exceptions';
 import { BattlePrismaRepository } from './battle.prisma.repository';
 
 // 生成済みの Prisma Client は読み込み時に @prisma/client の実行環境を必要とする。
@@ -51,6 +52,18 @@ describe('BattlePrismaRepository - 状態の JSON 列', () => {
   });
 
   const setup = () => {
+    // トランザクションの中で使うクライアント。行のロック（$queryRaw）と読み書きを持つ
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      battle: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+      battlePokemonStatus: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+    };
     const prisma = {
       battle: {
         findUnique: jest.fn(),
@@ -64,9 +77,18 @@ describe('BattlePrismaRepository - 状態の JSON 列', () => {
         create: jest.fn(),
         update: jest.fn(),
       },
+      $transaction: jest.fn((run: (client: typeof tx) => Promise<unknown>) => run(tx)),
     };
     const repository = new BattlePrismaRepository(prisma as unknown as PrismaService);
-    return { prisma, repository };
+    return { prisma, tx, repository };
+  };
+
+  /**
+   * $queryRaw のタグ付きテンプレートに渡された SQL の文字列部分をつなげる
+   */
+  const lockedSql = (queryRaw: jest.Mock): string => {
+    const [strings] = queryRaw.mock.calls[0] as [TemplateStringsArray, ...unknown[]];
+    return strings.join('?');
   };
 
   describe('sideState', () => {
@@ -343,6 +365,172 @@ describe('BattlePrismaRepository - 状態の JSON 列', () => {
       expect(prisma.battlePokemonStatus.update).toHaveBeenCalledWith({
         where: { id: 10 },
         data: { persistentState: {} },
+      });
+    });
+  });
+
+  describe('patchVolatileState', () => {
+    it('最新の行を読み直して patch を当て、ほかのキーを残して書き込む', async () => {
+      // Arrange
+      const { tx, repository } = setup();
+      tx.battlePokemonStatus.findUnique.mockResolvedValue(
+        statusRow({ volatileState: { tauntTurns: 3 } }),
+      );
+      tx.battlePokemonStatus.update.mockResolvedValue(
+        statusRow({ volatileState: { tauntTurns: 3, critStageBoost: 2 } }),
+      );
+
+      // Act
+      const status = await repository.patchVolatileState(10, { critStageBoost: 2 });
+
+      // Assert
+      expect(tx.battlePokemonStatus.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: { volatileState: { tauntTurns: 3, critStageBoost: 2 } },
+      });
+      expect(status.volatileState).toEqual({ tauntTurns: 3, critStageBoost: 2 });
+    });
+
+    it('null を渡したキーは取り除いて書き込む', async () => {
+      // Arrange
+      const { tx, repository } = setup();
+      tx.battlePokemonStatus.findUnique.mockResolvedValue(
+        statusRow({ volatileState: { protection: 'protect', leechSeed: true } }),
+      );
+      tx.battlePokemonStatus.update.mockResolvedValue(statusRow());
+
+      // Act
+      await repository.patchVolatileState(10, { protection: null });
+
+      // Assert
+      expect(tx.battlePokemonStatus.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: { volatileState: { leechSeed: true } },
+      });
+    });
+
+    it('読む前に、行を FOR UPDATE でロックする', async () => {
+      // Arrange
+      const { tx, repository } = setup();
+      tx.battlePokemonStatus.findUnique.mockResolvedValue(statusRow());
+      tx.battlePokemonStatus.update.mockResolvedValue(statusRow());
+
+      // Act
+      await repository.patchVolatileState(10, { leechSeed: true });
+
+      // Assert
+      expect(lockedSql(tx.$queryRaw)).toMatch(
+        /FROM battle_pokemon_status WHERE id = \? FOR UPDATE/,
+      );
+      expect(tx.$queryRaw.mock.calls[0][1]).toBe(10);
+      expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        tx.battlePokemonStatus.findUnique.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('行がないときは NotFoundException を投げ、書き込まない', async () => {
+      // Arrange
+      const { tx, repository } = setup();
+      tx.battlePokemonStatus.findUnique.mockResolvedValue(null);
+
+      // Act
+      const result = repository.patchVolatileState(10, { leechSeed: true });
+
+      // Assert
+      await expect(result).rejects.toBeInstanceOf(NotFoundException);
+      expect(tx.battlePokemonStatus.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('patchPersistentState', () => {
+    it('最新の行を読み直して patch を当て、ほかのキーを残して書き込む', async () => {
+      // Arrange
+      const { tx, repository } = setup();
+      tx.battlePokemonStatus.findUnique.mockResolvedValue(
+        statusRow({ persistentState: { sleepTurns: 2 } }),
+      );
+      tx.battlePokemonStatus.update.mockResolvedValue(statusRow());
+
+      // Act
+      await repository.patchPersistentState(10, { disguiseBusted: true });
+
+      // Assert
+      expect(lockedSql(tx.$queryRaw)).toMatch(
+        /FROM battle_pokemon_status WHERE id = \? FOR UPDATE/,
+      );
+      expect(tx.battlePokemonStatus.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: { persistentState: { sleepTurns: 2, disguiseBusted: true } },
+      });
+    });
+  });
+
+  describe('patchSideConditions', () => {
+    it('最新の行を読み直し、指定した陣営だけに patch を当てて書き込む', async () => {
+      // Arrange
+      const { tx, repository } = setup();
+      tx.battle.findUnique.mockResolvedValue(
+        battleRow({
+          sideState: { sides: { '1': { tailwindTurns: 3 } }, global: { gravityTurns: 2 } },
+        }),
+      );
+      tx.battle.update.mockResolvedValue(battleRow());
+
+      // Act
+      await repository.patchSideConditions(1, 2, { reflectTurns: 5 });
+
+      // Assert
+      expect(lockedSql(tx.$queryRaw)).toMatch(/FROM battles WHERE id = \? FOR UPDATE/);
+      expect(tx.$queryRaw.mock.calls[0][1]).toBe(1);
+      expect(tx.battle.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          sideState: {
+            sides: { '1': { tailwindTurns: 3 }, '2': { reflectTurns: 5 } },
+            global: { gravityTurns: 2 },
+          },
+        },
+      });
+    });
+
+    it('バトルがないときは NotFoundException を投げ、書き込まない', async () => {
+      // Arrange
+      const { tx, repository } = setup();
+      tx.battle.findUnique.mockResolvedValue(null);
+
+      // Act
+      const result = repository.patchSideConditions(1, 2, { reflectTurns: 5 });
+
+      // Assert
+      await expect(result).rejects.toBeInstanceOf(NotFoundException);
+      expect(tx.battle.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('patchGlobalFieldState', () => {
+    it('最新の行を読み直し、両陣営にかかる状態に patch を当てて書き込む', async () => {
+      // Arrange
+      const { tx, repository } = setup();
+      tx.battle.findUnique.mockResolvedValue(
+        battleRow({ sideState: { sides: { '1': { mistTurns: 5 } } } }),
+      );
+      tx.battle.update.mockResolvedValue(
+        battleRow({
+          sideState: { sides: { '1': { mistTurns: 5 } }, global: { trickRoomTurns: 5 } },
+        }),
+      );
+
+      // Act
+      const battle = await repository.patchGlobalFieldState(1, { trickRoomTurns: 5 });
+
+      // Assert
+      expect(tx.battle.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { sideState: { sides: { '1': { mistTurns: 5 } }, global: { trickRoomTurns: 5 } } },
+      });
+      expect(battle.sideState).toEqual({
+        sides: { '1': { mistTurns: 5 } },
+        global: { trickRoomTurns: 5 },
       });
     });
   });

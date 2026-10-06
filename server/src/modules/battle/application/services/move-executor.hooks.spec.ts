@@ -145,6 +145,10 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       findBattlePokemonMoveById: jest
         .fn()
         .mockResolvedValue(new BattlePokemonMove(BATTLE_POKEMON_MOVE_ID, ATTACKER_ID, 1, 10, 10)),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     };
     const trainedPokemons = new Map<number, TrainedPokemon>([
       [ATTACKER_ID, createTrainedPokemon(ATTACKER_ID, options.attackerAbility)],

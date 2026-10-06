@@ -31,6 +31,10 @@ describe('接触判定（技フラグ）', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     };
     const trainedPokemonRepository: jest.Mocked<ITrainedPokemonRepository> = {
       findById: jest.fn().mockResolvedValue(null),

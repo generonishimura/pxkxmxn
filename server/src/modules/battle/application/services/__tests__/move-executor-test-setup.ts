@@ -3,6 +3,12 @@ import { Battle, BattleStatus } from '../../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../../domain/entities/battle-pokemon-status.entity';
 import { BattlePokemonMove } from '../../../domain/entities/battle-pokemon-move.entity';
 import { IBattleRepository } from '../../../domain/battle.repository.interface';
+import { StatePatch } from '../../../domain/state/state-field-parser';
+import { VolatileState, updateVolatileState } from '../../../domain/state/volatile-state';
+import {
+  PersistentPokemonState,
+  updatePersistentPokemonState,
+} from '../../../domain/state/persistent-state';
 import { DamageCalculator } from '../../../domain/logic/damage-calculator';
 import { AccuracyCalculator } from '../../../domain/logic/accuracy-calculator';
 import { Nature } from '../../../domain/logic/stat-calculator';
@@ -161,6 +167,30 @@ export const setupMoveExecutor = (options: MoveExecutorSetupOptions = {}) => {
     findBattlePokemonMoveById: jest
       .fn()
       .mockResolvedValue(new BattlePokemonMove(1, ATTACKER_ID, 1, 10, 10)),
+    patchVolatileState: jest.fn((id: number, patch: StatePatch<VolatileState>) => {
+      const current = statuses.get(id);
+      if (!current) {
+        throw new Error(`status ${id} not found`);
+      }
+      const updated = withChanges(current, {
+        volatileState: updateVolatileState(current.volatileState, patch),
+      });
+      statuses.set(id, updated);
+      return Promise.resolve(updated);
+    }),
+    patchPersistentState: jest.fn((id: number, patch: StatePatch<PersistentPokemonState>) => {
+      const current = statuses.get(id);
+      if (!current) {
+        throw new Error(`status ${id} not found`);
+      }
+      const updated = withChanges(current, {
+        persistentState: updatePersistentPokemonState(current.persistentState, patch),
+      });
+      statuses.set(id, updated);
+      return Promise.resolve(updated);
+    }),
+    patchSideConditions: jest.fn(),
+    patchGlobalFieldState: jest.fn(),
   };
   const trainedPokemons = new Map<number, TrainedPokemon>([
     [ATTACKER_ID, createTrainedPokemon(ATTACKER_ID, options.attackerAbility)],

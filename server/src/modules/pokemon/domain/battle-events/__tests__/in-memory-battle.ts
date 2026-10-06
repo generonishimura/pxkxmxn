@@ -1,6 +1,12 @@
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
+import { StatePatch } from '@/modules/battle/domain/state/state-field-parser';
+import { VolatileState, updateVolatileState } from '@/modules/battle/domain/state/volatile-state';
+import {
+  PersistentPokemonState,
+  updatePersistentPokemonState,
+} from '@/modules/battle/domain/state/persistent-state';
 import { Nature } from '@/modules/battle/domain/logic/stat-calculator';
 import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
 import { TrainedPokemon, Gender } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
@@ -112,6 +118,26 @@ export const createInMemoryBattle = (first: InMemoryPokemon = {}, second: InMemo
     createBattlePokemonMove: jest.fn(),
     updateBattlePokemonMove: jest.fn(),
     findBattlePokemonMoveById: jest.fn(),
+    patchVolatileState: jest.fn((id: number, patch: StatePatch<VolatileState>) => {
+      const current = statuses.get(id);
+      const updated = toStatus(id, {
+        ...current,
+        volatileState: updateVolatileState(current.volatileState, patch),
+      });
+      statuses.set(id, updated);
+      return Promise.resolve(updated);
+    }),
+    patchPersistentState: jest.fn((id: number, patch: StatePatch<PersistentPokemonState>) => {
+      const current = statuses.get(id);
+      const updated = toStatus(id, {
+        ...current,
+        persistentState: updatePersistentPokemonState(current.persistentState, patch),
+      });
+      statuses.set(id, updated);
+      return Promise.resolve(updated);
+    }),
+    patchSideConditions: jest.fn(),
+    patchGlobalFieldState: jest.fn(),
   };
   const trainedPokemonRepository: jest.Mocked<ITrainedPokemonRepository> = {
     findById: jest.fn((id: number) => Promise.resolve(trainedPokemons.get(id) ?? null)),

@@ -6,16 +6,28 @@ import { Battle, Weather, Field, BattleStatus } from '../../domain/entities/batt
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
+import { NotFoundException } from '@/shared/domain/exceptions';
+import { StatePatch } from '../../domain/state/state-field-parser';
 import {
   VolatileState,
   emptyVolatileState,
   parseVolatileState,
+  updateVolatileState,
 } from '../../domain/state/volatile-state';
-import { SideState, emptySideState, parseSideState } from '../../domain/state/side-state';
+import {
+  GlobalFieldState,
+  SideConditions,
+  SideState,
+  emptySideState,
+  parseSideState,
+  updateGlobalFieldState,
+  updateSideConditions,
+} from '../../domain/state/side-state';
 import {
   PersistentPokemonState,
   emptyPersistentPokemonState,
   parsePersistentPokemonState,
+  updatePersistentPokemonState,
 } from '../../domain/state/persistent-state';
 
 /**
@@ -42,6 +54,12 @@ type BattleUpdateInput = Prisma.BattleUncheckedUpdateInput;
  * BattlePokemonStatus更新用の型
  */
 type BattlePokemonStatusUpdateInput = Prisma.BattlePokemonStatusUpdateInput;
+
+/**
+ * 状態の部分更新で、トランザクションの中から使う操作だけを持つクライアントの型
+ * $transaction のコールバックが受け取るクライアントは、この操作をすべて持つ
+ */
+type StateTransactionClient = Pick<PrismaService, 'battle' | 'battlePokemonStatus' | '$queryRaw'>;
 
 /**
  * BattleリポジトリのPrisma実装
@@ -183,6 +201,96 @@ export class BattlePrismaRepository implements IBattleRepository {
     });
 
     return this.toBattlePokemonStatusEntity(statusData);
+  }
+
+  async patchVolatileState(
+    statusId: number,
+    patch: StatePatch<VolatileState>,
+  ): Promise<BattlePokemonStatus> {
+    const statusData = await this.prisma.$transaction(async (tx: StateTransactionClient) => {
+      const current = await this.lockBattlePokemonStatus(tx, statusId);
+      const next = updateVolatileState(parseVolatileState(current.volatileState), patch);
+      return tx.battlePokemonStatus.update({
+        where: { id: statusId },
+        data: { volatileState: this.toJsonObject(next) },
+      });
+    });
+
+    return this.toBattlePokemonStatusEntity(statusData);
+  }
+
+  async patchPersistentState(
+    statusId: number,
+    patch: StatePatch<PersistentPokemonState>,
+  ): Promise<BattlePokemonStatus> {
+    const statusData = await this.prisma.$transaction(async (tx: StateTransactionClient) => {
+      const current = await this.lockBattlePokemonStatus(tx, statusId);
+      const next = updatePersistentPokemonState(
+        parsePersistentPokemonState(current.persistentState),
+        patch,
+      );
+      return tx.battlePokemonStatus.update({
+        where: { id: statusId },
+        data: { persistentState: this.toJsonObject(next) },
+      });
+    });
+
+    return this.toBattlePokemonStatusEntity(statusData);
+  }
+
+  async patchSideConditions(
+    battleId: number,
+    trainerId: number,
+    patch: StatePatch<SideConditions>,
+  ): Promise<Battle> {
+    return this.patchSideState(battleId, state => updateSideConditions(state, trainerId, patch));
+  }
+
+  async patchGlobalFieldState(
+    battleId: number,
+    patch: StatePatch<GlobalFieldState>,
+  ): Promise<Battle> {
+    return this.patchSideState(battleId, state => updateGlobalFieldState(state, patch));
+  }
+
+  /**
+   * 最新の sideState を読み直し、change を当てて書き込む
+   */
+  private async patchSideState(
+    battleId: number,
+    change: (state: SideState) => SideState,
+  ): Promise<Battle> {
+    const battleData = await this.prisma.$transaction(async (tx: StateTransactionClient) => {
+      // 同じ行を同時に部分更新したときに片方の変更が消えないよう、行をロックしてから読む
+      await tx.$queryRaw`SELECT id FROM battles WHERE id = ${battleId} FOR UPDATE`;
+      const current = await tx.battle.findUnique({ where: { id: battleId } });
+      if (!current) {
+        throw new NotFoundException('Battle', battleId);
+      }
+      const next = change(parseSideState(current.sideState));
+      return tx.battle.update({
+        where: { id: battleId },
+        data: { sideState: this.toJsonObject(next) },
+      });
+    });
+
+    return this.toBattleEntity(battleData);
+  }
+
+  /**
+   * トランザクションの中で BattlePokemonStatus の行をロックしてから読む
+   * 同じ行を同時に部分更新したときに、片方の変更が消えないようにするため
+   */
+  private async lockBattlePokemonStatus(
+    tx: StateTransactionClient,
+    statusId: number,
+  ): Promise<BattlePokemonStatusData> {
+    await tx.$queryRaw`SELECT id FROM battle_pokemon_status WHERE id = ${statusId} FOR UPDATE`;
+    const current = await tx.battlePokemonStatus.findUnique({ where: { id: statusId } });
+    if (!current) {
+      throw new NotFoundException('BattlePokemonStatus', statusId);
+    }
+    return current;
   }
 
   async findActivePokemonByBattleIdAndTrainerId(

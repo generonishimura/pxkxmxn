@@ -82,6 +82,10 @@ describe('StatusConditionProcessorService - ターン終了時の天候', () => 
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     };
     const trainedPokemons = new Map([
       [1, createTrainedPokemon(1, 'テスト記録')],
