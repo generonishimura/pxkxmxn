@@ -18,8 +18,8 @@ import { Nature } from '../../domain/logic/stat-calculator';
 describe('StatusConditionProcessorService - ターン終了時の天候', () => {
   const battleId = 100;
 
-  const createStatus = (id: number): BattlePokemonStatus =>
-    new BattlePokemonStatus(id, battleId, id, id, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, null);
+  const createStatus = (id: number, currentHp = 100): BattlePokemonStatus =>
+    new BattlePokemonStatus(id, battleId, id, id, true, currentHp, 100, 0, 0, 0, 0, 0, 0, 0, null);
 
   const createTrainedPokemon = (id: number, abilityName: string): TrainedPokemon =>
     new TrainedPokemon(
@@ -65,8 +65,8 @@ describe('StatusConditionProcessorService - ターン終了時の天候', () => 
       0,
     );
 
-  const setup = (opponentAbilityName: string) => {
-    const statuses = [createStatus(1), createStatus(2)];
+  const setup = (opponentAbilityName: string, opponentHp = 100) => {
+    const statuses = [createStatus(1), createStatus(2, opponentHp)];
     const battleRepository: jest.Mocked<IBattleRepository> = {
       findById: jest.fn(),
       create: jest.fn(),
@@ -142,5 +142,16 @@ describe('StatusConditionProcessorService - ターン終了時の天候', () => 
 
     // Assert
     expect(captured[0].weather).toBe(Weather.None);
+  });
+
+  it('天候を消す特性のポケモンがひんしなら、天候を消さない（本家と同じ）', async () => {
+    // Arrange
+    const { service, battle, captured } = setup('テストてんき', 0);
+
+    // Act
+    await service.processTurnEndAbilities(battle);
+
+    // Assert
+    expect(captured[0].weather).toBe(Weather.Rain);
   });
 });

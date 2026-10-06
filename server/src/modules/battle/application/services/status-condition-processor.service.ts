@@ -43,13 +43,16 @@ export class StatusConditionProcessorService {
     const activePokemon = battleStatuses.filter(s => s.isActive);
 
     // 場の特性を考慮した天候（ノーてんき・エアロックが場にいれば天候なし）
+    // ひんしのポケモンの特性は天候を消さない（本家の suppressingWeather と同じ）
     const activeAbilityNames = await Promise.all(
-      activePokemon.map(async status => {
-        const trainedPokemon = await this.trainedPokemonRepository.findById(
-          status.trainedPokemonId,
-        );
-        return trainedPokemon?.ability?.name;
-      }),
+      activePokemon
+        .filter(status => !status.isFainted())
+        .map(async status => {
+          const trainedPokemon = await this.trainedPokemonRepository.findById(
+            status.trainedPokemonId,
+          );
+          return trainedPokemon?.ability?.name;
+        }),
     );
     const weather = resolveEffectiveWeather(battle.weather, activeAbilityNames);
 
