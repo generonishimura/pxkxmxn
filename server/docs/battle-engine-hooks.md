@@ -241,6 +241,7 @@ isImmuneToType(_p: BattlePokemonStatus, _type: string, ctx?: BattleContext): boo
 - シグネチャ: `modifyMultiHitCount?(pokemon, minHits, maxHits, battleContext): number | undefined`
 - 呼ばれる場所: `BaseMultiHitEffect.beforeDamage`
 - 使う特性: スキルリンク
+- 連続技は `MoveRegistry` に登録済みです（2〜5回は `TwoToFiveHitEffect`、2回は `TwoHitEffect` など）。登録した回数は `move-registry.multi-hit.spec.ts` で本家の表と照合しています。
 
 ```ts
 modifyMultiHitCount(_p: BattlePokemonStatus, _min: number, max: number): number {
