@@ -26,7 +26,7 @@ const createContext = (
 };
 
 describe('StruggleEffect', () => {
-  it('命中後に最大HPの1/4（切り捨て）の反動ダメージを受ける', async () => {
+  it('命中後に最大HPの1/4（四捨五入）の反動ダメージを受ける', async () => {
     // Arrange
     const effect = new StruggleEffect();
     const attacker = createStatus(200, 203);
@@ -37,8 +37,8 @@ describe('StruggleEffect', () => {
     const result = await effect.onHit(attacker, defender, battleContext);
 
     // Assert
-    expect(updateMock).toHaveBeenCalledWith(1, { currentHp: 150 });
-    expect(result).toBe('is damaged by recoil! (50 damage)');
+    expect(updateMock).toHaveBeenCalledWith(1, { currentHp: 149 });
+    expect(result).toBe('is damaged by recoil! (51 damage)');
   });
 
   it('最新のHPを基準にダメージを適用し、HPは0未満にならない', async () => {
