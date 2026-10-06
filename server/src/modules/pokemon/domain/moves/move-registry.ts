@@ -243,6 +243,8 @@ import { TwoToFiveHitEffect } from './effects/two-to-five-hit-effect';
 import { TwoHitEffect } from './effects/two-hit-effect';
 import { TripleDiveEffect } from './effects/triple-dive-effect';
 import { TwineedleEffect } from './effects/twineedle-effect';
+// 相手がねむりのときだけ当たる吸収技（Issue #97 一部）
+import { DreamEaterEffect } from './effects/dream-eater-effect';
 
 /**
  * 技のレジストリ
@@ -592,6 +594,8 @@ export class MoveRegistry {
       this.registry.set('タキオンカッター', twoHitEffect);
       this.registry.set('ダブルニードル', new TwineedleEffect());
       this.registry.set('トリプルダイブ', new TripleDiveEffect());
+      // 相手がねむりのときだけ当たる吸収技（Issue #97 一部）
+      this.registry.set('ゆめくい', new DreamEaterEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
