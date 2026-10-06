@@ -245,6 +245,8 @@ import { TripleDiveEffect } from './effects/triple-dive-effect';
 import { TwineedleEffect } from './effects/twineedle-effect';
 // 威力が変わる技（Issue #123, #129 一部）
 import { FacadeEffect } from './effects/facade-effect';
+import { PunishmentEffect } from './effects/punishment-effect';
+import { PowerTripEffect } from './effects/power-trip-effect';
 
 /**
  * 技のレジストリ
@@ -596,6 +598,8 @@ export class MoveRegistry {
       this.registry.set('トリプルダイブ', new TripleDiveEffect());
       // 威力が変わる技（Issue #123, #129 一部）
       this.registry.set('からげんき', new FacadeEffect());
+      this.registry.set('おしおき', new PunishmentEffect());
+      this.registry.set('つけあがる', new PowerTripEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
