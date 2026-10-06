@@ -125,6 +125,37 @@ describe('MoveExecutorService - 別の技を出す技・特性', () => {
     expect(battleRepository.updateBattlePokemonMove).toHaveBeenCalledWith(5, { currentPp: 9 });
   });
 
+  // 既知の制限: 本家では、おどり技を出したポケモン自身はまねないので 1 回だけ出す。
+  // エンジンが呼ばれた技の使用者を見ずにおどりこを呼ぶため、いまは 2 回出す（直したらこのテストも直す）
+  it('さいはい: おどりこを持つ相手に おどり技を出させると、相手が自分でまねて 2 回出す（既知の制限）', async () => {
+    // Arrange
+    const instruct = moveOf(1, 'さいはい', MoveCategory.Status, null);
+    const quiverDance = moveOf(3, 'ちょうのまい', MoveCategory.Status, null);
+    const onUse = jest.fn().mockResolvedValue(null);
+    const { execute, battleRepository } = setupMoveExecutor({
+      move: instruct,
+      moves: [instruct, quiverDance],
+      moveEffects: { さいはい: new InstructEffect(), ちょうのまい: { onUse } },
+      defenderAbility: 'おどりこ',
+      defender: { volatileState: { lastMoveId: quiverDance.id } },
+    });
+    battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockImplementation(
+      (statusId: number) =>
+        Promise.resolve(
+          statusId === DEFENDER_ID
+            ? [new BattlePokemonMove(5, DEFENDER_ID, quiverDance.id, 10, 20)]
+            : [new BattlePokemonMove(1, ATTACKER_ID, instruct.id, 15, 15)],
+        ),
+    );
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used さいはい Used ちょうのまい Used ちょうのまい');
+    expect(onUse.mock.calls.map(call => call[0].id)).toEqual([DEFENDER_ID, DEFENDER_ID]);
+  });
+
   it('ねごと: ねむっていても出せ、自分の技から選んだ技を出す', async () => {
     // Arrange
     const sleepTalk = moveOf(1, 'ねごと', MoveCategory.Status, null);

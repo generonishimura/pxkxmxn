@@ -18,6 +18,10 @@ const BLOCKING_BEHAVIORS: readonly MoveBehavior[] = ['failInstruct', 'charge', '
  * - 次のときは失敗する: 相手がまだ技を出していない、くちばしキャノンをためている、最後の技がさいはいで出せない技
  *   （failInstruct）・ため技・反動で動けなくなる技、その技がもう技の欄にない、その技の PP が 0
  * 注: シングルバトルなので、相手は技を出させたポケモン（さいはいの使用者）に技を出す
+ * 注: 既知の制限。おどりこを持つ相手に おどり技 を出させると、エンジンは相手のおどりこを呼び、
+ *   相手が自分のおどり技をもう一度出す。本家では、おどり技を出したポケモン自身はまねない
+ *   （まねるのは、おどりこを持つさいはいの使用者のほう。エンジンはこちらも呼ばない）。
+ *   エンジンの runOpponentMoveObservers が、呼ばれた技の使用者を見ないため
  */
 export class InstructEffect implements IMoveEffect {
   shouldFail(

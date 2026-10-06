@@ -14,6 +14,9 @@ import { MoveBehaviors } from '../../../moves/move-behaviors';
  *   まねる前に出し続けていなかったときだけ、まねたあとに書かれた lockedInMove を消す
  * 注: おどりこで出した技は、自分の lastMoveId に書かない（エンジンの callMove の既定のまま）
  * 注: まねる前から はなびらのまい を出し続けていたときは、エンジンの出し続ける処理（残りターンを減らす）のまま
+ * 注: 既知の制限。さいはいで おどり技 を出させられたとき、エンジンはその技を出した自分のおどりこを呼び、
+ *   自分のおどり技をもう一度出す。本家では、おどり技を出したポケモン自身はまねない
+ *   （エンジンの runOpponentMoveObservers が、呼ばれた技の使用者を見ないため）
  */
 export class DancerEffect implements IAbilityEffect {
   async onOpponentMoveUsed(
