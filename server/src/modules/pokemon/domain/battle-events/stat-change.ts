@@ -4,6 +4,8 @@ import type { StatType } from '../moves/effects/base/base-stat-change-effect';
 import type { IAbilityEffect } from '../abilities/ability-effect.interface';
 import { EffectSource } from './effect-source';
 import { getAbilityEffect, isIgnoredByMoldBreaker, resolveAbilityName } from './ability-lookup';
+// 場の状態・設置技・交代の仕組み（Issue #135 一部）
+import { isProtectedByMist } from './field-protection';
 
 /**
  * 1つの能力ランクの変化
@@ -84,7 +86,8 @@ export const formatStatChanges = (changes: readonly StatChange[]): string[] =>
  * 能力ランクを変える。能力ランクを変える効果はこれを使う
  *
  * 1. 対象の特性の modifyIncomingStatChange で変化量を変える（たんじゅん・あまのじゃく・ばんけん）
- * 2. 相手が起こした低下は、対象の特性の reflectsStatDrops（ミラーアーマー）で相手に返し、
+ * 2. 相手が起こした低下は、対象の陣営のしろいきりで防ぎ（すりぬけの技は通る）、
+ *    対象の特性の reflectsStatDrops（ミラーアーマー）で相手に返し、
  *    canReceiveStatChange（クリアボディなど）で防ぐ
  *    1〜2 の対象の特性は、相手の技による変化なら使い手のかたやぶりで無視される
  * 3. -6〜+6 に収めて書き込む
@@ -120,6 +123,8 @@ export const applyStatChanges = async (
     ));
   // 変化を変える・防ぐ特性（かたやぶりで無視される）
   const gate = moldBroken ? undefined : targetAbility;
+  // しろいきり: 相手が起こした低下を防ぐ（すりぬけの技は通る）
+  const mist = fromOpponent && (await isProtectedByMist(target, source, battleContext));
 
   const ranks: Partial<Record<RankProp, number>> = {};
   const applied: StatChange[] = [];
@@ -130,6 +135,9 @@ export const applyStatChanges = async (
       gate?.modifyIncomingStatChange?.(target, change, source, battleContext) ?? change.rankChange;
     const currentRank = ranks[prop] ?? target[prop];
     if (rankChange < 0 && fromOpponent) {
+      if (mist) {
+        continue;
+      }
       if (gate?.reflectsStatDrops === true && !options.reflected) {
         // 跳ね返すのは、自分のランクが実際に下がる量だけ（本家は上限で切ってから跳ね返す）
         const cappedChange = Math.max(MIN_RANK, currentRank + rankChange) - currentRank;

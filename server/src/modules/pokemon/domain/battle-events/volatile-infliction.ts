@@ -6,6 +6,8 @@ import { Gender } from '@/modules/trainer/domain/entities/trained-pokemon.entity
 import { BattleContext } from '../abilities/battle-context.interface';
 import { EffectSource } from './effect-source';
 import { getAbilityEffect, isIgnoredByMoldBreaker, resolveAbilityName } from './ability-lookup';
+// 場の状態・設置技・交代の仕組み（Issue #110 #135 一部）
+import { isProtectedBySafeguard, isYawnPreventedByTerrain } from './field-protection';
 
 /**
  * 技・特性で付与する一時的な状態の種類と、その状態を表す VolatileState のキー
@@ -71,7 +73,8 @@ const LEECH_SEED_IMMUNE_TYPE = 'くさ';
  * 2. 状態ごとの決まり
  *    - やどりぎのタネ: くさタイプには付与できない
  *    - メロメロ: 付与元と性別が違わないと付与できない（どちらかが性別不明なら付与できない）
- *    - あくび: 状態異常があるか、ねむりを防ぐ特性（ふみん・やるき・スイートベールなど）なら付与できない
+ *    - あくび: 状態異常があるか、ねむりを防ぐ特性（ふみん・やるき・スイートベールなど）なら付与できない。
+ *      相手の陣営のしんぴのまもり・地面にいるポケモンのエレキフィールドでも付与できない
  * 3. 対象の特性の canReceiveVolatile（アロマベール・どんかん）。相手の技で付与するときは、かたやぶりで無視される
  *
  * 注: みがわりで防ぐかどうかは、エンジンが技の処理の中で判定する（相手を対象にする変化技は、
@@ -101,6 +104,19 @@ export const canApplyVolatile = async (
     return false;
   }
   if (kind === 'attract' && !(await haveOppositeGenders(target, options.source, battleContext))) {
+    return false;
+  }
+  // あくび: しんぴのまもり（相手が起こしたもの）・エレキフィールド（地面にいるポケモン）で防ぐ
+  if (
+    kind === 'yawn' &&
+    ((await isProtectedBySafeguard(target, options.source, battleContext)) ||
+      isYawnPreventedByTerrain(
+        target,
+        targetTypes.filter((name): name is string => name !== undefined),
+        trainedPokemon?.ability?.name,
+        battleContext,
+      ))
+  ) {
     return false;
   }
 

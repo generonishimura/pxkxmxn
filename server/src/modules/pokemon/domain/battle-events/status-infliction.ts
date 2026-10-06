@@ -8,6 +8,8 @@ import {
   isVolatileStatusCondition,
   volatileStatusConditionPatch,
 } from '@/modules/battle/domain/logic/volatile-status-condition';
+// 場の状態・設置技・交代の仕組み（Issue #103 #110 #135 一部）
+import { isProtectedBySafeguard, isStatusPreventedByTerrain } from './field-protection';
 
 /**
  * 状態異常ごとの、付与できないタイプ（本家と同じ）
@@ -50,6 +52,11 @@ export interface StatusInflictionOptions {
  * 3. 対象の特性の canReceiveStatusCondition。技で付与するときは、付与元のかたやぶりで無視される
  *
  * ねむりは、場の誰かがさわいでいる（volatileState.uproar）と付与できない（さわいでいるポケモン自身も）
+ *
+ * 場の状態による守り（field-protection.ts）:
+ * - しんぴのまもり: 相手が起こした状態異常・こんらん（すりぬけの技は通る。ひるみは防がない）
+ * - エレキフィールド: 地面にいて隠れていないポケモンのねむり（自分で起こしたねむるも防ぐ）
+ * - ミストフィールド: 地面にいて隠れていないポケモンの状態異常・こんらん（自分で起こしたものも防ぐ）
  */
 export const canInflictStatus = async (
   target: BattlePokemonStatus,
@@ -79,6 +86,28 @@ export const canInflictStatus = async (
   }
 
   const source = options.source;
+  const typeNames = [
+    trainedPokemon.pokemon.primaryType.name,
+    trainedPokemon.pokemon.secondaryType?.name,
+  ].filter((typeName): typeName is string => typeName !== undefined);
+  if (
+    statusCondition !== StatusCondition.Flinch &&
+    (await isProtectedBySafeguard(target, source, battleContext))
+  ) {
+    return false;
+  }
+  if (
+    isStatusPreventedByTerrain(
+      target,
+      statusCondition,
+      typeNames,
+      trainedPokemon.ability?.name,
+      battleContext,
+    )
+  ) {
+    return false;
+  }
+
   let sourceAbilityName: string | undefined = source?.abilityName;
   const getSourceAbilityName = async (): Promise<string | undefined> => {
     if (sourceAbilityName === undefined && source?.pokemon) {
@@ -95,10 +124,6 @@ export const canInflictStatus = async (
     STATUS_IMMUNE_TYPES[statusCondition].includes(typeName),
   );
   const extraImmuneTypes = immuneTypes.filter(typeName => !statusImmuneTypes.includes(typeName));
-  const typeNames = [
-    trainedPokemon.pokemon.primaryType.name,
-    trainedPokemon.pokemon.secondaryType?.name,
-  ].filter((typeName): typeName is string => typeName !== undefined);
   if (typeNames.some(typeName => extraImmuneTypes.includes(typeName))) {
     return false;
   }
