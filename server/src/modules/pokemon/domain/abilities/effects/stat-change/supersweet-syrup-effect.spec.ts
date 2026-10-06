@@ -51,10 +51,8 @@ describe('SupersweetSyrupEffect', () => {
     // Act
     await effect.onEntry(self, ctx);
 
-    // Assert
-    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
-      evasionRank: -6,
-    });
+    // Assert: ランクが変わらないので書き込まない
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
   it('相手がいない場合は更新しない', async () => {

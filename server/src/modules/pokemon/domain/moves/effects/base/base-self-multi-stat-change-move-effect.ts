@@ -1,7 +1,8 @@
 import { IMoveEffect } from '../../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
-import { StatType, STAT_RANK_PROP_MAP, STAT_NAME_MAP } from './base-stat-change-effect';
+import { StatType, joinStatChangeMessages, moveEffectSource } from './base-stat-change-effect';
+import { applyStatChanges } from '../../../battle-events/stat-change';
 
 /**
  * 自分の複数ステータスランクを変更する変化技の基底クラス
@@ -15,7 +16,10 @@ export abstract class BaseSelfMultiStatChangeMoveEffect implements IMoveEffect {
   /**
    * 変更するステータスとランク変化の組み合わせ
    */
-  protected abstract readonly statChanges: ReadonlyArray<{ statType: StatType; rankChange: number }>;
+  protected abstract readonly statChanges: ReadonlyArray<{
+    statType: StatType;
+    rankChange: number;
+  }>;
 
   async onUse(
     attacker: BattlePokemonStatus,
@@ -26,27 +30,10 @@ export abstract class BaseSelfMultiStatChangeMoveEffect implements IMoveEffect {
       return null;
     }
 
-    const updateData: Partial<BattlePokemonStatus> = {};
-    const messages: string[] = [];
-
-    for (const { statType, rankChange } of this.statChanges) {
-      const currentRank = attacker.getStatRank(statType);
-      const newRank = Math.max(-6, Math.min(6, currentRank + rankChange));
-      if (newRank === currentRank) {
-        continue;
-      }
-      const propName = STAT_RANK_PROP_MAP[statType];
-      (updateData as Record<string, number>)[propName] = newRank;
-      const statName = STAT_NAME_MAP[statType];
-      const direction = rankChange > 0 ? 'rose' : 'fell';
-      messages.push(`${statName} ${direction}!`);
-    }
-
-    if (messages.length === 0) {
-      return null;
-    }
-
-    await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, updateData);
-    return messages.join(' ');
+    // 自分のランクを変える（自分の特性: たんじゅん・あまのじゃくなどが効く）
+    const result = await applyStatChanges(attacker, this.statChanges, battleContext, {
+      source: moveEffectSource(attacker, battleContext),
+    });
+    return joinStatChangeMessages(result);
   }
 }

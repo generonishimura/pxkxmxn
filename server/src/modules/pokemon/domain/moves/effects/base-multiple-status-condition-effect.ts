@@ -2,7 +2,9 @@ import { IMoveEffect } from '../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
-import { AbilityRegistry } from '../../abilities/ability-registry';
+import { rollSecondaryEffect } from '../secondary-effect';
+import { EffectSource } from '../../battle-events/effect-source';
+import { canInflictStatus, inflictStatus } from '../../battle-events/status-infliction';
 
 /**
  * 複数の状態異常を付与する際の設定
@@ -55,69 +57,41 @@ export abstract class BaseMultipleStatusConditionEffect implements IMoveEffect {
       return null;
     }
 
-    // 既に状態異常がある場合は付与しない（複合効果でも1つの状態異常のみ）
-    if (defender.statusCondition && defender.statusCondition !== StatusCondition.None) {
-      return null;
-    }
-
-    // トレーナーポケモンの情報を取得
-    const trainedPokemon = await battleContext.trainedPokemonRepository.findById(
-      defender.trainedPokemonId,
-    );
-    if (!trainedPokemon) {
-      return null;
-    }
-
     // 各状態異常に対して独立に判定
     const appliedStatuses: string[] = [];
+    const source: EffectSource = {
+      pokemon: attacker,
+      abilityName: battleContext.attackerAbilityName,
+      kind: 'move',
+      name: battleContext.moveName,
+    };
 
     for (const config of this.statusConditions) {
-      // タイプによる免疫チェック
-      const hasImmuneType =
-        config.immuneTypes.includes(trainedPokemon.pokemon.primaryType.name) ||
-        (trainedPokemon.pokemon.secondaryType &&
-          config.immuneTypes.includes(trainedPokemon.pokemon.secondaryType.name));
-      if (hasImmuneType) {
+      // 付与できるか（状態異常・タイプ・特性。付与元のかたやぶり・ふしょくを考慮する）
+      const options = { source, immuneTypes: config.immuneTypes };
+      if (!(await canInflictStatus(defender, config.statusCondition, battleContext, options))) {
         continue;
       }
 
-      // 特性による無効化チェック
-      // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
-      if (
-        trainedPokemon.ability &&
-        !AbilityRegistry.hasMoldBreaker(battleContext.attackerAbilityName)
-      ) {
-        const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
-        if (abilityEffect?.canReceiveStatusCondition) {
-          const canReceive = abilityEffect.canReceiveStatusCondition(
-            defender,
-            config.statusCondition,
-            battleContext,
-          );
-          // canReceiveがfalseの場合は無効化（undefinedの場合は判定しない）
-          if (canReceive === false) {
-            continue;
-          }
-        }
-      }
-
-      // 確率判定（chanceが1.0の場合は必ず付与）
-      if (config.chance < 1.0 && Math.random() >= config.chance) {
+      // 確率判定（てんのめぐみ・りんぷんを考慮。chanceが1.0の場合は必ず付与）
+      if (!rollSecondaryEffect(config.chance, battleContext)) {
         continue;
       }
 
       // 状態異常を付与（最初に成功したもののみ）
       // 複数の状態異常が同時に成功した場合は、最初のものを優先
       if (appliedStatuses.length === 0) {
-        await battleContext.battleRepository.updateBattlePokemonStatus(defender.id, {
-          statusCondition: config.statusCondition,
-        });
-        appliedStatuses.push(config.message);
+        const messages = await inflictStatus(
+          defender,
+          config.statusCondition,
+          battleContext,
+          options,
+        );
+        appliedStatuses.push(config.message, ...messages);
       }
     }
 
-    // メッセージを返す（最初に付与された状態異常のメッセージのみ）
+    // メッセージを返す（最初に付与された状態異常と、付与されたあとの特性のメッセージ）
     return appliedStatuses.length > 0 ? appliedStatuses.join(' ') : null;
   }
 }
-

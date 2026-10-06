@@ -1,61 +1,39 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
+import { HitResult } from '../../../battle-events/hit-result';
+import { applyStatChanges } from '../../../battle-events/stat-change';
+import { joinStatChangeMessages } from '../../../moves/effects/base/base-stat-change-effect';
 
 /**
  * ぎゃくじょう（Berserk）特性の効果
- * HPが半分以下になったとき、特攻を1段階上げる
+ * 相手の技を受けて、HPが最大HPの半分を上回る状態から半分以下になったとき、特攻を1段階上げる
  *
- * 注意: この特性は、ダメージ適用後にHPが半分以下になったかどうかをチェックする必要がある。
- * 現在の実装では、`onAfterTakingDamage`メソッドを使用して、ダメージ適用後にHPチェックとステータス更新を行う。
- * ただし、`onAfterTakingDamage`はタイプ無効化が発動した場合にのみ呼び出されるため、
- * 通常のダメージを受けた場合には呼び出されない。
- * 将来的には、通常のダメージを受けた場合にも`onAfterTakingDamage`が呼び出されるようにする必要がある。
+ * - 連続技でも、技のすべてのヒットのあとに1回だけ判定する（本家と同じ）
+ * - 技を受ける前からHPが半分以下なら発動しない。ひんしになったときも発動しない
+ * 注: 本家ではちからずくで追加効果が消えた技では発動しないが、ここでは区別しない
  */
 export class BerserkEffect implements IAbilityEffect {
-  /**
-   * HP閾値（半分以下）
-   */
-  private static readonly HP_THRESHOLD_RATIO = 0.5;
-
-  /**
-   * ダメージを受けた後に発動
-   * HPが半分以下になった場合、特攻を1段階上げる
-   */
-  async onAfterTakingDamage(
-    pokemon: BattlePokemonStatus,
-    _originalDamage: number,
+  async onAfterMoveHit(
+    holder: BattlePokemonStatus,
+    _attacker: BattlePokemonStatus,
+    hit: HitResult,
     battleContext?: BattleContext,
-  ): Promise<void> {
-    // バトルリポジトリがない場合は処理しない
-    if (!battleContext?.battleRepository) {
-      return;
+  ): Promise<string | null> {
+    const half = holder.maxHp / 2;
+    if (!battleContext || holder.currentHp <= 0) {
+      return null;
+    }
+    if (!(hit.hpBefore > half && holder.currentHp <= half)) {
+      return null;
     }
 
-    // 現在のステータスを取得（最新の状態を取得するため）
-    const currentStatus = await battleContext.battleRepository.findBattlePokemonStatusById(pokemon.id);
-    if (!currentStatus) {
-      return;
-    }
-
-    // HPが半分以下になったかチェック
-    const hpRatio = currentStatus.currentHp / currentStatus.maxHp;
-    if (hpRatio > BerserkEffect.HP_THRESHOLD_RATIO) {
-      return;
-    }
-
-    // 現在の特攻ランクを取得
-    const currentSpecialAttackRank = currentStatus.specialAttackRank;
-
-    // 新しいランクを計算（-6から+6の範囲内で）
-    const newSpecialAttackRank = Math.max(-6, Math.min(6, currentSpecialAttackRank + 1));
-
-    // ランクが変化する場合のみ更新
-    if (newSpecialAttackRank !== currentSpecialAttackRank) {
-      // 特攻ランクを更新
-      await battleContext.battleRepository.updateBattlePokemonStatus(pokemon.id, {
-        specialAttackRank: newSpecialAttackRank,
-      });
-    }
+    const result = await applyStatChanges(
+      holder,
+      [{ statType: 'specialAttack', rankChange: 1 }],
+      battleContext,
+      { source: { pokemon: holder, kind: 'ability', name: 'ぎゃくじょう' } },
+    );
+    return joinStatChangeMessages(result);
   }
 }

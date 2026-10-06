@@ -3,6 +3,7 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../../abilities/battle-context.interface';
 import { Weather, BattleStatus, Battle } from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
+import { AbilityRegistry } from '../../../abilities/ability-registry';
 
 /**
  * テスト用の具象クラス（反動率0.33、与えたダメージの1/3）
@@ -99,13 +100,13 @@ describe('BaseRecoilEffect', () => {
     it('should apply recoil damage based on damage dealt', async () => {
       const effect = new TestRecoilEffect();
       const damage = 90; // 与えたダメージ
-      const expectedRecoilDamage = Math.floor(damage * 0.33); // 90 * 0.33 = 29.7 -> 29
+      const expectedRecoilDamage = 30; // 90 * 0.33 = 29.7 -> 30
 
       const result = await effect.afterDamage(attacker, defender, damage, battleContext);
 
       expect(mockBattleRepository.findBattlePokemonStatusById).toHaveBeenCalledWith(1);
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        currentHp: 100 - expectedRecoilDamage, // 100 - 29 = 71
+        currentHp: 100 - expectedRecoilDamage, // 100 - 30 = 70
       });
       expect(result).toBe(`反動で${expectedRecoilDamage}ダメージを受けた`);
     });
@@ -160,7 +161,7 @@ describe('BaseRecoilEffect', () => {
     it('should cap HP at 0 when recoil damage exceeds current HP', async () => {
       const effect = new TestRecoilEffect();
       const damage = 300; // 与えたダメージ
-      const expectedRecoilDamage = Math.floor(damage * 0.33); // 300 * 0.33 = 99
+      const dealtRecoilDamage = 50; // 300 * 0.33 = 99 だが、残りHPの50だけ減る
       const attackerWithLowHp = {
         ...attacker,
         currentHp: 50,
@@ -173,7 +174,8 @@ describe('BaseRecoilEffect', () => {
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
         currentHp: 0, // 50 - 99 = -49 -> capped at 0
       });
-      expect(result).toBe(`反動で${expectedRecoilDamage}ダメージを受けた`);
+      // メッセージは実際に減らしたHPを使う
+      expect(result).toBe(`反動で${dealtRecoilDamage}ダメージを受けた`);
     });
 
     it('should not apply recoil damage when battleRepository is undefined', async () => {
@@ -203,15 +205,15 @@ describe('BaseRecoilEffect', () => {
       expect(result).toBeNull();
     });
 
-    it('should floor the recoil damage', async () => {
+    it('反動ダメージを四捨五入する', async () => {
       const effect = new TestRecoilEffect();
-      const damage = 10; // 10 * 0.33 = 3.3 -> 3
-      const expectedRecoilDamage = Math.floor(damage * 0.33); // 3
+      const damage = 50; // 50 * 0.33 = 16.5 -> 17
+      const expectedRecoilDamage = 17;
 
       const result = await effect.afterDamage(attacker, defender, damage, battleContext);
 
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        currentHp: 100 - expectedRecoilDamage, // 100 - 3 = 97
+        currentHp: 100 - expectedRecoilDamage, // 100 - 17 = 83
       });
       expect(result).toBe(`反動で${expectedRecoilDamage}ダメージを受けた`);
     });
@@ -234,17 +236,40 @@ describe('BaseRecoilEffect', () => {
       expect(result).toBe(`反動ダメージを受けた (${expectedRecoilDamage} damage)`);
     });
 
-    it('should not apply recoil damage when calculated recoil damage is 0', async () => {
+    it('与えたダメージが1以上なら、反動は最低1になる', async () => {
       const effect = new TestRecoilEffect();
-      const damage = 1; // 1 * 0.33 = 0.33 -> floor(0.33) = 0
+      const damage = 1; // 1 * 0.33 = 0.33 -> 0 だが、最低1
 
       const result = await effect.afterDamage(attacker, defender, damage, battleContext);
 
-      // 反動ダメージが0になるため、findBattlePokemonStatusByIdも呼ばれない
-      expect(mockBattleRepository.findBattlePokemonStatusById).not.toHaveBeenCalled();
-      expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
-      expect(result).toBeNull();
+      expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
+        currentHp: 99,
+      });
+      expect(result).toBe('反動で1ダメージを受けた');
     });
+
+    it.each(['いしあたま', 'マジックガード'])(
+      '攻撃側の特性が %s なら反動ダメージを受けない',
+      async abilityName => {
+        // Arrange
+        AbilityRegistry.initialize();
+        const context: BattleContext = { ...battleContext, attackerAbilityName: abilityName };
+
+        // Act
+        const result = await new TestRecoilEffect().afterDamage(attacker, defender, 90, context);
+
+        // Assert
+        expect(result).toBeNull();
+        expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('反動のある技として hasRecoil を持つ（すてみで使う）', () => {
+    // Act
+    const effect = new TestRecoilEffect();
+
+    // Assert
+    expect(effect.hasRecoil).toBe(true);
   });
 });
-

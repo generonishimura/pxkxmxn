@@ -3,6 +3,8 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
+import { AbilityRegistry } from '../../abilities/ability-registry';
+import { createInMemoryBattle } from '../../battle-events/__tests__/in-memory-battle';
 
 describe('ToxicThreadEffect', () => {
   const createBattlePokemonStatus = (
@@ -140,5 +142,64 @@ describe('ToxicThreadEffect', () => {
     const result = await effect.onUse(attacker, defender, ctx);
 
     expect(result).toBeNull();
+  });
+
+  describe('どくの付与（canInflictStatus / inflictStatus）', () => {
+    beforeEach(() => {
+      AbilityRegistry.clear();
+      AbilityRegistry.initialize();
+    });
+
+    afterEach(() => {
+      AbilityRegistry.clear();
+      AbilityRegistry.initialize();
+    });
+
+    it('付与したら、付与された側の特性に技と使用者を付与元として渡し、メッセージを足す', async () => {
+      // Arrange
+      const onStatusInflicted = jest.fn().mockResolvedValue('Test ability activated!');
+      AbilityRegistry.register('テストシンクロ', { onStatusInflicted });
+      const { context, get } = createInMemoryBattle({}, { ability: 'テストシンクロ' });
+
+      // Act
+      const result = await new ToxicThreadEffect().onUse(
+        get(1),
+        get(2),
+        context({ moveName: 'どくのいと' }),
+      );
+
+      // Assert
+      expect(result).toBe('was poisoned! Test ability activated! Speed fell!');
+      const source = onStatusInflicted.mock.calls[0][2];
+      expect(source).toEqual(expect.objectContaining({ kind: 'move', name: 'どくのいと' }));
+      expect(source.pokemon.id).toBe(1);
+    });
+
+    it('相手がシンクロなら、使用者もどくになる', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({}, { ability: 'シンクロ' });
+
+      // Act
+      const result = await new ToxicThreadEffect().onUse(get(1), get(2), context());
+
+      // Assert
+      expect(get(2).statusCondition).toBe(StatusCondition.Poison);
+      expect(get(1).statusCondition).toBe(StatusCondition.Poison);
+      expect(result).toBe('was poisoned! Synchronize activated! Speed fell!');
+    });
+
+    it('相手の特性で防がれるなら、どくにせず、すばやさのみ下げる', async () => {
+      // Arrange
+      AbilityRegistry.register('テストめんえき', { canReceiveStatusCondition: () => false });
+      const { context, get } = createInMemoryBattle({}, { ability: 'テストめんえき' });
+
+      // Act
+      const result = await new ToxicThreadEffect().onUse(get(1), get(2), context());
+
+      // Assert
+      expect(result).toBe('Speed fell!');
+      expect(get(2).statusCondition).toBeNull();
+      expect(get(2).speedRank).toBe(-1);
+    });
   });
 });

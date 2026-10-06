@@ -2,6 +2,7 @@ import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 import { Weather } from '@/modules/battle/domain/entities/battle.entity';
+import { getContextWeather } from '../../context-weather';
 
 /**
  * サンパワー（Solar Power）特性の効果
@@ -37,7 +38,7 @@ export class SolarPowerEffect implements IAbilityEffect {
     if (!battleContext?.battleRepository) {
       return;
     }
-    if (battleContext.battle.weather !== Weather.Sun) {
+    if (getContextWeather(battleContext) !== Weather.Sun) {
       return;
     }
     // すでにひんしなら何もしない

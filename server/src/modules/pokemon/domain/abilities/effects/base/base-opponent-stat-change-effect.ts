@@ -1,6 +1,8 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
+import { applyStatChanges } from '../../../battle-events/stat-change';
+import { resolveAbilityName } from '../../../battle-events/ability-lookup';
 
 /**
  * ステータスランクの種類
@@ -47,62 +49,24 @@ export abstract class BaseOpponentStatChangeEffect implements IAbilityEffect {
       pokemon.trainerId === battle.trainer1Id ? battle.trainer2Id : battle.trainer1Id;
 
     // 相手のアクティブなポケモンを取得
-    const opponentPokemon = await battleContext.battleRepository.findActivePokemonByBattleIdAndTrainerId(
-      battle.id,
-      opponentTrainerId,
-    );
+    const opponentPokemon =
+      await battleContext.battleRepository.findActivePokemonByBattleIdAndTrainerId(
+        battle.id,
+        opponentTrainerId,
+      );
 
     if (!opponentPokemon) {
       return;
     }
 
-    // 能力ランク低下を相手の特性で gating（クリアボディ/はとむね 等）
-    // 攻撃側がかたやぶりを持っている場合は無視（既存パターン踏襲）
-    // 動的インポートで循環参照を回避（既存 base-contact-status-condition-effect.ts と同方針）
-    if (this.rankChange < 0 && battleContext.trainedPokemonRepository) {
-      const { AbilityRegistry } = await import('../../ability-registry');
-      if (!AbilityRegistry.hasMoldBreaker(battleContext.attackerAbilityName)) {
-        const opponentTrainedPokemon = await battleContext.trainedPokemonRepository.findById(
-          opponentPokemon.trainedPokemonId,
-        );
-        if (opponentTrainedPokemon?.ability) {
-          const opponentAbility = AbilityRegistry.get(opponentTrainedPokemon.ability.name);
-          if (opponentAbility?.canReceiveStatChange) {
-            const canReceive = opponentAbility.canReceiveStatChange(
-              opponentPokemon,
-              this.statType,
-              this.rankChange,
-              battleContext,
-            );
-            if (canReceive === false) {
-              return;
-            }
-          }
-        }
-      }
-    }
-
-    // 現在のランクを取得
-    const currentRank = opponentPokemon.getStatRank(this.statType);
-
-    // 新しいランクを計算（-6から+6の範囲内で）
-    const newRank = Math.max(-6, Math.min(6, currentRank + this.rankChange));
-
-    // statTypeからプロパティ名をマッピングしてupdateDataを構築
-    const statRankPropMap: Record<StatType, keyof BattlePokemonStatus> = {
-      attack: 'attackRank',
-      defense: 'defenseRank',
-      specialAttack: 'specialAttackRank',
-      specialDefense: 'specialDefenseRank',
-      speed: 'speedRank',
-      accuracy: 'accuracyRank',
-      evasion: 'evasionRank',
-    };
-    const propName = statRankPropMap[this.statType];
-    const updateData: Partial<BattlePokemonStatus> = { [propName]: newRank } as Partial<BattlePokemonStatus>;
-
-    // 相手のステータスランクを更新
-    await battleContext.battleRepository.updateBattlePokemonStatus(opponentPokemon.id, updateData);
+    // 相手のランクを変える。原因はこの特性（いかくなど）と持ち主
+    // クリアボディ・ミラーアーマー・ばんけんなどの相手の特性は applyStatChanges が判定する
+    const abilityName = await resolveAbilityName(pokemon, battleContext);
+    await applyStatChanges(
+      opponentPokemon,
+      [{ statType: this.statType, rankChange: this.rankChange }],
+      battleContext,
+      { source: { pokemon, abilityName, kind: 'ability', name: abilityName } },
+    );
   }
 }
-

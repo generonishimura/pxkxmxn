@@ -197,5 +197,58 @@ describe('BaseStatusConditionEffect', () => {
       });
     });
   });
-});
 
+  describe('onUse（変化技）', () => {
+    it('変化技として使うと、確率判定をせずに状態異常を付与する', async () => {
+      // Arrange
+      const effect = new TestBurnEffect();
+      const attacker = createBattlePokemonStatus();
+      const defender = createBattlePokemonStatus();
+      const battleContext = createBattleContext();
+
+      // Act
+      const result = await effect.onUse(attacker, defender, battleContext);
+
+      // Assert
+      expect(result).toBe('was burned!');
+      expect(battleContext.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(
+        defender.id,
+        { statusCondition: StatusCondition.Burn },
+      );
+    });
+
+    it('相手の特性が追加効果を受けない（りんぷん）ときでも、変化技の状態異常は付与する', async () => {
+      // Arrange
+      const effect = new TestBurnEffect();
+      const attacker = createBattlePokemonStatus();
+      const defender = createBattlePokemonStatus();
+      const battleContext = { ...createBattleContext(), secondaryEffectsSuppressed: true };
+
+      // Act
+      const result = await effect.onUse(attacker, defender, battleContext);
+
+      // Assert
+      expect(result).toBe('was burned!');
+    });
+
+    it('免疫タイプのポケモンには変化技でも状態異常を付与しない', async () => {
+      // Arrange
+      const effect = new TestBurnEffect();
+      const attacker = createBattlePokemonStatus();
+      const defender = createBattlePokemonStatus();
+      const battleContext = createBattleContext();
+      (battleContext.trainedPokemonRepository?.findById as jest.Mock).mockResolvedValue({
+        id: 1,
+        pokemon: { id: 1, primaryType: { name: 'ほのお' }, secondaryType: null },
+        ability: null,
+      });
+
+      // Act
+      const result = await effect.onUse(attacker, defender, battleContext);
+
+      // Assert
+      expect(result).toBeNull();
+      expect(battleContext.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
+    });
+  });
+});

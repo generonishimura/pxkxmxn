@@ -10,9 +10,13 @@ import { applyMaxHpSelfDamage } from './base/apply-max-hp-self-damage';
  *
  * BaseRecoilEffect は与えたダメージ基準で afterDamage を使うが、わるあがきは最大HP基準のため onHit で処理する
  *
- * 注: 反動のみを扱う。タイプ相性を無視する（タイプなし）点や、PPが尽きたときに自動で選ばれる点は対象外
+ * タイプなしの技として計算する（typeless）。タイプ相性は1倍で、ゴーストタイプにも当たり、タイプ一致もない（本家と同じ）
+ *
+ * 注: PPが尽きたときに自動で選ばれる点と、命中判定を必ず通る点は対象外
  */
 export class StruggleEffect implements IMoveEffect {
+  readonly typeless = true;
+
   async onHit(
     attacker: BattlePokemonStatus,
     _defender: BattlePokemonStatus,

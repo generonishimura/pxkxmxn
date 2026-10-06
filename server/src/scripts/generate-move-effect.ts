@@ -36,7 +36,7 @@ function generateClassName(moveName: string, config?: MoveConfig): string {
   // 新しい技を追加する場合は、設定ファイルにclassNameを指定することを推奨
   const nameMap: Record<string, string> = {
     かえんほうしゃ: 'Flamethrower',
-    '10まんボルト': 'Thunderbolt',
+    '１０まんボルト': 'Thunderbolt',
     どくどく: 'Toxic',
     れいとうビーム: 'IceBeam',
     ねむりごな: 'SleepPowder',

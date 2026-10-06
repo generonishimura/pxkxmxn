@@ -94,9 +94,11 @@ export class PokemonSwitcherService {
     if (trainedPokemon?.ability) {
       const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
       if (abilityEffect?.onEntry) {
+        // 相手の特性（クリアボディ・ばんけんなど）を調べられるよう、育成ポケモンリポジトリも渡す
         await abilityEffect.onEntry(targetStatus, {
           battle,
           battleRepository: this.battleRepository,
+          trainedPokemonRepository: this.trainedPokemonRepository,
         });
       }
     }
