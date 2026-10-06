@@ -1,6 +1,7 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
+import { isContactMove } from '../../../moves/move-flags';
 
 /**
  * 接触技を受けたときに攻撃側へダメージを与える基底クラス
@@ -8,7 +9,7 @@ import { BattleContext } from '../../battle-context.interface';
  *
  * 攻撃側の最大HPの 1/damageDivisor（切り捨て、最低1）のダメージを与える。
  * MoveExecutorService が接触時に呼び出す applyContactStatusCondition フックを利用する。
- * 注: 接触技の判定は物理技（moveCategory === 'Physical'）で近似している。
+ * 接触技の判定は isContactMove（技フラグの contact）で行う。
  */
 export abstract class BaseContactRecoilDamageEffect implements IAbilityEffect {
   /**
@@ -53,8 +54,8 @@ export abstract class BaseContactRecoilDamageEffect implements IAbilityEffect {
       return false;
     }
 
-    // 接触技でない場合は処理しない
-    if (battleContext.moveCategory !== 'Physical') {
+    // 接触技でない場合は処理しない（えんかくなどで接触しなくなった技を含む）
+    if (!isContactMove(battleContext)) {
       return false;
     }
 

@@ -2,6 +2,7 @@ import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { isContactMove } from '../../../moves/move-flags';
 
 /**
  * 接触技を受けたときに状態異常を付与する基底クラス
@@ -79,8 +80,8 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       return false;
     }
 
-    // 接触技でない場合は処理しない
-    if (battleContext.moveCategory !== 'Physical') {
+    // 接触技でない場合は処理しない（えんかくなどで接触しなくなった技を含む）
+    if (!isContactMove(battleContext)) {
       return false;
     }
 

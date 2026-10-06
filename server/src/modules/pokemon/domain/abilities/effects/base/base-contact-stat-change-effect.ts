@@ -2,6 +2,7 @@ import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 import { StatType } from './base-opponent-stat-change-effect';
+import { isContactMove } from '../../../moves/move-flags';
 
 /**
  * 能力ランクを変更する対象
@@ -42,7 +43,7 @@ const MAX_RANK = 6;
  *
  * MoveExecutorService が接触時に呼び出す applyContactStatusCondition フックを利用する。
  * 対象が攻撃側で、ランクを下げる場合は、攻撃側の特性の canReceiveStatChange で無効化を判定する。
- * 注: 接触技の判定は物理技（moveCategory === 'Physical'）で近似している。
+ * 発動条件は trigger で選ぶ。'contact' は isContactMove（技フラグの contact）、'physical' は物理技で判定する。
  */
 export abstract class BaseContactStatChangeEffect implements IAbilityEffect {
   /**
@@ -54,6 +55,11 @@ export abstract class BaseContactStatChangeEffect implements IAbilityEffect {
    * 変更する能力ランクの一覧
    */
   protected abstract readonly statChanges: readonly ContactStatChange[];
+
+  /**
+   * 発動条件（'contact': 接触技を受けたとき、'physical': 物理技を受けたとき）
+   */
+  protected readonly trigger: 'contact' | 'physical' = 'contact';
 
   /**
    * ダメージ修正（この特性はダメージを修正しない）
@@ -84,8 +90,12 @@ export abstract class BaseContactStatChangeEffect implements IAbilityEffect {
       return false;
     }
 
-    // 接触技でない場合は処理しない
-    if (battleContext.moveCategory !== 'Physical') {
+    // 発動条件を満たさない場合は処理しない
+    const triggered =
+      this.trigger === 'physical'
+        ? battleContext.moveCategory === 'Physical'
+        : isContactMove(battleContext);
+    if (!triggered) {
       return false;
     }
 
