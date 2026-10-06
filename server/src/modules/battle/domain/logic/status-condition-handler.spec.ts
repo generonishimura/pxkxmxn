@@ -254,6 +254,31 @@ describe('StatusConditionHandler', () => {
       expect(StatusConditionHandler.shouldClearSleep(3)).toBe(true);
       expect(StatusConditionHandler.shouldClearSleep(100)).toBe(true);
     });
+
+    it('step が2なら、1ターンで2ターン分の解除判定をする（はやおき）', () => {
+      // Arrange: 1ターン目の判定（33%）は外れ、2ターン目の判定（50%）は当たる乱数
+      const random = jest.spyOn(Math, 'random').mockReturnValueOnce(0.6).mockReturnValueOnce(0.4);
+
+      // Act
+      const cleared = StatusConditionHandler.shouldClearSleep(0, 2);
+
+      // Assert
+      expect(cleared).toBe(true);
+      expect(random).toHaveBeenCalledTimes(2);
+      random.mockRestore();
+    });
+
+    it('step が2でも、どちらの判定も外れれば解除しない', () => {
+      // Arrange
+      const random = jest.spyOn(Math, 'random').mockReturnValue(0.6);
+
+      // Act
+      const cleared = StatusConditionHandler.shouldClearSleep(0, 2);
+
+      // Assert
+      expect(cleared).toBe(false);
+      random.mockRestore();
+    });
   });
 
   describe('shouldClearFreeze', () => {

@@ -216,10 +216,26 @@ export class StatusConditionHandler {
 
   /**
    * ねむりの自動解除判定
+   * step ターン分の判定を順に行い、どれかで解除されれば解除する（はやおきは step = 2）
+   * @param sleepTurnCount ねむりのターン数（0から始まる）
+   * @param step このターンに進むねむりのターン数（既定は1）
+   * @returns 解除されるかどうか
+   */
+  static shouldClearSleep(sleepTurnCount: number, step: number = 1): boolean {
+    for (let offset = 0; offset < step; offset++) {
+      if (StatusConditionHandler.shouldClearSleepAt(sleepTurnCount + offset)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * ねむりのターン数1つ分の自動解除判定
    * @param sleepTurnCount ねむりのターン数（0から始まる）
    * @returns 解除されるかどうか
    */
-  static shouldClearSleep(sleepTurnCount: number): boolean {
+  private static shouldClearSleepAt(sleepTurnCount: number): boolean {
     // ねむりは1-3ターン後に自動解除
     // 1ターン目: SLEEP_WAKE_CHANCE_TURN1の確率で解除
     // 2ターン目: SLEEP_WAKE_CHANCE_TURN2の確率で解除

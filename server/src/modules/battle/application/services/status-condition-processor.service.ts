@@ -11,6 +11,7 @@ import {
   TRAINED_POKEMON_REPOSITORY_TOKEN,
 } from '@/modules/trainer/domain/trainer.repository.interface';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
@@ -66,7 +67,7 @@ export class StatusConditionProcessorService {
       };
 
       // 状態異常によるダメージ処理
-      await this.processStatusConditionDamage(battle.id, status, battleContext);
+      await this.processStatusConditionDamage(battle.id, status, battleContext, abilityEffect);
 
       // 状態異常ダメージを反映した最新のステータスを読み直す
       // 古いステータスのまま特性が HP を書くと、状態異常ダメージが上書きされてしまうため
@@ -89,6 +90,7 @@ export class StatusConditionProcessorService {
     battleId: number,
     status: BattlePokemonStatus,
     battleContext: BattleContext,
+    abilityEffect: IAbilityEffect | undefined,
   ): Promise<void> {
     if (!status.statusCondition || status.statusCondition === StatusCondition.None) {
       return;
@@ -114,8 +116,9 @@ export class StatusConditionProcessorService {
       const battleMap = this.sleepTurnCounts.get(battleId)!;
       sleepTurnCount = battleMap.get(status.id) || 0;
 
-      // ねむりの自動解除判定
-      if (StatusConditionHandler.shouldClearSleep(sleepTurnCount)) {
+      // ねむりの自動解除判定（はやおきなどは1ターンに2ターン分進む）
+      const sleepStep = abilityEffect?.sleepTurnMultiplier ?? 1;
+      if (StatusConditionHandler.shouldClearSleep(sleepTurnCount, sleepStep)) {
         await this.battleRepository.updateBattlePokemonStatus(status.id, {
           statusCondition: StatusCondition.None,
         });
@@ -123,7 +126,7 @@ export class StatusConditionProcessorService {
         return;
       }
 
-      battleMap.set(status.id, sleepTurnCount + 1);
+      battleMap.set(status.id, sleepTurnCount + sleepStep);
     }
 
     // ひるみの自動解除（ターン終了時に必ず解除、ねむりと同様のパターンで早期リターン）
@@ -155,9 +158,22 @@ export class StatusConditionProcessorService {
       battleMap.set(status.id, confusionTurnCount + 1);
     }
 
-    // ダメージを計算（マジックガードなど、技以外のダメージを受けない特性なら減らさない）
-    const damage = StatusConditionHandler.calculateTurnEndDamage(status, badPoisonTurnCount);
-    await applyIndirectDamage(status, damage, battleContext);
+    // ダメージを計算（ポイズンヒールなどの特性で変える。マジックガードなら減らさない）
+    const baseDamage = StatusConditionHandler.calculateTurnEndDamage(status, badPoisonTurnCount);
+    if (baseDamage <= 0) {
+      return;
+    }
+    const damage =
+      (await abilityEffect?.modifyStatusDamage?.(
+        status,
+        status.statusCondition,
+        baseDamage,
+        battleContext,
+      )) ?? baseDamage;
+    const latestStatus = abilityEffect?.modifyStatusDamage
+      ? ((await this.battleRepository.findBattlePokemonStatusById(status.id)) ?? status)
+      : status;
+    await applyIndirectDamage(latestStatus, damage, battleContext);
   }
 
   /**

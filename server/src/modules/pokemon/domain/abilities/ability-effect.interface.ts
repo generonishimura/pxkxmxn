@@ -55,6 +55,28 @@ export interface IAbilityEffect {
   onTurnEnd?(_pokemon: BattlePokemonStatus, _battleContext?: BattleContext): void | Promise<void>;
 
   /**
+   * ターン終了時の状態異常のダメージを変える効果（例: ポイズンヒール、たいねつ）
+   * StatusConditionProcessorService で、どく・もうどく・やけどのダメージを与える前に呼ばれる。
+   * 返したダメージは applyIndirectDamage で与える（0ならダメージなし。回復は自分で書き込む）
+   * @param holder この特性を持つポケモン
+   * @param statusCondition ダメージの原因の状態異常
+   * @param damage もとのダメージ
+   * @returns 変更後のダメージ、変更しない場合はundefined
+   */
+  modifyStatusDamage?(
+    _holder: BattlePokemonStatus,
+    _statusCondition: StatusCondition,
+    _damage: number,
+    _battleContext?: BattleContext,
+  ): number | undefined | Promise<number | undefined>;
+
+  /**
+   * ターン終了時に進むねむりのターン数（例: はやおき = 2）
+   * StatusConditionProcessorService が StatusConditionHandler.shouldClearSleep の step に渡す
+   */
+  readonly sleepTurnMultiplier?: number;
+
+  /**
    * 場から下がるとき（OnSwitchOut）に発動する効果
    * @param pokemon 対象のポケモン
    * @param battleContext バトルコンテキスト

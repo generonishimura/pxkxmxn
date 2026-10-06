@@ -62,6 +62,97 @@ describe('StatusConditionProcessorService - 状態異常の特性フック', () 
     });
   });
 
+  describe('modifyStatusDamage（ポイズンヒール・たいねつ）', () => {
+    it('特性が返したダメージで HP を減らし、状態異常ともとのダメージを渡す', async () => {
+      // Arrange
+      const modifyStatusDamage = jest.fn(() => 0);
+      AbilityRegistry.register('テストポイズンヒール', { modifyStatusDamage });
+      const { processTurnEnd, get } = setup({
+        ability: 'テストポイズンヒール',
+        status: poisoned(),
+      });
+
+      // Act
+      await processTurnEnd();
+
+      // Assert
+      expect(get(1).currentHp).toBe(100);
+      expect(modifyStatusDamage).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 1 }),
+        StatusCondition.Poison,
+        12,
+        expect.objectContaining({ battleRepository: expect.anything() }),
+      );
+    });
+
+    it('非同期で回復してから 0 を返すこともできる', async () => {
+      // Arrange
+      AbilityRegistry.register('テストポイズンヒール', {
+        modifyStatusDamage: async (holder, _status, _damage, ctx) => {
+          await ctx?.battleRepository?.updateBattlePokemonStatus(holder.id, {
+            currentHp: holder.currentHp + 12,
+          });
+          return 0;
+        },
+      });
+      const { processTurnEnd, get } = setup({
+        ability: 'テストポイズンヒール',
+        status: poisoned({ currentHp: 50 }),
+      });
+
+      // Act
+      await processTurnEnd();
+
+      // Assert
+      expect(get(1).currentHp).toBe(62);
+    });
+
+    it('undefined を返すと、もとのダメージを受ける', async () => {
+      // Arrange
+      AbilityRegistry.register('テストたいねつ', { modifyStatusDamage: () => undefined });
+      const { processTurnEnd, get } = setup({ ability: 'テストたいねつ', status: poisoned() });
+
+      // Act
+      await processTurnEnd();
+
+      // Assert
+      expect(get(1).currentHp).toBe(88);
+    });
+  });
+
+  describe('sleepTurnMultiplier（はやおき）', () => {
+    const asleep = { statusCondition: StatusCondition.Sleep };
+
+    it('2なら、2ターン目の終わりには必ず目を覚ます', async () => {
+      // Arrange: 毎回の解除判定が外れる乱数
+      jest.spyOn(Math, 'random').mockReturnValue(0.6);
+      AbilityRegistry.register('テストはやおき', { sleepTurnMultiplier: 2 });
+      const { processTurnEnd, get } = setup({ ability: 'テストはやおき', status: asleep });
+
+      // Act
+      await processTurnEnd();
+      const afterFirstTurn = get(1).statusCondition;
+      await processTurnEnd();
+
+      // Assert
+      expect(afterFirstTurn).toBe(StatusCondition.Sleep);
+      expect(get(1).statusCondition).toBe(StatusCondition.None);
+    });
+
+    it('特性がなければ、2ターン目の終わりにはまだねむっている', async () => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(0.6);
+      const { processTurnEnd, get } = setup({ status: asleep });
+
+      // Act
+      await processTurnEnd();
+      await processTurnEnd();
+
+      // Assert
+      expect(get(1).statusCondition).toBe(StatusCondition.Sleep);
+    });
+  });
+
   describe('ターン終了時の特性に渡すコンテキスト', () => {
     it('育成ポケモンリポジトリを渡す（相手の特性を調べる効果のため）', async () => {
       // Arrange
