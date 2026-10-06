@@ -262,6 +262,8 @@ import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 // 一時的な状態を書く技（Issue #103 一部）
 import { StockpileEffect } from './effects/stockpile-effect';
 import { PowerTrickEffect } from './effects/power-trick-effect';
+import { OdorSleuthEffect } from './effects/odor-sleuth-effect';
+import { MiracleEyeEffect } from './effects/miracle-eye-effect';
 
 /**
  * 技のレジストリ
@@ -632,6 +634,8 @@ export class MoveRegistry {
       // 一時的な状態を書く技（Issue #103 一部）
       this.registry.set('たくわえる', new StockpileEffect());
       this.registry.set('パワートリック', new PowerTrickEffect());
+      this.registry.set('かぎわける', new OdorSleuthEffect());
+      this.registry.set('ミラクルアイ', new MiracleEyeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
