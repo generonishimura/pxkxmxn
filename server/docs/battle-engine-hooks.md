@@ -701,6 +701,7 @@ export class ComatoseEffect extends BaseStatusConditionImmunityEffect {
 - 呼ばれる場所: `BeforeMoveChecker.check`。ねむり・こおりの判定のあと、ひるみの判定の前（本家の優先度 9）。呼ばれた技（ゆびをふるで出た技など）では呼ばない
 - 使う特性: なまけ（`volatileState.loafing` を交互に書く）
 - メッセージを返すと技を出さない（PP も減らない）
+- 反動で動けないターン（`mustRecharge`）は、このフックより前に止まる。そのときエンジンが `loafing` も消すので、はかいこうせんのあとに休むのは 1 ターンだけになる（本家と同じ）
 
 ```ts
 async onBeforeMove(holder: BattlePokemonStatus, ctx?: BattleContext): Promise<string | null> {

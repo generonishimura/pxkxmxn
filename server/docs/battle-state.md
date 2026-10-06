@@ -497,7 +497,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 判定の前に、`encore` があるのに別の技を出そうとしていたら（行動を決めたあと、このターンに先にアンコールされたとき）、アンコールされた技に変えます（`MoveExecutorService.executeMove`。本家の onOverrideAction）。PP はアンコールされた技の欄から減ります。その技の PP が 0 ならアンコールを消し、選んだ技を出します。ため技の 2 ターン目・出し続ける技・反動のターン・わるあがきは変えません。
 
-1. `mustRecharge`: 動けない（キーを消す）
+1. `mustRecharge`: 動けない（キーを消す。なまけの `loafing` も消す）
 2. ねむり: 動けない（`MoveBehaviors` の `sleepUsable` の技は出せる）
 3. こおり: 20% で溶ける（`defrost` の技は必ず溶ける）
 4. 特性の `onBeforeMove`（なまけ）

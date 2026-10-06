@@ -48,7 +48,7 @@ const INFATUATION_IMMOBILIZE_CHANCE = 0.5;
  * BeforeMoveChecker
  * 技を出そうとしたときに、技を出せるかを判定する（本家の onBeforeMove の順）
  *
- * 1. 反動（mustRecharge）: 動けない
+ * 1. 反動（mustRecharge）: 動けない。なまけの休み（loafing）も消す
  * 2. ねむり: 動けない（いびき・ねごとは出せる）
  * 3. こおり: 20% で溶ける（かえんぐるまなど defrost の技は必ず溶ける）
  * 4. 使用者の特性の onBeforeMove（なまけ）
@@ -78,9 +78,11 @@ export class BeforeMoveChecker {
     }
 
     // 1. 反動で動けない（このターンの行動として扱い、ため・出し続けの状態は変えない）
+    // なまけの休み（loafing）も消す。反動で動けないターンが、なまけの休みの代わりになる（本家の mustrecharge）
     if (attacker.volatileState.mustRecharge === true) {
       await this.battleRepository.patchVolatileState(attacker.id, {
         mustRecharge: null,
+        loafing: null,
         ...this.untilNextMovePatch(attacker.volatileState),
       });
       return { cancelled: true, message: 'Pokemon must recharge' };

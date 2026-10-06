@@ -332,6 +332,19 @@ describe('MoveExecutorService - 技を出す前の判定（BeforeMoveChecker）'
     expect(statuses.get(ATTACKER_ID).volatileState).toEqual({ lastMoveId: 1 });
   });
 
+  it('反動で動けないターンは、なまけの休み（loafing）も消す', async () => {
+    // Arrange
+    const { execute, statuses } = setupMoveExecutor({
+      attacker: { volatileState: { mustRecharge: true, lastMoveId: 1, loafing: true } },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(ATTACKER_ID).volatileState.loafing).toBeUndefined();
+  });
+
   it('技を出せなかったときは、ため技と出し続ける技の状態を消す', async () => {
     // Arrange
     const { execute, statuses } = setupMoveExecutor({
