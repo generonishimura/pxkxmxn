@@ -367,15 +367,18 @@ export class AbilityRegistry {
   }
 
   /**
-   * 攻撃側がかたやぶり特性を持っているかチェック
-   * かたやぶり特性は、防御側の特性効果を無視する
+   * 攻撃側がかたやぶり系の特性を持っているかチェック
+   * かたやぶり系の特性（breaksMold が true の特性）は、防御側の特性効果を無視する
    * @param attackerAbilityName 攻撃側の特性名
-   * @returns かたやぶり特性を持っている場合はtrue、そうでない場合はfalse
+   * @returns かたやぶり系の特性を持っている場合はtrue、そうでない場合はfalse
    */
   static hasMoldBreaker(attackerAbilityName?: string): boolean {
     if (!attackerAbilityName) {
       return false;
     }
-    return attackerAbilityName === this.MOLD_BREAKER_ABILITY_NAME;
+    if (attackerAbilityName === this.MOLD_BREAKER_ABILITY_NAME) {
+      return true;
+    }
+    return this.registry.get(attackerAbilityName)?.breaksMold === true;
   }
 }
