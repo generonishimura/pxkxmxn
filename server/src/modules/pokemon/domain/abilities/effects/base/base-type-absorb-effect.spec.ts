@@ -34,6 +34,7 @@ describe('BaseTypeAbsorbEffect', () => {
       accuracyRank: 0,
       evasionRank: 0,
       statusCondition: null,
+      volatileState: {},
     } as BattlePokemonStatus;
 
     mockBattleRepository = {
@@ -88,6 +89,24 @@ describe('BaseTypeAbsorbEffect', () => {
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
         currentHp: 75, // 50 + (100 * 0.25) = 75
       });
+    });
+
+    it('かいふくふうじ中は、技を無効にしても HP は回復しない', async () => {
+      // Arrange
+      const effect = new TestElectricAbsorbEffect();
+      const healBlocked = {
+        ...pokemon,
+        volatileState: { healBlockTurns: 2 },
+      } as BattlePokemonStatus;
+      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(healBlocked);
+
+      // Act
+      const immune = effect.isImmuneToType(healBlocked, 'でんき', battleContext);
+      await effect.onAfterTakingDamage(healBlocked, 0, battleContext);
+
+      // Assert
+      expect(immune).toBe(true);
+      expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
     it('should not heal HP when non-immune type attack', async () => {

@@ -49,6 +49,7 @@ describe('BaseHealEffect', () => {
       overrides?.accuracyRank ?? 0,
       overrides?.evasionRank ?? 0,
       overrides?.statusCondition ?? null,
+      overrides?.volatileState,
     );
 
   const createBattleContext = (): BattleContext => {
@@ -203,6 +204,27 @@ describe('BaseHealEffect', () => {
       });
     });
 
+    it('かいふくふうじ中は、HP は回復せず状態異常だけを治す', async () => {
+      // Arrange
+      const effect = new TestSelfHealAndCureEffect();
+      const attacker = createBattlePokemonStatus({
+        currentHp: 50,
+        statusCondition: StatusCondition.Paralysis,
+        volatileState: { healBlockTurns: 2 },
+      });
+      const defender = createBattlePokemonStatus({ id: 2 });
+      const ctx = createBattleContext();
+
+      // Act
+      const result = await effect.onUse(attacker, defender, ctx);
+
+      // Assert
+      expect(result).toBe('Status condition was cured!');
+      expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
+        statusCondition: StatusCondition.None,
+      });
+    });
+
     it('HP が満タンで状態異常もなければ失敗する', async () => {
       // Arrange
       const effect = new TestSelfHealAndCureEffect();
@@ -254,6 +276,25 @@ describe('BaseHealEffect', () => {
       expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
         currentHp: 71,
       });
+    });
+
+    it('相手がかいふくふうじ中なら、回復せずに失敗する', async () => {
+      // Arrange
+      const effect = new TestTargetHealEffect();
+      const attacker = createBattlePokemonStatus();
+      const defender = createBattlePokemonStatus({
+        id: 2,
+        currentHp: 30,
+        volatileState: { healBlockTurns: 2 },
+      });
+      const ctx = createBattleContext();
+
+      // Act
+      const result = await effect.onUse(attacker, defender, ctx);
+
+      // Assert
+      expect(result).toBeNull();
+      expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
     it('相手の HP が満タンなら失敗する', async () => {

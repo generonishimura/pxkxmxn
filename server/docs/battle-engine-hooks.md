@@ -914,7 +914,9 @@ await repo.patchVolatileState(attacker.id, { moveSlotOverrides: [...(attacker.vo
 - シグネチャ: `applyHeal(target, amount, ctx): Promise<number>`、`isHealBlocked(pokemon): boolean`、`fractionOfMaxHp(pokemon, divisor): number`（`pokemon/domain/battle-events/heal.ts`）
 - `applyHeal` はかいふくふうじ中（`healBlockTurns`）・ひんしなら回復しない。最大 HP を超えない。`fractionOfMaxHp` は本家と同じく切り捨て・最低 1
 - `applyDrainHeal` もかいふくふうじ中は回復しない（ヘドロえきのダメージは受ける）
-- 使う技・特性: 回復する技・特性はすべてこれを使う（ポイズンヒールは乗せ換え済み）。のみこむ・ねがいごと（`healAmount` を決める）
+- 使う技・特性: 回復する技・特性はすべてこれを使う（ポイズンヒール・あめうけざら・アイスボディ・ちょすい・ちくでん・どしょく・かんそうはだ・じょうかは乗せ換え済み）。のみこむ・ねがいごと（`healAmount` を決める）
+- 回復と状態異常の回復を一度に書く技（`BaseHealEffect`・`BaseSelfHealEffect`）は、`isHealBlocked` で HP の回復だけをやめる（いやしのはどうなどで、かいふくふうじ中の相手を回復しようとしたときも回復しない）
+- 注: さいせいりょく（交代で引っ込むときの回復）・いたみわけは、本家でもかいふくふうじで止まらないので使わない
 
 ```ts
 const healed = await applyHeal(attacker, fractionOfMaxHp(attacker, 4), ctx); // のみこむ（1 回）

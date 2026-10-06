@@ -24,6 +24,7 @@ describe('PurifyEffect', () => {
       overrides?.accuracyRank ?? 0,
       overrides?.evasionRank ?? 0,
       overrides?.statusCondition ?? null,
+      overrides?.volatileState,
     );
 
   const createBattleContext = (): BattleContext => {
@@ -55,6 +56,24 @@ describe('PurifyEffect', () => {
     expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
       currentHp: 81,
     });
+  });
+
+  it('かいふくふうじ中は、相手の状態異常は治すが、自分の HP は回復しない', async () => {
+    // Arrange
+    const effect = new PurifyEffect();
+    const attacker = createBattlePokemonStatus({
+      currentHp: 30,
+      volatileState: { healBlockTurns: 2 },
+    });
+    const defender = createBattlePokemonStatus({ id: 2, statusCondition: StatusCondition.Burn });
+    const ctx = createBattleContext();
+
+    // Act
+    const result = await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(result).toBe("The target's status condition was cured!");
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledTimes(1);
   });
 
   it('自分の HP が満タンでも、相手の状態異常は治す', async () => {

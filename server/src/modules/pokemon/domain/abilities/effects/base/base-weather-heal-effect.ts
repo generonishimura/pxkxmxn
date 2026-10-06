@@ -3,6 +3,7 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../battle-context.interface';
 import { Weather } from '@/modules/battle/domain/entities/battle.entity';
 import { getContextWeather } from '../../context-weather';
+import { applyHeal } from '../../../battle-events/heal';
 
 /**
  * 天候依存の HP 回復特性の基底クラス
@@ -10,6 +11,7 @@ import { getContextWeather } from '../../context-weather';
  * 例: あめうけざら（雨で 1/16 回復）、アイスボディ（あられで 1/16 回復）
  *
  * 各派生クラスは対象天候のみを指定すれば良い
+ * 回復は applyHeal で行う（かいふくふうじ中は回復しない）
  */
 export abstract class BaseWeatherHealEffect implements IAbilityEffect {
   /**
@@ -37,14 +39,6 @@ export abstract class BaseWeatherHealEffect implements IAbilityEffect {
     }
 
     const healAmount = Math.max(1, Math.floor(pokemon.maxHp * this.healRatio));
-    const newHp = Math.min(pokemon.maxHp, pokemon.currentHp + healAmount);
-
-    if (newHp === pokemon.currentHp) {
-      return;
-    }
-
-    await battleContext.battleRepository.updateBattlePokemonStatus(pokemon.id, {
-      currentHp: newHp,
-    });
+    await applyHeal(pokemon, healAmount, battleContext);
   }
 }

@@ -28,6 +28,7 @@ describe('VoltAbsorbEffect', () => {
       accuracyRank: 0,
       evasionRank: 0,
       statusCondition: null,
+      volatileState: {},
     } as BattlePokemonStatus;
 
     mockBattleRepository = {

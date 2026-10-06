@@ -84,6 +84,23 @@ describe('BaseSelfHealEffect', () => {
     });
   });
 
+  it('かいふくふうじ中は失敗し、HP を更新しない（ゆびをふるで出たときなど）', async () => {
+    // Arrange
+    const effect = new TestHalfHealEffect();
+    const attacker = createBattlePokemonStatus({
+      currentHp: 30,
+      volatileState: { healBlockTurns: 2 },
+    });
+    const ctx = createContext();
+
+    // Act
+    const result = await effect.onUse(attacker, createDefender(), ctx);
+
+    // Assert
+    expect(result).toBeNull();
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
+  });
+
   it('HP が満タンなら失敗し、HP を更新しない', async () => {
     // Arrange
     const effect = new TestHalfHealEffect();

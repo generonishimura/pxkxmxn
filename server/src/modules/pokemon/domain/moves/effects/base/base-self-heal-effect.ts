@@ -1,6 +1,7 @@
 import { IMoveEffect } from '../../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
+import { isHealBlocked } from '../../../battle-events/heal';
 
 /**
  * 回復量を表す分数（最大 HP に対する割合）
@@ -19,6 +20,7 @@ export interface HealFraction {
  *
  * - 回復後の HP は最大 HP を超えない
  * - HP が満タンのときは失敗する
+ * - かいふくふうじ中は失敗する（技の制限で選べないが、ゆびをふるなどで出たとき）
  *
  * 各技は、このクラスを継承して回復割合を返すだけで実装できる
  */
@@ -48,6 +50,10 @@ export abstract class BaseSelfHealEffect implements IMoveEffect {
     }
 
     if (attacker.currentHp >= attacker.maxHp) {
+      return null;
+    }
+
+    if (isHealBlocked(attacker)) {
       return null;
     }
 
