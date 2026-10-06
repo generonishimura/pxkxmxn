@@ -248,6 +248,10 @@ import { VenoshockEffect } from './effects/venoshock-effect';
 import { HexEffect } from './effects/hex-effect';
 import { StoredPowerEffect } from './effects/stored-power-effect';
 import { WeatherBallEffect } from './effects/weather-ball-effect';
+// 威力が変わる技（Issue #123, #129 一部）
+import { FacadeEffect } from './effects/facade-effect';
+import { PunishmentEffect } from './effects/punishment-effect';
+import { PowerTripEffect } from './effects/power-trip-effect';
 
 /**
  * 技のレジストリ
@@ -602,6 +606,10 @@ export class MoveRegistry {
       this.registry.set('たたりめ', new HexEffect());
       this.registry.set('アシストパワー', new StoredPowerEffect());
       this.registry.set('ウェザーボール', new WeatherBallEffect());
+      // 威力が変わる技（Issue #123, #129 一部）
+      this.registry.set('からげんき', new FacadeEffect());
+      this.registry.set('おしおき', new PunishmentEffect());
+      this.registry.set('つけあがる', new PowerTripEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,

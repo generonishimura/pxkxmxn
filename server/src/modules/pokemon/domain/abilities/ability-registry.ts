@@ -119,6 +119,8 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// 最後に行動したときの威力補正（Issue #135 一部）
+import { AnalyticEffect } from './effects/damage-modify/analytic-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +334,8 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // 最後に行動したときの威力補正（Issue #135 一部）
+      this.registry.set('アナライズ', new AnalyticEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
