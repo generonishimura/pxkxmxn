@@ -206,6 +206,8 @@ import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 // 相手を一時的な状態にする特性（Issue #135 一部）
 import { CuteCharmEffect } from './effects/other/cute-charm-effect';
 import { CursedBodyEffect } from './effects/other/cursed-body-effect';
+// 場に出てからのターン数で変わる特性（Issue #135 一部）
+import { SlowStartEffect } from './effects/other/slow-start-effect';
 
 /**
  * 特性レジストリ
@@ -511,6 +513,8 @@ export class AbilityRegistry {
       // 相手を一時的な状態にする特性（Issue #135 一部）
       this.registry.set('メロメロボディ', new CuteCharmEffect());
       this.registry.set('のろわれボディ', new CursedBodyEffect());
+      // 場に出てからのターン数で変わる特性（Issue #135 一部）
+      this.registry.set('スロースタート', new SlowStartEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
