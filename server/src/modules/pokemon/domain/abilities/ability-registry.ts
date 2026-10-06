@@ -122,6 +122,7 @@ import { MagicGuardEffect } from './effects/other/magic-guard-effect';
 // 能力ランクの変化を変える・写す特性（Issue #135 一部）
 import { SimpleEffect } from './effects/stat-change/simple-effect';
 import { ContraryEffect } from './effects/stat-change/contrary-effect';
+import { MirrorArmorEffect } from './effects/stat-change/mirror-armor-effect';
 
 /**
  * 特性レジストリ
@@ -338,6 +339,7 @@ export class AbilityRegistry {
       // 能力ランクの変化を変える・写す特性（Issue #135 一部）
       this.registry.set('たんじゅん', new SimpleEffect());
       this.registry.set('あまのじゃく', new ContraryEffect());
+      this.registry.set('ミラーアーマー', new MirrorArmorEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
