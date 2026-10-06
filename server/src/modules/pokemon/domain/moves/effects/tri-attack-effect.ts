@@ -3,6 +3,7 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 import { AbilityRegistry } from '../../abilities/ability-registry';
+import { rollSecondaryEffect } from '../secondary-effect';
 
 /**
  * トライアタックで付与しうる状態異常
@@ -39,7 +40,7 @@ export class TriAttackEffect implements IMoveEffect {
       return null;
     }
 
-    if (Math.random() >= TriAttackEffect.CHANCE) {
+    if (!rollSecondaryEffect(TriAttackEffect.CHANCE, battleContext)) {
       return null;
     }
 

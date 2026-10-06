@@ -1,6 +1,7 @@
 import { IMoveEffect } from '../../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
+import { rollSecondaryEffect } from '../../secondary-effect';
 
 /**
  * 「攻撃技 + 確率で自分の全能力ランクを1段階上昇」変化技の基底クラス
@@ -25,7 +26,8 @@ export abstract class BaseSelfAllStatsBoostEffect implements IMoveEffect {
       return null;
     }
 
-    if (this.chance < 1.0 && Math.random() >= this.chance) {
+    // 自分への追加効果なので、りんぷんでは止まらない
+    if (!rollSecondaryEffect(this.chance, battleContext, 'self')) {
       return null;
     }
 

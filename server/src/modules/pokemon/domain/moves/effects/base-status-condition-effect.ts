@@ -3,6 +3,7 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 import { AbilityRegistry } from '../../abilities/ability-registry';
+import { rollSecondaryEffect } from '../secondary-effect';
 
 /**
  * 状態異常付与の基底クラス
@@ -86,8 +87,8 @@ export abstract class BaseStatusConditionEffect implements IMoveEffect {
       }
     }
 
-    // 確率判定（chanceが1.0の場合は必ず付与）
-    if (this.chance < 1.0 && Math.random() >= this.chance) {
+    // 確率判定（てんのめぐみ・りんぷんを考慮。chanceが1.0の場合は必ず付与）
+    if (!rollSecondaryEffect(this.chance, battleContext)) {
       return null;
     }
 
