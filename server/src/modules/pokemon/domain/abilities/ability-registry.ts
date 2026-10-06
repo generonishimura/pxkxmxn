@@ -119,6 +119,12 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// 技を出す前に失敗・無効にする特性（Issue #135 一部）
+import { DampEffect } from './effects/other/damp-effect';
+import { QueenlyMajestyEffect } from './effects/other/queenly-majesty-effect';
+import { DazzlingEffect } from './effects/other/dazzling-effect';
+import { ArmorTailEffect } from './effects/other/armor-tail-effect';
+import { GoodAsGoldEffect } from './effects/immunity/good-as-gold-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +338,12 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // 技を出す前に失敗・無効にする特性（Issue #135 一部）
+      this.registry.set('しめりけ', new DampEffect());
+      this.registry.set('じょおうのいげん', new QueenlyMajestyEffect());
+      this.registry.set('ビビッドボディ', new DazzlingEffect());
+      this.registry.set('テイルアーマー', new ArmorTailEffect());
+      this.registry.set('おうごんのからだ', new GoodAsGoldEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

@@ -53,6 +53,29 @@ describe('AftermathEffect', () => {
     expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
+  it('攻撃側の特性が しめりけ なら、ひんしになってもダメージを与えない', async () => {
+    // Arrange
+    const effect = new AftermathEffect();
+    const battleRepository = {
+      updateBattlePokemonStatus: jest.fn(),
+    } as unknown as jest.Mocked<IBattleRepository>;
+    const battleContext: BattleContext = {
+      ...createContext(battleRepository),
+      attackerAbilityName: 'しめりけ',
+    };
+
+    // Act
+    const result = await effect.applyContactStatusCondition(
+      createStatus(1, 0, 100),
+      createStatus(2, 200, 200),
+      battleContext,
+    );
+
+    // Assert
+    expect(result).toBe(false);
+    expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+  });
+
   it('AbilityRegistryに「ゆうばく」として登録されている', () => {
     // Arrange
     AbilityRegistry.clear();
