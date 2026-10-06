@@ -111,7 +111,8 @@ async beforeDamage(_a: BattlePokemonStatus, _d: BattlePokemonStatus, _m: Move, c
 
 - シグネチャ: `modifyBasePower?(pokemon, power, battleContext): number | undefined`
 - 呼ばれる場所: `DamageCalculator`。ダメージ計算式に入る前の威力に掛かる
-- 使う特性: てつのこぶし、がんじょうあご、メガランチャー、かたいツメ、きれあじ、パンクロック（攻撃側）、アナライズ
+- 使う特性: てつのこぶし、がんじょうあご、メガランチャー、かたいツメ、きれあじ、パンクロック（攻撃側）、アナライズ、テクニシャン
+- `power` はヒットごとの威力です（技の `modifyMovePower` とおやこあいの追加ヒットの補正のあと）。威力で判定する特性（テクニシャンなど）は `battleContext.movePower` ではなくこの値を使います。
 - 補正は `modifyByFixedPoint` で4096分率を使います（1.2倍 = 4915、1.3倍 = 5325、1.5倍 = 6144）。
 
 ```ts

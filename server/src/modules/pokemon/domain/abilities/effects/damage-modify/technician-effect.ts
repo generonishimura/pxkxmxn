@@ -1,10 +1,12 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
-import { BattleContext } from '../../battle-context.interface';
+import { modifyByFixedPoint } from '@/modules/battle/domain/logic/fixed-point-modifier';
 
 /**
  * テクニシャン（Technician）特性の効果
- * 威力60以下の技の威力1.5倍
+ * 威力60以下の技の威力を1.5倍（6144/4096）にする
+ *
+ * 判定はヒットごとの威力（技の modifyMovePower・おやこあいの追加ヒットの補正のあと）で行う
  */
 export class TechnicianEffect implements IAbilityEffect {
   /**
@@ -13,34 +15,18 @@ export class TechnicianEffect implements IAbilityEffect {
   private static readonly MAX_POWER_THRESHOLD = 60;
 
   /**
-   * ダメージ倍率
+   * 威力の補正（4096分率で1.5倍）
    */
-  private static readonly DAMAGE_MULTIPLIER = 1.5;
+  private static readonly POWER_MODIFIER = 6144;
 
   /**
-   * ダメージを与えるときに発動
-   * 威力60以下の技の場合、ダメージを1.5倍に
+   * ダメージ計算式に入る前の威力に掛かる
+   * 威力60以下の技の場合、威力を1.5倍にする
    */
-  modifyDamageDealt(
-    _pokemon: BattlePokemonStatus,
-    damage: number,
-    battleContext?: BattleContext,
-  ): number | undefined {
-    if (!battleContext) {
+  modifyBasePower(_pokemon: BattlePokemonStatus, power: number): number | undefined {
+    if (power > TechnicianEffect.MAX_POWER_THRESHOLD) {
       return undefined;
     }
-
-    // 技の威力情報がない場合は修正しない
-    if (battleContext.movePower === null || battleContext.movePower === undefined) {
-      return undefined;
-    }
-
-    // 威力60以下の技の場合、ダメージを1.5倍に
-    if (battleContext.movePower <= TechnicianEffect.MAX_POWER_THRESHOLD) {
-      return Math.floor(damage * TechnicianEffect.DAMAGE_MULTIPLIER);
-    }
-
-    // 威力60より大きい場合は修正しない
-    return undefined;
+    return modifyByFixedPoint(power, TechnicianEffect.POWER_MODIFIER);
   }
 }
