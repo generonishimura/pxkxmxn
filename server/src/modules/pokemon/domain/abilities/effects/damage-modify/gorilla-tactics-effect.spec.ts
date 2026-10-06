@@ -1,6 +1,7 @@
 import { GorillaTacticsEffect } from './gorilla-tactics-effect';
 import { AbilityRegistry } from '../../ability-registry';
 import { BattleContext } from '../../battle-context.interface';
+import { IAbilityEffect } from '../../ability-effect.interface';
 import { createInMemoryBattle } from '../../../battle-events/__tests__/in-memory-battle';
 
 describe('GorillaTacticsEffect（ごりむちゅう）', () => {
@@ -59,30 +60,22 @@ describe('GorillaTacticsEffect（ごりむちゅう）', () => {
   });
 
   it.each(['イカサマ', 'ボディプレス'])(
-    '自分の攻撃を使わない %s のダメージは変えない',
+    '攻撃以外の値で計算する %s も、物理技なのでダメージを 1.5 倍にする',
     moveName => {
       // Act
       const damage = new GorillaTacticsEffect().modifyDamageDealt(pokemon, 100, physical(moveName));
 
       // Assert
-      expect(damage).toBeUndefined();
+      expect(damage).toBe(150);
     },
   );
 
-  it('相手のイカサマは、自分の攻撃を使うので 1.5 倍のダメージを受ける', () => {
+  it('相手のイカサマで受けるダメージは変えない（攻撃の補正は技を出した側にだけ掛かる）', () => {
     // Act
-    const damage = new GorillaTacticsEffect().modifyDamage(pokemon, 100, physical('イカサマ'));
+    const effect: IAbilityEffect = new GorillaTacticsEffect();
 
     // Assert
-    expect(damage).toBe(150);
-  });
-
-  it('相手のイカサマ以外の技で受けるダメージは変えない', () => {
-    // Act
-    const damage = new GorillaTacticsEffect().modifyDamage(pokemon, 100, physical());
-
-    // Assert
-    expect(damage).toBe(100);
+    expect(effect.modifyDamage).toBeUndefined();
   });
 
   it('かたやぶりで無視されない', () => {
