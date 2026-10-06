@@ -262,6 +262,7 @@ import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 // ほかの技をまねる・呼ぶ技（Issue #103 一部）
 import { MimicEffect } from './effects/mimic-effect';
 import { SketchEffect } from './effects/sketch-effect';
+import { MetronomeEffect } from './effects/metronome-effect';
 
 /**
  * 技のレジストリ
@@ -632,6 +633,7 @@ export class MoveRegistry {
       // ほかの技をまねる・呼ぶ技（Issue #103 一部）
       this.registry.set('ものまね', new MimicEffect());
       this.registry.set('スケッチ', new SketchEffect());
+      this.registry.set('ゆびをふる', new MetronomeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
