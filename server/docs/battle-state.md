@@ -115,7 +115,8 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | 場のポケモンがひんしになったとき | `ExecuteTurnUseCase.execute`（技を出すたびと、ターン終了時の片付けの前） | ほかのポケモンの、ひんしのポケモンによる `trappedByStatusId`・`octolock`・`infatuatedWithStatusId`・`partialTrap` を消す（`releaseVolatileReferencesTo`）。ひんしのポケモンは交代するまで場に残るので、交代を待たずに消す |
 | 交代で場に出たとき | `PokemonSwitcherService.executeSwitch` | `switchedInTurn` に今の `Battle.turn` を書く。`transfer` を渡したときは、引っ込む前の状態から引き継ぐキーも書く（10 章） |
 | 技を出そうとしたとき | `BeforeMoveChecker.check` | 最初に `grudge` を消す。反動のターンは `mustRecharge` を消す。こんらんの `confusionTurns` を 1 減らす。技を出せなかったら（反動のターンも）`destinyBond`・`protectCount` を消し、反動以外で止まったら `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` も消す。でんき技（じゅうでんを除く）で止まったら `charged` も消す |
-| 技を出す前の判定を通ったとき | `MoveLifecycle.recordMoveUse` | 使用者の `destinyBond`・`grudge` を消す（`clearVolatileOnBeforeMove`。技を出せなかったときは `BeforeMoveChecker` が消す）。`lastMoveId`・`GlobalFieldState.lastMoveId`・`choiceLockedMoveId` を書き、`protectCount` を消す |
+| 技を出す前の判定を通ったとき | `MoveLifecycle.recordMoveUse` | 使用者の `destinyBond`・`grudge` を消す（`clearVolatileOnBeforeMove`。技を出せなかったときは `BeforeMoveChecker` が消す）。`lastMoveId`・`choiceLockedMoveId` を書き、`protectCount` を消す |
+| 技を出し終えたとき | `MoveExecutorService.executeMove` | `GlobalFieldState.lastMoveId` に、最後に出し始めた技（ゆびをふるで出た技など、呼ばれた技を含む）を書く。技を出せなかったときは書かない |
 | 技を出したあと | `MoveLifecycle.afterMove` | `mustRecharge`・`lockedInMove`・`uproar`・`consecutiveMoveCount` を書き直し、でんき技なら `charged` を消す。くちばしキャノンなら `beakBlast` を消す |
 | ターン終了時（特性の前） | `StatusConditionProcessorService.processTurnEndAbilities` → `VolatileResidualProcessor` | すなあらし・ねがいごと・アクアリング・ねをはる・やどりぎのタネ・あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた（10 章） |
 | ターン終了時 | `ExecuteTurnUseCase.execute`（特性・状態異常のターン終了時の処理のあと） | 場のポケモンの `volatileState` を `tickVolatileStateAtTurnEnd` で、`sideState` を `tickSideStateAtTurnEnd` で進める |
@@ -164,7 +165,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `lastMoveId` | `MoveLifecycle.recordMoveUse` | 技を出す前の判定を通った技（失敗・外れでも書く）。ゆびをふるなどで呼ばれた技では書かない（呼んだ技のまま） |
 | `consecutiveMoveCount` | `recordMoveUse` / `afterMove` | 同じ技を続けて成功させた回数。技の処理の中では「この技を直前まで続けて成功させた回数」（別の技なら、ない） |
 | `lastHitByMoveId` | 技の本体 | 1 以上のダメージを受けた技 |
-| `GlobalFieldState.lastMoveId` | `recordMoveUse` | バトル全体で最後に出た技（呼ばれた技も書く。まねっこが読む） |
+| `GlobalFieldState.lastMoveId` | `executeMove` | バトル全体で最後に出た技（呼ばれた技も書く。まねっこが読む）。本家と同じく技を出し終えてから書くので、技の処理の中ではまだ前の技のまま |
 | `protectCount` | `recordMoveUse` / `BeforeMoveChecker` | まもる系（技の `isProtectionMove`）以外の技を出したら消す。技を出せなかったとき（ひるみ・まひ・ねむり・反動など）も消す（本家の stall は、次のターンにまもる系を成功させなければ切れる） |
 | `choiceLockedMoveId` | `recordMoveUse` | 特性の `locksMoveChoice`（ごりむちゅう）なら、最初に出した技（わるあがきを除く） |
 | `chargingMoveId`・`semiInvulnerable` | `MoveLifecycle.handleChargeTurn` | ため技の 1 ターン目に書き、2 ターン目・技を出せなかったときに消す |

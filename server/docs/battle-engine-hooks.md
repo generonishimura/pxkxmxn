@@ -773,7 +773,7 @@ modifyMovePower(attacker: BattlePokemonStatus, _d: BattlePokemonStatus, ctx: Bat
 #### lastMoveId・consecutiveMoveCount（読むだけ）
 
 - エンジンが書く（`docs/battle-state.md` の 4 章）。技の処理の中では、使用者の `lastMoveId` はもう今の技になっている。`consecutiveMoveCount` は「この技を直前まで続けて成功させた回数」（初めてなら、ない）
-- 使う技: れんぞくぎり（威力 40・80・160）、みちづれ（続けて使うと失敗）、ものまね・オウムがえし・アンコール・かなしばり・いちゃもん・うらみ・さいはい（相手の `lastMoveId` を読む）、まねっこ（`getGlobalFieldState(battle.sideState).lastMoveId`）
+- 使う技: れんぞくぎり（威力 40・80・160）、みちづれ（続けて使うと失敗）、ものまね・オウムがえし・アンコール・かなしばり・いちゃもん・うらみ・さいはい（相手の `lastMoveId` を読む）、まねっこ（`getGlobalFieldState(battle.sideState).lastMoveId`。エンジンは技を出し終えてから書くので、技の処理の中で `findById` で読み直しても、まねっこ自身ではなく直前に出た技が入っている）
 
 ```ts
 shouldFail(attacker: BattlePokemonStatus): boolean {
@@ -844,7 +844,7 @@ export class PressureEffect implements IAbilityEffect { modifyOpponentPpDeductio
 
 - シグネチャ: `callMove(request: { moveId?; moveName?; user?; target?; calledBy; powerMultiplier? }): Promise<string>`（`pokemon/domain/battle-events/called-move.ts`）
 - 入る場所: 技の実行のコンテキスト（`onUse`・`onHit`・`afterDamage` など）と、`onOpponentMoveUsed` のコンテキスト
-- 呼んだ技は、特性の無効化・命中判定・ダメージ・追加効果のすべてを通る。PP は減らず、技を出す前の判定もしない。使用者の `lastMoveId` は呼んだ技のまま、`GlobalFieldState.lastMoveId` は呼ばれた技になる。呼ばれた技の中では `ctx.calledBy` に呼んだ技の名前が入る。3 段より深く呼ぶと `But it failed`
+- 呼んだ技は、特性の無効化・命中判定・ダメージ・追加効果のすべてを通る。PP は減らず、技を出す前の判定もしない。使用者の `lastMoveId` は呼んだ技のまま、`GlobalFieldState.lastMoveId` は（行動が終わったときに）呼ばれた技になる。呼ばれた技の中では `ctx.calledBy` に呼んだ技の名前が入る。3 段より深く呼ぶと `But it failed`
 - `user` を渡すと、そのポケモンが技を出す（さいはい・おどりこ）。`target` を省くと、`user` の相手
 - `powerMultiplier` は威力に 4096 分率で掛ける（さきどり = 1.5）
 - 技を名前で呼ぶには、技のリポジトリの `findByName` を使う（Prisma のリポジトリは実装済み）

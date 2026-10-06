@@ -76,7 +76,7 @@ export const FUTURE_ATTACK_TURNS = 3;
  * MoveLifecycle
  * 技を出すときと出したあとに、エンジンが書く状態をまとめて扱う
  * - PP を減らす（プレッシャー・ものまねの入れ替え）
- * - 技を出した記録（lastMoveId・バトル全体の lastMoveId・こだわり・まもるの回数・みちづれとおんねんの消去）
+ * - 技を出した記録（lastMoveId・こだわり・まもるの回数・みちづれとおんねんの消去）
  * - ため技の 1 ターン目（chargingMoveId・semiInvulnerable）
  * - みらいよち・はめつのねがいを相手の陣営に置く（SideConditions.futureAttack）
  * - 技を出したあと（反動・出し続ける技・続けて出した回数・じゅうでんの消去・さわぐ）
@@ -132,12 +132,12 @@ export class MoveLifecycle {
   /**
    * 技を出したことを記録する（技を出す前の判定を通ったあと、技の処理の前）
    * - 使用者: みちづれ・おんねんを消す、lastMoveId（変わったら consecutiveMoveCount も消す）、こだわり（locksMoveChoice の特性）、まもるの回数を消す
-   * - バトル全体: GlobalFieldState.lastMoveId（呼ばれた技も書く。まねっこが読む）
    * 呼ばれた技（isCalled）では、使用者の記録は呼んだ技のままにする
+   * バトル全体の GlobalFieldState.lastMoveId は、技を出し終えたあとに MoveExecutorService.executeMove が書く
+   * （技の処理の中では、まだ前の技のまま。まねっこが読む）
    * @returns 書き込んだあとの使用者
    */
   async recordMoveUse(params: {
-    battle: Battle;
     attacker: BattlePokemonStatus;
     move: Move;
     moveEffect: IMoveEffect | undefined;
@@ -145,7 +145,6 @@ export class MoveLifecycle {
     isCalled: boolean;
   }): Promise<BattlePokemonStatus> {
     const { attacker, move } = params;
-    await this.battleRepository.patchGlobalFieldState(params.battle.id, { lastMoveId: move.id });
     if (params.isCalled) {
       return attacker;
     }

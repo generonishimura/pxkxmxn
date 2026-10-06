@@ -66,6 +66,56 @@ describe('MoveExecutorService - 別の技を出す（callMove）', () => {
     expect(battleRepository.patchGlobalFieldState).toHaveBeenLastCalledWith(1, { lastMoveId: 2 });
   });
 
+  it('技の処理の中では、バトル全体の lastMoveId をまだ書かない（まねっこが直前に出た技を読める）', async () => {
+    // Arrange
+    let writesDuringMove = -1;
+    const { execute, battleRepository } = setupMoveExecutor({
+      move: moveOf(1, 'まねっこ', MoveCategory.Status, null),
+      moveEffect: {
+        onUse: () => {
+          writesDuringMove = battleRepository.patchGlobalFieldState.mock.calls.length;
+          return Promise.resolve(null);
+        },
+      },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(writesDuringMove).toBe(0);
+    expect(battleRepository.patchGlobalFieldState).toHaveBeenCalledWith(1, { lastMoveId: 1 });
+  });
+
+  it('呼ばれた技の中でも、バトル全体の lastMoveId はまだ書かず、最後に呼ばれた技を書く', async () => {
+    // Arrange
+    let writesDuringCalledMove = -1;
+    const { execute, battleRepository } = setupCalledMove(
+      { onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ゆびをふる' }) },
+      {
+        moveEffects: {
+          [CALLER.name]: {
+            onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ゆびをふる' }),
+          },
+          [CALLED.name]: {
+            onHit: () => {
+              writesDuringCalledMove = battleRepository.patchGlobalFieldState.mock.calls.length;
+              return Promise.resolve(null);
+            },
+          },
+        },
+      },
+    );
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(writesDuringCalledMove).toBe(0);
+    expect(battleRepository.patchGlobalFieldState).toHaveBeenCalledTimes(1);
+    expect(battleRepository.patchGlobalFieldState).toHaveBeenCalledWith(1, { lastMoveId: 2 });
+  });
+
   it('技名で呼べる（ゆびをふる・しぜんのちから）', async () => {
     // Arrange
     const { execute, statuses } = setupCalledMove({

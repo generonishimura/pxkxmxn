@@ -82,6 +82,15 @@ interface CalledMoveInfo {
 }
 
 /**
+ * 1 回の行動（executeMove）の中で、最後に出し始めた技（本家の battle.activeMove）
+ * 呼ばれた技（ゆびをふるで出た技など）を出すと書き換わる。行動の終わりに GlobalFieldState.lastMoveId に書き、
+ * 相手の特性の onOpponentMoveUsed（おどりこ）に渡す
+ */
+interface MoveTrace {
+  activeMove?: Move;
+}
+
+/**
  * 技を使う処理に渡すもの
  */
 interface MoveUseParams {
@@ -94,6 +103,8 @@ interface MoveUseParams {
   readonly attackerTrainedPokemon: TrainedPokemon;
   readonly defenderTrainedPokemon: TrainedPokemon;
   readonly called?: CalledMoveInfo;
+  /** 最後に出し始めた技の記録（みらいよちが当たるときは渡さない） */
+  readonly trace?: MoveTrace;
 }
 
 /**
@@ -256,6 +267,7 @@ export class MoveExecutorService {
       return beforeMove.message;
     }
 
+    const trace: MoveTrace = {};
     const result = await this.useMove({
       battle,
       move,
@@ -265,7 +277,15 @@ export class MoveExecutorService {
       options,
       attackerTrainedPokemon,
       defenderTrainedPokemon,
+      trace,
     });
+    // バトル全体で最後に出た技（まねっこが読む）。本家と同じく、技を出し終えてから書く。
+    // 呼ばれた技を出したときは、その技を書く（ゆびをふる → たいあたりなら、たいあたり）
+    if (trace.activeMove) {
+      await this.battleRepository.patchGlobalFieldState(battle.id, {
+        lastMoveId: trace.activeMove.id,
+      });
+    }
     const observerMessages = await this.runOpponentMoveObservers({
       battle,
       move,
@@ -480,6 +500,7 @@ export class MoveExecutorService {
         defenderAbilityEffect: undefined,
         options,
         called,
+        trace: params.trace,
       });
 
     // PP を減らす（プレッシャーの分を含む）
@@ -494,11 +515,13 @@ export class MoveExecutorService {
       });
     }
 
-    // 技を出した記録（みちづれ・おんねんの消去、lastMoveId、こだわり、まもるの回数、バトル全体の lastMoveId）
+    // 技を出した記録（みちづれ・おんねんの消去、lastMoveId、こだわり、まもるの回数）
     // みらいよちが当たるときは、技を出したことにならないので書かない
     if (called?.isFutureAttack !== true) {
+      if (params.trace) {
+        params.trace.activeMove = move;
+      }
       attacker = await this.moveLifecycle.recordMoveUse({
-        battle,
         attacker,
         move,
         moveEffect,
@@ -553,10 +576,13 @@ export class MoveExecutorService {
       MoveBehaviors.has(move.name, 'snatch')
     ) {
       await this.battleRepository.patchVolatileState(defender.id, { snatch: null });
-      const snatchedMessage = await this.executeCalledMove(battle, defender, attacker, {
-        moveId: move.id,
-        calledBy: 'よこどり',
-      });
+      const snatchedMessage = await this.executeCalledMove(
+        battle,
+        defender,
+        attacker,
+        { moveId: move.id, calledBy: 'よこどり' },
+        { trace: params.trace },
+      );
       return {
         message: `Used ${move.name} but it was snatched! ${snatchedMessage}`,
         outcome: 'failed',
@@ -599,8 +625,9 @@ export class MoveExecutorService {
     currentUser: BattlePokemonStatus,
     currentTarget: BattlePokemonStatus,
     request: CalledMoveRequest,
-    depth = 1,
+    caller: { readonly depth?: number; readonly trace?: MoveTrace } = {},
   ): Promise<string> {
+    const depth = caller.depth ?? 1;
     if (depth > MoveExecutorService.MAX_CALLED_MOVE_DEPTH) {
       return 'But it failed';
     }
@@ -646,6 +673,7 @@ export class MoveExecutorService {
         powerMultiplier: request.powerMultiplier,
         depth,
       },
+      trace: caller.trace,
     });
     return result.message;
   }
@@ -736,6 +764,7 @@ export class MoveExecutorService {
       defenderAbilityEffect,
       options,
       called,
+      trace: params.trace,
     });
 
     // ダメージ技かどうか。威力が null の攻撃技（おしおきなど）は modifyMovePower があればダメージ技として扱う
@@ -1268,6 +1297,7 @@ export class MoveExecutorService {
     defenderAbilityEffect: IAbilityEffect | undefined;
     options: ExecuteMoveOptions;
     called?: CalledMoveInfo;
+    trace?: MoveTrace;
   }): BattleContext {
     const { battle, move, attacker, defender } = params;
     const attackerAbilityName = params.attackerTrainedPokemon.ability?.name;
@@ -1311,7 +1341,7 @@ export class MoveExecutorService {
         context.attacker ?? attacker,
         context.defender ?? defender,
         request,
-        (params.called?.depth ?? 0) + 1,
+        { depth: (params.called?.depth ?? 0) + 1, trace: params.trace },
       );
 
     const baseFlags = MoveFlags.get(move.name);
