@@ -119,6 +119,9 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// ダメージを受けた・与えたときに発動する特性（Issue #135 一部）
+import { SeedSowerEffect } from './effects/weather/seed-sower-effect';
+import { ThermalExchangeEffect } from './effects/immunity/thermal-exchange-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +335,9 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // ダメージを受けた・与えたときに発動する特性（Issue #135 一部）
+      this.registry.set('こぼれダネ', new SeedSowerEffect());
+      this.registry.set('ねつこうかん', new ThermalExchangeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
