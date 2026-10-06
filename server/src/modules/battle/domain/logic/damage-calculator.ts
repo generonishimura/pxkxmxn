@@ -180,23 +180,9 @@ export class DamageCalculator {
     // 特性フックに渡すコンテキスト
     const hookContext = this.createHookContext(params, typeEffectiveness);
 
-    // 防御側の特性によるタイプ無効化チェック
-    // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
-    if (
-      params.defenderAbilityName &&
-      !AbilityRegistry.isIgnoredByMoldBreaker(
-        params.attackerAbilityName,
-        params.defenderAbilityName,
-      )
-    ) {
-      const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
-      if (abilityEffect?.isImmuneToType) {
-        const isImmune = abilityEffect.isImmuneToType(defender, params.moveType.name, hookContext);
-        // 無効化されている場合はダメージ0を返す
-        if (isImmune === true) {
-          return 0;
-        }
-      }
+    // 防御側の特性によるタイプ無効化チェック（無効化されている場合はダメージ0を返す）
+    if (this.isImmuneByDefenderAbility(params, hookContext)) {
+      return 0;
     }
 
     // 特性による威力補正
@@ -298,6 +284,45 @@ export class DamageCalculator {
     }
 
     return finalDamage;
+  }
+
+  /**
+   * 技全体のタイプ相性倍率を返す（0 なら技が相手に効かない）
+   * calculate と同じく、攻撃側特性の ignoresTypeImmunity と防御側特性の isImmuneToType を反映する
+   * 威力やランクは見ないので、ダメージを計算する前（技の beforeDamage の前）に使える
+   */
+  static calculateMoveEffectiveness(params: DamageCalculationParams): number {
+    const typeEffectiveness = this.calculateTypeEffectiveness(
+      params.move.typeId,
+      params.defenderTypes,
+      params.typeEffectiveness,
+      defenderType => this.ignoresTypeImmunity(params, defenderType),
+    );
+    if (typeEffectiveness === 0) {
+      return 0;
+    }
+    const hookContext = this.createHookContext(params, typeEffectiveness);
+    return this.isImmuneByDefenderAbility(params, hookContext) ? 0 : typeEffectiveness;
+  }
+
+  /**
+   * 防御側の特性の isImmuneToType で技のタイプが無効になるか
+   * 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視する
+   */
+  private static isImmuneByDefenderAbility(
+    params: DamageCalculationParams,
+    hookContext: BattleContext | undefined,
+  ): boolean {
+    if (
+      !params.defenderAbilityName ||
+      AbilityRegistry.isIgnoredByMoldBreaker(params.attackerAbilityName, params.defenderAbilityName)
+    ) {
+      return false;
+    }
+    const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
+    return (
+      abilityEffect?.isImmuneToType?.(params.defender, params.moveType.name, hookContext) === true
+    );
   }
 
   /**

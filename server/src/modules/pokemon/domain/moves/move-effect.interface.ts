@@ -53,6 +53,8 @@ export interface IMoveEffect {
 
   /**
    * ダメージ計算前に発動する効果
+   * 技のタイプを決めたあとに呼ばれる。battleContext.moveTypeName は決まったタイプ、
+   * battleContext.moveTypeEffectiveness は技全体のタイプ相性（0 なら技が相手に効かない）
    * @param attacker 攻撃側のポケモン
    * @param defender 防御側のポケモン
    * @param move 使用する技
@@ -107,7 +109,7 @@ export interface IMoveEffect {
 
   /**
    * ダメージ計算前に技のタイプを変更する効果（例: ウェザーボール）
-   * beforeDamage のあと、攻撃側特性の modifyMoveType の前に呼ばれる
+   * 命中判定のあと、beforeDamage の前（攻撃側特性の modifyMoveType の前）に呼ばれる
    * @returns 変更後のタイプ名（日本語名、例: "ほのお"）、変更しない場合はundefined
    */
   modifyMoveType?(

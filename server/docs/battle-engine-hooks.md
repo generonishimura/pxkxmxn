@@ -18,8 +18,8 @@
 4. 技の `shouldFail` で技が失敗するか判定する。失敗ならPPだけ減って `Used <技> but it failed`
 5. 命中判定（`AccuracyCalculator.checkHit`）
 6. 変化技なら `onUse` を呼んで終わり（威力が null で `modifyMovePower` もない攻撃技も、今までどおりここで終わる）
-7. 技の `beforeDamage`（連続技の回数決定）。このあと攻撃側・防御側の状態を取り直す
-8. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType`）
+7. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType`）。技全体のタイプ相性を `moveTypeEffectiveness` に入れる
+8. 技の `beforeDamage`（連続技の回数決定）。このあと攻撃側・防御側の状態を取り直す
 9. 技の威力を決める（技の `modifyMovePower`）
 10. ヒットごとにダメージを計算して当てる（連続技・おやこあいの追加ヒット）。1以上減らしたヒットごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼び、両者の状態を取り直す。ダメージ0・どちらかがひんしで止まる
 11. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
@@ -64,7 +64,7 @@ modifyMovePower(_attacker: BattlePokemonStatus, defender: BattlePokemonStatus): 
 ### modifyMoveType
 
 - シグネチャ: `modifyMoveType?(attacker, defender, battleContext): string | undefined`
-- 呼ばれる場所: `executeMove`。`beforeDamage` のあと、攻撃側特性の `modifyMoveType` の前
+- 呼ばれる場所: `executeMove`。命中判定のあと、`beforeDamage` と攻撃側特性の `modifyMoveType` の前
 - 使う技: ウェザーボール
 - 戻り値は日本語のタイプ名（例: `'ほのお'`）です。エンジンが `ITypeEffectivenessRepository.findTypeByName` でタイプを引き、タイプ一致・相性・天候補正に使います。
 
@@ -118,7 +118,7 @@ export class FacadeEffect implements IMoveEffect {
 
 ### beforeDamage / afterDamage（呼ばれるようになった既存フック）
 
-- `beforeDamage(attacker, defender, move, battleContext)`: 命中後、タイプ決定の前に1回。`battleContext.multiHitCount` を2以上にすると、その回数だけダメージを与えます（`BaseMultiHitEffect` が使う）。
+- `beforeDamage(attacker, defender, move, battleContext)`: 命中後、タイプ決定のあとに1回。`battleContext.multiHitCount` を2以上にすると、その回数だけダメージを与えます（`BaseMultiHitEffect` が使う）。
 - `afterDamage(attacker, defender, damage, battleContext)`: `onHit` のあとに1回。`damage` は全ヒットで実際に減らしたHPの合計です（反動技など）。相手の残りHPを超えた分は入りません。
 
 ```ts
@@ -128,6 +128,7 @@ async beforeDamage(_a: BattlePokemonStatus, _d: BattlePokemonStatus, _m: Move, c
 ```
 
 - `beforeDamage` のあと、エンジンは攻撃側・防御側を取り直してからダメージを計算します。シャドースチールのように、ダメージの前に相手のランクを奪う効果はここに書きます（相手のランクは直接書き込み、自分の上昇は `applyStatChanges` で行う）。
+- `battleContext.moveTypeName` は決まったあとのタイプ、`battleContext.moveTypeEffectiveness` は技全体のタイプ相性です（攻撃側特性の `ignoresTypeImmunity` と防御側特性の `isImmuneToType` を反映）。シャドースチールは `moveTypeEffectiveness === 0`（ノーマルタイプの相手など）ならランクを奪いません（本家と同じ）。
 
 ### shouldFail
 
@@ -476,6 +477,7 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `attacker` / `defender` | 攻撃側・防御側の最新の状態（ランク・HP・状態異常） | 技の実行・ダメージ計算。行動順では `attacker` が行動するポケモン |
 | `attackerStats` / `defenderStats` | ランク補正前の実数値 | 技の実行・ダメージ計算。行動順では `attackerStats` が行動するポケモン |
 | `typeEffectiveness` | このヒットのタイプ相性（0〜4） | ダメージ計算中の特性フック |
+| `moveTypeEffectiveness` | 技全体のタイプ相性（0〜4）。防御側特性の `isImmuneToType` で無効なら0 | ダメージ技の `beforeDamage` 以降 |
 | `weather` | 効果のある天候（ノーてんき等がいれば `None`） | 技の実行・行動順・ターン終了時・ダメージ計算 |
 | `isLastToMove` | このターン最後に行動するか | 技の実行・ダメージ計算 |
 | `hasRecoil` | 反動・外したときの自傷がある技か（技の `hasRecoil`） | 技の実行・ダメージ計算 |
@@ -579,7 +581,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | 特性・技 | 使うもの |
 | --- | --- |
 | ゆめくい | 技の `shouldFail` + `afterDamage` で `applyDrainHeal(attacker, defender, calculateDrainAmount(damage, 0.5), ctx)` |
-| シャドースチール | 技の `beforeDamage`（相手のプラスのランクを0にし、自分は `applyStatChanges`）。このあとエンジンが状態を取り直す |
+| シャドースチール | 技の `beforeDamage`（`ctx.moveTypeEffectiveness === 0` なら何もしない。相手のプラスのランクを0にし、自分は `applyStatChanges`）。このあとエンジンが状態を取り直す |
 | あくしゅう | `onSourceDamagingHit` + `rollSecondaryEffect(0.1, ctx)` + `tryInflictStatus(target, Flinch, ...)` |
 | どくしゅ・どくのくさり | `onSourceDamagingHit` + `tryInflictStatus`（どくしゅは `hit.isContact` のときだけ） |
 | しめりけ | `preventsMove`（両方の役割で、技名が だいばくはつ・じばく・ビックリヘッド・ミストバースト なら true） |

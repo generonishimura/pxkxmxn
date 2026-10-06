@@ -211,5 +211,6 @@ export const setupMoveExecutor = (options: MoveExecutorSetupOptions = {}) => {
     battleRepository,
     trainedPokemonRepository,
     trainedPokemons,
+    typeEffectivenessRepository,
   };
 };

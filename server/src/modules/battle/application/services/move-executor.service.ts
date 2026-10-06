@@ -16,7 +16,11 @@ import {
   TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
 } from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
-import { DamageCalculator, MoveInfo } from '../../domain/logic/damage-calculator';
+import {
+  DamageCalculationParams,
+  DamageCalculator,
+  MoveInfo,
+} from '../../domain/logic/damage-calculator';
 import { AccuracyCalculator } from '../../domain/logic/accuracy-calculator';
 import { StatCalculator } from '../../domain/logic/stat-calculator';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
@@ -88,8 +92,8 @@ export class MoveExecutorService {
    * 3. 防御側特性の isImmuneToMove（ぼうおんなど）で技そのものが無効かを判定する（無効なら onMoveBlocked）
    * 4. 技の shouldFail（ゆめくいなど）で技が失敗するかを判定する
    * 5. 命中判定
-   * 6. 技の beforeDamage（連続技の回数決定）。このあと両者の状態を取り直す
-   * 7. 技タイプの決定（技の modifyMoveType → 攻撃側特性の modifyMoveType）
+   * 6. 技タイプの決定（技の modifyMoveType → 攻撃側特性の modifyMoveType）と、技全体のタイプ相性
+   * 7. 技の beforeDamage（連続技の回数決定）。このあと両者の状態を取り直す
    * 8. 技の威力の決定（技の modifyMovePower）
    * 9. ヒットごとにダメージを適用し、防御側特性の onDamagingHit → 攻撃側特性の onSourceDamagingHit を呼ぶ
    * 10. 接触時の特性 → onHit → afterDamage（合計ダメージ） → 防御側特性の onAfterMoveHit → 攻撃側特性の onKnockOut
@@ -260,9 +264,55 @@ export class MoveExecutorService {
     battleContext.secondaryEffectsSuppressed =
       defenderAbilityEffect?.blocksSecondaryEffects === true;
 
-    // ダメージ計算前の技の効果（連続技の回数決定、シャドースチールのランクを奪う効果など）
     let currentAttacker = attacker;
     let updatedDefender = defender;
+
+    // 技のタイプを決定（技の効果 → 攻撃側特性の順）。beforeDamage（シャドースチールなど）で使うため先に決める
+    const moveType = await this.resolveMoveType(
+      move,
+      moveEffect,
+      attacker,
+      defender,
+      attackerAbilityEffect,
+      battleContext,
+    );
+    battleContext.moveTypeName = moveType.name;
+
+    // ダメージ計算の入力（攻撃側・防御側はその時点の最新の状態を使う）
+    const typeEffectiveness = await this.typeEffectivenessRepository.getTypeEffectivenessMap();
+    const createDamageParams = (power: number | null): DamageCalculationParams => ({
+      attacker: currentAttacker,
+      defender: updatedDefender,
+      move: { power, typeId: moveType.id, category: move.category, accuracy: move.accuracy },
+      moveType,
+      attackerTypes: {
+        primary: attackerTrainedPokemon.pokemon.primaryType,
+        secondary: attackerTrainedPokemon.pokemon.secondaryType,
+      },
+      defenderTypes: {
+        primary: defenderTrainedPokemon.pokemon.primaryType,
+        secondary: defenderTrainedPokemon.pokemon.secondaryType,
+      },
+      typeEffectiveness,
+      weather: battleContext.weather ?? null,
+      field: battle.field,
+      attackerAbilityName,
+      defenderAbilityName,
+      attackerStats: battleContext.attackerStats,
+      defenderStats: battleContext.defenderStats,
+      battle,
+      // ヒットごとの値（hitIndex など）を固定するため、その時点のコピーを渡す
+      battleContext: { ...battleContext },
+      attackStatOverride: moveEffect?.attackStatOverride,
+      ignoresBurnPenalty: moveEffect?.ignoresBurnPenalty,
+    });
+
+    // 技全体のタイプ相性（0 なら技が相手に効かない。シャドースチールはランクを奪わない）
+    battleContext.moveTypeEffectiveness = DamageCalculator.calculateMoveEffectiveness(
+      createDamageParams(move.power),
+    );
+
+    // ダメージ計算前の技の効果（連続技の回数決定、シャドースチールのランクを奪う効果など）
     if (moveEffect?.beforeDamage) {
       await moveEffect.beforeDamage(attacker, defender, move, battleContext);
       // beforeDamage でランクなどが変わることがあるため、最新の状態を取り直す
@@ -273,17 +323,6 @@ export class MoveExecutorService {
       battleContext.attacker = currentAttacker;
       battleContext.defender = updatedDefender;
     }
-
-    // 技のタイプを決定（技の効果 → 攻撃側特性の順）
-    const moveType = await this.resolveMoveType(
-      move,
-      moveEffect,
-      currentAttacker,
-      updatedDefender,
-      attackerAbilityEffect,
-      battleContext,
-    );
-    battleContext.moveTypeName = moveType.name;
 
     // 技の威力を決定
     const power =
@@ -305,9 +344,6 @@ export class MoveExecutorService {
     if (hitPowers.length > 1) {
       battleContext.multiHitCount = hitPowers.length;
     }
-
-    // タイプ相性を取得
-    const typeEffectiveness = await this.typeEffectivenessRepository.getTypeEffectivenessMap();
 
     // ヒットごとにダメージを計算して適用
     // damage は実際に減らしたHPの合計（残りHPを超えた分は含めない。反動などはこの値を使う）
@@ -331,39 +367,7 @@ export class MoveExecutorService {
     });
     for (const [hitIndex, hitPower] of hitPowers.entries()) {
       battleContext.hitIndex = hitIndex;
-      const moveInfo: MoveInfo = {
-        power: hitPower,
-        typeId: moveType.id,
-        category: move.category,
-        accuracy: move.accuracy,
-      };
-
-      const hitDamage = await DamageCalculator.calculate({
-        attacker: currentAttacker,
-        defender: updatedDefender,
-        move: moveInfo,
-        moveType,
-        attackerTypes: {
-          primary: attackerTrainedPokemon.pokemon.primaryType,
-          secondary: attackerTrainedPokemon.pokemon.secondaryType,
-        },
-        defenderTypes: {
-          primary: defenderTrainedPokemon.pokemon.primaryType,
-          secondary: defenderTrainedPokemon.pokemon.secondaryType,
-        },
-        typeEffectiveness,
-        weather: battleContext.weather ?? null,
-        field: battle.field,
-        attackerAbilityName,
-        defenderAbilityName,
-        attackerStats: battleContext.attackerStats,
-        defenderStats: battleContext.defenderStats,
-        battle,
-        // ヒットごとの値（hitIndex など）を固定するため、その時点のコピーを渡す
-        battleContext: { ...battleContext },
-        attackStatOverride: moveEffect?.attackStatOverride,
-        ignoresBurnPenalty: moveEffect?.ignoresBurnPenalty,
-      });
+      const hitDamage = await DamageCalculator.calculate(createDamageParams(hitPower));
 
       // ダメージを適用
       const hpBeforeHit = updatedDefender.currentHp;

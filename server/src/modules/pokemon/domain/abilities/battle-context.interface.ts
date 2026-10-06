@@ -166,6 +166,13 @@ export interface BattleContext {
   typeEffectiveness?: number;
 
   /**
+   * 技全体のタイプ相性倍率（技のタイプを決めたあとの値。防御側特性の isImmuneToType も含む）
+   * 0 なら技が相手に効かない。ダメージ技の executeMove で、技の beforeDamage の前に設定される
+   * （シャドースチールは 0 ならランクを奪わない）
+   */
+  moveTypeEffectiveness?: number;
+
+  /**
    * このターン、技の使用者が最後に行動するかどうか（アナライズ）
    */
   isLastToMove?: boolean;
