@@ -53,7 +53,8 @@ const INFATUATION_IMMOBILIZE_CHANCE = 0.5;
  * 3. こおり: 20% で溶ける（かえんぐるまなど defrost の技は必ず溶ける）
  * 4. 使用者の特性の onBeforeMove（なまけ）
  * 5. ひるみ: 動けない。使用者の特性の onFlinch（ふくつのこころ）を呼ぶ
- * 6. 技の制限（かなしばり・かいふくふうじ・じごくづき・ちょうはつ・ふういん・アンコール・いちゃもん・こだわり）
+ * 6. 技の制限（かなしばり・かいふくふうじ・じごくづき・ちょうはつ・ふういん・アンコール・こだわり）。
+ *    いちゃもん・続けて出せない技は技を選ぶときだけ効くので、ここでは見ない（findMoveRestriction の phase: execute）
  * 7. こんらん: 残り回数を 1 減らす。0 なら解ける。解けていなければ 33% で自分を攻撃する
  * 8. メロメロ: 50% で動けない
  * 9. まひ: 25% で動けない
@@ -116,7 +117,7 @@ export class BeforeMoveChecker {
     const restriction = findMoveRestriction(
       attacker.volatileState,
       { moveId: move.id, moveName: move.name, category: move.category },
-      { imprisonedMoveIds: await this.findImprisonedMoveIds(params.defender) },
+      { imprisonedMoveIds: await this.findImprisonedMoveIds(params.defender), phase: 'execute' },
     );
     if (restriction) {
       return prevented(moveRestrictionMessage(restriction, move.name));

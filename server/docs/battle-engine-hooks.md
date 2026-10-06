@@ -725,8 +725,9 @@ async onFlinch(holder: BattlePokemonStatus, ctx?: BattleContext): Promise<string
 
 #### findMoveRestriction / moveRestrictionMessage
 
-- シグネチャ: `findMoveRestriction(state: VolatileState, move: { moveId, moveName, category }, { imprisonedMoveIds? }): MoveRestrictionReason | undefined`
-- 場所: `battle/domain/logic/move-selection.ts`。エンジンが技を出す前（`BeforeMoveChecker`）と、わるあがきを出すかの判定（`ExecuteTurnUseCase`）で使う
+- シグネチャ: `findMoveRestriction(state: VolatileState, move: { moveId, moveName, category }, { imprisonedMoveIds?, phase? }): MoveRestrictionReason | undefined`
+- 場所: `battle/domain/logic/move-selection.ts`。エンジンが技を出す前（`BeforeMoveChecker`、`phase: 'execute'`）と、わるあがきを出すかの判定（`ExecuteTurnUseCase`、`phase` なし = `'select'`）で使う
+- `phase: 'execute'` では `torment` と続けて出せない技を見ない。本家ではこの 2 つは技を選ぶときだけ効く（onDisableMove）ので、ため技の 2 ターン目や出し続ける技は止まらない
 - 判定する状態: `disable` → `healBlockTurns`（回復技）→ `throatChopTurns`（音技）→ `tauntTurns`（変化技）→ 相手の `imprison` → `encore` → `torment`（直前の技）→ `choiceLockedMoveId` → 続けて出せない技（デカハンマー・ブラッドムーン）。わるあがきは制限を受けない
 - 使う技・特性: かなしばり・かいふくふうじ・じごくづき・ちょうはつ・ふういん・アンコール・いちゃもん・ごりむちゅう・のろわれボディ。技の実装は、キーを書くだけでよい
 

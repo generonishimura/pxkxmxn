@@ -500,7 +500,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 3. こおり: 20% で溶ける（`defrost` の技は必ず溶ける）
 4. 特性の `onBeforeMove`（なまけ）
 5. `flinched`: 動けない。特性の `onFlinch`（ふくつのこころ）を呼ぶ
-6. 技の制限（`findMoveRestriction`）: `disable`・`healBlockTurns`・`throatChopTurns`・`tauntTurns`・相手の `imprison`・`encore`・`torment`・`choiceLockedMoveId`・続けて出せない技
+6. 技の制限（`findMoveRestriction` の `phase: 'execute'`）: `disable`・`healBlockTurns`・`throatChopTurns`・`tauntTurns`・相手の `imprison`・`encore`・`choiceLockedMoveId`。`torment` と続けて出せない技は、技を選ぶとき（`planAction`）だけ見る。本家でも技を選ぶときだけ効くので、ため技の 2 ターン目・出し続ける技は止まらない
 7. `confusionTurns`: 1 減らす。0 なら解けて技を出す。残っていれば 33% で自分を攻撃する
 8. `infatuatedWithStatusId`: 相手がそのポケモンなら 50% で動けない
 9. まひ: 25% で動けない

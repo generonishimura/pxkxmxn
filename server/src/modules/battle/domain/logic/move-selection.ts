@@ -42,17 +42,28 @@ export interface MoveCandidate {
 }
 
 /**
- * 使用者以外から決まる制限
+ * 制限を判定する場面
+ * - select: 技を選ぶとき（わるあがきを出すかの判定）。すべての制限を見る
+ * - execute: 技を出すとき（BeforeMoveChecker）。本家で onBeforeMove を持つ制限だけを見る。
+ *   いちゃもん・続けて出せない技は技を選ぶときだけ効くので、ため技の 2 ターン目・出し続ける技・
+ *   同じターンにいちゃもんをつけられたときの技は止めない
+ */
+export type MoveRestrictionPhase = 'select' | 'execute';
+
+/**
+ * 使用者以外から決まる制限と、判定する場面
  */
 export interface MoveRestrictionOptions {
   /** 相手がふういんを使っているとき、相手が覚えている技の ID */
   readonly imprisonedMoveIds?: readonly number[];
+  /** 判定する場面（既定は select） */
+  readonly phase?: MoveRestrictionPhase;
 }
 
 /**
  * 技を出せない理由を返す（出せるなら undefined）
  * 判定の順は本家の onBeforeMove の優先度に合わせる（かなしばり → かいふくふうじ・じごくづき → ちょうはつ → ふういん）。
- * アンコール・いちゃもん・こだわりは、本家では技を選ぶ時点で選べない技として扱われる
+ * いちゃもん・続けて出せない技は、本家では技を選ぶ時点だけで選べない技として扱われる（phase: execute では見ない）
  * わるあがきはどの制限も受けない
  */
 export const findMoveRestriction = (
@@ -81,13 +92,18 @@ export const findMoveRestriction = (
   if (user.encore !== undefined && user.encore.moveId !== move.moveId) {
     return 'encore';
   }
-  if (user.torment === true && user.lastMoveId === move.moveId) {
+  const selecting = options.phase !== 'execute';
+  if (selecting && user.torment === true && user.lastMoveId === move.moveId) {
     return 'torment';
   }
   if (user.choiceLockedMoveId !== undefined && user.choiceLockedMoveId !== move.moveId) {
     return 'choiceLock';
   }
-  if (user.lastMoveId === move.moveId && MoveBehaviors.has(move.moveName, 'cantUseTwice')) {
+  if (
+    selecting &&
+    user.lastMoveId === move.moveId &&
+    MoveBehaviors.has(move.moveName, 'cantUseTwice')
+  ) {
     return 'cantUseTwice';
   }
   return undefined;

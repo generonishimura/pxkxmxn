@@ -200,6 +200,39 @@ describe('MoveExecutorService - 技を出す前の判定（BeforeMoveChecker）'
     expect(message).toBe('Cannot act due to paralysis');
   });
 
+  it('いちゃもん中でも、げきりんの 2 ターン目は出せて、出し続ける状態も残る', async () => {
+    // Arrange
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    const { execute, statuses } = setupMoveExecutor({
+      move: createMove('げきりん', MoveCategory.Physical, 120),
+      attacker: {
+        volatileState: { torment: true, lastMoveId: 1, lockedInMove: { moveId: 1, turns: 2 } },
+      },
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used げきりん and dealt 10 damage');
+    expect(statuses.get(ATTACKER_ID).volatileState.lockedInMove).toEqual({ moveId: 1, turns: 1 });
+  });
+
+  it('いちゃもん中でも、ソーラービームの 2 ターン目は出せる', async () => {
+    // Arrange
+    const { execute, statuses } = setupMoveExecutor({
+      move: createMove('ソーラービーム', MoveCategory.Special, 120),
+      attacker: { volatileState: { torment: true, lastMoveId: 1, chargingMoveId: 1 } },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
+    expect(statuses.get(ATTACKER_ID).volatileState.chargingMoveId).toBeUndefined();
+  });
+
   it('技を出せなかったときは、ため技と出し続ける技の状態を消す', async () => {
     // Arrange
     const { execute, statuses } = setupMoveExecutor({

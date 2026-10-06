@@ -148,6 +148,46 @@ describe('move-selection', () => {
       // Assert
       expect(reason).toBe('disable');
     });
+
+    describe('技を出すとき（phase: execute）', () => {
+      it('いちゃもんは技を選ぶときだけ効くので、技を出すときは止めない', () => {
+        // Act
+        const reason = findMoveRestriction({ torment: true, lastMoveId: 10 }, candidate(), {
+          phase: 'execute',
+        });
+
+        // Assert
+        expect(reason).toBeUndefined();
+      });
+
+      it('続けて出せない技も、技を出すときは止めない', () => {
+        // Act
+        const reason = findMoveRestriction(
+          { lastMoveId: 10 },
+          candidate({ moveName: 'デカハンマー', category: 'Physical' }),
+          { phase: 'execute' },
+        );
+
+        // Assert
+        expect(reason).toBeUndefined();
+      });
+
+      it('かなしばり・ちょうはつ・こだわりは、技を出すときも止める', () => {
+        // Act
+        const reasons = [
+          findMoveRestriction({ disable: { moveId: 10, turns: 2 } }, candidate(), {
+            phase: 'execute',
+          }),
+          findMoveRestriction({ tauntTurns: 2 }, candidate({ category: 'Status' }), {
+            phase: 'execute',
+          }),
+          findMoveRestriction({ choiceLockedMoveId: 1 }, candidate(), { phase: 'execute' }),
+        ];
+
+        // Assert
+        expect(reasons).toEqual(['disable', 'taunt', 'choiceLock']);
+      });
+    });
   });
 
   describe('moveRestrictionMessage', () => {
