@@ -205,6 +205,7 @@ import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 // 相手を一時的な状態にする特性（Issue #135 一部）
 import { CuteCharmEffect } from './effects/other/cute-charm-effect';
+import { CursedBodyEffect } from './effects/other/cursed-body-effect';
 
 /**
  * 特性レジストリ
@@ -509,6 +510,7 @@ export class AbilityRegistry {
       this.registry.set('びんじょう', new OpportunistEffect());
       // 相手を一時的な状態にする特性（Issue #135 一部）
       this.registry.set('メロメロボディ', new CuteCharmEffect());
+      this.registry.set('のろわれボディ', new CursedBodyEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
