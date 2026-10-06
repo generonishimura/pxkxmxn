@@ -434,4 +434,10 @@ export interface IAbilityEffect {
    * 混乱の自傷は防がない（本家と同じ）
    */
   readonly preventsIndirectDamage?: boolean;
+
+  /**
+   * HPを吸い取った相手を、回復させずに同じ量のダメージを与える特性かどうか（例: ヘドロえき）
+   * applyDrainHeal で、吸い取られた側の特性として参照される。かたやぶりでは無視されない
+   */
+  readonly reversesDrainHeal?: boolean;
 }
