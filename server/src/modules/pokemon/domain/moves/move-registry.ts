@@ -265,6 +265,7 @@ import { SketchEffect } from './effects/sketch-effect';
 import { MetronomeEffect } from './effects/metronome-effect';
 import { MirrorMoveEffect } from './effects/mirror-move-effect';
 import { AssistEffect } from './effects/assist-effect';
+import { SnatchEffect } from './effects/snatch-effect';
 
 /**
  * 技のレジストリ
@@ -638,6 +639,7 @@ export class MoveRegistry {
       this.registry.set('ゆびをふる', new MetronomeEffect());
       this.registry.set('オウムがえし', new MirrorMoveEffect());
       this.registry.set('ねこのて', new AssistEffect());
+      this.registry.set('よこどり', new SnatchEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
