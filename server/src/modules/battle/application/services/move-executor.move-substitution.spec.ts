@@ -199,4 +199,59 @@ describe('MoveExecutorService - 別の技を出す技・特性', () => {
     expect(message).toBe('Used しぜんのちから Used １０まんボルト and dealt 10 damage');
     expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
   });
+
+  it('おどりこ: 相手がおどり技を出したあと、同じ技を自分も出す', async () => {
+    // Arrange
+    const quiverDance = moveOf(1, 'ちょうのまい', MoveCategory.Status, null);
+    const onUse = jest.fn().mockResolvedValue(null);
+    const { execute } = setupMoveExecutor({
+      move: quiverDance,
+      moveEffect: { onUse },
+      defenderAbility: 'おどりこ',
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used ちょうのまい Used ちょうのまい');
+    expect(onUse).toHaveBeenCalledTimes(2);
+    expect(onUse.mock.calls[1][0].id).toBe(DEFENDER_ID);
+  });
+
+  it('おどりこ: ねむっていれば、おどり技を出せない', async () => {
+    // Arrange
+    const quiverDance = moveOf(1, 'ちょうのまい', MoveCategory.Status, null);
+    const onUse = jest.fn().mockResolvedValue(null);
+    const { execute } = setupMoveExecutor({
+      move: quiverDance,
+      moveEffect: { onUse },
+      defenderAbility: 'おどりこ',
+      defender: { statusCondition: StatusCondition.Sleep },
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used ちょうのまい Cannot act due to sleep');
+    expect(onUse).toHaveBeenCalledTimes(1);
+  });
+
+  it('おどりこ: おどり技でなければ出さない', async () => {
+    // Arrange
+    const onUse = jest.fn().mockResolvedValue(null);
+    const { execute } = setupMoveExecutor({
+      move: moveOf(1, 'こうそくいどう', MoveCategory.Status, null),
+      moveEffect: { onUse },
+      defenderAbility: 'おどりこ',
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used こうそくいどう');
+    expect(onUse).toHaveBeenCalledTimes(1);
+  });
 });
