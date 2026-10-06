@@ -228,6 +228,53 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       expect(calculateParams().battleContext?.movePower).toBe(130);
     });
 
+    it('威力が null の攻撃技でも、modifyMovePower があれば命中判定をしてその威力でダメージを計算する', async () => {
+      // Arrange
+      const { execute, calculate, calculateParams, checkHit } = setup({
+        move: createMove('おしおき', MoveCategory.Physical, null),
+        moveEffect: { modifyMovePower: () => 80 },
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(checkHit).toHaveBeenCalledTimes(1);
+      expect(calculate).toHaveBeenCalledTimes(1);
+      expect(calculateParams().move.power).toBe(80);
+      expect(message).toBe('Used おしおき and dealt 10 damage');
+    });
+
+    it('威力が null の攻撃技で、modifyMovePower が威力を返さなければ今までどおりダメージを与えない', async () => {
+      // Arrange
+      const { execute, calculate } = setup({
+        move: createMove('おしおき', MoveCategory.Physical, null),
+        moveEffect: { modifyMovePower: () => undefined },
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(calculate).not.toHaveBeenCalled();
+      expect(message).toBe('Used おしおき');
+    });
+
+    it('威力が null の攻撃技で modifyMovePower がなければ、今までどおり命中判定もダメージもない', async () => {
+      // Arrange
+      const { execute, calculate, checkHit } = setup({
+        move: createMove('ちきゅうなげ', MoveCategory.Physical, null),
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(checkHit).not.toHaveBeenCalled();
+      expect(calculate).not.toHaveBeenCalled();
+      expect(message).toBe('Used ちきゅうなげ');
+    });
+
     it('技の modifyMoveType が返したタイプでダメージを計算し、威力の判定にも使う', async () => {
       // Arrange
       const seenTypes: Array<string | undefined> = [];

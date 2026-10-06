@@ -14,7 +14,7 @@
 1. ヒット共通のコンテキストを作る（技名・技フラグ・効果のある天候・実数値・無視するランク）
 2. 防御側特性の `isImmuneToMove` で技そのものを無効にするか判定する（変化技も含む）
 3. 命中判定（`AccuracyCalculator.checkHit`）
-4. 変化技なら `onUse` を呼んで終わり
+4. 変化技なら `onUse` を呼んで終わり（威力が null で `modifyMovePower` もない攻撃技も、今までどおりここで終わる）
 5. 技の `beforeDamage`（連続技の回数決定）
 6. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType`）
 7. 技の威力を決める（技の `modifyMovePower`）
@@ -37,6 +37,7 @@
 - 呼ばれる場所: `executeMove`。タイプ決定のあと、ダメージ計算の前に1回
 - 使う技: たたりめ、ベノムショック、からげんき、アシストパワー、つけあがる、おしおき、ウェザーボール
 - 戻り値は変更後の威力です。`battleContext.moveTypeName` は変更後のタイプ、`battleContext.weather` は効果のある天候です。
+- 威力が null の攻撃技（DB の威力が null のおしおきなど）は、`modifyMovePower` を持たせるとダメージ技として扱われ、命中判定とダメージ計算をします。`undefined` を返して威力が決まらない場合は、ダメージを与えずに終わります。
 
 ```ts
 modifyMovePower(_attacker: BattlePokemonStatus, defender: BattlePokemonStatus): number | undefined {

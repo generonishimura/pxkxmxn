@@ -167,6 +167,11 @@ export class MoveExecutorService {
       options,
     });
 
+    // ダメージ技かどうか。威力が null の攻撃技（おしおきなど）は modifyMovePower があればダメージ技として扱う
+    const isDamagingMove =
+      move.category !== 'Status' &&
+      (move.power !== null || moveEffect?.modifyMovePower !== undefined);
+
     // 技そのものの無効化（ぼうおん・ぼうだんなど）。変化技も含め、命中判定の前に判定する
     if (
       MoveFlags.targetsOpponent(move.name) &&
@@ -177,7 +182,7 @@ export class MoveExecutorService {
     }
 
     // 命中率判定（変化技の場合は常に命中とみなす）
-    if (move.category !== 'Status' && move.power !== null) {
+    if (isDamagingMove) {
       const hit = AccuracyCalculator.checkHit(
         move.accuracy,
         attacker,
@@ -204,7 +209,7 @@ export class MoveExecutorService {
     }
 
     // 変化技の場合はダメージなし(PPは消費される)
-    if (move.category === 'Status' || move.power === null) {
+    if (!isDamagingMove) {
       await this.consumePp(battlePokemonMoveId);
 
       // 変化技の特殊効果（onUse）を呼び出す
@@ -240,6 +245,11 @@ export class MoveExecutorService {
 
     // 技の威力を決定
     const power = moveEffect?.modifyMovePower?.(attacker, defender, battleContext) ?? move.power;
+    // 威力が決まらなかった場合はダメージを与えない（PPは消費される）
+    if (power === null) {
+      await this.consumePp(battlePokemonMoveId);
+      return `Used ${move.name}`;
+    }
     battleContext.movePower = power;
 
     // ヒットごとの威力（連続技・おやこあいの追加ヒット）
