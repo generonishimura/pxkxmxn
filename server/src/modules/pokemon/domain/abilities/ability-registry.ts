@@ -170,6 +170,11 @@ import { SandSpitEffect } from './effects/weather/sand-spit-effect';
 import { ChillingNeighEffect } from './effects/stat-change/chilling-neigh-effect';
 import { GrimNeighEffect } from './effects/stat-change/grim-neigh-effect';
 import { AsOneGlastrierEffect } from './effects/stat-change/as-one-glastrier-effect';
+// ダメージを受けた・与えたときに発動する特性（Issue #135 一部）
+import { SeedSowerEffect } from './effects/weather/seed-sower-effect';
+import { ThermalExchangeEffect } from './effects/immunity/thermal-exchange-effect';
+import { AngerShellEffect } from './effects/stat-change/anger-shell-effect';
+import { ToxicChainEffect } from './effects/other/toxic-chain-effect';
 
 /**
  * 特性レジストリ
@@ -436,6 +441,11 @@ export class AbilityRegistry {
       this.registry.set('しろのいななき', new ChillingNeighEffect());
       this.registry.set('くろのいななき', new GrimNeighEffect());
       this.registry.set('じんばいったい', new AsOneGlastrierEffect());
+      // ダメージを受けた・与えたときに発動する特性（Issue #135 一部）
+      this.registry.set('こぼれダネ', new SeedSowerEffect());
+      this.registry.set('ねつこうかん', new ThermalExchangeEffect());
+      this.registry.set('いかりのこうら', new AngerShellEffect());
+      this.registry.set('どくのくさり', new ToxicChainEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
