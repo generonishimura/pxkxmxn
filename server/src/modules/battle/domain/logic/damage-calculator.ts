@@ -7,6 +7,13 @@ import { ValidationException } from '@/shared/domain/exceptions';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { AttackStatOverride } from '@/modules/pokemon/domain/moves/move-effect.interface';
 import { modifyByFixedPoint } from './fixed-point-modifier';
+import {
+  applyStatOverrides,
+  basePowerModifierByVolatile,
+  ignoresTypeImmunityByVolatile,
+  semiInvulnerableDamageMultiplier,
+  typeEffectivenessMultiplierByVolatile,
+} from './volatile-modifiers';
 
 /**
  * Moveの情報
@@ -82,6 +89,8 @@ export interface DamageCalculationParams {
  * - 特性効果（AbilityRegistryを使用）
  * - 天候
  * - フィールド
+ * - 一時的な状態（volatileState）: 実数値の上書き、みやぶる・ミラクルアイ・ねをはるの相性、
+ *   タールショット・でんじふゆう・テレキネシスの相性、じゅうでんの威力、隠れている相手への 2 倍
  */
 export class DamageCalculator {
   /**
@@ -165,6 +174,8 @@ export class DamageCalculator {
       return 0;
     }
 
+    // パワートリック・ガードシェアなどの実数値の上書きを反映する（技の実行で反映済みでも、同じ値になる）
+    params = this.withStatOverrides(params);
     const move = params.move;
     const attacker = params.attacker;
     const defender = params.defender;
@@ -175,13 +186,8 @@ export class DamageCalculator {
     // タイプ一致補正（1.5倍または1.0倍）
     const stab = this.calculateStab(params.move.typeId, params.attackerTypes);
 
-    // タイプ相性補正（攻撃側特性の ignoresTypeImmunity で相性0を等倍にできる）
-    const typeEffectiveness = this.calculateTypeEffectiveness(
-      params.move.typeId,
-      params.defenderTypes,
-      params.typeEffectiveness,
-      defenderType => this.ignoresTypeImmunity(params, defenderType),
-    );
+    // タイプ相性補正（攻撃側特性の ignoresTypeImmunity・防御側の一時的な状態で相性0を等倍にできる）
+    const typeEffectiveness = this.calculateFullTypeEffectiveness(params);
 
     // 特性フックに渡すコンテキスト
     const hookContext = this.createHookContext(params, typeEffectiveness);
@@ -285,6 +291,12 @@ export class DamageCalculator {
     // 天候による補正
     damageMultiplier *= this.getWeatherMultiplier(params.moveType, params.weather);
 
+    // 隠れている相手への 2 倍（そらをとぶ中のかぜおこし・あなをほる中のじしんなど）
+    damageMultiplier *= semiInvulnerableDamageMultiplier(
+      defender.volatileState,
+      params.battleContext?.moveName,
+    );
+
     // 最終ダメージを計算
     const finalDamage = Math.floor(baseDamage * damageMultiplier);
 
@@ -307,12 +319,7 @@ export class DamageCalculator {
    * 威力やランクは見ないので、ダメージを計算する前（技の beforeDamage の前）に使える
    */
   static calculateMoveEffectiveness(params: DamageCalculationParams): number {
-    const typeEffectiveness = this.calculateTypeEffectiveness(
-      params.move.typeId,
-      params.defenderTypes,
-      params.typeEffectiveness,
-      defenderType => this.ignoresTypeImmunity(params, defenderType),
-    );
+    const typeEffectiveness = this.calculateFullTypeEffectiveness(params);
     if (typeEffectiveness === 0) {
       return 0;
     }
@@ -412,7 +419,55 @@ export class DamageCalculator {
       }
     }
 
+    // じゅうでん・でんきにかえる・ふうりょくでんき（でんき技の威力 2 倍）
+    const volatileModifier = basePowerModifierByVolatile(
+      params.attacker.volatileState,
+      params.moveType.name,
+    );
+    if (volatileModifier !== undefined) {
+      power = modifyByFixedPoint(power, volatileModifier);
+    }
+
     return power;
+  }
+
+  /**
+   * 実数値の上書き（volatileState.statOverrides）を、攻撃側・防御側の実数値に反映したパラメータを返す
+   */
+  private static withStatOverrides(params: DamageCalculationParams): DamageCalculationParams {
+    return {
+      ...params,
+      attackerStats: params.attackerStats
+        ? applyStatOverrides(params.attackerStats, params.attacker.volatileState)
+        : params.attackerStats,
+      defenderStats: params.defenderStats
+        ? applyStatOverrides(params.defenderStats, params.defender.volatileState)
+        : params.defenderStats,
+    };
+  }
+
+  /**
+   * タイプ相性を、特性と一時的な状態を含めて求める
+   * 1. タイプ相性表（相性0は、攻撃側特性の ignoresTypeImmunity・防御側のみやぶるなどで等倍にできる）
+   * 2. 防御側の一時的な状態の倍率（タールショットのほのお 2 倍、でんじふゆう・テレキネシスのじめん 0 倍）
+   */
+  private static calculateFullTypeEffectiveness(params: DamageCalculationParams): number {
+    const effectiveness = this.calculateTypeEffectiveness(
+      params.move.typeId,
+      params.defenderTypes,
+      params.typeEffectiveness,
+      defenderType =>
+        this.ignoresTypeImmunity(params, defenderType) ||
+        ignoresTypeImmunityByVolatile(
+          params.defender.volatileState,
+          params.moveType.name,
+          defenderType.name,
+        ),
+    );
+    return (
+      effectiveness *
+      typeEffectivenessMultiplierByVolatile(params.defender.volatileState, params.moveType.name)
+    );
   }
 
   /**

@@ -17,6 +17,7 @@ import {
   calculateBattleStats,
 } from '../../domain/logic/move-order-context';
 import { NotFoundException } from '@/shared/domain/exceptions';
+import { applyStatOverrides } from '../../domain/logic/volatile-modifiers';
 
 /**
  * 行動順決定の入力パラメータ
@@ -161,7 +162,12 @@ export class ActionOrderDeterminerService {
       pokemon: trainer1Active,
       abilityName: trainer1AbilityName,
       opponentAbilityName: trainer2AbilityName,
-      stats: trainer1TrainedPokemon ? calculateBattleStats(trainer1TrainedPokemon) : undefined,
+      stats: trainer1TrainedPokemon
+        ? applyStatOverrides(
+            calculateBattleStats(trainer1TrainedPokemon),
+            trainer1Active.volatileState,
+          )
+        : undefined,
     });
     const trainer2Context = createMoveOrderContext({
       battle,
@@ -169,7 +175,12 @@ export class ActionOrderDeterminerService {
       pokemon: trainer2Active,
       abilityName: trainer2AbilityName,
       opponentAbilityName: trainer1AbilityName,
-      stats: trainer2TrainedPokemon ? calculateBattleStats(trainer2TrainedPokemon) : undefined,
+      stats: trainer2TrainedPokemon
+        ? applyStatOverrides(
+            calculateBattleStats(trainer2TrainedPokemon),
+            trainer2Active.volatileState,
+          )
+        : undefined,
     });
 
     let trainer1Priority = trainer1Move.priority;
@@ -345,9 +356,9 @@ export class ActionOrderDeterminerService {
       nature: trainedPokemon.nature,
     });
 
-    // ランク補正を適用
+    // スピードスワップなどの実数値の上書き → ランク補正の順に適用
+    const speed = status.volatileState.statOverrides?.speed ?? stats.speed;
     const multiplier = status.getStatMultiplier('speed');
-    return Math.floor(stats.speed * multiplier);
+    return Math.floor(speed * multiplier);
   }
 }
-

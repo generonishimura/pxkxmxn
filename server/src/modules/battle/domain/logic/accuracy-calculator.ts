@@ -1,6 +1,7 @@
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
+import { alwaysHitsByVolatile, ignoresPositiveEvasionByVolatile } from './volatile-modifiers';
 
 /**
  * AccuracyCalculator
@@ -15,6 +16,8 @@ import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context
  * - 回避ランク補正（evasionRank）
  * - 特性効果（AbilityRegistryを使用）
  * - 必中技（accuracy === null）の場合は常に命中
+ * - 一時的な状態: 使用者のロックオン・こころのめ、相手のテレキネシスなら必ず命中。
+ *   相手がみやぶられている（みやぶる・かぎわける・ミラクルアイ）なら、上がった回避ランクを 0 として扱う
  */
 export class AccuracyCalculator {
   /**
@@ -63,6 +66,11 @@ export class AccuracyCalculator {
       return true;
     }
 
+    // ロックオン・こころのめ（使用者）、テレキネシス（相手）なら必ず命中
+    if (alwaysHitsByVolatile(attacker.volatileState, defender.volatileState)) {
+      return true;
+    }
+
     // 基本命中率（0-100）
     let effectiveAccuracy = moveAccuracy;
 
@@ -73,9 +81,12 @@ export class AccuracyCalculator {
     const accuracyMultiplier = this.calculateRankMultiplier(accuracyRank);
 
     // 回避ランク補正を取得（なしくずし・てんねんの攻撃側・しんがんなどで無視される）
+    // みやぶられている相手の上がった回避ランクは 0 として扱う（下がったランクはそのまま）
     const evasionRank = battleContext?.ignoredDefenderRanks?.has('evasion')
       ? 0
-      : defender.evasionRank;
+      : ignoresPositiveEvasionByVolatile(defender.volatileState)
+        ? Math.min(0, defender.evasionRank)
+        : defender.evasionRank;
     const evasionMultiplier = this.calculateRankMultiplier(evasionRank);
 
     // 実効命中率を計算: accuracy * (accuracyMultiplier / evasionMultiplier)
