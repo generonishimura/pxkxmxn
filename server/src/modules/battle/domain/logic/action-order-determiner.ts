@@ -8,6 +8,9 @@ import { StatCalculator } from './stat-calculator';
 import { createMoveOrderContext, calculateBattleStats } from './move-order-context';
 import { NotFoundException } from '@/shared/domain/exceptions';
 import { applyStatOverrides } from './volatile-modifiers';
+// 場の状態・設置技・交代の仕組み（Issue #107 一部）
+import { getSideConditions } from '../state/side-state';
+import { isTrickRoomActive, movesBefore, sideSpeedMultiplier } from './field-modifiers';
 
 /**
  * 行動順決定の入力パラメータ
@@ -46,7 +49,7 @@ export interface DeterminedAction {
  * 1. ポケモン交代は常に先に実行
  * 2. 技を使用する場合、優先度と速度を考慮
  * 3. 優先度が異なる場合は優先度が高い方が先
- * 4. 優先度が同じ場合は速度が高い方が先
+ * 4. 優先度が同じ場合は速度が高い方が先（おいかぜの陣営は素早さ 2 倍。トリックルームの間は遅い方が先）
  */
 export class ActionOrderDeterminer {
   /**
@@ -277,8 +280,18 @@ export class ActionOrderDeterminer {
         }
       }
 
-      // 速度比較
-      if (finalTrainer1Speed >= finalTrainer2Speed) {
+      // おいかぜ（陣営の素早さ 2 倍）
+      finalTrainer1Speed *= sideSpeedMultiplier(
+        getSideConditions(battle.sideState, trainer1Action.trainerId),
+      );
+      finalTrainer2Speed *= sideSpeedMultiplier(
+        getSideConditions(battle.sideState, trainer2Action.trainerId),
+      );
+
+      // 速度比較（トリックルームの間は遅い方が先）
+      if (
+        movesBefore(finalTrainer1Speed, finalTrainer2Speed, isTrickRoomActive(battle.sideState))
+      ) {
         return [
           {
             trainerId: trainer1Action.trainerId,
