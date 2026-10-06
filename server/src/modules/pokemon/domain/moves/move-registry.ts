@@ -212,6 +212,7 @@ import { SnowscapeEffect } from './effects/snowscape-effect';
 import { JumpKickEffect } from './effects/jump-kick-effect';
 import { HighJumpKickEffect } from './effects/high-jump-kick-effect';
 import { StruggleEffect } from './effects/struggle-effect';
+import { SecretPowerEffect } from './effects/secret-power-effect';
 
 /**
  * 技のレジストリ
@@ -488,6 +489,7 @@ export class MoveRegistry {
       this.registry.set('とびげり', new JumpKickEffect());
       this.registry.set('とびひざげり', new HighJumpKickEffect());
       this.registry.set('わるあがき', new StruggleEffect());
+      this.registry.set('ひみつのちから', new SecretPowerEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
