@@ -34,7 +34,7 @@ describe('OpportunistEffect（びんじょう）', () => {
       // Assert
       expect(get(1).attackRank).toBe(1);
       expect(get(1).speedRank).toBe(1);
-      expect(message).toBe('Attack rose! Speed rose!');
+      expect(message).toBe('びんじょう copied the stat boost! Attack rose! Speed rose!');
     });
 
     it('相手のランクが下がった分は写さない', async () => {
@@ -56,7 +56,27 @@ describe('OpportunistEffect（びんじょう）', () => {
       // Assert
       expect(get(1).attackRank).toBe(2);
       expect(get(1).defenseRank).toBe(0);
-      expect(message).toBe('Attack rose!');
+      expect(message).toBe('びんじょう copied the stat boost! Attack rose!');
+    });
+
+    it('自分のランクが+6で上がらなければ、メッセージを出さない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({
+        ability: 'びんじょう',
+        status: { attackRank: 6 },
+      });
+
+      // Act
+      const message = await new OpportunistEffect().onOpponentStatChanged(
+        get(1),
+        get(2),
+        [{ statType: 'attack', rankChange: 2 }],
+        { kind: 'move', name: 'つるぎのまい', pokemon: get(2) },
+        context(),
+      );
+
+      // Assert
+      expect(message).toBeNull();
     });
 
     it('相手のびんじょうで写した上昇は、写し返さない', async () => {
@@ -94,7 +114,7 @@ describe('OpportunistEffect（びんじょう）', () => {
       // Assert
       expect(get(2).attackRank).toBe(2);
       expect(get(1).attackRank).toBe(2);
-      expect(result.messages).toEqual(['Attack rose!']);
+      expect(result.messages).toEqual(['びんじょう copied the stat boost! Attack rose!']);
     });
 
     it('相手のランクが実際に上がった分だけ写す（+5から2段階上げたら1段階）', async () => {
