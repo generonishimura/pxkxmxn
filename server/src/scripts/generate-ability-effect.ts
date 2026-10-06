@@ -60,7 +60,7 @@ function generateClassName(abilityName: string, config?: AbilityConfig): string 
     ふみん: 'Insomnia',
     あめふらし: 'Drizzle',
     ひでり: 'Drought',
-    すなあらし: 'SandStream',
+    すなおこし: 'SandStream',
     ゆきふらし: 'SnowWarning',
   };
 
