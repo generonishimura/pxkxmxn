@@ -49,18 +49,18 @@ const CHARGE_OR_FUTURE_MOVE_NAMES: ReadonlySet<string> = new Set([
  * - だいばくはつ・じばく・いのちがけ・がむしゃら・なげつける・ころがる など（noparentalbond）
  * - ためる技（ソーラービームなど）と、みらいよち・はめつのねがい
  *
- * 注: 技の追加効果（onHit）と接触時の特性は、2回当たっても1回だけ判定する（エンジンの近似）
- * 注: 本家は2回目の基礎ダメージ（ダメージ式の +2 のあと）を0.25倍にするが、
- * エンジンは2回目の威力を0.25倍にして計算する（エンジンの近似）。
- * そのため2回目のダメージが本家より 1〜数ポイント大きくなる
+ * 2回目の威力は1回目と同じで、基礎ダメージ（ダメージ式の +2 のあと）を0.25倍にする（本家と同じ）
+ *
+ * 注: 技の追加効果（onHit）と、せいでんきなど applyContactStatusCondition の接触時の特性は、
+ * 2回当たっても1回だけ判定する（エンジンの近似）
  */
 export class ParentalBondEffect implements IAbilityEffect {
   /**
-   * 2回目のヒットの倍率（エンジンは威力に掛ける）
+   * 2回目のヒットの基礎ダメージの倍率
    */
-  private static readonly SECOND_HIT_POWER_RATIO = 0.25;
+  private static readonly SECOND_HIT_DAMAGE_RATIO = 0.25;
 
-  getAdditionalHitPowerRatios(
+  getAdditionalHitDamageRatios(
     _pokemon: BattlePokemonStatus,
     battleContext?: BattleContext,
   ): readonly number[] | undefined {
@@ -73,6 +73,6 @@ export class ParentalBondEffect implements IAbilityEffect {
     ) {
       return undefined;
     }
-    return [ParentalBondEffect.SECOND_HIT_POWER_RATIO];
+    return [ParentalBondEffect.SECOND_HIT_DAMAGE_RATIO];
   }
 }

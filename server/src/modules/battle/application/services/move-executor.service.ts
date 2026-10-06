@@ -37,7 +37,6 @@ import { MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-fl
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
 import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
-import { modifyByFixedPoint } from '../../domain/logic/fixed-point-modifier';
 
 /**
  * 技の実行オプション
@@ -280,7 +279,10 @@ export class MoveExecutorService {
 
     // ダメージ計算の入力（攻撃側・防御側はその時点の最新の状態を使う）
     const typeEffectiveness = await this.typeEffectivenessRepository.getTypeEffectivenessMap();
-    const createDamageParams = (power: number | null): DamageCalculationParams => ({
+    const createDamageParams = (
+      power: number | null,
+      baseDamageRatio?: number,
+    ): DamageCalculationParams => ({
       attacker: currentAttacker,
       defender: updatedDefender,
       move: { power, typeId: moveType.id, category: move.category, accuracy: move.accuracy },
@@ -305,6 +307,7 @@ export class MoveExecutorService {
       battleContext: { ...battleContext },
       attackStatOverride: moveEffect?.attackStatOverride,
       ignoresBurnPenalty: moveEffect?.ignoresBurnPenalty,
+      baseDamageRatio,
     });
 
     // 技全体のタイプ相性（0 なら技が相手に効かない。シャドースチールはランクを奪わない）
@@ -334,15 +337,14 @@ export class MoveExecutorService {
     }
     battleContext.movePower = power;
 
-    // ヒットごとの威力（連続技・おやこあいの追加ヒット）
-    const hitPowers = this.resolveHitPowers(
-      power,
+    // ヒットごとの基礎ダメージの倍率（連続技・おやこあいの追加ヒット）。威力はどのヒットも同じ
+    const hitDamageRatios = this.resolveHitDamageRatios(
       currentAttacker,
       attackerAbilityEffect,
       battleContext,
     );
-    if (hitPowers.length > 1) {
-      battleContext.multiHitCount = hitPowers.length;
+    if (hitDamageRatios.length > 1) {
+      battleContext.multiHitCount = hitDamageRatios.length;
     }
 
     // ヒットごとにダメージを計算して適用
@@ -365,9 +367,9 @@ export class MoveExecutorService {
       moveCategory: move.category,
       targetFainted: updatedDefender.isFainted(),
     });
-    for (const [hitIndex, hitPower] of hitPowers.entries()) {
+    for (const [hitIndex, hitDamageRatio] of hitDamageRatios.entries()) {
       battleContext.hitIndex = hitIndex;
-      const hitDamage = await DamageCalculator.calculate(createDamageParams(hitPower));
+      const hitDamage = await DamageCalculator.calculate(createDamageParams(power, hitDamageRatio));
 
       // ダメージを適用
       const hpBeforeHit = updatedDefender.currentHp;
@@ -665,24 +667,23 @@ export class MoveExecutorService {
   }
 
   /**
-   * ヒットごとの威力を返す
-   * - 連続技（battleContext.multiHitCount が2以上）: 同じ威力を回数分
-   * - 単発技: 攻撃側特性の getAdditionalHitPowerRatios（おやこあい）で追加ヒットを加える。
-   *   追加ヒットの威力は 4096 分率で補正する（0.25倍 = 1024/4096）
+   * ヒットごとの基礎ダメージの倍率を返す（undefined は倍率なし）。要素の数がヒット数になる
+   * - 連続技（battleContext.multiHitCount が2以上）: 倍率なしを回数分
+   * - 単発技: 攻撃側特性の getAdditionalHitDamageRatios（おやこあい）で追加ヒットを加える。
+   *   追加ヒットの倍率は DamageCalculator が基礎ダメージ（+2 のあと）に 4096 分率で掛ける（本家と同じ）
    */
-  private resolveHitPowers(
-    power: number,
+  private resolveHitDamageRatios(
     attacker: BattlePokemonStatus,
     attackerAbilityEffect: IAbilityEffect | undefined,
     battleContext: BattleContext,
-  ): number[] {
+  ): Array<number | undefined> {
     const multiHitCount = battleContext.multiHitCount ?? 1;
     if (multiHitCount > 1) {
-      return Array.from({ length: multiHitCount }, () => power);
+      return Array.from({ length: multiHitCount }, () => undefined);
     }
     const ratios =
-      attackerAbilityEffect?.getAdditionalHitPowerRatios?.(attacker, battleContext) ?? [];
-    return [power, ...ratios.map(ratio => modifyByFixedPoint(power, ratio, 1))];
+      attackerAbilityEffect?.getAdditionalHitDamageRatios?.(attacker, battleContext) ?? [];
+    return [undefined, ...ratios];
   }
 
   /**

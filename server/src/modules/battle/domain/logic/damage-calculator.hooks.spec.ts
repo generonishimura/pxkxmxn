@@ -328,6 +328,58 @@ describe('DamageCalculator - ダメージ前フック', () => {
     });
   });
 
+  describe('baseDamageRatio（おやこあいの2回目）', () => {
+    it('基礎ダメージ（ダメージ式の +2 のあと）に4096分率で倍率を掛け、そのあとにタイプ相性などを掛ける', async () => {
+      // Arrange
+      // 基礎ダメージ: floor(floor(22 × 100 × 100 / 100) / 50) + 2 = 46
+      // 0.25倍: floor((46 × 1024 + 2047) / 4096) = 11、効果ばつぐんで 22
+      const params = createParams({ baseDamageRatio: 0.25 });
+
+      // Act
+      const damage = await DamageCalculator.calculate(params);
+
+      // Assert
+      expect(damage).toBe(22);
+    });
+
+    it('倍率を掛けた基礎ダメージが0なら、ダメージ補正の特性があっても0を返す（NaN にならない）', async () => {
+      // Arrange
+      // 基礎ダメージ: floor(floor(22 × 1 × 100 / 100) / 50) + 2 = 2、0.25倍で 0
+      AbilityRegistry.register('テストいろめがね', {
+        modifyDamageDealt: (_p, damage) => damage * 2,
+      });
+      const params = createParams({
+        move: { power: 1, typeId: FIGHTING.id, category: 'Physical', accuracy: 100 },
+        attackerAbilityName: 'テストいろめがね',
+        baseDamageRatio: 0.25,
+      });
+
+      // Act
+      const damage = await DamageCalculator.calculate(params);
+
+      // Assert
+      expect(damage).toBe(0);
+    });
+
+    it('威力を0.25倍にした場合とは結果が違う（威力25なら26になる）', async () => {
+      // Arrange
+      const byPower = await DamageCalculator.calculate(
+        createParams({
+          move: { power: 25, typeId: FIGHTING.id, category: 'Physical', accuracy: 100 },
+        }),
+      );
+
+      // Act
+      const byBaseDamage = await DamageCalculator.calculate(
+        createParams({ baseDamageRatio: 0.25 }),
+      );
+
+      // Assert
+      expect(byPower).toBe(26);
+      expect(byBaseDamage).toBe(22);
+    });
+  });
+
   describe('ignoresBurnPenalty（やけど半減を受けない）', () => {
     it('やけど状態でも物理技のダメージが半減しない', async () => {
       // Arrange

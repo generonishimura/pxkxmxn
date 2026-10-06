@@ -516,9 +516,10 @@ export interface IAbilityEffect {
    * 攻撃側: 単発の攻撃技に追加のヒットを加える効果（例: おやこあい）
    * 連続技ではない攻撃技のときだけ呼ばれる
    * @param pokemon 攻撃側のポケモン
-   * @returns 追加ヒットごとの威力倍率（例: [0.25]）、追加しない場合はundefined
+   * 追加ヒットの威力は1回目と同じで、倍率は基礎ダメージ（ダメージ式の +2 のあと）に4096分率で掛かる
+   * @returns 追加ヒットごとのダメージ倍率（例: [0.25]）、追加しない場合はundefined
    */
-  getAdditionalHitPowerRatios?(
+  getAdditionalHitDamageRatios?(
     _pokemon: BattlePokemonStatus,
     _battleContext?: BattleContext,
   ): readonly number[] | undefined;

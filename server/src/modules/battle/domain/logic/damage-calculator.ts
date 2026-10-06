@@ -6,6 +6,7 @@ import { StatusConditionHandler } from './status-condition-handler';
 import { ValidationException } from '@/shared/domain/exceptions';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { AttackStatOverride } from '@/modules/pokemon/domain/moves/move-effect.interface';
+import { modifyByFixedPoint } from './fixed-point-modifier';
 
 /**
  * Moveの情報
@@ -60,6 +61,11 @@ export interface DamageCalculationParams {
    * やけどによる物理技の半減を受けないかどうか（からげんきなど）
    */
   ignoresBurnPenalty?: boolean;
+  /**
+   * 基礎ダメージ（ダメージ式の +2 のあと）に掛ける倍率（おやこあいの2回目 = 0.25）。4096分率で丸める
+   * タイプ一致・タイプ相性・特性・天候の補正は、この倍率を掛けたあとの値に掛かる
+   */
+  baseDamageRatio?: number;
 }
 
 /**
@@ -219,7 +225,7 @@ export class DamageCalculator {
     );
 
     // 基本ダメージ計算: floor((floor((2 * level / 5 + 2) * power * A / D) / 50) + 2)
-    const baseDamage = Math.floor(
+    const formulaDamage = Math.floor(
       Math.floor(
         (((DamageCalculator.LEVEL_MULTIPLIER * level) / DamageCalculator.LEVEL_DIVISOR +
           DamageCalculator.BASE_DAMAGE_OFFSET) *
@@ -230,6 +236,15 @@ export class DamageCalculator {
         DamageCalculator.ATTACK_DEFENSE_DIVISOR +
         DamageCalculator.BASE_DAMAGE_OFFSET,
     );
+    // おやこあいの2回目などの倍率（本家の modifyDamage と同じく、+2 のあとに掛ける）
+    const baseDamage =
+      params.baseDamageRatio === undefined
+        ? formulaDamage
+        : modifyByFixedPoint(formulaDamage, params.baseDamageRatio, 1);
+    // 倍率で0になった場合は、ほかの補正を掛けても0（特性の補正の倍率を 0 で割らないよう、ここで返す）
+    if (baseDamage <= 0) {
+      return 0;
+    }
 
     // ダメージ修正（特性、天候、フィールドなど）
     let damageMultiplier = stab * typeEffectiveness;

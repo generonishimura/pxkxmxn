@@ -21,9 +21,9 @@ describe('ParentalBondEffect', () => {
     effect = new ParentalBondEffect();
   });
 
-  it('物理技に威力0.25倍の追加ヒットを1回加える', () => {
+  it('物理技にダメージ0.25倍の追加ヒットを1回加える', () => {
     // Act
-    const result = effect.getAdditionalHitPowerRatios(pokemon, createCtx('のしかかり'));
+    const result = effect.getAdditionalHitDamageRatios(pokemon, createCtx('のしかかり'));
 
     // Assert
     expect(result).toEqual([0.25]);
@@ -31,7 +31,7 @@ describe('ParentalBondEffect', () => {
 
   it('特殊技にも追加ヒットを加える', () => {
     // Act
-    const result = effect.getAdditionalHitPowerRatios(
+    const result = effect.getAdditionalHitDamageRatios(
       pokemon,
       createCtx('ハイパーボイス', 'Special'),
     );
@@ -42,7 +42,10 @@ describe('ParentalBondEffect', () => {
 
   it('変化技には追加ヒットを加えない', () => {
     // Act
-    const result = effect.getAdditionalHitPowerRatios(pokemon, createCtx('つるぎのまい', 'Status'));
+    const result = effect.getAdditionalHitDamageRatios(
+      pokemon,
+      createCtx('つるぎのまい', 'Status'),
+    );
 
     // Assert
     expect(result).toBeUndefined();
@@ -60,7 +63,7 @@ describe('ParentalBondEffect', () => {
     'さわぐ',
   ])('2回当たらない技（%s）には追加ヒットを加えない', moveName => {
     // Act
-    const result = effect.getAdditionalHitPowerRatios(pokemon, createCtx(moveName));
+    const result = effect.getAdditionalHitDamageRatios(pokemon, createCtx(moveName));
 
     // Assert
     expect(result).toBeUndefined();
@@ -85,7 +88,7 @@ describe('ParentalBondEffect', () => {
     'エレクトロビーム',
   ])('ためる技（%s）には追加ヒットを加えない', moveName => {
     // Act
-    const result = effect.getAdditionalHitPowerRatios(pokemon, createCtx(moveName));
+    const result = effect.getAdditionalHitDamageRatios(pokemon, createCtx(moveName));
 
     // Assert
     expect(result).toBeUndefined();
@@ -95,7 +98,7 @@ describe('ParentalBondEffect', () => {
     '時間差で当たる技（%s）には追加ヒットを加えない',
     moveName => {
       // Act
-      const result = effect.getAdditionalHitPowerRatios(pokemon, createCtx(moveName, 'Special'));
+      const result = effect.getAdditionalHitDamageRatios(pokemon, createCtx(moveName, 'Special'));
 
       // Assert
       expect(result).toBeUndefined();
@@ -104,7 +107,7 @@ describe('ParentalBondEffect', () => {
 
   it('コンテキストがない場合は追加ヒットを加えない', () => {
     // Act
-    const result = effect.getAdditionalHitPowerRatios(pokemon, undefined);
+    const result = effect.getAdditionalHitDamageRatios(pokemon, undefined);
 
     // Assert
     expect(result).toBeUndefined();

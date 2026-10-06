@@ -152,7 +152,7 @@ shouldFail(_attacker: BattlePokemonStatus, defender: BattlePokemonStatus): boole
 - シグネチャ: `modifyBasePower?(pokemon, power, battleContext): number | undefined`
 - 呼ばれる場所: `DamageCalculator`。ダメージ計算式に入る前の威力に掛かる
 - 使う特性: てつのこぶし、がんじょうあご、メガランチャー、かたいツメ、きれあじ、パンクロック（攻撃側）、アナライズ、テクニシャン
-- `power` はヒットごとの威力です（技の `modifyMovePower` とおやこあいの追加ヒットの補正のあと）。威力で判定する特性（テクニシャンなど）は `battleContext.movePower` ではなくこの値を使います。
+- `power` はヒットごとの威力です（技の `modifyMovePower` のあと。おやこあいの2回目も同じ威力）。威力で判定する特性（テクニシャンなど）は `battleContext.movePower` ではなくこの値を使います。
 - 補正は `modifyByFixedPoint` で4096分率を使います（1.2倍 = 4915、1.3倍 = 5325、1.5倍 = 6144）。
 
 ```ts
@@ -426,16 +426,15 @@ modifyMultiHitCount(_p: BattlePokemonStatus, _min: number, max: number): number 
 }
 ```
 
-### getAdditionalHitPowerRatios（攻撃側）
+### getAdditionalHitDamageRatios（攻撃側）
 
-- シグネチャ: `getAdditionalHitPowerRatios?(pokemon, battleContext): readonly number[] | undefined`
+- シグネチャ: `getAdditionalHitDamageRatios?(pokemon, battleContext): readonly number[] | undefined`
 - 呼ばれる場所: `executeMove`。連続技ではない攻撃技のときだけ
-- 使う特性: おやこあい（`[0.25]`）。追加ヒットの威力は `modifyByFixedPoint(power, 0.25, 1)` で計算されます。
-- 注: 本家（Showdown の `modifyDamage`）は、2回目の基礎ダメージ（ダメージ式の +2 のあと）を0.25倍にします。エンジンは威力に倍率を掛けるので、2回目のダメージが本家より 1〜数ポイント大きくなります（近似）。
-- 注: `onHit`（追加効果）と接触時の特性は、ヒット数にかかわらず1回だけです。
+- 使う特性: おやこあい（`[0.25]`）。追加ヒットの威力は1回目と同じで、`DamageCalculator` が基礎ダメージ（ダメージ式の +2 のあと）に `modifyByFixedPoint(baseDamage, 0.25, 1)` で倍率を掛けます（本家の `modifyDamage` と同じ。`DamageCalculationParams.baseDamageRatio`）。
+- 注: `onHit`（追加効果）と `applyContactStatusCondition` の特性（せいでんきなど）は、ヒット数にかかわらず1回だけです。さめはだなど `onDamagingHit` の特性はヒットごとです。
 
 ```ts
-getAdditionalHitPowerRatios(_p: BattlePokemonStatus, ctx?: BattleContext): readonly number[] | undefined {
+getAdditionalHitDamageRatios(_p: BattlePokemonStatus, ctx?: BattleContext): readonly number[] | undefined {
   return ctx?.moveName === 'じばく' ? undefined : [0.25];
 }
 ```
@@ -554,7 +553,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 
 ## 7. 近似と注意
 
-- 連続技・おやこあいでも、`onHit`（追加効果）と接触時の特性は1回だけです。
+- 連続技・おやこあいでも、`onHit`（追加効果）と `applyContactStatusCondition` の接触時の特性（せいでんきなど）は1回だけです。
 - `modifyBasePower` などの補正は順番に掛けます（ゲームは補正をまとめてから1回掛けるため、まれに1違うことがあります）。
 - 行動順のコンテキストの `moveTypeName` は技本来のタイプです（うるおいボイスなどのタイプ変更は反映しません）。
 - ほろびのうたは場全体の技なので、`isImmuneToMove` では止まりません。

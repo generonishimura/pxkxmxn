@@ -535,9 +535,9 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       expect(statuses.get(DEFENDER_ID)?.currentHp).toBe(0);
     });
 
-    it('攻撃側特性の getAdditionalHitPowerRatios で追加ヒットを加える（威力は4096分率で補正）', async () => {
+    it('攻撃側特性の getAdditionalHitDamageRatios で追加ヒットを加える（威力は同じで、基礎ダメージに倍率を掛ける）', async () => {
       // Arrange
-      register('テストおやこあい', { getAdditionalHitPowerRatios: () => [0.25] });
+      register('テストおやこあい', { getAdditionalHitDamageRatios: () => [0.25] });
       const { execute, calculate, calculateParams } = setup({
         attackerAbility: 'テストおやこあい',
       });
@@ -548,13 +548,15 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       // Assert
       expect(calculate).toHaveBeenCalledTimes(2);
       expect(calculateParams(0).move.power).toBe(80);
-      expect(calculateParams(1).move.power).toBe(20);
+      expect(calculateParams(0).baseDamageRatio).toBeUndefined();
+      expect(calculateParams(1).move.power).toBe(80);
+      expect(calculateParams(1).baseDamageRatio).toBe(0.25);
     });
 
     it('連続技には追加ヒットを加えない', async () => {
       // Arrange
-      const getAdditionalHitPowerRatios = jest.fn().mockReturnValue([0.25]);
-      register('テストおやこあい', { getAdditionalHitPowerRatios });
+      const getAdditionalHitDamageRatios = jest.fn().mockReturnValue([0.25]);
+      register('テストおやこあい', { getAdditionalHitDamageRatios });
       const { execute, calculate } = setup({
         attackerAbility: 'テストおやこあい',
         moveEffect: {
@@ -569,7 +571,7 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
 
       // Assert
       expect(calculate).toHaveBeenCalledTimes(2);
-      expect(getAdditionalHitPowerRatios).not.toHaveBeenCalled();
+      expect(getAdditionalHitDamageRatios).not.toHaveBeenCalled();
     });
 
     it('afterDamage に全ヒットの合計ダメージを渡す', async () => {
