@@ -44,7 +44,6 @@ import { MotorDriveEffect } from './effects/weather/motor-drive-effect';
 import { PsychicSurgeEffect } from './effects/weather/psychic-surge-effect';
 import { MistySurgeEffect } from './effects/weather/misty-surge-effect';
 import { GrassySurgeEffect } from './effects/weather/grassy-surge-effect';
-import { StickyWebEffect } from './effects/stat-change/sticky-web-effect';
 import { PoisonPointEffect } from './effects/stat-change/poison-point-effect';
 import { StaticEffect } from './effects/stat-change/static-effect';
 import { FlameBodyEffect } from './effects/stat-change/flame-body-effect';
@@ -164,7 +163,6 @@ export class AbilityRegistry {
       // 状態異常時にダメージ 1.5 倍する特性（Issue #84 一部）
       this.registry.set('どくぼうそう', new ToxicBoostEffect());
       this.registry.set('ねつぼうそう', new FlareBoostEffect());
-      this.registry.set('いとあみ', new StickyWebEffect());
       this.registry.set('どくのトゲ', new PoisonPointEffect());
       this.registry.set('せいでんき', new StaticEffect());
       this.registry.set('ほのおのからだ', new FlameBodyEffect());

@@ -37,6 +37,7 @@ describe('AbilityRegistry', () => {
       'もうふう',
       'ホワイトスモーク',
       'ハッピータイム',
+      'いとあみ',
     ])('存在しない特性名 %s は登録されていない', name => {
       expect(AbilityRegistry.get(name)).toBeUndefined();
     });
