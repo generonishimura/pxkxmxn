@@ -43,6 +43,7 @@ const toStatus = (id: number, data: Partial<BattlePokemonStatus> = {}): BattlePo
     merged.evasionRank,
     merged.statusCondition,
     merged.volatileState,
+    merged.persistentState,
   );
 };
 

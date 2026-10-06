@@ -64,6 +64,7 @@ describe('MoveExecutorService', () => {
       merged.evasionRank,
       merged.statusCondition,
       merged.volatileState,
+      merged.persistentState,
     );
   };
 

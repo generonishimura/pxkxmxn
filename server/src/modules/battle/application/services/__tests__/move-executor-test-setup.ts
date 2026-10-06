@@ -59,6 +59,7 @@ export const withChanges = (
     merged.evasionRank,
     merged.statusCondition,
     merged.volatileState,
+    merged.persistentState,
   );
 };
 

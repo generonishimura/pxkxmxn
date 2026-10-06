@@ -2,6 +2,7 @@ import { BattlePokemonStatus } from './battle-pokemon-status.entity';
 import { StatusCondition } from './status-condition.enum';
 import { ValidationException } from '../../../../shared/domain/exceptions/validation.exception';
 import { VolatileState } from '../state/volatile-state';
+import { PersistentPokemonState } from '../state/persistent-state';
 
 describe('BattlePokemonStatus', () => {
   const createBattlePokemonStatus = (
@@ -137,6 +138,45 @@ describe('BattlePokemonStatus', () => {
 
       // Assert
       expect(status.volatileState).toEqual({ leechSeed: true, tauntTurns: 3 });
+    });
+  });
+
+  describe('persistentState', () => {
+    it('指定しないときは空の状態を持つ', () => {
+      // Act
+      const status = createBattlePokemonStatus();
+
+      // Assert
+      expect(status.persistentState).toEqual({});
+    });
+
+    it('指定した状態を持つ', () => {
+      // Arrange
+      const persistentState: PersistentPokemonState = { disguiseBusted: true, sleepTurns: 2 };
+
+      // Act
+      const status = new BattlePokemonStatus(
+        1,
+        1,
+        1,
+        1,
+        true,
+        100,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        {},
+        persistentState,
+      );
+
+      // Assert
+      expect(status.persistentState).toEqual({ disguiseBusted: true, sleepTurns: 2 });
     });
   });
 });

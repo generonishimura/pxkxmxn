@@ -62,6 +62,7 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       merged.evasionRank,
       merged.statusCondition,
       merged.volatileState,
+      merged.persistentState,
     );
   };
 
