@@ -83,6 +83,8 @@ import { KeenEyeEffect } from './effects/stat-change/keen-eye-effect';
 import { FurCoatEffect } from './effects/damage-modify/fur-coat-effect';
 import { TangledFeetEffect } from './effects/stat-change/tangled-feet-effect';
 import { StallEffect } from './effects/stat-change/stall-effect';
+import { BadDreamsEffect } from './effects/other/bad-dreams-effect';
+import { MoodyEffect } from './effects/stat-change/moody-effect';
 import { VictoryStarEffect } from './effects/other/victory-star-effect';
 import { SweetVeilEffect } from './effects/immunity/sweet-veil-effect';
 import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
@@ -234,6 +236,8 @@ export class AbilityRegistry {
       // その他の特性（Issue #135 一部）
       this.registry.set('ちどりあし', new TangledFeetEffect());
       this.registry.set('あとだし', new StallEffect());
+      this.registry.set('ナイトメア', new BadDreamsEffect());
+      this.registry.set('ムラっけ', new MoodyEffect());
       this.registry.set('しょうりのほし', new VictoryStarEffect());
       this.registry.set('スイートベール', new SweetVeilEffect());
       this.registry.set('パステルベール', new PastelVeilEffect());
