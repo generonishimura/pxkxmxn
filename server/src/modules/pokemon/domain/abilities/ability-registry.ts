@@ -207,6 +207,8 @@ import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 import { AromaVeilEffect } from './effects/immunity/aroma-veil-effect';
 import { PoisonPuppeteerEffect } from './effects/other/poison-puppeteer-effect';
 import { GorillaTacticsEffect } from './effects/damage-modify/gorilla-tactics-effect';
+import { ElectromorphosisEffect } from './effects/other/electromorphosis-effect';
+import { WindPowerEffect } from './effects/other/wind-power-effect';
 
 /**
  * 特性レジストリ
@@ -513,6 +515,8 @@ export class AbilityRegistry {
       this.registry.set('アロマベール', new AromaVeilEffect());
       this.registry.set('どくくぐつ', new PoisonPuppeteerEffect());
       this.registry.set('ごりむちゅう', new GorillaTacticsEffect());
+      this.registry.set('でんきにかえる', new ElectromorphosisEffect());
+      this.registry.set('ふうりょくでんき', new WindPowerEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
