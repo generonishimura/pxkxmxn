@@ -209,6 +209,11 @@ import { TakeHeartEffect } from './effects/take-heart-effect';
 import { DefogEffect } from './effects/defog-effect';
 import { CaptivateEffect } from './effects/captivate-effect';
 import { SnowscapeEffect } from './effects/snowscape-effect';
+import { VictoryDanceEffect } from './effects/victory-dance-effect';
+import { SpicyExtractEffect } from './effects/spicy-extract-effect';
+import { TidyUpEffect } from './effects/tidy-up-effect';
+import { ClangorousSoulEffect } from './effects/clangorous-soul-effect';
+import { VenomDrenchEffect } from './effects/venom-drench-effect';
 
 /**
  * 技のレジストリ
@@ -481,6 +486,12 @@ export class MoveRegistry {
       this.registry.set('きりばらい', new DefogEffect());
       this.registry.set('ゆうわく', new CaptivateEffect());
       this.registry.set('ゆきげしき', new SnowscapeEffect());
+      // 能力変化技（Issue #103, #108 一部）
+      this.registry.set('しょうりのまい', new VictoryDanceEffect());
+      this.registry.set('ハバネロエキス', new SpicyExtractEffect());
+      this.registry.set('おかたづけ', new TidyUpEffect());
+      this.registry.set('ソウルビート', new ClangorousSoulEffect());
+      this.registry.set('ベノムトラップ', new VenomDrenchEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
