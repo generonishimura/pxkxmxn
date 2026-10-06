@@ -243,6 +243,8 @@ import { TwoToFiveHitEffect } from './effects/two-to-five-hit-effect';
 import { TwoHitEffect } from './effects/two-hit-effect';
 import { TripleDiveEffect } from './effects/triple-dive-effect';
 import { TwineedleEffect } from './effects/twineedle-effect';
+// 相手のランクを奪う技（Issue #129 一部）
+import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 
 /**
  * 技のレジストリ
@@ -592,6 +594,8 @@ export class MoveRegistry {
       this.registry.set('タキオンカッター', twoHitEffect);
       this.registry.set('ダブルニードル', new TwineedleEffect());
       this.registry.set('トリプルダイブ', new TripleDiveEffect());
+      // 相手のランクを奪う技（Issue #129 一部）
+      this.registry.set('シャドースチール', new SpectralThiefEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
