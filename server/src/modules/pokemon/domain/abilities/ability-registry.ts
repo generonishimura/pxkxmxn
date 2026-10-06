@@ -83,6 +83,9 @@ import { KeenEyeEffect } from './effects/stat-change/keen-eye-effect';
 import { FurCoatEffect } from './effects/damage-modify/fur-coat-effect';
 import { RoughSkinEffect } from './effects/other/rough-skin-effect';
 import { AftermathEffect } from './effects/other/aftermath-effect';
+import { GooeyEffect } from './effects/stat-change/gooey-effect';
+import { TanglingHairEffect } from './effects/stat-change/tangling-hair-effect';
+import { WeakArmorEffect } from './effects/stat-change/weak-armor-effect';
 
 /**
  * 特性レジストリ
@@ -231,6 +234,9 @@ export class AbilityRegistry {
       // 接触時に発動する特性（Issue #135 一部）
       this.registry.set('さめはだ', new RoughSkinEffect());
       this.registry.set('ゆうばく', new AftermathEffect());
+      this.registry.set('ぬめぬめ', new GooeyEffect());
+      this.registry.set('カーリーヘアー', new TanglingHairEffect());
+      this.registry.set('くだけるよろい', new WeakArmorEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
