@@ -236,6 +236,61 @@ export const updateSideConditions = (
 };
 
 /**
+ * コートチェンジで 2 つの陣営の間で入れ替えるキー
+ * ねがいごと・いやしのねがい・ガード系（ワイドガードなど）・選択待ちは入れ替えない
+ * おまじないは第 8 世代以降にないが、Showdown と同じく入れ替える側に入れておく
+ */
+export const COURT_CHANGE_KEYS = [
+  'reflectTurns',
+  'lightScreenTurns',
+  'auroraVeilTurns',
+  'tailwindTurns',
+  'safeguardTurns',
+  'mistTurns',
+  'luckyChantTurns',
+  'spikesLayers',
+  'toxicSpikesLayers',
+  'stealthRock',
+  'stickyWeb',
+] as const satisfies ReadonlyArray<keyof SideConditions>;
+
+type MutableStatePatch<T> = { -readonly [K in keyof T]?: T[K] | null };
+
+const copyKey = <K extends keyof SideConditions>(
+  target: MutableStatePatch<SideConditions>,
+  source: SideConditions,
+  key: K,
+): void => {
+  target[key] = source[key];
+};
+
+/**
+ * source の陣営の、コートチェンジで入れ替えるキーだけを写す patch
+ * source にないキーは undefined になり、当てた先から取り除かれる
+ */
+const courtChangePatch = (source: SideConditions): StatePatch<SideConditions> => {
+  const patch: MutableStatePatch<SideConditions> = {};
+  for (const key of COURT_CHANGE_KEYS) {
+    copyKey(patch, source, key);
+  }
+  return patch;
+};
+
+/**
+ * 元の状態を書き換えずに、2 つの陣営の COURT_CHANGE_KEYS だけを入れ替えた新しい SideState を返す（コートチェンジ）
+ */
+export const swapCourtChangeConditions = (
+  state: SideState,
+  trainerIdA: number,
+  trainerIdB: number,
+): SideState => {
+  const sideA = getSideConditions(state, trainerIdA);
+  const sideB = getSideConditions(state, trainerIdB);
+  const swappedA = updateSideConditions(state, trainerIdA, courtChangePatch(sideB));
+  return updateSideConditions(swappedA, trainerIdB, courtChangePatch(sideA));
+};
+
+/**
  * 元の状態を書き換えずに、両陣営にかかる場の状態に patch を当てた新しい SideState を返す
  * undefined か null を渡したキーは取り除き、空になったら global ごと取り除く
  */

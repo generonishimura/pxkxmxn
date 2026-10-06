@@ -8,6 +8,7 @@ import {
   getGlobalFieldState,
   getSideConditions,
   parseSideState,
+  swapCourtChangeConditions,
   updateGlobalFieldState,
   updateSideConditions,
 } from './side-state';
@@ -184,6 +185,100 @@ describe('SideState', () => {
 
       // Assert
       expect(updated).toEqual({ global: { gravityTurns: 2 } });
+    });
+  });
+
+  describe('swapCourtChangeConditions', () => {
+    it('壁・おいかぜ・しんぴのまもり・しろいきり・設置技を、2 つの陣営で入れ替える', () => {
+      // Arrange
+      const state: SideState = {
+        sides: {
+          '1': { reflectTurns: 3, safeguardTurns: 2, spikesLayers: 2 },
+          '2': { tailwindTurns: 4, mistTurns: 5, stealthRock: true, stickyWeb: true },
+        },
+      };
+
+      // Act
+      const swapped = swapCourtChangeConditions(state, 1, 2);
+
+      // Assert
+      expect(swapped).toEqual({
+        sides: {
+          '1': { tailwindTurns: 4, mistTurns: 5, stealthRock: true, stickyWeb: true },
+          '2': { reflectTurns: 3, safeguardTurns: 2, spikesLayers: 2 },
+        },
+      });
+    });
+
+    it('ねがいごと・いやしのねがい・ガード系・選択待ちは、元の陣営に残す', () => {
+      // Arrange
+      const state: SideState = {
+        sides: {
+          '1': {
+            lightScreenTurns: 5,
+            wish: { turns: 1, healAmount: 80 },
+            healingWish: 'healingWish',
+          },
+          '2': {
+            toxicSpikesLayers: 1,
+            wideGuard: true,
+            quickGuard: true,
+            craftyShield: true,
+            matBlock: true,
+            pendingChoice: { reason: 'pivot' },
+          },
+        },
+      };
+
+      // Act
+      const swapped = swapCourtChangeConditions(state, 1, 2);
+
+      // Assert
+      expect(swapped).toEqual({
+        sides: {
+          '1': {
+            wish: { turns: 1, healAmount: 80 },
+            healingWish: 'healingWish',
+            toxicSpikesLayers: 1,
+          },
+          '2': {
+            wideGuard: true,
+            quickGuard: true,
+            craftyShield: true,
+            matBlock: true,
+            pendingChoice: { reason: 'pivot' },
+            lightScreenTurns: 5,
+          },
+        },
+      });
+    });
+
+    it('片方の陣営が空なら、もう片方の入れ替える状態がすべて移り、空になった陣営は消える', () => {
+      // Arrange
+      const state: SideState = {
+        sides: { '1': { auroraVeilTurns: 5, luckyChantTurns: 3 } },
+        global: { gravityTurns: 2 },
+      };
+
+      // Act
+      const swapped = swapCourtChangeConditions(state, 1, 2);
+
+      // Assert
+      expect(swapped).toEqual({
+        sides: { '2': { auroraVeilTurns: 5, luckyChantTurns: 3 } },
+        global: { gravityTurns: 2 },
+      });
+    });
+
+    it('元の状態は書き換えない', () => {
+      // Arrange
+      const state: SideState = { sides: { '1': { reflectTurns: 3 } } };
+
+      // Act
+      swapCourtChangeConditions(state, 1, 2);
+
+      // Assert
+      expect(state).toEqual({ sides: { '1': { reflectTurns: 3 } } });
     });
   });
 
