@@ -10,6 +10,8 @@ import { moveEffectSource } from './base/base-stat-change-effect';
  * 使用者に grudge を書く。使用者が次に技を出そうとするまでに相手の技で倒されると、
  * その技の PP が 0 になる（発動・消去はエンジンの MoveLifecycle.applyFaintReactions・BeforeMoveChecker）
  * - みらいよち・はめつのねがいで倒されたときは発動しない（エンジン）
+ * 注: ゆびをふる・ねごとなどで呼ばれた技で倒されたときは、PP が 0 にならない。本家では呼んだ技（ゆびをふるなど）の PP が 0 になる
+ *   （エンジンが倒した技そのものの PP を 0 にするため。呼ばれた技は相手の技の欄にない）
  * 注: おんねんは第 8 世代から使えない技のため、使えた第 7 世代までの動き（本家の Gen 7）に合わせる
  */
 export class GrudgeEffect implements IMoveEffect {
