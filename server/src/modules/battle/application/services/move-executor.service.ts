@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { Battle } from '../../domain/entities/battle.entity';
+import { Battle, Field } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import {
   IBattleRepository,
@@ -52,6 +52,12 @@ import {
 } from '../../domain/logic/move-selection';
 import { BeforeMoveChecker } from './before-move-checker';
 import { MoveLifecycle, MoveOutcome } from './move-lifecycle';
+// 場の状態・設置技・交代の仕組み（Issue #102 #103 #107 #110 #135 一部）
+import { isGrounded } from '../../domain/logic/grounded';
+import {
+  effectivePrimalWeather,
+  primalWeatherBlocksMove,
+} from '../../domain/logic/field-modifiers';
 
 /**
  * 技の実行オプション
@@ -539,20 +545,22 @@ export class MoveExecutorService {
       });
     }
 
+    // ふんじん・ゲンシ天候は、タイプを変える効果（技の modifyMoveType → 攻撃側特性の modifyMoveType）を
+    // 反映したタイプで判定する（本家の onTryMove）
+    const triedTypeName =
+      moveEffect?.typeless === true
+        ? undefined
+        : this.resolveMoveTypeName(
+            move,
+            moveEffect,
+            attacker,
+            defender,
+            attackerAbilityEffect,
+            contextFor(attacker),
+          );
+
     // ふんじん: ほのお技を出そうとすると爆発し、技は失敗する（PP は減る。マジックガードならダメージなし）
-    // 技のタイプは、タイプを変える効果（技の modifyMoveType → 攻撃側特性の modifyMoveType）を反映して判定する（本家の onTryMove）
-    if (
-      attacker.volatileState.powder === true &&
-      moveEffect?.typeless !== true &&
-      this.resolveMoveTypeName(
-        move,
-        moveEffect,
-        attacker,
-        defender,
-        attackerAbilityEffect,
-        contextFor(attacker),
-      ) === 'ほのお'
-    ) {
+    if (attacker.volatileState.powder === true && triedTypeName === 'ほのお') {
       const powderDamage = await applyIndirectDamage(
         attacker,
         Math.max(1, Math.round(attacker.maxHp / MoveExecutorService.POWDER_DAMAGE_DIVISOR)),
@@ -562,6 +570,25 @@ export class MoveExecutorService {
         message: `Used ${move.name} but the powder exploded! (${powderDamage} damage)`,
         outcome: 'failed',
         moveTypeName: 'ほのお',
+      };
+    }
+
+    // ゲンシ天候: おおあめのほのおの攻撃技・おおひでりのみずの攻撃技は失敗する（PP は減る。ノーてんきが場にいれば効かない）
+    const primal = effectivePrimalWeather(battle.sideState, [
+      attackerAbilityName,
+      defenderAbilityName,
+    ]);
+    if (
+      triedTypeName !== undefined &&
+      primalWeatherBlocksMove(primal, triedTypeName, move.category)
+    ) {
+      return {
+        message:
+          primal === 'heavyRain'
+            ? `Used ${move.name} but the Fire-type attack fizzled out in the heavy rain`
+            : `Used ${move.name} but the Water-type attack evaporated in the harsh sunlight`,
+        outcome: 'failed',
+        moveTypeName: triedTypeName,
       };
     }
 
@@ -871,6 +898,14 @@ export class MoveExecutorService {
         message: `Used ${move.name} but it failed (${preventingAbilityName})`,
         outcome: 'failed',
       };
+    }
+
+    // サイコフィールド: 地面にいる相手への優先度の高い技（いたずらごころなどの補正を含む）は失敗する
+    if (
+      targetsOpponent &&
+      this.isProtectedByPsychicTerrain(battle, defender, defenderTrainedPokemon, battleContext)
+    ) {
+      return { message: `Used ${move.name} but it failed (Psychic Terrain)`, outcome: 'failed' };
     }
 
     // 技そのものの無効化（ぼうおん・ぼうだんなど）。変化技も含め、命中判定の前に判定する
@@ -1275,6 +1310,40 @@ export class MoveExecutorService {
       outcome: damage > 0 ? 'hit' : 'failed',
       moveTypeName: moveType.name,
     };
+  }
+
+  /**
+   * サイコフィールドで守られるか（本家の psychicterrain の onTryHit）
+   * フィールドがサイコフィールドで、優先度（effectivePriority）が 1 以上で、相手が地面にいて隠れていない
+   */
+  private isProtectedByPsychicTerrain(
+    battle: Battle,
+    defender: BattlePokemonStatus,
+    defenderTrainedPokemon: TrainedPokemon,
+    battleContext: BattleContext,
+  ): boolean {
+    if (battle.field !== Field.PsychicTerrain || (battleContext.effectivePriority ?? 0) <= 0) {
+      return false;
+    }
+    if (defender.volatileState.semiInvulnerable !== undefined) {
+      return false;
+    }
+    return isGrounded({
+      typeNames: this.typeNamesOf(defenderTrainedPokemon),
+      abilityName: defenderTrainedPokemon.ability?.name,
+      volatileState: defender.volatileState,
+      sideState: battle.sideState,
+    });
+  }
+
+  /**
+   * 育成ポケモンのタイプ名
+   */
+  private typeNamesOf(trainedPokemon: TrainedPokemon): string[] {
+    return [
+      trainedPokemon.pokemon.primaryType.name,
+      trainedPokemon.pokemon.secondaryType?.name,
+    ].filter((name): name is string => name !== undefined);
   }
 
   /**
