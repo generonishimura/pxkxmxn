@@ -52,12 +52,24 @@ describe('WaterVeilEffect', () => {
     });
 
     it('should return true for other status conditions', () => {
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Freeze, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Paralysis, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Poison, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.BadPoison, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Sleep, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Flinch, battleContext)).toBe(true);
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Freeze, battleContext)).toBe(
+        true,
+      );
+      expect(
+        effect.canReceiveStatusCondition(pokemon, StatusCondition.Paralysis, battleContext),
+      ).toBe(true);
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Poison, battleContext)).toBe(
+        true,
+      );
+      expect(
+        effect.canReceiveStatusCondition(pokemon, StatusCondition.BadPoison, battleContext),
+      ).toBe(true);
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Sleep, battleContext)).toBe(
+        true,
+      );
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Flinch, battleContext)).toBe(
+        true,
+      );
     });
   });
 });

@@ -58,9 +58,7 @@ describe('BattlePokemonStatus', () => {
     });
 
     it('currentHpが負の値の場合、ValidationExceptionを投げる', () => {
-      expect(() => createBattlePokemonStatus({ currentHp: -1 })).toThrow(
-        ValidationException,
-      );
+      expect(() => createBattlePokemonStatus({ currentHp: -1 })).toThrow(ValidationException);
     });
 
     it('currentHpがmaxHpを超える場合、ValidationExceptionを投げる', () => {
@@ -70,15 +68,11 @@ describe('BattlePokemonStatus', () => {
     });
 
     it('ランクが-6未満の場合、ValidationExceptionを投げる', () => {
-      expect(() => createBattlePokemonStatus({ attackRank: -7 })).toThrow(
-        ValidationException,
-      );
+      expect(() => createBattlePokemonStatus({ attackRank: -7 })).toThrow(ValidationException);
     });
 
     it('ランクが+6超過の場合、ValidationExceptionを投げる', () => {
-      expect(() => createBattlePokemonStatus({ attackRank: 7 })).toThrow(
-        ValidationException,
-      );
+      expect(() => createBattlePokemonStatus({ attackRank: 7 })).toThrow(ValidationException);
     });
 
     it('すべてのランクが-6から+6の範囲内の場合、正常に作成できる', () => {
@@ -107,4 +101,3 @@ describe('BattlePokemonStatus', () => {
     });
   });
 });
-

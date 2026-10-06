@@ -106,10 +106,7 @@ export class BattlePokemonStatus {
     ];
 
     for (const rank of ranks) {
-      if (
-        rank.value < BattlePokemonStatus.MIN_RANK ||
-        rank.value > BattlePokemonStatus.MAX_RANK
-      ) {
+      if (rank.value < BattlePokemonStatus.MIN_RANK || rank.value > BattlePokemonStatus.MAX_RANK) {
         throw new ValidationException(
           `${rank.name} must be between ${BattlePokemonStatus.MIN_RANK} and ${BattlePokemonStatus.MAX_RANK}. Got: ${rank.value}`,
           rank.name,

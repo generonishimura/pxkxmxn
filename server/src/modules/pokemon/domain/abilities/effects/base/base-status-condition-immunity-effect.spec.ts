@@ -63,7 +63,11 @@ describe('BaseStatusConditionImmunityEffect', () => {
   describe('canReceiveStatusCondition', () => {
     it('should return false for immune status condition', () => {
       const effect = new TestSleepImmunityEffect();
-      const result = effect.canReceiveStatusCondition(pokemon, StatusCondition.Sleep, battleContext);
+      const result = effect.canReceiveStatusCondition(
+        pokemon,
+        StatusCondition.Sleep,
+        battleContext,
+      );
       expect(result).toBe(false);
     });
 
@@ -75,8 +79,12 @@ describe('BaseStatusConditionImmunityEffect', () => {
 
     it('should return false for multiple immune status conditions', () => {
       const effect = new TestMultipleImmunityEffect();
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Sleep, battleContext)).toBe(false);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Paralysis, battleContext)).toBe(false);
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Sleep, battleContext)).toBe(
+        false,
+      );
+      expect(
+        effect.canReceiveStatusCondition(pokemon, StatusCondition.Paralysis, battleContext),
+      ).toBe(false);
     });
 
     it('should return true for non-immune status condition with multiple immunities', () => {
@@ -86,4 +94,3 @@ describe('BaseStatusConditionImmunityEffect', () => {
     });
   });
 });
-

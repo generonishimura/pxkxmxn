@@ -52,9 +52,7 @@ describe('Battle', () => {
     });
 
     it('trainer1Idとtrainer2Idが同じ場合、ValidationExceptionを投げる', () => {
-      expect(() => createBattle({ trainer1Id: 1, trainer2Id: 1 })).toThrow(
-        ValidationException,
-      );
+      expect(() => createBattle({ trainer1Id: 1, trainer2Id: 1 })).toThrow(ValidationException);
     });
 
     it('team1Idが0以下の場合、ValidationExceptionを投げる', () => {
@@ -68,9 +66,7 @@ describe('Battle', () => {
     });
 
     it('team1Idとteam2Idが同じ場合、ValidationExceptionを投げる', () => {
-      expect(() => createBattle({ team1Id: 1, team2Id: 1 })).toThrow(
-        ValidationException,
-      );
+      expect(() => createBattle({ team1Id: 1, team2Id: 1 })).toThrow(ValidationException);
     });
 
     it('turnが0以下の場合、ValidationExceptionを投げる', () => {
@@ -89,4 +85,3 @@ describe('Battle', () => {
     });
   });
 });
-
