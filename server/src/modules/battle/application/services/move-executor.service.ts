@@ -424,6 +424,7 @@ export class MoveExecutorService {
       field: battle.field,
       moveName: move.name,
       moveTypeName: move.type.name,
+      baseMoveTypeName: move.type.name,
       moveCategory: move.category,
       movePower: move.power,
       movePriority: move.priority,

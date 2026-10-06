@@ -41,9 +41,13 @@
 
 ```ts
 modifyMovePower(_attacker: BattlePokemonStatus, defender: BattlePokemonStatus): number | undefined {
-  return defender.statusCondition === StatusCondition.Poison ? 130 : undefined;
+  const status = defender.statusCondition;
+  const poisoned = status === StatusCondition.Poison || status === StatusCondition.BadPoison;
+  return poisoned ? 130 : undefined;
 }
 ```
+
+- `StatusCondition` にはひるみ（`Flinch`）・こんらん（`Confusion`）も入っています。たたりめ・からげんきのように「状態異常なら」と判定するときは、`statusCondition !== None` ではなく `isMajorStatus(status)` を使います。
 
 ### modifyMoveType
 
@@ -145,7 +149,8 @@ modifyAnyBasePower(_h: BattlePokemonStatus, power: number, ctx?: BattleContext):
 
 - シグネチャ: `modifyMoveType?(pokemon, typeName, battleContext): string | undefined`
 - 呼ばれる場所: `executeMove`。技の `modifyMoveType` のあと
-- 使う特性: うるおいボイス（-スキン系も同じ形で書ける）
+- 使う特性: うるおいボイス、-スキン系（フェアリースキンなど）
+- `battleContext.moveTypeName` は技の `modifyMoveType` のあとのタイプです。技本来のタイプは `battleContext.baseMoveTypeName` に入っています。-スキン系の1.2倍は、`modifyBasePower` で `baseMoveTypeName === 'ノーマル'` かつ `moveTypeName` が変わったかで判定します。
 
 ```ts
 modifyMoveType(_p: BattlePokemonStatus, _type: string, ctx?: BattleContext): string | undefined {
@@ -170,10 +175,13 @@ modifyMoveFlags(_p: BattlePokemonStatus, flags: ReadonlySet<MoveFlag>): Readonly
 - シグネチャ: `ignoreOpponentRanks?(pokemon, role: 'attacker' | 'defender', battleContext): readonly StatType[] | undefined`
 - 呼ばれる場所: `executeMove`。攻撃側特性は `role = 'attacker'`（結果は `ignoredDefenderRanks`）、防御側特性は `role = 'defender'`（結果は `ignoredAttackerRanks`）。防御側はかたやぶりで無視される
 - 使う特性: てんねん、しんがん（回避ランク）、するどいめ（回避ランク）
+- 防御側の てんねん は `'defense'` も返します。ボディプレス（`attackStatOverride` が自分の防御）の防御ランクも無視するためです（本家は攻撃・防御・特攻・命中を無視する）。
 
 ```ts
 ignoreOpponentRanks(_p: BattlePokemonStatus, role: 'attacker' | 'defender'): readonly StatType[] {
-  return role === 'attacker' ? ['defense', 'specialDefense', 'evasion'] : ['attack', 'specialAttack', 'accuracy'];
+  return role === 'attacker'
+    ? ['defense', 'specialDefense', 'evasion']
+    : ['attack', 'defense', 'specialAttack', 'accuracy'];
 }
 ```
 
@@ -277,8 +285,9 @@ export class SereneGraceEffect implements IAbilityEffect { readonly secondaryEff
 | 項目 | 内容 | 入る場所 |
 | --- | --- | --- |
 | `moveName` | 技名（DB の name） | 技の実行・行動順 |
-| `moveFlags` | 技フラグ（`modifyMoveFlags` の反映後） | 技の実行・行動順・ダメージ計算 |
+| `moveFlags` | 技フラグ。技の実行・ダメージ計算では `modifyMoveFlags` の反映後、行動順では技フラグ表のまま | 技の実行・行動順・ダメージ計算 |
 | `moveTypeName` | 技のタイプ名（タイプ変更の反映後） | 技の実行・行動順・ダメージ計算 |
+| `baseMoveTypeName` | 技本来のタイプ名（タイプ変更の前） | 技の実行・ダメージ計算 |
 | `movePower` | 技の威力（`modifyMovePower` の反映後、特性補正の前） | 技の実行・ダメージ計算 |
 | `movePriority` | 技の優先度（特性補正の前） | 技の実行・行動順 |
 | `attackerAbilityName` / `defenderAbilityName` | 攻撃側・防御側の特性名 | 技の実行・行動順・ダメージ計算 |
@@ -303,6 +312,7 @@ export class SereneGraceEffect implements IAbilityEffect { readonly secondaryEff
 | `getContextWeather(ctx)` | `pokemon/domain/abilities/context-weather.ts` | 効果のある天候。`battle.weather` を直接読まない |
 | `resolveEffectiveWeather(weather, abilityNames)` | `battle/domain/logic/effective-weather.ts` | エンジン用。場の特性から効果のある天候を求める |
 | `getHighestStat(stats, status)` | `battle/domain/logic/highest-stat.ts` | ランク込みで最も高い能力（こだいかっせい、クォークチャージ） |
+| `isMajorStatus(status)` | `battle/domain/logic/major-status.ts` | 状態異常か（ひるみ・こんらんを除く。たたりめ、からげんき） |
 | `modifyByFixedPoint(value, numerator, denominator = 4096)` | `battle/domain/logic/fixed-point-modifier.ts` | ゲームと同じ丸めで補正を掛ける |
 
 ```ts

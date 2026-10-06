@@ -312,6 +312,19 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       expect(calculateParams().moveType).toBe(FIRE);
     });
 
+    it('タイプを変えても、技本来のタイプを baseMoveTypeName として渡す（-スキン系の判定用）', async () => {
+      // Arrange
+      register('テストスキン', { modifyMoveType: () => 'ほのお' });
+      const { execute, calculateParams } = setup({ attackerAbility: 'テストスキン' });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(calculateParams().battleContext?.moveTypeName).toBe('ほのお');
+      expect(calculateParams().battleContext?.baseMoveTypeName).toBe('ノーマル');
+    });
+
     it('技の ignoresBurnPenalty と attackStatOverride をダメージ計算に渡す', async () => {
       // Arrange
       const { execute, calculateParams } = setup({

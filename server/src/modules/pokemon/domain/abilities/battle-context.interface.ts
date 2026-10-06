@@ -63,6 +63,12 @@ export interface BattleContext {
   moveTypeName?: string;
 
   /**
+   * 技本来のタイプ名（技・特性の modifyMoveType でタイプを変える前、例: "ノーマル"）
+   * -スキン系の特性で「もとはノーマル技だったか」を判定するのに使う
+   */
+  baseMoveTypeName?: string;
+
+  /**
    * 連続攻撃技の攻撃回数
    * BaseMultiHitEffectで設定される
    */
