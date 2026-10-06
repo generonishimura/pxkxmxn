@@ -262,6 +262,9 @@ import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 // 一時的な状態を付与する変化技（Issue #103 一部）
 import { LockOnEffect } from './effects/lock-on-effect';
 import { ForesightEffect } from './effects/foresight-effect';
+import { AttractEffect } from './effects/attract-effect';
+import { TormentEffect } from './effects/torment-effect';
+import { ImprisonEffect } from './effects/imprison-effect';
 
 /**
  * 技のレジストリ
@@ -634,6 +637,9 @@ export class MoveRegistry {
       this.registry.set('こころのめ', lockOnEffect);
       this.registry.set('ロックオン', lockOnEffect);
       this.registry.set('みやぶる', new ForesightEffect());
+      this.registry.set('メロメロ', new AttractEffect());
+      this.registry.set('いちゃもん', new TormentEffect());
+      this.registry.set('ふういん', new ImprisonEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
