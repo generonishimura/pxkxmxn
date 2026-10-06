@@ -296,14 +296,12 @@ describe('StatusConditionHandler', () => {
 
   describe('shouldSelfAttackFromConfusion', () => {
     it('33%の確率で自分を攻撃', () => {
-      const results: boolean[] = [];
-      for (let i = 0; i < 100; i++) {
-        results.push(StatusConditionHandler.shouldSelfAttackFromConfusion());
-      }
-      const trueCount = results.filter(r => r).length;
-      // 33%の確率なので、20%以上45%以下になることが期待される
-      expect(trueCount).toBeGreaterThan(20);
-      expect(trueCount).toBeLessThan(45);
+      const random = jest.spyOn(Math, 'random').mockReturnValueOnce(0.32).mockReturnValueOnce(0.33);
+
+      expect(StatusConditionHandler.shouldSelfAttackFromConfusion()).toBe(true);
+      expect(StatusConditionHandler.shouldSelfAttackFromConfusion()).toBe(false);
+
+      random.mockRestore();
     });
   });
 
