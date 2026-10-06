@@ -94,6 +94,12 @@ import { GrassPeltEffect } from './effects/damage-modify/grass-pelt-effect';
 import { IceScalesEffect } from './effects/damage-modify/ice-scales-effect';
 import { SolarPowerEffect } from './effects/damage-modify/solar-power-effect';
 import { DefeatistEffect } from './effects/damage-modify/defeatist-effect';
+import { VesselOfRuinEffect } from './effects/damage-modify/vessel-of-ruin-effect';
+import { SwordOfRuinEffect } from './effects/damage-modify/sword-of-ruin-effect';
+import { TabletsOfRuinEffect } from './effects/damage-modify/tablets-of-ruin-effect';
+import { BeadsOfRuinEffect } from './effects/damage-modify/beads-of-ruin-effect';
+import { FlowerGiftEffect } from './effects/damage-modify/flower-gift-effect';
+import { PurifyingSaltEffect } from './effects/immunity/purifying-salt-effect';
 
 /**
  * 特性レジストリ
@@ -254,6 +260,13 @@ export class AbilityRegistry {
       this.registry.set('こおりのりんぷん', new IceScalesEffect());
       this.registry.set('サンパワー', new SolarPowerEffect());
       this.registry.set('よわき', new DefeatistEffect());
+      // わざわい系・フラワーギフト・きよめのしお（Issue #135 一部）
+      this.registry.set('わざわいのうつわ', new VesselOfRuinEffect());
+      this.registry.set('わざわいのつるぎ', new SwordOfRuinEffect());
+      this.registry.set('わざわいのおふだ', new TabletsOfRuinEffect());
+      this.registry.set('わざわいのたま', new BeadsOfRuinEffect());
+      this.registry.set('フラワーギフト', new FlowerGiftEffect());
+      this.registry.set('きよめのしお', new PurifyingSaltEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
