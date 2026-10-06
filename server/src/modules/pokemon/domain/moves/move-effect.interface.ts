@@ -145,6 +145,13 @@ export interface IMoveEffect {
   readonly ignoresBurnPenalty?: boolean;
 
   /**
+   * タイプなしの技かどうか（例: わるあがき）
+   * true なら executeMove がタイプ相性表にもポケモンのタイプにもないタイプで計算する（相性1倍・タイプ一致なし）。
+   * 技・特性の modifyMoveType は呼ばない（スキン系などでタイプが変わらない。本家と同じ）
+   */
+  readonly typeless?: boolean;
+
+  /**
    * 反動または外したときの自傷がある技かどうか（すてみの対象。例: すてみタックル、とびげり）
    * executeMove がコンテキストの hasRecoil に入れる
    */

@@ -55,9 +55,9 @@ export interface ExecuteMoveOptions {
 @Injectable()
 export class MoveExecutorService {
   /**
-   * 混乱の自傷専用に使用する「実在しないタイプID」。
+   * 混乱の自傷とタイプなしの技（わるあがき）に使用する「実在しないタイプID」。
    *
-   * この値は混乱時の自傷ダメージ計算で使用され、タイプ相性を1.0倍（無効化なし）として扱うために使用される。
+   * この値は混乱時の自傷・タイプなしの技のダメージ計算で使用され、タイプ相性を1.0倍（無効化なし）として扱うために使用される。
    *
    * 前提条件:
    * - Prismaスキーマでは、TypeのIDは`@id @default(autoincrement())`で定義されており、
@@ -645,6 +645,7 @@ export class MoveExecutorService {
   /**
    * 技のタイプを決定する（技の modifyMoveType → 攻撃側特性の modifyMoveType）
    * タイプ名が変わった場合はリポジトリからタイプを引く。見つからない場合は技本来のタイプを使う
+   * タイプなしの技（技の typeless。わるあがき）は、modifyMoveType を呼ばずにタイプなしを返す
    */
   private async resolveMoveType(
     move: Move,
@@ -654,6 +655,10 @@ export class MoveExecutorService {
     attackerAbilityEffect: IAbilityEffect | undefined,
     battleContext: BattleContext,
   ): Promise<Type> {
+    // タイプなしの技（わるあがき）は、どの効果でもタイプが変わらない
+    if (moveEffect?.typeless === true) {
+      return MoveExecutorService.createTypelessType();
+    }
     let typeName =
       moveEffect?.modifyMoveType?.(attacker, defender, battleContext) ?? move.type.name;
     battleContext.moveTypeName = typeName;
@@ -684,6 +689,13 @@ export class MoveExecutorService {
     const ratios =
       attackerAbilityEffect?.getAdditionalHitDamageRatios?.(attacker, battleContext) ?? [];
     return [undefined, ...ratios];
+  }
+
+  /**
+   * タイプなしを表すタイプ（タイプ相性表にもポケモンのタイプにもない ID を使う）
+   */
+  private static createTypelessType(): Type {
+    return new Type(MoveExecutorService.CONFUSION_NON_EXISTENT_TYPE_ID, 'なし', 'none');
   }
 
   /**
@@ -771,11 +783,7 @@ export class MoveExecutorService {
     // タイプなしの技を作成（タイプ相性は1.0倍、タイプ一致もなし）
     // タイプ相性を1.0倍として扱うため、タイプ相性マップに存在しないタイプIDを使用する
     // タイプ一致を適用しないため、ポケモンのタイプと一致しないタイプIDを使用する
-    const nonExistentType = new Type(
-      MoveExecutorService.CONFUSION_NON_EXISTENT_TYPE_ID,
-      'なし',
-      'none',
-    ); // タイプなしを表現
+    const nonExistentType = MoveExecutorService.createTypelessType(); // タイプなしを表現
     const confusionMoveInfo: MoveInfo = {
       power: 40,
       typeId: MoveExecutorService.CONFUSION_NON_EXISTENT_TYPE_ID, // 存在しないタイプIDを使用（タイプ相性は1.0倍、タイプ一致もなし）

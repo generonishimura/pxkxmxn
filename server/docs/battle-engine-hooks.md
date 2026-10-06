@@ -116,6 +116,12 @@ export class FacadeEffect implements IMoveEffect {
 - 参照する場所: `executeMove` がコンテキストの `hasRecoil` に入れる。すてみが威力を1.2倍にする
 - 使う技: `BaseRecoilEffect`（反動技）と `BaseCrashDamageEffect`（とびげりなど）が `true` を持つ。わるあがきは持たない
 
+### typeless（プロパティ）
+
+- 型: `readonly typeless?: boolean`
+- 参照する場所: `executeMove` の技タイプの決定。`true` なら、タイプ相性表にもポケモンのタイプにもないタイプで計算する（相性1倍・タイプ一致なし。混乱の自傷と同じタイプ）。技・特性の `modifyMoveType` は呼ばない
+- 使う技: わるあがき（ゴーストタイプにも当たり、ふしぎなまもりも素通りする。本家と同じ）
+
 ### beforeDamage / afterDamage（呼ばれるようになった既存フック）
 
 - `beforeDamage(attacker, defender, move, battleContext)`: 命中後、タイプ決定のあとに1回。`battleContext.multiHitCount` を2以上にすると、その回数だけダメージを与えます（`BaseMultiHitEffect` が使う）。
