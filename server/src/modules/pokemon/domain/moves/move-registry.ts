@@ -243,6 +243,9 @@ import { TwoToFiveHitEffect } from './effects/two-to-five-hit-effect';
 import { TwoHitEffect } from './effects/two-hit-effect';
 import { TripleDiveEffect } from './effects/triple-dive-effect';
 import { TwineedleEffect } from './effects/twineedle-effect';
+// 能力の参照先を変える技・相手のランクを無視する技（Issue #129 一部）
+import { FoulPlayEffect } from './effects/foul-play-effect';
+import { ChipAwayEffect } from './effects/chip-away-effect';
 
 /**
  * 技のレジストリ
@@ -592,6 +595,12 @@ export class MoveRegistry {
       this.registry.set('タキオンカッター', twoHitEffect);
       this.registry.set('ダブルニードル', new TwineedleEffect());
       this.registry.set('トリプルダイブ', new TripleDiveEffect());
+      // 能力の参照先を変える技・相手のランクを無視する技（Issue #129 一部）
+      const chipAwayEffect = new ChipAwayEffect();
+      this.registry.set('イカサマ', new FoulPlayEffect());
+      this.registry.set('なしくずし', chipAwayEffect);
+      this.registry.set('せいなるつるぎ', chipAwayEffect);
+      this.registry.set('ＤＤラリアット', chipAwayEffect);
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
