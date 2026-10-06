@@ -32,12 +32,12 @@ describe('findSwitchBlocker（交代できない理由）', () => {
     expect(blocker).toBeUndefined();
   });
 
-  it('ゴーストタイプでも、ねをはっていると交代できない', () => {
+  it('ゴーストタイプは、ねをはっていても交代できる（本家の ingrain は tryTrap で、ゴーストは trapped を受けない）', () => {
     // Act
     const blocker = findSwitchBlocker({ ingrain: true }, ['ゴースト']);
 
     // Assert
-    expect(blocker).toBe('ingrain');
+    expect(blocker).toBeUndefined();
   });
 
   it('交代できないときのメッセージを返す', () => {

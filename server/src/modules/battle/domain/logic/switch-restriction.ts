@@ -15,7 +15,9 @@ const TRAP_IMMUNE_TYPE_NAME = 'ゴースト';
 
 /**
  * 交代できない理由を返す（交代できるなら undefined）
- * ゴーストタイプは逃げられない状態・バインド状態でも交代できる。ねをはるは自分の効果なので、ゴーストタイプでも交代できない
+ * ゴーストタイプは、ねをはる・逃げられない状態・バインド状態でも交代できる
+ * （本家の ingrain も onTrapPokemon で tryTrap を呼ぶので、trapped を受けないゴーストタイプは交代できる。
+ *  ねをはるで、ふきとばしなどで引っ込まなくなる効果は、交代させる技を作るときに別に判定する）
  * 注: 交代できないようにする特性（かげふみ・ありじごく・じりょく）と、持ち物（きれいなぬけがら）はまだない
  * @param state 交代しようとしているポケモンの volatileState
  * @param typeNames そのポケモンのタイプ名
@@ -24,11 +26,11 @@ export const findSwitchBlocker = (
   state: VolatileState,
   typeNames: readonly string[],
 ): SwitchBlocker | undefined => {
-  if (state.ingrain === true) {
-    return 'ingrain';
-  }
   if (typeNames.includes(TRAP_IMMUNE_TYPE_NAME)) {
     return undefined;
+  }
+  if (state.ingrain === true) {
+    return 'ingrain';
   }
   if (state.trappedByStatusId !== undefined) {
     return 'trapped';

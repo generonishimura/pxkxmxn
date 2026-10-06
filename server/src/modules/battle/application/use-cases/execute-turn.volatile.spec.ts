@@ -508,7 +508,18 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
       expect(executeSwitch).toHaveBeenCalledTimes(1);
     });
 
-    it('ねをはっていると、ゴーストタイプでも交代できない', async () => {
+    it('ねをはっていると交代できない', async () => {
+      // Arrange
+      const { useCase, executeSwitch } = setup({ volatileOf1: { ingrain: true } });
+
+      // Act
+      await useCase.execute(params({ trainerId: 1, switchPokemonId: 10 }));
+
+      // Assert
+      expect(executeSwitch).not.toHaveBeenCalled();
+    });
+
+    it('ゴーストタイプは、ねをはっていても交代できる', async () => {
       // Arrange
       const { useCase, executeSwitch } = setup({
         volatileOf1: { ingrain: true },
@@ -519,7 +530,7 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
       await useCase.execute(params({ trainerId: 1, switchPokemonId: 10 }));
 
       // Assert
-      expect(executeSwitch).not.toHaveBeenCalled();
+      expect(executeSwitch).toHaveBeenCalledTimes(1);
     });
   });
 
