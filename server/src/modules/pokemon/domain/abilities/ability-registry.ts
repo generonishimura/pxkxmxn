@@ -241,6 +241,9 @@ export class AbilityRegistry {
       this.registry.set('しょうりのほし', new VictoryStarEffect());
       this.registry.set('スイートベール', new SweetVeilEffect());
       this.registry.set('パステルベール', new PastelVeilEffect());
+      // メタルプロテクト: クリアボディと同効果、ファントムガード: マルチスケイルと同効果
+      this.registry.set('メタルプロテクト', clearBody);
+      this.registry.set('ファントムガード', new MultiscaleEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

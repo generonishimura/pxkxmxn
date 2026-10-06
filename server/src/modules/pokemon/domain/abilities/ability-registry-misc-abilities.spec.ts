@@ -6,6 +6,8 @@ import { MoodyEffect } from './effects/stat-change/moody-effect';
 import { VictoryStarEffect } from './effects/other/victory-star-effect';
 import { SweetVeilEffect } from './effects/immunity/sweet-veil-effect';
 import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
+import { ClearBodyEffect } from './effects/stat-change/clear-body-effect';
+import { MultiscaleEffect } from './effects/damage-modify/multiscale-effect';
 
 describe('AbilityRegistry（その他の特性）', () => {
   beforeEach(() => {
@@ -21,7 +23,13 @@ describe('AbilityRegistry（その他の特性）', () => {
     ['しょうりのほし', VictoryStarEffect],
     ['スイートベール', SweetVeilEffect],
     ['パステルベール', PastelVeilEffect],
+    ['メタルプロテクト', ClearBodyEffect],
+    ['ファントムガード', MultiscaleEffect],
   ])('%s が登録されている', (name, effectClass) => {
     expect(AbilityRegistry.get(name)).toBeInstanceOf(effectClass);
+  });
+
+  it('メタルプロテクトはクリアボディと同じインスタンスを共有する', () => {
+    expect(AbilityRegistry.get('メタルプロテクト')).toBe(AbilityRegistry.get('クリアボディ'));
   });
 });
