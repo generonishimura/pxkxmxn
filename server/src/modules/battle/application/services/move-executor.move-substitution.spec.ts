@@ -4,7 +4,8 @@ import { MeFirstEffect } from '@/modules/pokemon/domain/moves/effects/me-first-e
 import { CopycatEffect } from '@/modules/pokemon/domain/moves/effects/copycat-effect';
 import { InstructEffect } from '@/modules/pokemon/domain/moves/effects/instruct-effect';
 import { SleepTalkEffect } from '@/modules/pokemon/domain/moves/effects/sleep-talk-effect';
-import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
+import { NaturePowerEffect } from '@/modules/pokemon/domain/moves/effects/nature-power-effect';
+import { Battle, BattleStatus, Field } from '../../domain/entities/battle.entity';
 import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import {
@@ -160,5 +161,42 @@ describe('MoveExecutorService - 別の技を出す技・特性', () => {
 
     // Assert
     expect(message).toBe('Used ねごと but it failed');
+  });
+
+  it('しぜんのちから: エレキフィールドなら１０まんボルトを出す', async () => {
+    // Arrange
+    const naturePower = moveOf(1, 'しぜんのちから', MoveCategory.Status, null);
+    const thunderbolt = moveOf(3, '１０まんボルト', MoveCategory.Special, 90);
+    const { service, statuses } = setupMoveExecutor({
+      move: naturePower,
+      moves: [naturePower, thunderbolt],
+      moveEffects: { しぜんのちから: new NaturePowerEffect() },
+    });
+    const battle = new Battle(
+      1,
+      1,
+      2,
+      1,
+      2,
+      1,
+      null,
+      Field.ElectricTerrain,
+      BattleStatus.Active,
+      null,
+    );
+
+    // Act
+    const message = await service.executeMove(
+      battle,
+      ATTACKER_ID,
+      1,
+      statuses.get(ATTACKER_ID)!,
+      statuses.get(DEFENDER_ID)!,
+      1,
+    );
+
+    // Assert
+    expect(message).toBe('Used しぜんのちから Used １０まんボルト and dealt 10 damage');
+    expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
   });
 });

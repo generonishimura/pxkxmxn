@@ -259,11 +259,12 @@ import { FoulPlayEffect } from './effects/foul-play-effect';
 import { ChipAwayEffect } from './effects/chip-away-effect';
 // 相手のランクを奪う技（Issue #129 一部）
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
-// 別の技を出す技（Issue #103, #104 一部）
+// 別の技を出す技（Issue #103, #104, #117 一部）
 import { MeFirstEffect } from './effects/me-first-effect';
 import { CopycatEffect } from './effects/copycat-effect';
 import { InstructEffect } from './effects/instruct-effect';
 import { SleepTalkEffect } from './effects/sleep-talk-effect';
+import { NaturePowerEffect } from './effects/nature-power-effect';
 
 /**
  * 技のレジストリ
@@ -631,11 +632,12 @@ export class MoveRegistry {
       this.registry.set('ＤＤラリアット', chipAwayEffect);
       // 相手のランクを奪う技（Issue #129 一部）
       this.registry.set('シャドースチール', new SpectralThiefEffect());
-      // 別の技を出す技（Issue #103, #104 一部）
+      // 別の技を出す技（Issue #103, #104, #117 一部）
       this.registry.set('さきどり', new MeFirstEffect());
       this.registry.set('まねっこ', new CopycatEffect());
       this.registry.set('さいはい', new InstructEffect());
       this.registry.set('ねごと', new SleepTalkEffect());
+      this.registry.set('しぜんのちから', new NaturePowerEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
