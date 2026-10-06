@@ -254,6 +254,9 @@ import { PunishmentEffect } from './effects/punishment-effect';
 import { PowerTripEffect } from './effects/power-trip-effect';
 // 相手がねむりのときだけ当たる吸収技（Issue #97 一部）
 import { DreamEaterEffect } from './effects/dream-eater-effect';
+// 能力の参照先を変える技・相手のランクを無視する技（Issue #129 一部）
+import { FoulPlayEffect } from './effects/foul-play-effect';
+import { ChipAwayEffect } from './effects/chip-away-effect';
 
 /**
  * 技のレジストリ
@@ -614,6 +617,12 @@ export class MoveRegistry {
       this.registry.set('つけあがる', new PowerTripEffect());
       // 相手がねむりのときだけ当たる吸収技（Issue #97 一部）
       this.registry.set('ゆめくい', new DreamEaterEffect());
+      // 能力の参照先を変える技・相手のランクを無視する技（Issue #129 一部）
+      const chipAwayEffect = new ChipAwayEffect();
+      this.registry.set('イカサマ', new FoulPlayEffect());
+      this.registry.set('なしくずし', chipAwayEffect);
+      this.registry.set('せいなるつるぎ', chipAwayEffect);
+      this.registry.set('ＤＤラリアット', chipAwayEffect);
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,

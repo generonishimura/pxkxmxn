@@ -127,6 +127,8 @@ import { QueenlyMajestyEffect } from './effects/other/queenly-majesty-effect';
 import { DazzlingEffect } from './effects/other/dazzling-effect';
 import { ArmorTailEffect } from './effects/other/armor-tail-effect';
 import { GoodAsGoldEffect } from './effects/immunity/good-as-gold-effect';
+// 天候の効果をなくす特性（Issue #135 一部）
+import { CloudNineEffect } from './effects/weather/cloud-nine-effect';
 
 /**
  * 特性レジストリ
@@ -348,6 +350,8 @@ export class AbilityRegistry {
       this.registry.set('ビビッドボディ', new DazzlingEffect());
       this.registry.set('テイルアーマー', new ArmorTailEffect());
       this.registry.set('おうごんのからだ', new GoodAsGoldEffect());
+      // 天候の効果をなくす特性（Issue #135 一部）
+      this.registry.set('ノーてんき', new CloudNineEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
