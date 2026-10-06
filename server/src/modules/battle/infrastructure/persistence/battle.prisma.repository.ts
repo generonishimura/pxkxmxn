@@ -12,6 +12,11 @@ import {
   parseVolatileState,
 } from '../../domain/state/volatile-state';
 import { SideState, emptySideState, parseSideState } from '../../domain/state/side-state';
+import {
+  PersistentPokemonState,
+  emptyPersistentPokemonState,
+  parsePersistentPokemonState,
+} from '../../domain/state/persistent-state';
 
 /**
  * BattleのPrismaクエリ結果型
@@ -133,6 +138,7 @@ export class BattlePrismaRepository implements IBattleRepository {
         evasionRank: 0,
         statusCondition: 'None',
         volatileState: this.toJsonObject(emptyVolatileState()),
+        persistentState: this.toJsonObject(emptyPersistentPokemonState()),
       },
     });
 
@@ -162,6 +168,8 @@ export class BattlePrismaRepository implements IBattleRepository {
       updateData.statusCondition = data.statusCondition as StatusCondition;
     if (data.volatileState !== undefined)
       updateData.volatileState = this.toJsonObject(data.volatileState);
+    if (data.persistentState !== undefined)
+      updateData.persistentState = this.toJsonObject(data.persistentState);
 
     const statusData = await this.prisma.battlePokemonStatus.update({
       where: { id },
@@ -244,6 +252,7 @@ export class BattlePrismaRepository implements IBattleRepository {
       this.mapStatusCondition(statusData.statusCondition),
       // JSON 列は古い行や壊れた値もありうるので、例外を投げない parse で読む
       parseVolatileState(statusData.volatileState),
+      parsePersistentPokemonState(statusData.persistentState),
     );
   }
 
@@ -251,7 +260,9 @@ export class BattlePrismaRepository implements IBattleRepository {
    * Domain層の状態を Prisma の JSON 列に書ける形にする
    * 状態の型はすべて JSON にできる値（数値・真偽値・文字列・配列・オブジェクト）だけで組んでいる
    */
-  private toJsonObject(state: VolatileState | SideState): Prisma.InputJsonObject {
+  private toJsonObject(
+    state: VolatileState | PersistentPokemonState | SideState,
+  ): Prisma.InputJsonObject {
     return state;
   }
 

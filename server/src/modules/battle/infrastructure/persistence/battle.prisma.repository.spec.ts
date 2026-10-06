@@ -44,6 +44,7 @@ describe('BattlePrismaRepository - 状態の JSON 列', () => {
     evasionRank: 0,
     statusCondition: 'None',
     volatileState: {},
+    persistentState: {},
     createdAt: new Date(0),
     updatedAt: new Date(0),
     ...overrides,
@@ -232,6 +233,71 @@ describe('BattlePrismaRepository - 状態の JSON 列', () => {
       expect(prisma.battlePokemonStatus.update).toHaveBeenCalledWith({
         where: { id: 10 },
         data: { currentHp: 50 },
+      });
+    });
+  });
+
+  describe('persistentState', () => {
+    it('読み込んだ行の persistentState をドメインの型にして返す', async () => {
+      // Arrange
+      const { prisma, repository } = setup();
+      prisma.battlePokemonStatus.findUnique.mockResolvedValue(
+        statusRow({ persistentState: { disguiseBusted: true, sleepTurns: 2, unknownKey: 1 } }),
+      );
+
+      // Act
+      const status = await repository.findBattlePokemonStatusById(10);
+
+      // Assert
+      expect(status.persistentState).toEqual({ disguiseBusted: true, sleepTurns: 2 });
+    });
+
+    it('読めない persistentState は空の状態として返す', async () => {
+      // Arrange
+      const { prisma, repository } = setup();
+      prisma.battlePokemonStatus.findFirst.mockResolvedValue(
+        statusRow({ persistentState: 'broken' }),
+      );
+
+      // Act
+      const status = await repository.findActivePokemonByBattleIdAndTrainerId(1, 1);
+
+      // Assert
+      expect(status.persistentState).toEqual({});
+    });
+
+    it('ポケモンの状態を作るときは空の persistentState を書き込む', async () => {
+      // Arrange
+      const { prisma, repository } = setup();
+      prisma.battlePokemonStatus.create.mockResolvedValue(statusRow());
+
+      // Act
+      await repository.createBattlePokemonStatus({
+        battleId: 1,
+        trainedPokemonId: 3,
+        trainerId: 1,
+        currentHp: 100,
+        maxHp: 100,
+      });
+
+      // Assert
+      expect(prisma.battlePokemonStatus.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ persistentState: {} }),
+      });
+    });
+
+    it('更新で persistentState を渡したときは書き込む', async () => {
+      // Arrange
+      const { prisma, repository } = setup();
+      prisma.battlePokemonStatus.update.mockResolvedValue(statusRow());
+
+      // Act
+      await repository.updateBattlePokemonStatus(10, { persistentState: { iceFaceBroken: true } });
+
+      // Assert
+      expect(prisma.battlePokemonStatus.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: { persistentState: { iceFaceBroken: true } },
       });
     });
   });
