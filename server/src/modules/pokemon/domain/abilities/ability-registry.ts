@@ -123,6 +123,8 @@ import { MagicGuardEffect } from './effects/other/magic-guard-effect';
 import { SoundproofEffect } from './effects/immunity/soundproof-effect';
 import { BulletproofEffect } from './effects/immunity/bulletproof-effect';
 import { OvercoatEffect } from './effects/immunity/overcoat-effect';
+import { IronFistEffect } from './effects/damage-modify/iron-fist-effect';
+import { StrongJawEffect } from './effects/damage-modify/strong-jaw-effect';
 
 /**
  * 特性レジストリ
@@ -340,6 +342,8 @@ export class AbilityRegistry {
       this.registry.set('ぼうおん', new SoundproofEffect());
       this.registry.set('ぼうだん', new BulletproofEffect());
       this.registry.set('ぼうじん', new OvercoatEffect());
+      this.registry.set('てつのこぶし', new IronFistEffect());
+      this.registry.set('がんじょうあご', new StrongJawEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
