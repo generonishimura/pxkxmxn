@@ -84,6 +84,9 @@ import { FurCoatEffect } from './effects/damage-modify/fur-coat-effect';
 import { ElectricSurgeEffect } from './effects/weather/electric-surge-effect';
 import { OrichalcumPulseEffect } from './effects/weather/orichalcum-pulse-effect';
 import { HadronEngineEffect } from './effects/weather/hadron-engine-effect';
+import { IntrepidSwordEffect } from './effects/stat-change/intrepid-sword-effect';
+import { DauntlessShieldEffect } from './effects/stat-change/dauntless-shield-effect';
+import { SupersweetSyrupEffect } from './effects/stat-change/supersweet-syrup-effect';
 
 /**
  * 特性レジストリ
@@ -233,6 +236,9 @@ export class AbilityRegistry {
       this.registry.set('エレキメイカー', new ElectricSurgeEffect());
       this.registry.set('ひひいろのこどう', new OrichalcumPulseEffect());
       this.registry.set('ハドロンエンジン', new HadronEngineEffect());
+      this.registry.set('ふとうのけん', new IntrepidSwordEffect());
+      this.registry.set('ふくつのたて', new DauntlessShieldEffect());
+      this.registry.set('かんろなミツ', new SupersweetSyrupEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
