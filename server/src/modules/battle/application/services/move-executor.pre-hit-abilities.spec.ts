@@ -95,6 +95,21 @@ describe('MoveExecutorService - 技を出す前に失敗・無効にする特性
       expect(message).toBe(`Used でんじは but it failed (${abilityName})`);
     });
 
+    it('攻撃側が かたやぶり なら、優先度+1の技も失敗しない', async () => {
+      // Arrange
+      const { execute, calculate } = setupMoveExecutor({
+        move: createMove('でんこうせっか', MoveCategory.Physical, 40, 1),
+        attackerAbility: 'かたやぶり',
+        defenderAbility: abilityName,
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(calculate).toHaveBeenCalled();
+    });
+
     it('優先度0の技は失敗しない', async () => {
       // Arrange
       const { execute, calculate } = setupMoveExecutor({
@@ -125,6 +140,22 @@ describe('MoveExecutorService - 技を出す前に失敗・無効にする特性
       // Assert
       expect(message).toBe('Used でんじは but it had no effect');
       expect(statuses.get(2)?.statusCondition).toBeNull();
+    });
+
+    it('攻撃側が かたやぶり なら、変化技を無効にしない', async () => {
+      // Arrange
+      const { execute, statuses } = setupMoveExecutor({
+        move: createMove('でんじは', MoveCategory.Status, null),
+        moveEffect: new ThunderWaveEffect(),
+        attackerAbility: 'かたやぶり',
+        defenderAbility: 'おうごんのからだ',
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(statuses.get(2)?.statusCondition).toBe(StatusCondition.Paralysis);
     });
 
     it('自分を対象にする変化技（つるぎのまい）は無効にしない', async () => {
@@ -170,6 +201,23 @@ describe('MoveExecutorService - 技を出す前に失敗・無効にする特性
       // Assert
       expect(calculate).not.toHaveBeenCalled();
       expect(message).toBe('Used ゆめくい but it failed');
+    });
+
+    it('相手が ぜったいねむり なら、ねむり状態でなくても失敗しない', async () => {
+      // Arrange
+      const { execute, calculate } = setupMoveExecutor({
+        move: createMove('ゆめくい', MoveCategory.Special, 100),
+        moveEffect: new DreamEaterEffect(),
+        defenderAbility: 'ぜったいねむり',
+        defender: { statusCondition: null },
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(calculate).toHaveBeenCalled();
+      expect(message).not.toContain('but it failed');
     });
 
     it('相手がねむりなら、与えたダメージの半分だけ回復する', async () => {
