@@ -81,6 +81,12 @@ import { BerserkEffect } from './effects/stat-change/berserk-effect';
 import { HyperCutterEffect } from './effects/stat-change/hyper-cutter-effect';
 import { KeenEyeEffect } from './effects/stat-change/keen-eye-effect';
 import { FurCoatEffect } from './effects/damage-modify/fur-coat-effect';
+import { RoughSkinEffect } from './effects/other/rough-skin-effect';
+import { AftermathEffect } from './effects/other/aftermath-effect';
+import { GooeyEffect } from './effects/stat-change/gooey-effect';
+import { TanglingHairEffect } from './effects/stat-change/tangling-hair-effect';
+import { WeakArmorEffect } from './effects/stat-change/weak-armor-effect';
+import { EffectSporeEffect } from './effects/stat-change/effect-spore-effect';
 
 /**
  * 特性レジストリ
@@ -226,6 +232,13 @@ export class AbilityRegistry {
       this.registry.set('するどいめ', new KeenEyeEffect());
       // ファーコート: 物理ダメージ半減（Issue #84 一部、ふしぎなうろこと同パターン）
       this.registry.set('ファーコート', new FurCoatEffect());
+      // 接触時に発動する特性（Issue #135 一部）
+      this.registry.set('さめはだ', new RoughSkinEffect());
+      this.registry.set('ゆうばく', new AftermathEffect());
+      this.registry.set('ぬめぬめ', new GooeyEffect());
+      this.registry.set('カーリーヘアー', new TanglingHairEffect());
+      this.registry.set('くだけるよろい', new WeakArmorEffect());
+      this.registry.set('ほうし', new EffectSporeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

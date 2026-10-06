@@ -237,6 +237,9 @@ export class MoveExecutorService {
 
     // 接触技による状態異常付与（防御側の特性）
     let contactEffectMessage = '';
+    // 技の追加効果に渡すポケモンの状態（接触時の特性で変わった場合は取得し直す）
+    let attackerForMoveEffect = attacker;
+    let defenderForMoveEffect = updatedDefender;
     if (damage > 0 && defenderTrainedPokemon?.ability) {
       const defenderAbilityEffect = AbilityRegistry.get(defenderTrainedPokemon.ability.name);
       if (defenderAbilityEffect && 'applyContactStatusCondition' in defenderAbilityEffect) {
@@ -247,6 +250,13 @@ export class MoveExecutorService {
         );
         if (applied) {
           contactEffectMessage = ` ${defenderTrainedPokemon.ability.name} activated!`;
+          // くだけるよろい（防御側）やぬめぬめ（攻撃側）などで能力ランク・状態異常が変わるため、
+          // 追加効果が古い状態で上書きしないよう最新の状態を取得し直す
+          attackerForMoveEffect =
+            (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? attacker;
+          defenderForMoveEffect =
+            (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ??
+            updatedDefender;
         }
       }
     }
@@ -258,7 +268,11 @@ export class MoveExecutorService {
     const moveEffect = MoveRegistry.get(move.name);
     let moveEffectMessage = '';
     if (moveEffect?.onHit) {
-      const hitMessage = await moveEffect.onHit(attacker, updatedDefender, battleContext);
+      const hitMessage = await moveEffect.onHit(
+        attackerForMoveEffect,
+        defenderForMoveEffect,
+        battleContext,
+      );
       if (hitMessage) {
         moveEffectMessage = ` ${hitMessage}`;
       }
