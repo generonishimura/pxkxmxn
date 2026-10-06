@@ -3,6 +3,7 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 import type { MoveFlag } from '../moves/move-flags';
 import type { StatType } from '../moves/effects/base/base-stat-change-effect';
+import type { HitResult } from '../battle-events/hit-result';
 
 /**
  * 特性効果のインターフェース
@@ -181,6 +182,80 @@ export interface IAbilityEffect {
     _originalDamage: number,
     _battleContext?: BattleContext,
   ): void | Promise<void>;
+
+  /**
+   * 防御側: 接触技などを受けたあと、技全体で1回だけ発動する効果（例: さめはだ、せいでんき、ぬめぬめ）
+   * ダメージが1以上のとき、ヒットのループのあと・技の onHit の前に呼ばれる。かたやぶりでは無視されない
+   * @param defender 防御側のポケモン（この特性を持つ側）
+   * @param attacker 攻撃側のポケモン
+   * @returns 発動した場合はtrue（メッセージ「<特性名> activated!」が付く）
+   */
+  applyContactStatusCondition?(
+    _defender: BattlePokemonStatus,
+    _attacker: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<boolean>;
+
+  /**
+   * 防御側: 攻撃技のダメージを受けたヒットごとに発動する効果
+   * （例: じきゅうりょく、せいぎのこころ、びびり、みずがため、わたげ、すなはき、てつのトゲ、ゆうばく）
+   * ダメージが1以上のヒットのたびに、ダメージを減らした直後に呼ばれる。ひんしになったヒットでも呼ばれる
+   * （hit.targetFainted が true）。かたやぶりでは無視されない
+   * @param holder この特性を持つ防御側のポケモン（ダメージ反映後の状態）
+   * @param attacker 攻撃側のポケモン
+   * @param hit このヒットの情報
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onDamagingHit?(
+    _holder: BattlePokemonStatus,
+    _attacker: BattlePokemonStatus,
+    _hit: HitResult,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 攻撃側: 攻撃技でダメージを与えたヒットごとに発動する効果（例: どくしゅ、どくのくさり、あくしゅう）
+   * 防御側の onDamagingHit のあとに呼ばれる
+   * @param holder この特性を持つ攻撃側のポケモン
+   * @param target ダメージを受けた防御側のポケモン（ダメージ反映後の状態）
+   * @param hit このヒットの情報
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onSourceDamagingHit?(
+    _holder: BattlePokemonStatus,
+    _target: BattlePokemonStatus,
+    _hit: HitResult,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 防御側: 攻撃技のすべてのヒットと追加効果のあとに1回だけ発動する効果（例: いかりのこうら、ぎゃくじょう）
+   * 合計ダメージが1以上のとき、技の afterDamage のあとに呼ばれる。かたやぶりでは無視されない
+   * @param holder この特性を持つ防御側のポケモン
+   * @param attacker 攻撃側のポケモン
+   * @param hit 技全体の情報（damage は合計、hpBefore は技を受ける前のHP）
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onAfterMoveHit?(
+    _holder: BattlePokemonStatus,
+    _attacker: BattlePokemonStatus,
+    _hit: HitResult,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 攻撃側: 自分の攻撃技で相手をひんしにしたときに発動する効果
+   * （例: じしんかじょう、ビーストブースト、しろのいななき、くろのいななき）
+   * 技の処理がすべて終わったあと、相手がひんしで自分がひんしでないときに呼ばれる
+   * @param holder この特性を持つ攻撃側のポケモン
+   * @param fainted ひんしになった相手
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onKnockOut?(
+    _holder: BattlePokemonStatus,
+    _fainted: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
 
   /**
    * 攻撃側: 技のタイプを変更する効果（例: うるおいボイス）

@@ -29,7 +29,8 @@ import { Move } from '@/modules/pokemon/domain/entities/move.entity';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
-import { MoveFlags } from '@/modules/pokemon/domain/moves/move-flags';
+import { MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-flags';
+import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
 import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
 import { modifyByFixedPoint } from '../../domain/logic/fixed-point-modifier';
@@ -90,8 +91,8 @@ export class MoveExecutorService {
    * 6. 技の beforeDamage（連続技の回数決定）。このあと両者の状態を取り直す
    * 7. 技タイプの決定（技の modifyMoveType → 攻撃側特性の modifyMoveType）
    * 8. 技の威力の決定（技の modifyMovePower）
-   * 9. ヒットごとにダメージを計算して適用（連続技・おやこあいの追加ヒット）
-   * 10. 接触時の特性 → onHit → afterDamage（合計ダメージ）
+   * 9. ヒットごとにダメージを適用し、防御側特性の onDamagingHit → 攻撃側特性の onSourceDamagingHit を呼ぶ
+   * 10. 接触時の特性 → onHit → afterDamage（合計ダメージ） → 防御側特性の onAfterMoveHit → 攻撃側特性の onKnockOut
    */
   async executeMove(
     battle: Battle,
@@ -312,6 +313,22 @@ export class MoveExecutorService {
     // damage は実際に減らしたHPの合計（残りHPを超えた分は含めない。反動などはこの値を使う）
     let damage = 0;
     let hitCount = 0;
+    const hpBeforeMove = updatedDefender.currentHp;
+    // ヒットの前後で呼ぶ防御側特性は、かたやぶりでも無視しない（じきゅうりょく・さめはだなど）
+    const defenderEventEffect = defenderAbilityName
+      ? AbilityRegistry.get(defenderAbilityName)
+      : undefined;
+    const hitEventMessages: string[] = [];
+    const createHitResult = (hitDamage: number, hpBefore: number, hitIndex: number): HitResult => ({
+      damage: hitDamage,
+      hpBefore,
+      hitIndex,
+      hitCount,
+      isContact: isContactMove(battleContext),
+      moveTypeName: moveType.name,
+      moveCategory: move.category,
+      targetFainted: updatedDefender.isFainted(),
+    });
     for (const [hitIndex, hitPower] of hitPowers.entries()) {
       battleContext.hitIndex = hitIndex;
       const moveInfo: MoveInfo = {
@@ -349,8 +366,9 @@ export class MoveExecutorService {
       });
 
       // ダメージを適用
-      const newHp = Math.max(0, updatedDefender.currentHp - hitDamage);
-      const dealtDamage = updatedDefender.currentHp - newHp;
+      const hpBeforeHit = updatedDefender.currentHp;
+      const newHp = Math.max(0, hpBeforeHit - hitDamage);
+      const dealtDamage = hpBeforeHit - newHp;
       await this.battleRepository.updateBattlePokemonStatus(defender.id, {
         currentHp: newHp,
       });
@@ -365,8 +383,38 @@ export class MoveExecutorService {
       damage += dealtDamage;
       hitCount += 1;
 
-      // 無効化された・ひんしになった場合は残りのヒットをしない
-      if (hitDamage === 0 || latestDefender.isFainted()) {
+      // ヒットごとの特性（防御側の onDamagingHit → 攻撃側の onSourceDamagingHit）
+      if (
+        dealtDamage > 0 &&
+        (defenderEventEffect?.onDamagingHit || attackerAbilityEffect?.onSourceDamagingHit)
+      ) {
+        const hit = createHitResult(dealtDamage, hpBeforeHit, hitIndex);
+        const defenderMessage = await defenderEventEffect?.onDamagingHit?.(
+          updatedDefender,
+          currentAttacker,
+          hit,
+          battleContext,
+        );
+        const attackerMessage = await attackerAbilityEffect?.onSourceDamagingHit?.(
+          currentAttacker,
+          updatedDefender,
+          hit,
+          battleContext,
+        );
+        hitEventMessages.push(
+          ...[defenderMessage, attackerMessage].filter((m): m is string => Boolean(m)),
+        );
+        // 特性で能力ランク・HP・状態異常が変わるため、次のヒットのために取り直す
+        currentAttacker =
+          (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? currentAttacker;
+        updatedDefender =
+          (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? updatedDefender;
+        battleContext.attacker = currentAttacker;
+        battleContext.defender = updatedDefender;
+      }
+
+      // 無効化された・どちらかがひんしになった場合は残りのヒットをしない
+      if (hitDamage === 0 || updatedDefender.isFainted() || currentAttacker.isFainted()) {
         break;
       }
     }
@@ -385,25 +433,20 @@ export class MoveExecutorService {
     // 技の追加効果に渡すポケモンの状態（接触時の特性で変わった場合は取得し直す）
     let attackerForMoveEffect = currentAttacker;
     let defenderForMoveEffect = updatedDefender;
-    if (damage > 0 && defenderTrainedPokemon?.ability) {
-      const defenderAbilityEffect = AbilityRegistry.get(defenderTrainedPokemon.ability.name);
-      if (defenderAbilityEffect && 'applyContactStatusCondition' in defenderAbilityEffect) {
-        const applied = await (defenderAbilityEffect as any).applyContactStatusCondition(
-          updatedDefender,
-          currentAttacker,
-          battleContext,
-        );
-        if (applied) {
-          contactEffectMessage = ` ${defenderTrainedPokemon.ability.name} activated!`;
-          // くだけるよろい（防御側）やぬめぬめ（攻撃側）などで能力ランク・状態異常が変わるため、
-          // 追加効果が古い状態で上書きしないよう最新の状態を取得し直す
-          attackerForMoveEffect =
-            (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ??
-            currentAttacker;
-          defenderForMoveEffect =
-            (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ??
-            updatedDefender;
-        }
+    if (damage > 0 && defenderEventEffect?.applyContactStatusCondition) {
+      const applied = await defenderEventEffect.applyContactStatusCondition(
+        updatedDefender,
+        currentAttacker,
+        battleContext,
+      );
+      if (applied) {
+        contactEffectMessage = ` ${defenderAbilityName} activated!`;
+        // くだけるよろい（防御側）やぬめぬめ（攻撃側）などで能力ランク・状態異常が変わるため、
+        // 追加効果が古い状態で上書きしないよう最新の状態を取得し直す
+        attackerForMoveEffect =
+          (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? currentAttacker;
+        defenderForMoveEffect =
+          (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? updatedDefender;
       }
     }
 
@@ -436,8 +479,68 @@ export class MoveExecutorService {
       }
     }
 
+    // 技全体のあとの特性（防御側の onAfterMoveHit → 相手をひんしにした攻撃側の onKnockOut）
+    const afterMoveMessages = await this.runAfterMoveHooks({
+      attackerId: attacker.id,
+      defenderId: defender.id,
+      attackerAbilityEffect,
+      defenderEventEffect,
+      createMoveHit: () => createHitResult(damage, hpBeforeMove, hitCount - 1),
+      damage,
+      battleContext,
+    });
+
     const hitCountMessage = hitCount > 1 ? ` (hit ${hitCount} times)` : '';
-    return `Used ${move.name} and dealt ${damage} damage${hitCountMessage}${contactEffectMessage}${moveEffectMessage}`;
+    const eventMessage = hitEventMessages.map(message => ` ${message}`).join('');
+    const afterMoveMessage = afterMoveMessages.map(message => ` ${message}`).join('');
+    return `Used ${move.name} and dealt ${damage} damage${hitCountMessage}${contactEffectMessage}${eventMessage}${moveEffectMessage}${afterMoveMessage}`;
+  }
+
+  /**
+   * 技全体のあとの特性を呼ぶ
+   * - 防御側の onAfterMoveHit: 合計ダメージが1以上のとき（いかりのこうら・ぎゃくじょう）
+   * - 攻撃側の onKnockOut: 相手がひんしで、自分がひんしでないとき（じしんかじょうなど）
+   * @returns 特性のメッセージ
+   */
+  private async runAfterMoveHooks(params: {
+    attackerId: number;
+    defenderId: number;
+    attackerAbilityEffect: IAbilityEffect | undefined;
+    defenderEventEffect: IAbilityEffect | undefined;
+    createMoveHit: () => HitResult;
+    damage: number;
+    battleContext: BattleContext;
+  }): Promise<string[]> {
+    const { attackerAbilityEffect, defenderEventEffect, battleContext } = params;
+    if (!defenderEventEffect?.onAfterMoveHit && !attackerAbilityEffect?.onKnockOut) {
+      return [];
+    }
+
+    const messages: Array<string | null | undefined> = [];
+    let attacker = await this.battleRepository.findBattlePokemonStatusById(params.attackerId);
+    let defender = await this.battleRepository.findBattlePokemonStatusById(params.defenderId);
+    if (!attacker || !defender) {
+      return [];
+    }
+
+    if (params.damage > 0 && defenderEventEffect?.onAfterMoveHit) {
+      messages.push(
+        await defenderEventEffect.onAfterMoveHit(
+          defender,
+          attacker,
+          params.createMoveHit(),
+          battleContext,
+        ),
+      );
+      attacker = (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? attacker;
+      defender = (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? defender;
+    }
+
+    if (defender.isFainted() && !attacker.isFainted() && attackerAbilityEffect?.onKnockOut) {
+      messages.push(await attackerAbilityEffect.onKnockOut(attacker, defender, battleContext));
+    }
+
+    return messages.filter((message): message is string => Boolean(message));
   }
 
   /**
