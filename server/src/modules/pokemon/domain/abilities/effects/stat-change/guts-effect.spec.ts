@@ -61,6 +61,10 @@ describe('GutsEffect', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     };
   };
 
@@ -129,7 +133,11 @@ describe('GutsEffect', () => {
       });
       const battleRepository = createMockBattleRepository();
       battleRepository.updateBattlePokemonStatus.mockResolvedValue(
-        createBattlePokemonStatus({ id: 1, attackRank: 1, statusCondition: StatusCondition.Poison }),
+        createBattlePokemonStatus({
+          id: 1,
+          attackRank: 1,
+          statusCondition: StatusCondition.Poison,
+        }),
       );
       const battleContext: BattleContext = {
         battle: createBattle(),
@@ -151,7 +159,11 @@ describe('GutsEffect', () => {
       });
       const battleRepository = createMockBattleRepository();
       battleRepository.updateBattlePokemonStatus.mockResolvedValue(
-        createBattlePokemonStatus({ id: 1, attackRank: 1, statusCondition: StatusCondition.Paralysis }),
+        createBattlePokemonStatus({
+          id: 1,
+          attackRank: 1,
+          statusCondition: StatusCondition.Paralysis,
+        }),
       );
       const battleContext: BattleContext = {
         battle: createBattle(),

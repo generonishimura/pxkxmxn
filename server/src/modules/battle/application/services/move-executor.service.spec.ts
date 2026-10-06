@@ -63,6 +63,8 @@ describe('MoveExecutorService', () => {
       merged.accuracyRank,
       merged.evasionRank,
       merged.statusCondition,
+      merged.volatileState,
+      merged.persistentState,
     );
   };
 
@@ -143,6 +145,10 @@ describe('MoveExecutorService', () => {
     findBattlePokemonMoveById: jest
       .fn()
       .mockResolvedValue(new BattlePokemonMove(BATTLE_POKEMON_MOVE_ID, ATTACKER_ID, 1, 10, 10)),
+    patchVolatileState: jest.fn(),
+    patchPersistentState: jest.fn(),
+    patchSideConditions: jest.fn(),
+    patchGlobalFieldState: jest.fn(),
   });
 
   const setup = (defenderAbilityName: string, moveEffect: IMoveEffect) => {

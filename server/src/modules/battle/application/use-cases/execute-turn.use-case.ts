@@ -4,12 +4,16 @@ import {
   BATTLE_REPOSITORY_TOKEN,
 } from '../../domain/battle.repository.interface';
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
+import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
+import { isEmptyObject } from '../../domain/state/state-field-parser';
 import {
-  NotFoundException,
-  InvalidStateException,
-} from '@/shared/domain/exceptions';
+  clearVolatileOnSwitchOut,
+  tickVolatileStateAtTurnEnd,
+} from '../../domain/state/volatile-state';
+import { tickSideStateAtTurnEnd } from '../../domain/state/side-state';
+import { NotFoundException, InvalidStateException } from '@/shared/domain/exceptions';
 import { ActionOrderDeterminerService } from '../services/action-order-determiner.service';
 import { WinnerCheckerService } from '../services/winner-checker.service';
 import { StatusConditionProcessorService } from '../services/status-condition-processor.service';
@@ -112,15 +116,21 @@ export class ExecuteTurnUseCase {
 
     // 行動を順番に実行
     for (const [actionIndex, action] of actions.entries()) {
+      // 先に行動した側が書いた状態（ちょうはつ・まもる・壁・天候・交代など）が見えるよう、
+      // 行動のたびにバトルと場のポケモンを読み直す。状態の JSON 列は丸ごと書き換わるので、
+      // ターンの最初に読んだ古い値を使うと判定を誤り、書き込むと先に書かれたキーが消える
+      const currentBattle = await this.findBattle(battle.id);
       if (action.action === 'move' && action.moveId) {
         // このあとに相手の技が残っていなければ、最後に行動する（アナライズ）
         const isLastToMove = !actions
           .slice(actionIndex + 1)
           .some(next => next.action === 'move' && next.trainerId !== action.trainerId);
-        const attacker =
-          action.trainerId === params.trainer1Action.trainerId ? trainer1Active : trainer2Active;
-        const defender =
-          action.trainerId === params.trainer1Action.trainerId ? trainer2Active : trainer1Active;
+        const opponentTrainerId =
+          action.trainerId === params.trainer1Action.trainerId
+            ? params.trainer2Action.trainerId
+            : params.trainer1Action.trainerId;
+        const attacker = await this.findActivePokemon(battle.id, action.trainerId);
+        const defender = await this.findActivePokemon(battle.id, opponentTrainerId);
 
         // PPチェック(PPが0の場合は使用不可)
         const battlePokemonMoves =
@@ -160,7 +170,7 @@ export class ExecuteTurnUseCase {
             });
             // 解除されたので行動を続行
             const result = await this.moveExecutor.executeMove(
-              battle,
+              currentBattle,
               action.trainerId,
               action.moveId,
               attacker,
@@ -186,7 +196,7 @@ export class ExecuteTurnUseCase {
           }
         } else {
           const result = await this.moveExecutor.executeMove(
-            battle,
+            currentBattle,
             action.trainerId,
             action.moveId,
             attacker,
@@ -215,7 +225,11 @@ export class ExecuteTurnUseCase {
           };
         }
       } else if (action.action === 'switch' && action.switchPokemonId) {
-        await this.pokemonSwitcher.executeSwitch(battle, action.trainerId, action.switchPokemonId);
+        await this.pokemonSwitcher.executeSwitch(
+          currentBattle,
+          action.trainerId,
+          action.switchPokemonId,
+        );
         actionResults.push({
           trainerId: action.trainerId,
           action: 'switch',
@@ -224,17 +238,81 @@ export class ExecuteTurnUseCase {
       }
     }
 
-    // ターン終了時の特性効果を処理
-    await this.statusConditionProcessor.processTurnEndAbilities(battle);
+    // ターン終了時の特性効果を処理（行動で変わった天候なども見えるよう、読み直したバトルを渡す）
+    const battleAtTurnEnd = await this.findBattle(battle.id);
+    await this.statusConditionProcessor.processTurnEndAbilities(battleAtTurnEnd);
 
-    // ターン数を増やす
+    // 状態の残りターン数を減らし、このターンだけの状態を消す。
+    // 切れる直前の値（1）を読む効果は上のターン終了時の処理で済んでいるので、そのあとで行う
+    await this.settleVolatileStatesAtTurnEnd(battle.id);
+
+    // ターン終了時の処理が書いた sideState も残すよう、読み直してから減らす
+    const battleBeforeNextTurn = await this.findBattle(battle.id);
+    const tickedSideState = tickSideStateAtTurnEnd(battleBeforeNextTurn.sideState);
+
+    // ターン数を増やす（sideState が変わったときだけ一緒に書く）
     const updatedBattle = await this.battleRepository.update(battle.id, {
-      turn: battle.turn + 1,
+      turn: battleBeforeNextTurn.turn + 1,
+      ...(tickedSideState !== battleBeforeNextTurn.sideState ? { sideState: tickedSideState } : {}),
     });
 
     return {
       battle: updatedBattle,
       actions: actionResults,
     };
+  }
+
+  /**
+   * ターン終了時に、場のポケモンの volatileState を片付ける
+   * - ひんしのポケモンは、すべてのキーを消す（ほろびのうたのカウントやみがわりを持ち越さない）
+   * - それ以外は、残りターン数を 1 減らし、このターンだけのフラグを消す
+   * 変える所がないポケモンには書き込まない
+   */
+  private async settleVolatileStatesAtTurnEnd(battleId: number): Promise<void> {
+    const statuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
+    for (const status of statuses.filter(s => s.isActive)) {
+      if (status.isFainted()) {
+        if (!isEmptyObject(status.volatileState)) {
+          await this.battleRepository.updateBattlePokemonStatus(status.id, {
+            volatileState: clearVolatileOnSwitchOut(),
+          });
+        }
+        continue;
+      }
+      const ticked = tickVolatileStateAtTurnEnd(status.volatileState);
+      if (ticked !== status.volatileState) {
+        await this.battleRepository.updateBattlePokemonStatus(status.id, {
+          volatileState: ticked,
+        });
+      }
+    }
+  }
+
+  /**
+   * 最新のバトルを読む
+   */
+  private async findBattle(battleId: number): Promise<Battle> {
+    const battle = await this.battleRepository.findById(battleId);
+    if (!battle) {
+      throw new NotFoundException('Battle', battleId);
+    }
+    return battle;
+  }
+
+  /**
+   * トレーナーの場にいる最新のポケモンを読む
+   */
+  private async findActivePokemon(
+    battleId: number,
+    trainerId: number,
+  ): Promise<BattlePokemonStatus> {
+    const active = await this.battleRepository.findActivePokemonByBattleIdAndTrainerId(
+      battleId,
+      trainerId,
+    );
+    if (!active) {
+      throw new NotFoundException('Active pokemon');
+    }
+    return active;
   }
 }

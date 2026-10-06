@@ -88,6 +88,7 @@ describe('BaseConditionalDamageDealtEffect', () => {
       field: null,
       status: BattleStatus.Active,
       winnerTrainerId: null,
+      sideState: {},
     },
   });
 
@@ -252,5 +253,3 @@ describe('BaseConditionalDamageDealtEffect', () => {
     });
   });
 });
-
-

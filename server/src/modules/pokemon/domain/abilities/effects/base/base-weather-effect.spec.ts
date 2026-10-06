@@ -36,9 +36,11 @@ describe('BaseWeatherEffect', () => {
     } as BattlePokemonStatus;
 
     mockBattleRepository = {
-      update: jest.fn().mockResolvedValue(
-        new Battle(1, 1, 2, 1, 2, 1, Weather.Rain, null, BattleStatus.Active, null),
-      ),
+      update: jest
+        .fn()
+        .mockResolvedValue(
+          new Battle(1, 1, 2, 1, 2, 1, Weather.Rain, null, BattleStatus.Active, null),
+        ),
       findById: jest.fn(),
       create: jest.fn(),
       findBattlePokemonStatusByBattleId: jest.fn(),
@@ -50,6 +52,10 @@ describe('BaseWeatherEffect', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     } as jest.Mocked<IBattleRepository>;
 
     battleContext = {
@@ -110,4 +116,3 @@ describe('BaseWeatherEffect', () => {
     });
   });
 });
-

@@ -1,5 +1,7 @@
 import { StatusCondition } from './status-condition.enum';
 import { ValidationException } from '../../../../shared/domain/exceptions/validation.exception';
+import { VolatileState, emptyVolatileState } from '../state/volatile-state';
+import { PersistentPokemonState, emptyPersistentPokemonState } from '../state/persistent-state';
 
 /**
  * BattlePokemonStatusエンティティ
@@ -42,6 +44,15 @@ export class BattlePokemonStatus {
     public readonly accuracyRank: number,
     public readonly evasionRank: number,
     public readonly statusCondition: StatusCondition | null,
+    /**
+     * 場に出ている間だけ続く状態（やどりぎのタネ・みがわりなど）
+     * 交代で引っ込むとすべて消える（docs/battle-state.md）
+     */
+    public readonly volatileState: VolatileState = emptyVolatileState(),
+    /**
+     * 交代しても消えない状態（ばけのかわ・ねむりのターン数など）
+     */
+    public readonly persistentState: PersistentPokemonState = emptyPersistentPokemonState(),
   ) {
     // IDのバリデーション
     if (id < BattlePokemonStatus.MIN_ID) {
@@ -106,10 +117,7 @@ export class BattlePokemonStatus {
     ];
 
     for (const rank of ranks) {
-      if (
-        rank.value < BattlePokemonStatus.MIN_RANK ||
-        rank.value > BattlePokemonStatus.MAX_RANK
-      ) {
+      if (rank.value < BattlePokemonStatus.MIN_RANK || rank.value > BattlePokemonStatus.MAX_RANK) {
         throw new ValidationException(
           `${rank.name} must be between ${BattlePokemonStatus.MIN_RANK} and ${BattlePokemonStatus.MAX_RANK}. Got: ${rank.value}`,
           rank.name,

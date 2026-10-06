@@ -40,6 +40,7 @@ describe('SwiftSwimEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });

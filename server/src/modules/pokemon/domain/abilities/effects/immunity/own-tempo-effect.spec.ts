@@ -41,6 +41,7 @@ describe('OwnTempoEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });
@@ -49,13 +50,27 @@ describe('OwnTempoEffect', () => {
     it('should return true for all status conditions (confusion not implemented yet)', () => {
       // 注: 現在のシステムではこんらん（Confusion）はStatusConditionに含まれていないため、
       // この特性は現時点では効果がありません。
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Burn, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Freeze, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Paralysis, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Poison, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.BadPoison, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Sleep, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Flinch, battleContext)).toBe(true);
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Burn, battleContext)).toBe(
+        true,
+      );
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Freeze, battleContext)).toBe(
+        true,
+      );
+      expect(
+        effect.canReceiveStatusCondition(pokemon, StatusCondition.Paralysis, battleContext),
+      ).toBe(true);
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Poison, battleContext)).toBe(
+        true,
+      );
+      expect(
+        effect.canReceiveStatusCondition(pokemon, StatusCondition.BadPoison, battleContext),
+      ).toBe(true);
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Sleep, battleContext)).toBe(
+        true,
+      );
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Flinch, battleContext)).toBe(
+        true,
+      );
     });
   });
 });

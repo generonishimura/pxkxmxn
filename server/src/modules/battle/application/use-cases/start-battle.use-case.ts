@@ -17,6 +17,7 @@ import { Battle } from '../../domain/entities/battle.entity';
 import { StatCalculator, TrainedPokemonStats } from '../../domain/logic/stat-calculator';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
+import { updateVolatileState } from '../../domain/state/volatile-state';
 
 /**
  * StartBattleUseCase
@@ -30,6 +31,12 @@ import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemo
  */
 @Injectable()
 export class StartBattleUseCase {
+  /**
+   * 先発の switchedInTurn。ターン N に交代で出たポケモンは N になり、出てから最初に
+   * 行動するのは N + 1。先発はターン 1 から行動するので 0 にする
+   */
+  private static readonly STARTER_SWITCHED_IN_TURN = 0;
+
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
@@ -91,6 +98,9 @@ export class StartBattleUseCase {
       if (member.position === 1) {
         await this.battleRepository.updateBattlePokemonStatus(battleStatus.id, {
           isActive: true,
+          volatileState: updateVolatileState(battleStatus.volatileState, {
+            switchedInTurn: StartBattleUseCase.STARTER_SWITCHED_IN_TURN,
+          }),
         });
 
         // 特性のOnEntry効果を発動
@@ -123,6 +133,9 @@ export class StartBattleUseCase {
       if (member.position === 1) {
         await this.battleRepository.updateBattlePokemonStatus(battleStatus.id, {
           isActive: true,
+          volatileState: updateVolatileState(battleStatus.volatileState, {
+            switchedInTurn: StartBattleUseCase.STARTER_SWITCHED_IN_TURN,
+          }),
         });
 
         // 特性のOnEntry効果を発動

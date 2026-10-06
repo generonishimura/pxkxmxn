@@ -46,7 +46,11 @@ describe('BaseContactStatusConditionEffect', () => {
     );
   };
 
-  const createType = (id: number, name: string = `Type${id}`, nameEn: string = `Type${id}En`): Type => {
+  const createType = (
+    id: number,
+    name: string = `Type${id}`,
+    nameEn: string = `Type${id}En`,
+  ): Type => {
     return new Type(id, name, nameEn);
   };
 
@@ -114,6 +118,10 @@ describe('BaseContactStatusConditionEffect', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     };
   };
 
@@ -252,10 +260,7 @@ describe('BaseContactStatusConditionEffect', () => {
       const attacker = createBattlePokemonStatus({ id: 2 });
       const battleRepository = createMockBattleRepository();
       const trainedPokemonRepository = createMockTrainedPokemonRepository(
-        createTrainedPokemon(
-          2,
-          createPokemon(2, createType(1, 'ほのお'), createType(2, 'はがね')),
-        ),
+        createTrainedPokemon(2, createPokemon(2, createType(1, 'ほのお'), createType(2, 'はがね'))),
       );
       const battleContext: BattleContext = {
         battle: new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null),
@@ -304,4 +309,3 @@ describe('BaseContactStatusConditionEffect', () => {
     });
   });
 });
-

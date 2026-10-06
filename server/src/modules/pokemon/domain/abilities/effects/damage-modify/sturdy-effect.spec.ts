@@ -40,6 +40,7 @@ describe('SturdyEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });

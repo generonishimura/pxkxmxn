@@ -93,6 +93,7 @@ describe('SeedSowerEffect（こぼれダネ）', () => {
         { ability: 'こぼれダネ' },
       );
       const battle = withField(context().battle, Field.GrassyTerrain);
+      battleRepository.findById.mockResolvedValueOnce(battle);
 
       // Act
       const message = await new SeedSowerEffect().onDamagingHit(

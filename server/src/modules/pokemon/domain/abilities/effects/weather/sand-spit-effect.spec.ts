@@ -72,13 +72,15 @@ describe('SandSpitEffect（すなはき）', () => {
     it('すでにすなあらしなら、天候を書き込まない', async () => {
       // Arrange
       const { context, get, battleRepository } = createInMemoryBattle({}, { ability: 'すなはき' });
+      const battle = battleWith(Weather.Sandstorm);
+      battleRepository.findById.mockResolvedValueOnce(battle);
 
       // Act
       const message = await new SandSpitEffect().onDamagingHit(
         get(2),
         get(1),
         hit(),
-        context({ battle: battleWith(Weather.Sandstorm) }),
+        context({ battle }),
       );
 
       // Assert

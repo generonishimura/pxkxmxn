@@ -37,6 +37,12 @@ import { MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-fl
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
 import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
+import { removalPatch } from '../../domain/state/state-field-parser';
+import {
+  VOLATILE_UNTIL_NEXT_MOVE_FLAGS,
+  VolatileState,
+  clearVolatileOnBeforeMove,
+} from '../../domain/state/volatile-state';
 
 /**
  * 技の実行オプション
@@ -144,6 +150,15 @@ export class MoveExecutorService {
         });
         return `Pokemon is confused and hurt itself in confusion (${selfDamage} damage)`;
       }
+    }
+
+    // みちづれ・おんねんは、使用者が次に技を出そうとしたときに消える
+    // みちづれを続けて使ったときの失敗判定を入れるときは、この消去より前で読む
+    if (clearVolatileOnBeforeMove(attacker.volatileState) !== attacker.volatileState) {
+      attacker = await this.battleRepository.patchVolatileState(
+        attacker.id,
+        removalPatch<VolatileState>(VOLATILE_UNTIL_NEXT_MOVE_FLAGS),
+      );
     }
 
     const moveEffect = MoveRegistry.get(move.name);

@@ -40,6 +40,7 @@ describe('MoldBreakerEffect', () => {
         field: null,
         status: 'Active' as any,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });
