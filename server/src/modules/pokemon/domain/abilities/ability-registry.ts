@@ -226,6 +226,28 @@ export class AbilityRegistry {
       this.registry.set('するどいめ', new KeenEyeEffect());
       // ファーコート: 物理ダメージ半減（Issue #84 一部、ふしぎなうろこと同パターン）
       this.registry.set('ファーコート', new FurCoatEffect());
+      // シングルバトルで効果のない特性・技（ダブル専用含む）（Issue #135 一部）
+      // 情報表示のみ・野生バトル専用・ダブルバトル専用の特性は NoBattleEffectAbility を共有
+      this.registry.set('きけんよち', noBattleEffect);
+      this.registry.set('よちむ', noBattleEffect);
+      this.registry.set('たまひろい', noBattleEffect);
+      this.registry.set('プラス', noBattleEffect);
+      this.registry.set('マイナス', noBattleEffect);
+      this.registry.set('いやしのこころ', noBattleEffect);
+      this.registry.set('フレンドガード', noBattleEffect);
+      this.registry.set('テレパシー', noBattleEffect);
+      this.registry.set('フラワーベール', noBattleEffect);
+      this.registry.set('きょうせい', noBattleEffect);
+      this.registry.set('バッテリー', noBattleEffect);
+      this.registry.set('レシーバー', noBattleEffect);
+      this.registry.set('かがくのちから', noBattleEffect);
+      this.registry.set('スクリューおびれ', noBattleEffect);
+      this.registry.set('すじがねいり', noBattleEffect);
+      this.registry.set('パワースポット', noBattleEffect);
+      this.registry.set('きみょうなくすり', noBattleEffect);
+      this.registry.set('しれいとう', noBattleEffect);
+      this.registry.set('きょうえん', noBattleEffect);
+      this.registry.set('おもてなし', noBattleEffect);
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
