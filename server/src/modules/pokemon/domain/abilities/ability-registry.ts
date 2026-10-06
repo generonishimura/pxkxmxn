@@ -119,6 +119,12 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// 技フラグを使う特性（Issue #135 一部）
+import { MegaLauncherEffect } from './effects/damage-modify/mega-launcher-effect';
+import { ToughClawsEffect } from './effects/damage-modify/tough-claws-effect';
+import { LongReachEffect } from './effects/other/long-reach-effect';
+import { LiquidVoiceEffect } from './effects/other/liquid-voice-effect';
+import { TriageEffect } from './effects/other/triage-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +338,12 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // 技フラグを使う特性（Issue #135 一部）
+      this.registry.set('メガランチャー', new MegaLauncherEffect());
+      this.registry.set('かたいツメ', new ToughClawsEffect());
+      this.registry.set('えんかく', new LongReachEffect());
+      this.registry.set('うるおいボイス', new LiquidVoiceEffect());
+      this.registry.set('ヒーリングシフト', new TriageEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
