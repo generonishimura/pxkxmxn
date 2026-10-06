@@ -118,6 +118,17 @@ describe('ExecuteTurnUseCase', () => {
     jest.clearAllMocks();
   });
 
+  /**
+   * 場のポケモンをトレーナー ID で返すようにする
+   * ExecuteTurnUseCase は行動のたびに場のポケモンを読み直すので、呼ばれた回数ではなく ID で返す
+   */
+  const mockActivePokemon = (...statuses: BattlePokemonStatus[]): void => {
+    battleRepository.findActivePokemonByBattleIdAndTrainerId.mockImplementation(
+      (_battleId: number, trainerId: number) =>
+        Promise.resolve(statuses.find(status => status.trainerId === trainerId) ?? null),
+    );
+  };
+
   it('should be defined', () => {
     expect(useCase).toBeDefined();
   });
@@ -284,9 +295,7 @@ describe('ExecuteTurnUseCase', () => {
       typeEffectivenessMap.set('1-', 1.0); // Normal-なし
 
       battleRepository.findById.mockResolvedValue(battle);
-      battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(attackerStatus)
-        .mockResolvedValueOnce(defenderStatus);
+      mockActivePokemon(attackerStatus, defenderStatus);
       battleRepository.findBattlePokemonMovesByBattlePokemonStatusId
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用（trainer1）
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用（trainer2）
@@ -398,9 +407,15 @@ describe('ExecuteTurnUseCase', () => {
       const battlePokemonMove = new BattlePokemonMove(1, trainer2ActiveStatus.id, move.id, 35, 35);
 
       battleRepository.findById.mockResolvedValue(battle);
+      // ターンの最初と交代では交代前のポケモン、交代のあとは交代で出てきたポケモンを返す
       battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(currentActiveStatus)
-        .mockResolvedValueOnce(trainer2ActiveStatus);
+        .mockResolvedValueOnce(currentActiveStatus) // ターンの最初（トレーナー1）
+        .mockResolvedValueOnce(trainer2ActiveStatus) // ターンの最初（トレーナー2）
+        .mockResolvedValueOnce(currentActiveStatus); // 交代で引っ込むポケモン
+      battleRepository.findActivePokemonByBattleIdAndTrainerId.mockImplementation(
+        (_battleId: number, trainerId: number) =>
+          Promise.resolve(trainerId === trainer1Id ? switchTargetStatus : trainer2ActiveStatus),
+      );
       battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValueOnce([
         battlePokemonMove,
       ]); // PPチェック用（trainer2）
@@ -642,9 +657,7 @@ describe('ExecuteTurnUseCase', () => {
       const battlePokemonMove = new BattlePokemonMove(1, attackerStatus.id, statusMove.id, 40, 40);
 
       battleRepository.findById.mockResolvedValue(battle);
-      battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(attackerStatus)
-        .mockResolvedValueOnce(defenderStatus);
+      mockActivePokemon(attackerStatus, defenderStatus);
       battleRepository.findBattlePokemonMovesByBattlePokemonStatusId
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用（trainer1）
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用（trainer2）
@@ -851,9 +864,7 @@ describe('ExecuteTurnUseCase', () => {
       );
 
       battleRepository.findById.mockResolvedValue(battle);
-      battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(attackerStatus)
-        .mockResolvedValueOnce(defenderStatus);
+      mockActivePokemon(attackerStatus, defenderStatus);
       // determineActionOrderで技の優先度を取得するため
       moveRepository.findById
         .mockResolvedValueOnce(move) // determineActionOrder用（trainer1）
@@ -1041,9 +1052,7 @@ describe('ExecuteTurnUseCase', () => {
       );
 
       battleRepository.findById.mockResolvedValue(battle);
-      battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(attackerStatus)
-        .mockResolvedValueOnce(defenderStatus);
+      mockActivePokemon(attackerStatus, defenderStatus);
       battleRepository.findBattlePokemonMovesByBattlePokemonStatusId
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用
         .mockResolvedValueOnce([battlePokemonMove]); // PPチェック用（trainer2）
@@ -1255,9 +1264,7 @@ describe('ExecuteTurnUseCase', () => {
       );
 
       battleRepository.findById.mockResolvedValue(battle);
-      battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(attackerStatus)
-        .mockResolvedValueOnce(defenderStatus);
+      mockActivePokemon(attackerStatus, defenderStatus);
       battleRepository.findBattlePokemonMovesByBattlePokemonStatusId
         .mockResolvedValueOnce([battlePokemonMove])
         .mockResolvedValueOnce([battlePokemonMove]);
