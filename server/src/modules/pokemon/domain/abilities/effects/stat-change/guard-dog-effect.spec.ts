@@ -31,6 +31,20 @@ describe('GuardDogEffect（ばんけん）', () => {
       expect(result).toBe(1);
     });
 
+    it('攻撃ランクがすでに-6なら、いかくを受けても攻撃は上がらない（本家と同じ）', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(
+        { ability: 'ばんけん', status: { attackRank: -6 } },
+        { ability: 'いかく' },
+      );
+
+      // Act
+      await new IntimidateEffect().onEntry(get(2), context());
+
+      // Assert
+      expect(get(1).attackRank).toBe(-6);
+    });
+
     it('いかく以外による攻撃の低下（なきごえ）は変えない', () => {
       // Arrange
       const { get } = createInMemoryBattle();
