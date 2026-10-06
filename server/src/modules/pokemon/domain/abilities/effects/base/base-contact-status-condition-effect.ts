@@ -115,7 +115,8 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       return false;
     }
 
-    // 状態異常を付与（付与されたあとの特性も呼ぶ。メッセージは「<特性名> activated!」だけ）
+    // 状態異常を付与（付与されたあとの特性も呼ぶ）
+    // 注: このフックは boolean しか返せないため、シンクロなどのメッセージは捨てる。ログは「<特性名> activated!」だけになる
     await inflictStatus(attacker, statusCondition, battleContext, options);
 
     return true;
