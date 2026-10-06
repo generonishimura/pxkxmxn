@@ -209,6 +209,8 @@ import { TakeHeartEffect } from './effects/take-heart-effect';
 import { DefogEffect } from './effects/defog-effect';
 import { CaptivateEffect } from './effects/captivate-effect';
 import { SnowscapeEffect } from './effects/snowscape-effect';
+import { RototillerEffect } from './effects/rototiller-effect';
+import { FlowerShieldEffect } from './effects/flower-shield-effect';
 
 /**
  * 技のレジストリ
@@ -481,6 +483,9 @@ export class MoveRegistry {
       this.registry.set('きりばらい', new DefogEffect());
       this.registry.set('ゆうわく', new CaptivateEffect());
       this.registry.set('ゆきげしき', new SnowscapeEffect());
+      // タイプ・特性条件つき能力変化技（Issue #103 一部）
+      this.registry.set('たがやす', new RototillerEffect());
+      this.registry.set('フラワーガード', new FlowerShieldEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
