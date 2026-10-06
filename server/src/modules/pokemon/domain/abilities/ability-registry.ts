@@ -150,6 +150,12 @@ import { StenchEffect } from './effects/other/stench-effect';
 import { SynchronizeEffect } from './effects/other/synchronize-effect';
 import { EarlyBirdEffect } from './effects/other/early-bird-effect';
 import { LiquidOozeEffect } from './effects/other/liquid-ooze-effect';
+// 状態異常ダメージ・ヒット後の特性（Issue #135 一部）
+import { PoisonHealEffect } from './effects/other/poison-heal-effect';
+import { PoisonTouchEffect } from './effects/other/poison-touch-effect';
+import { MoxieEffect } from './effects/stat-change/moxie-effect';
+import { JustifiedEffect } from './effects/stat-change/justified-effect';
+import { RattledEffect } from './effects/stat-change/rattled-effect';
 
 /**
  * 特性レジストリ
@@ -396,6 +402,12 @@ export class AbilityRegistry {
       this.registry.set('シンクロ', new SynchronizeEffect());
       this.registry.set('はやおき', new EarlyBirdEffect());
       this.registry.set('ヘドロえき', new LiquidOozeEffect());
+      // 状態異常ダメージ・ヒット後の特性（Issue #135 一部）
+      this.registry.set('ポイズンヒール', new PoisonHealEffect());
+      this.registry.set('どくしゅ', new PoisonTouchEffect());
+      this.registry.set('じしんかじょう', new MoxieEffect());
+      this.registry.set('せいぎのこころ', new JustifiedEffect());
+      this.registry.set('びびり', new RattledEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
