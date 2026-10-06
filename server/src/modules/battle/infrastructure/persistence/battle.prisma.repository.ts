@@ -472,12 +472,14 @@ export class BattlePrismaRepository implements IBattleRepository {
 
   async updateBattlePokemonMove(
     id: number,
-    data: { currentPp: number },
+    data: { currentPp: number; moveId?: number; maxPp?: number },
   ): Promise<BattlePokemonMove> {
     const moveData = await this.prisma.battlePokemonMove.update({
       where: { id },
       data: {
         currentPp: data.currentPp,
+        ...(data.moveId !== undefined ? { moveId: data.moveId } : {}),
+        ...(data.maxPp !== undefined ? { maxPp: data.maxPp } : {}),
       },
     });
 
