@@ -303,6 +303,29 @@ describe('DamageCalculator - ダメージ前フック', () => {
       // Assert
       expect(damage).toBe(expected);
     });
+
+    it('source が defender で ignoredAttackerRanks に attack があると、防御側自身の攻撃ランクも無視する（てんねんがイカサマを受けたとき。本家と同じ）', async () => {
+      // Arrange
+      const expected = await DamageCalculator.calculate(
+        createParams({
+          defenderStats: stats(200),
+          attackStatOverride: { source: 'defender', stat: 'attack' },
+        }),
+      );
+
+      // Act
+      const damage = await DamageCalculator.calculate(
+        createParams({
+          defender: createStatus({ id: 2, attackRank: 2 }),
+          defenderStats: stats(200),
+          attackStatOverride: { source: 'defender', stat: 'attack' },
+          battleContext: { battle, ignoredAttackerRanks: new Set(['attack']) },
+        }),
+      );
+
+      // Assert
+      expect(damage).toBe(expected);
+    });
   });
 
   describe('ignoresBurnPenalty（やけど半減を受けない）', () => {
