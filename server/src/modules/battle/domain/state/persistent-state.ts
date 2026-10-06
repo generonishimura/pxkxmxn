@@ -6,6 +6,7 @@ import {
   nonEmptyString,
   nonNegativeInteger,
   parseFields,
+  positiveInteger,
 } from './state-field-parser';
 
 /**
@@ -29,6 +30,13 @@ export type PersistentPokemonState = {
   readonly iceFaceBroken?: boolean;
   /** 1 バトルに 1 回だけの特性を使った（ふとうのけん・ふくつのたて・きずなへんげ） */
   readonly oncePerBattleAbilityUsed?: boolean;
+
+  // ---- 場の状態・設置技・交代の仕組み（Issue #103 #135 一部） ----
+  /**
+   * さいきのいのりで復活した回数（エンジンが書く）
+   * 陣営でひんしになった延べ数（そうだいしょう）を、今ひんしの数 + 復活した回数で求めるのに使う
+   */
+  readonly revivalCount?: number;
 };
 
 /**
@@ -41,6 +49,7 @@ export const PERSISTENT_POKEMON_STATE_PARSERS: FieldParsers<PersistentPokemonSta
   disguiseBusted: booleanValue,
   iceFaceBroken: booleanValue,
   oncePerBattleAbilityUsed: booleanValue,
+  revivalCount: positiveInteger,
 };
 
 /**

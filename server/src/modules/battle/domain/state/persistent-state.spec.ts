@@ -16,6 +16,7 @@ const FULL_PERSISTENT_STATE: Required<PersistentPokemonState> = {
   disguiseBusted: true,
   iceFaceBroken: true,
   oncePerBattleAbilityUsed: true,
+  revivalCount: 1,
 };
 
 describe('PersistentPokemonState', () => {
@@ -78,6 +79,16 @@ describe('PersistentPokemonState', () => {
 
       // Assert
       expect(accepted).toEqual({ sleepTurns: 0 });
+      expect(rejected).toEqual({});
+    });
+
+    it('復活した回数は 1 以上の整数だけを読み込む', () => {
+      // Act
+      const accepted = parsePersistentPokemonState({ revivalCount: 2 });
+      const rejected = parsePersistentPokemonState({ revivalCount: 0 });
+
+      // Assert
+      expect(accepted).toEqual({ revivalCount: 2 });
       expect(rejected).toEqual({});
     });
 

@@ -119,6 +119,13 @@ export type SideConditions = {
   // ---- プレイヤーの選択待ち ----
   /** 交代先（復活させるポケモン）の選択を待っている */
   readonly pendingChoice?: PendingChoice;
+
+  // ---- 場の状態・設置技・交代の仕組み（Issue #102 #103 #107 #108 #110 #111 #135 一部） ----
+  /**
+   * この陣営の場のポケモンを、控えのポケモンとランダムに入れ替える（ほえる・ふきとばし・ドラゴンテール・ともえなげ）
+   * 技の処理のあとに ExecuteTurnUseCase が入れ替えて消す
+   */
+  readonly forcedSwitch?: boolean;
 };
 
 /**
@@ -150,7 +157,24 @@ export type GlobalFieldState = {
   readonly ionDeluge?: boolean;
   /** バトル全体で最後に使われた技（まねっこが読む） */
   readonly lastMoveId?: number;
+
+  // ---- 場の状態・設置技・交代の仕組み（Issue #102 #103 #107 #108 #110 #111 #135 一部） ----
+  /**
+   * ゲンシ天候（おおあめ・おおひでり・らんきりゅう）。Battle.weather はおおあめなら Rain、おおひでりなら Sun、
+   * らんきりゅうなら None にする。weatherSourceStatusId のポケモンが場を離れたら終わる（weatherTurns は持たない）
+   */
+  readonly primalWeather?: PrimalWeather;
 };
+
+/**
+ * ゲンシ天候の種類
+ * - heavyRain: おおあめ（はじまりのうみ。ほのおの攻撃技が失敗する）
+ * - harshSunlight: おおひでり（おわりのだいち。みずの攻撃技が失敗する）
+ * - strongWinds: らんきりゅう（デルタストリーム。ひこうタイプの弱点を等倍にする）
+ */
+export const PRIMAL_WEATHERS = ['heavyRain', 'harshSunlight', 'strongWinds'] as const;
+
+export type PrimalWeather = (typeof PRIMAL_WEATHERS)[number];
 
 /**
  * バトル全体の場の状態（Battle.sideState）
@@ -202,6 +226,7 @@ export const SIDE_CONDITIONS_PARSERS: FieldParsers<SideConditions> = {
   healingWish: oneOf(HEALING_WISH_KINDS),
   pendingChoice,
   futureAttack: pendingFutureAttack,
+  forcedSwitch: booleanValue,
 };
 
 /**
@@ -221,6 +246,7 @@ export const GLOBAL_FIELD_STATE_PARSERS: FieldParsers<GlobalFieldState> = {
   terrainTurns: nonNegativeInteger,
   ionDeluge: booleanValue,
   lastMoveId: positiveInteger,
+  primalWeather: oneOf(PRIMAL_WEATHERS),
 };
 
 /**
@@ -263,7 +289,7 @@ export const updateSideConditions = (
 
 /**
  * コートチェンジで 2 つの陣営の間で入れ替えるキー
- * ねがいごと・いやしのねがい・ガード系（ワイドガードなど）・選択待ちは入れ替えない
+ * ねがいごと・いやしのねがい・ガード系（ワイドガードなど）・選択待ち・強制交代は入れ替えない
  * おまじないは第 8 世代以降にないが、Showdown と同じく入れ替える側に入れておく
  */
 export const COURT_CHANGE_KEYS = [

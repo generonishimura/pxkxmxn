@@ -40,6 +40,7 @@ const FULL_SIDE_CONDITIONS: Required<SideConditions> = {
   healingWish: 'lunarDance',
   pendingChoice: { reason: 'revivalBlessing' },
   futureAttack: { turns: 2, moveId: 248, sourceStatusId: 3 },
+  forcedSwitch: true,
 };
 
 /**
@@ -58,6 +59,7 @@ const FULL_GLOBAL_FIELD_STATE: Required<GlobalFieldState> = {
   terrainTurns: 5,
   ionDeluge: true,
   lastMoveId: 85,
+  primalWeather: 'heavyRain',
 };
 
 /**
@@ -230,6 +232,7 @@ describe('SideState', () => {
             craftyShield: true,
             matBlock: true,
             pendingChoice: { reason: 'pivot' },
+            forcedSwitch: true,
           },
         },
       };
@@ -251,6 +254,7 @@ describe('SideState', () => {
             craftyShield: true,
             matBlock: true,
             pendingChoice: { reason: 'pivot' },
+            forcedSwitch: true,
             lightScreenTurns: 5,
           },
         },
@@ -387,6 +391,7 @@ describe('SideState', () => {
             stickyWeb: true,
             healingWish: 'lunarDance',
             pendingChoice: { reason: 'pivot' },
+            forcedSwitch: true,
           },
         },
       };
@@ -591,6 +596,20 @@ describe('SideState', () => {
         sides: { '1': { stealthRock: true } },
         global: { gravityTurns: 3 },
       });
+    });
+
+    it('ゲンシ天候は決まった 3 つの名前だけを読み込む', () => {
+      // Arrange
+      const json = { global: { primalWeather: 'strongWinds', weatherSourceStatusId: 3 } };
+      const unknown = { global: { primalWeather: 'snow' } };
+
+      // Act
+      const state = parseSideState(json);
+      const rejected = parseSideState(unknown);
+
+      // Assert
+      expect(getGlobalFieldState(state).primalWeather).toBe('strongWinds');
+      expect(rejected).toEqual({});
     });
 
     it('トレーナーIDとして読めないキーの陣営は捨てる', () => {
