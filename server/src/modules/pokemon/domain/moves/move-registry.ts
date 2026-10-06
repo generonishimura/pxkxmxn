@@ -261,6 +261,7 @@ import { ChipAwayEffect } from './effects/chip-away-effect';
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 // ほかの技をまねる・呼ぶ技（Issue #103 一部）
 import { MimicEffect } from './effects/mimic-effect';
+import { SketchEffect } from './effects/sketch-effect';
 
 /**
  * 技のレジストリ
@@ -630,6 +631,7 @@ export class MoveRegistry {
       this.registry.set('シャドースチール', new SpectralThiefEffect());
       // ほかの技をまねる・呼ぶ技（Issue #103 一部）
       this.registry.set('ものまね', new MimicEffect());
+      this.registry.set('スケッチ', new SketchEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
