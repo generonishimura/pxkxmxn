@@ -91,7 +91,8 @@ export const formatStatChanges = (changes: readonly StatChange[]): string[] =>
  * 4. 変化したら、対象の特性の onStatChanged（まけんき・びびり）と、
  *    相手の特性の onOpponentStatChanged（びんじょう）を呼ぶ
  *
- * ミラーアーマーで返したときは、messages に「跳ね返したこと」と相手のランクの変化を入れる
+ * ミラーアーマーで返したときは、messages に「跳ね返したこと」と相手のランクの変化を入れる。
+ * 返す量は、対象のランクが -6 で止まる分を除いた量。起こした相手がひんしなら、防ぐだけで何も入れない
  *
  * @param target ランクが変わるポケモン（最新の状態を渡す）
  * @param changes 変化の一覧
@@ -130,8 +131,10 @@ export const applyStatChanges = async (
     const currentRank = ranks[prop] ?? target[prop];
     if (rankChange < 0 && fromOpponent) {
       if (gate?.reflectsStatDrops === true && !options.reflected) {
-        if (currentRank > MIN_RANK) {
-          reflected.push({ statType: change.statType, rankChange });
+        // 跳ね返すのは、自分のランクが実際に下がる量だけ（本家は上限で切ってから跳ね返す）
+        const cappedChange = Math.max(MIN_RANK, currentRank + rankChange) - currentRank;
+        if (cappedChange < 0) {
+          reflected.push({ statType: change.statType, rankChange: cappedChange });
         }
         continue;
       }
@@ -161,10 +164,13 @@ export const applyStatChanges = async (
   }
 
   // ミラーアーマー: 跳ね返した低下を、起こした相手に与える（この特性が起こした変化として扱う）
-  if (reflected.length > 0 && fromOpponent) {
-    const latestSource =
-      (await battleContext.battleRepository.findBattlePokemonStatusById(source.pokemon.id)) ??
-      source.pokemon;
+  // 起こした相手がひんしなら、低下を防ぐだけで何も表示しない（本家と同じ）
+  const latestSource =
+    reflected.length > 0 && fromOpponent
+      ? ((await battleContext.battleRepository.findBattlePokemonStatusById(source.pokemon.id)) ??
+        source.pokemon)
+      : undefined;
+  if (latestSource && latestSource.currentHp > 0) {
     const result = await applyStatChanges(latestSource, reflected, battleContext, {
       source: {
         pokemon: target,

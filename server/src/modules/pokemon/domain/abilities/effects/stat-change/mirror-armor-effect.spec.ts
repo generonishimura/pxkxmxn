@@ -78,6 +78,64 @@ describe('MirrorArmorEffect（ミラーアーマー）', () => {
       expect(get(2).defenseRank).toBe(-2);
     });
 
+    it('跳ね返すのは自分のランクが実際に下がる量だけ（防御-5でいやなおと-2なら、相手は-1）', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({
+        ability: 'ミラーアーマー',
+        status: { defenseRank: -5 },
+      });
+
+      // Act
+      await applyStatChanges(get(1), [{ statType: 'defense', rankChange: -2 }], context(), {
+        source: { kind: 'move', name: 'いやなおと', pokemon: get(2) },
+      });
+
+      // Assert
+      expect(get(1).defenseRank).toBe(-5);
+      expect(get(2).defenseRank).toBe(-1);
+    });
+
+    it('自分のランクが-6なら跳ね返さず、メッセージも出さない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({
+        ability: 'ミラーアーマー',
+        status: { defenseRank: -6 },
+      });
+
+      // Act
+      const result = await applyStatChanges(
+        get(1),
+        [{ statType: 'defense', rankChange: -2 }],
+        context(),
+        { source: { kind: 'move', name: 'いやなおと', pokemon: get(2) } },
+      );
+
+      // Assert
+      expect(get(2).defenseRank).toBe(0);
+      expect(result.messages).toEqual([]);
+    });
+
+    it('低下を起こした相手がひんしなら、跳ね返したメッセージを出さない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(
+        { ability: 'ミラーアーマー' },
+        { ability: 'わたげ', status: { currentHp: 0 } },
+      );
+
+      // Act
+      const result = await applyStatChanges(
+        get(1),
+        [{ statType: 'speed', rankChange: -1 }],
+        context(),
+        { source: { kind: 'ability', name: 'わたげ', pokemon: get(2) } },
+      );
+
+      // Assert
+      expect(get(1).speedRank).toBe(0);
+      expect(get(2).speedRank).toBe(0);
+      expect(result.messages).toEqual([]);
+    });
+
     it('自分の技による低下（インファイト）は跳ね返さない', async () => {
       // Arrange
       const { context, get } = createInMemoryBattle({ ability: 'ミラーアーマー' });
