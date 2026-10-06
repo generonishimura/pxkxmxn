@@ -55,6 +55,22 @@ describe('HealPulseEffect', () => {
     });
   });
 
+  it('回復量は端数を切り上げる（最大 HP 101 なら 51 回復）', async () => {
+    // Arrange
+    const effect = new HealPulseEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 10 });
+    const defender = createBattlePokemonStatus({ id: 2, currentHp: 20, maxHp: 101 });
+    const ctx = createBattleContext();
+
+    // Act
+    await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
+      currentHp: 71,
+    });
+  });
+
   it('相手の HP が満タンなら失敗する', async () => {
     // Arrange
     const effect = new HealPulseEffect();

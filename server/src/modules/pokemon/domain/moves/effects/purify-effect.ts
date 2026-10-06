@@ -8,7 +8,7 @@ import { isMajorStatusCondition } from './base/base-heal-effect';
  * じょうか（Purify）技の効果
  *
  * 効果: 相手の状態異常（やけど・こおり・まひ・どく・もうどく・ねむり）を治し、
- *       自分の HP を最大 HP の 1/2 回復する
+ *       自分の HP を最大 HP の 1/2（端数切り上げ）回復する
  *
  * - 相手が状態異常でない場合は失敗
  * - 自分の HP が満タンでも、相手の状態異常は治す
@@ -33,7 +33,7 @@ export class PurifyEffect implements IMoveEffect {
     const messages = ["The target's status condition was cured!"];
 
     if (attacker.currentHp > 0 && attacker.currentHp < attacker.maxHp) {
-      const healAmount = Math.max(1, Math.floor(attacker.maxHp / 2));
+      const healAmount = Math.max(1, Math.ceil(attacker.maxHp / 2));
       await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {
         currentHp: Math.min(attacker.maxHp, attacker.currentHp + healAmount),
       });

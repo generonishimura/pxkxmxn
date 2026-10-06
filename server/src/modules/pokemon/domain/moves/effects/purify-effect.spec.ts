@@ -37,7 +37,7 @@ describe('PurifyEffect', () => {
     };
   };
 
-  it('相手の状態異常を治し、自分の HP を最大 HP の 1/2 回復する', async () => {
+  it('相手の状態異常を治し、自分の HP を最大 HP の 1/2 （端数切り上げ）回復する', async () => {
     // Arrange
     const effect = new PurifyEffect();
     const attacker = createBattlePokemonStatus({ currentHp: 30, maxHp: 101 });
@@ -53,7 +53,7 @@ describe('PurifyEffect', () => {
       statusCondition: StatusCondition.None,
     });
     expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
-      currentHp: 80,
+      currentHp: 81,
     });
   });
 

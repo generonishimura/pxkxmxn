@@ -56,6 +56,22 @@ describe('FloralHealingEffect', () => {
     });
   });
 
+  it('回復量は端数を切り上げる（最大 HP 101 なら 51 回復）', async () => {
+    // Arrange
+    const effect = new FloralHealingEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 10 });
+    const defender = createBattlePokemonStatus({ id: 2, currentHp: 20, maxHp: 101 });
+    const ctx = createBattleContext();
+
+    // Act
+    await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
+      currentHp: 71,
+    });
+  });
+
   it('相手の HP が満タンなら失敗する', async () => {
     // Arrange
     const effect = new FloralHealingEffect();
@@ -75,7 +91,7 @@ describe('FloralHealingEffect', () => {
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
-  it('グラスフィールドでは相手の HP を最大 HP の 2/3 回復する', async () => {
+  it('グラスフィールドでは相手の HP を最大 HP の 2/3 （4096 基準の補正値で 0.667）回復する', async () => {
     // Arrange
     const effect = new FloralHealingEffect();
     const attacker = createBattlePokemonStatus({ currentHp: 10 });
@@ -88,7 +104,7 @@ describe('FloralHealingEffect', () => {
     // Assert
     expect(result).toBe("The target's HP was restored!");
     expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
-      currentHp: 76,
+      currentHp: 77,
     });
   });
 

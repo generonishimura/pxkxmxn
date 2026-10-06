@@ -60,6 +60,28 @@ describe('LunarBlessingEffect', () => {
     });
   });
 
+  it.each([
+    [103, 36],
+    [102, 35],
+  ])(
+    '回復量は 4096 基準の補正値で計算する（最大 HP %i のとき HP 10 から %i になる）',
+    async (maxHp, expectedHp) => {
+      // Arrange
+      const effect = new LunarBlessingEffect();
+      const attacker = createBattlePokemonStatus({ currentHp: 10, maxHp });
+      const defender = createBattlePokemonStatus({ id: 2, currentHp: 10 });
+      const ctx = createBattleContext();
+
+      // Act
+      await effect.onUse(attacker, defender, ctx);
+
+      // Assert
+      expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
+        currentHp: expectedHp,
+      });
+    },
+  );
+
   it('HP が満タンで状態異常もなければ失敗する', async () => {
     // Arrange
     const effect = new LunarBlessingEffect();

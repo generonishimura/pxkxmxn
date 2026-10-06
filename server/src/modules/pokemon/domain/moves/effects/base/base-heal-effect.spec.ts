@@ -63,7 +63,7 @@ describe('BaseHealEffect', () => {
   };
 
   describe('自分を回復する技', () => {
-    it('最大 HP の 1/4 （切り捨て）だけ自分の HP を回復する', async () => {
+    it('最大 HP の 1/4 （四捨五入）だけ自分の HP を回復する', async () => {
       // Arrange
       const effect = new TestSelfHealEffect();
       const attacker = createBattlePokemonStatus({ currentHp: 50, maxHp: 103 });
@@ -76,7 +76,7 @@ describe('BaseHealEffect', () => {
       // Assert
       expect(result).toBe('HP was restored!');
       expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
-        currentHp: 75,
+        currentHp: 76,
       });
     });
 
@@ -238,7 +238,7 @@ describe('BaseHealEffect', () => {
   });
 
   describe('相手を回復する技', () => {
-    it('相手の HP を最大 HP の 1/2 回復する', async () => {
+    it('相手の HP を最大 HP の 1/2 （四捨五入）回復する', async () => {
       // Arrange
       const effect = new TestTargetHealEffect();
       const attacker = createBattlePokemonStatus({ currentHp: 10 });
@@ -252,7 +252,7 @@ describe('BaseHealEffect', () => {
       expect(result).toBe("The target's HP was restored!");
       expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledTimes(1);
       expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
-        currentHp: 70,
+        currentHp: 71,
       });
     });
 
