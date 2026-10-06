@@ -1,9 +1,112 @@
 import {
+  VOLATILE_STATE_PARSERS,
   VolatileState,
   emptyVolatileState,
   parseVolatileState,
   updateVolatileState,
 } from './volatile-state';
+
+/**
+ * VolatileState のすべてのキーを 1 つずつ持つ状態
+ * Required にしているので、VolatileState にキーを足すとここにも足さないとコンパイルが通らない
+ */
+const FULL_VOLATILE_STATE: Required<VolatileState> = {
+  confusionTurns: 2,
+  toxicCounter: 3,
+  leechSeed: true,
+  cursed: true,
+  nightmare: true,
+  ingrain: true,
+  aquaRing: true,
+  substituteHp: 51,
+  tauntTurns: 3,
+  encore: { moveId: 12, turns: 3 },
+  disable: { moveId: 7, turns: 4 },
+  torment: true,
+  healBlockTurns: 5,
+  imprison: true,
+  choiceLockedMoveId: 33,
+  lockedInMove: { moveId: 253, turns: 2 },
+  chargingMoveId: 601,
+  lastMoveId: 85,
+  lastHitByMoveId: 94,
+  moveSlotOverrides: [{ battlePokemonMoveId: 4, moveId: 102, currentPp: 5, maxPp: 5 }],
+  protectCount: 1,
+  protection: 'kingsShield',
+  flinched: true,
+  magicCoat: true,
+  snatch: true,
+  powder: true,
+  electrified: true,
+  roosting: true,
+  destinyBond: true,
+  grudge: true,
+  lockOnTurns: 2,
+  foresight: true,
+  miracleEye: true,
+  telekinesisTurns: 3,
+  magnetRiseTurns: 5,
+  tarShot: true,
+  infatuatedWithStatusId: 2,
+  trappedByStatusId: 2,
+  octolock: true,
+  yawnTurns: 2,
+  perishCount: 3,
+  stockpileCount: 3,
+  stockpileBoosts: { defense: 2, specialDefense: 3 },
+  critStageBoost: 2,
+  laserFocusTurns: 2,
+  charged: true,
+  loafing: true,
+  abilitySuppressed: true,
+  abilityOverride: 'たんじゅん',
+  typeOverride: [14],
+  addedTypeId: 8,
+  statOverrides: { attack: 120, defense: 80, specialAttack: 90, specialDefense: 70, speed: 110 },
+  transformedIntoStatusId: 2,
+  form: 'blade',
+  illusionStatusId: 6,
+  switchedInTurn: 4,
+  typeChangeAbilityUsed: true,
+};
+
+/**
+ * 数値のキーの下限。[キー, 読み込む最小の値, 捨てる値]
+ */
+const LOWER_BOUNDS: ReadonlyArray<readonly [keyof VolatileState, number, number]> = [
+  ['confusionTurns', 0, -1],
+  ['toxicCounter', 0, -1],
+  ['substituteHp', 1, 0],
+  ['tauntTurns', 0, -1],
+  ['healBlockTurns', 0, -1],
+  ['choiceLockedMoveId', 1, 0],
+  ['chargingMoveId', 1, 0],
+  ['lastMoveId', 1, 0],
+  ['lastHitByMoveId', 1, 0],
+  ['protectCount', 0, -1],
+  ['lockOnTurns', 0, -1],
+  ['telekinesisTurns', 0, -1],
+  ['magnetRiseTurns', 0, -1],
+  ['infatuatedWithStatusId', 1, 0],
+  ['trappedByStatusId', 1, 0],
+  ['yawnTurns', 0, -1],
+  ['perishCount', 0, -1],
+  ['stockpileCount', 1, 0],
+  ['critStageBoost', 0, -1],
+  ['laserFocusTurns', 0, -1],
+  ['addedTypeId', 1, 0],
+  ['transformedIntoStatusId', 1, 0],
+  ['illusionStatusId', 1, 0],
+  ['switchedInTurn', 0, -1],
+];
+
+/**
+ * 上限のある数値のキー。[キー, 読み込む最大の値, 捨てる値]
+ */
+const UPPER_BOUNDS: ReadonlyArray<readonly [keyof VolatileState, number, number]> = [
+  ['perishCount', 3, 4],
+  ['stockpileCount', 3, 4],
+];
 
 describe('VolatileState', () => {
   describe('emptyVolatileState', () => {
@@ -73,37 +176,80 @@ describe('VolatileState', () => {
   });
 
   describe('parseVolatileState', () => {
-    it('正しい値はそのまま読み込む', () => {
+    it('すべてのキーを持つ状態を読み込んで、そのまま返す', () => {
+      // Act
+      const state = parseVolatileState(FULL_VOLATILE_STATE);
+
+      // Assert
+      expect(state).toEqual(FULL_VOLATILE_STATE);
+    });
+
+    it('読み方の表のキーと VolatileState のキーが一致する', () => {
+      // Act
+      const parserKeys = Object.keys(VOLATILE_STATE_PARSERS).sort();
+
+      // Assert
+      expect(parserKeys).toEqual(Object.keys(FULL_VOLATILE_STATE).sort());
+    });
+
+    it('数値のキーはすべて下限の表にある', () => {
+      // Arrange
+      const numberKeys = Object.entries(FULL_VOLATILE_STATE)
+        .filter(([, value]) => typeof value === 'number')
+        .map(([key]) => key)
+        .sort();
+
+      // Act
+      const boundKeys = LOWER_BOUNDS.map(([key]) => key).sort();
+
+      // Assert
+      expect(boundKeys).toEqual(numberKeys);
+    });
+
+    it.each(LOWER_BOUNDS)('%s は %p を読み込み、%p は捨てる', (key, min, belowMin) => {
+      // Act
+      const accepted = parseVolatileState({ [key]: min });
+      const rejected = parseVolatileState({ [key]: belowMin });
+
+      // Assert
+      expect(accepted).toEqual({ [key]: min });
+      expect(rejected).toEqual({});
+    });
+
+    it.each(UPPER_BOUNDS)('%s は %p を読み込み、%p は捨てる', (key, max, aboveMax) => {
+      // Act
+      const accepted = parseVolatileState({ [key]: max });
+      const rejected = parseVolatileState({ [key]: aboveMax });
+
+      // Assert
+      expect(accepted).toEqual({ [key]: max });
+      expect(rejected).toEqual({});
+    });
+
+    it('一時的な技の欄は、1 つでも読めない要素があれば丸ごと捨てる', () => {
       // Arrange
       const json = {
-        confusionTurns: 2,
-        leechSeed: true,
-        substituteHp: 51,
-        tauntTurns: 3,
-        encore: { moveId: 12, turns: 3 },
-        disable: { moveId: 7, turns: 4 },
-        choiceLockedMoveId: 33,
-        lockedInMove: { moveId: 253, turns: 2 },
-        chargingMoveId: 601,
-        protectCount: 1,
-        protection: 'kingsShield',
-        typeOverride: [14],
-        addedTypeId: 8,
-        abilityOverride: 'たんじゅん',
-        statOverrides: { attack: 120, defense: 80 },
-        form: 'blade',
-        trappedByStatusId: 2,
-        octolock: true,
-        stockpileCount: 3,
-        perishCount: 2,
-        switchedInTurn: 4,
+        moveSlotOverrides: [
+          { battlePokemonMoveId: 1, moveId: 102, currentPp: 0, maxPp: 5 },
+          { battlePokemonMoveId: 2, moveId: 33, currentPp: 5, maxPp: 0 },
+        ],
       };
 
       // Act
       const state = parseVolatileState(json);
 
       // Assert
-      expect(state).toEqual(json);
+      expect(state).toEqual({});
+    });
+
+    it('たくわえるで上がった量は 0〜6 だけを読み込む', () => {
+      // Act
+      const accepted = parseVolatileState({ stockpileBoosts: { defense: 0, specialDefense: 6 } });
+      const rejected = parseVolatileState({ stockpileBoosts: { defense: 7, specialDefense: 1 } });
+
+      // Assert
+      expect(accepted).toEqual({ stockpileBoosts: { defense: 0, specialDefense: 6 } });
+      expect(rejected).toEqual({});
     });
 
     it.each([null, undefined, 'abc', 42, true, [1, 2]])(

@@ -52,6 +52,29 @@ export type StatOverrides = {
 };
 
 /**
+ * 一時的に入れ替わった技 1 つ分（ものまね・へんしん・かわりもの）
+ * 元の BattlePokemonMove は書き換えず、その欄の代わりにこの技と PP を使う
+ */
+export type MoveSlotOverride = {
+  /** 入れ替える前の技の欄（BattlePokemonMove の ID） */
+  readonly battlePokemonMoveId: number;
+  /** 代わりに使える技 */
+  readonly moveId: number;
+  /** 代わりの技の残り PP */
+  readonly currentPp: number;
+  /** 代わりの技の最大 PP（へんしんは 5） */
+  readonly maxPp: number;
+};
+
+/**
+ * たくわえるで実際に上がったランク（のみこむ・はきだすで、この分だけ下げる）
+ */
+export type StockpileBoosts = {
+  readonly defense: number;
+  readonly specialDefense: number;
+};
+
+/**
  * 場に出ているポケモンだけが持つ一時的な状態（BattlePokemonStatus.volatileState）
  *
  * - すべてのキーは任意。キーがないことは「その状態ではない」を意味する
@@ -61,7 +84,10 @@ export type StatOverrides = {
  */
 export type VolatileState = {
   // ---- 状態異常に近いカウンタ ----
-  /** こんらんの残りターン数 */
+  /**
+   * こんらんの残りターン数。こんらんかどうかは、このキーがあるかで決める
+   * 技を出そうとするたびに 1 減らす（ターン終了時には減らさない）
+   */
   readonly confusionTurns?: number;
   /** もうどくの経過ターン数（ダメージが 1/16 ずつ増える） */
   readonly toxicCounter?: number;
@@ -105,6 +131,11 @@ export type VolatileState = {
   readonly lastMoveId?: number;
   /** このポケモンが最後に受けた技（テクスチャー２が読む） */
   readonly lastHitByMoveId?: number;
+  /**
+   * 一時的に入れ替わった技（ものまね・へんしん・かわりもの）
+   * 技を選ぶ処理と PP を減らす処理は、BattlePokemonMove より先にここを見る
+   */
+  readonly moveSlotOverrides?: readonly MoveSlotOverride[];
 
   // ---- まもる系 ----
   /** まもる系を続けて成功させた回数（成功率の低下に使う） */
@@ -113,10 +144,8 @@ export type VolatileState = {
   readonly protection?: ProtectionKind;
 
   // ---- このターンだけ続くフラグ ----
-  /** みちづれ */
-  readonly destinyBond?: boolean;
-  /** おんねん */
-  readonly grudge?: boolean;
+  /** ひるんだ（このターンは動けない。ふくつのこころが読む） */
+  readonly flinched?: boolean;
   /** マジックコート */
   readonly magicCoat?: boolean;
   /** よこどり */
@@ -127,6 +156,12 @@ export type VolatileState = {
   readonly electrified?: boolean;
   /** はねやすめで、このターンはひこうタイプを失っている */
   readonly roosting?: boolean;
+
+  // ---- 使用者が次に技を出そうとするまで続くフラグ ----
+  /** みちづれ（ターンをまたいでも、次に技を出そうとするまで続く） */
+  readonly destinyBond?: boolean;
+  /** おんねん（ターンをまたいでも、次に技を出そうとするまで続く） */
+  readonly grudge?: boolean;
 
   // ---- 命中・相性 ----
   /** こころのめ・ロックオンの残りターン数（次の技が必ず当たる） */
@@ -159,6 +194,8 @@ export type VolatileState = {
   // ---- 段階・回数 ----
   /** たくわえるの回数（1〜3） */
   readonly stockpileCount?: number;
+  /** たくわえるで実際に上がったランク（ランクが +6 のときは上がらない分を数えない） */
+  readonly stockpileBoosts?: StockpileBoosts;
   /** 急所ランクの上昇（きあいだめは +2） */
   readonly critStageBoost?: number;
   /** とぎすますの残りターン数（次の技が必ず急所） */
@@ -179,14 +216,24 @@ export type VolatileState = {
   readonly addedTypeId?: number;
   /** 実数値の上書き */
   readonly statOverrides?: StatOverrides;
-  /** 今のフォルム（'blade'・'zen'・'busted' など） */
+  /** へんしん・かわりもので姿を写した相手（BattlePokemonStatus の ID） */
+  readonly transformedIntoStatusId?: number;
+  /**
+   * 交代で元に戻るフォルム（バトルスイッチの 'blade'・ダルマモードの 'zen' など）
+   * 交代しても残るフォルムは PersistentPokemonState.form に置く
+   */
   readonly form?: string;
-  /** イリュージョンで化けている先（TrainedPokemon の ID） */
-  readonly illusionTrainedPokemonId?: number;
+  /** イリュージョンで化けている先（BattlePokemonStatus の ID） */
+  readonly illusionStatusId?: number;
 
   // ---- 場に出たタイミング ----
-  /** 場に出たときの Battle.turn（スロースタート・はりこみ・たたみがえしが読む） */
+  /**
+   * 場に出たときの Battle.turn。先発は 0、ターン N に交代で出たら N
+   * 出てから最初に行動するターンは switchedInTurn + 1（ねこだまし・たたみがえし）
+   */
   readonly switchedInTurn?: number;
+  /** へんげんじざい・リベロを、場に出てから使った（場に出るたびに 1 回だけ） */
+  readonly typeChangeAbilityUsed?: boolean;
 };
 
 const moveTurns = requiredFieldsOf<MoveTurns>({
@@ -202,11 +249,28 @@ const statOverrides = optionalFieldsOf<StatOverrides>({
   speed: positiveInteger,
 });
 
+const moveSlotOverride = requiredFieldsOf<MoveSlotOverride>({
+  battlePokemonMoveId: positiveInteger,
+  moveId: positiveInteger,
+  currentPp: nonNegativeInteger,
+  maxPp: positiveInteger,
+});
+
+/**
+ * ランクの上がり幅（0〜6）
+ */
+const rankBoost = integerInRange(0, 6);
+
+const stockpileBoosts = requiredFieldsOf<StockpileBoosts>({
+  defense: rankBoost,
+  specialDefense: rankBoost,
+});
+
 /**
  * VolatileState の全キーの読み方
  * VolatileState にキーを足したら、ここにも足す（足さないとコンパイルが通らない）
  */
-const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
+export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   confusionTurns: nonNegativeInteger,
   toxicCounter: nonNegativeInteger,
   leechSeed: booleanValue,
@@ -226,15 +290,17 @@ const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   chargingMoveId: positiveInteger,
   lastMoveId: positiveInteger,
   lastHitByMoveId: positiveInteger,
+  moveSlotOverrides: arrayOf(moveSlotOverride),
   protectCount: nonNegativeInteger,
   protection: oneOf(PROTECTION_KINDS),
-  destinyBond: booleanValue,
-  grudge: booleanValue,
+  flinched: booleanValue,
   magicCoat: booleanValue,
   snatch: booleanValue,
   powder: booleanValue,
   electrified: booleanValue,
   roosting: booleanValue,
+  destinyBond: booleanValue,
+  grudge: booleanValue,
   lockOnTurns: nonNegativeInteger,
   foresight: booleanValue,
   miracleEye: booleanValue,
@@ -247,6 +313,7 @@ const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   yawnTurns: nonNegativeInteger,
   perishCount: integerInRange(0, 3),
   stockpileCount: integerInRange(1, 3),
+  stockpileBoosts,
   critStageBoost: nonNegativeInteger,
   laserFocusTurns: nonNegativeInteger,
   charged: booleanValue,
@@ -256,9 +323,11 @@ const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   typeOverride: arrayOf(positiveInteger),
   addedTypeId: positiveInteger,
   statOverrides,
+  transformedIntoStatusId: positiveInteger,
   form: nonEmptyString,
-  illusionTrainedPokemonId: positiveInteger,
-  switchedInTurn: positiveInteger,
+  illusionStatusId: positiveInteger,
+  switchedInTurn: nonNegativeInteger,
+  typeChangeAbilityUsed: booleanValue,
 };
 
 /**
