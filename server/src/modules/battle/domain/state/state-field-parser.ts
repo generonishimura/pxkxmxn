@@ -42,6 +42,17 @@ export const markRemoved = <T, K extends keyof T>(patch: MutableStatePatch<T>, k
 };
 
 /**
+ * keys をすべて取り除く patch を返す（リポジトリの部分更新に渡す）
+ */
+export const removalPatch = <T>(keys: ReadonlyArray<keyof T>): StatePatch<T> => {
+  const patch: MutableStatePatch<T> = {};
+  for (const key of keys) {
+    markRemoved(patch, key);
+  }
+  return patch;
+};
+
+/**
  * 残りターン数を 1 減らした値を返す。0 になるなら undefined（キーを消す）を返す
  */
 export const tickTurnCount = (turns: number): number | undefined =>
