@@ -116,6 +116,9 @@ import { MoodyEffect } from './effects/stat-change/moody-effect';
 import { VictoryStarEffect } from './effects/other/victory-star-effect';
 import { SweetVeilEffect } from './effects/immunity/sweet-veil-effect';
 import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
+// 反動を受けない特性（Issue #135 一部）
+import { RockHeadEffect } from './effects/other/rock-head-effect';
+import { MagicGuardEffect } from './effects/other/magic-guard-effect';
 
 /**
  * 特性レジストリ
@@ -326,6 +329,9 @@ export class AbilityRegistry {
       this.registry.set('しれいとう', noBattleEffect);
       this.registry.set('きょうえん', noBattleEffect);
       this.registry.set('おもてなし', noBattleEffect);
+      // 反動を受けない特性（Issue #135 一部）
+      this.registry.set('いしあたま', new RockHeadEffect());
+      this.registry.set('マジックガード', new MagicGuardEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

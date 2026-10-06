@@ -430,6 +430,7 @@ export class MoveExecutorService {
       attackerStats: this.calculateStats(params.attackerTrainedPokemon),
       defenderStats: this.calculateStats(params.defenderTrainedPokemon),
       isLastToMove: params.options.isLastToMove,
+      hasRecoil: params.moveEffect?.hasRecoil === true,
     };
 
     const baseFlags = MoveFlags.get(move.name);

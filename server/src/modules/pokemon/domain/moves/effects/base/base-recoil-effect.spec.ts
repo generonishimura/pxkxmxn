@@ -3,6 +3,7 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../../abilities/battle-context.interface';
 import { Weather, BattleStatus, Battle } from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
+import { AbilityRegistry } from '../../../abilities/ability-registry';
 
 /**
  * テスト用の具象クラス（反動率0.33、与えたダメージの1/3）
@@ -245,6 +246,29 @@ describe('BaseRecoilEffect', () => {
       expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
       expect(result).toBeNull();
     });
+
+    it.each(['いしあたま', 'マジックガード'])(
+      '攻撃側の特性が %s なら反動ダメージを受けない',
+      async abilityName => {
+        // Arrange
+        AbilityRegistry.initialize();
+        const context: BattleContext = { ...battleContext, attackerAbilityName: abilityName };
+
+        // Act
+        const result = await new TestRecoilEffect().afterDamage(attacker, defender, 90, context);
+
+        // Assert
+        expect(result).toBeNull();
+        expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('反動のある技として hasRecoil を持つ（すてみで使う）', () => {
+    // Act
+    const effect = new TestRecoilEffect();
+
+    // Assert
+    expect(effect.hasRecoil).toBe(true);
   });
 });
-

@@ -94,6 +94,12 @@ export class FacadeEffect implements IMoveEffect {
 }
 ```
 
+### hasRecoil（プロパティ）
+
+- 型: `readonly hasRecoil?: boolean`
+- 参照する場所: `executeMove` がコンテキストの `hasRecoil` に入れる。すてみが威力を1.2倍にする
+- 使う技: `BaseRecoilEffect`（反動技）と `BaseCrashDamageEffect`（とびげりなど）が `true` を持つ。わるあがきは持たない
+
 ### beforeDamage / afterDamage（呼ばれるようになった既存フック）
 
 - `beforeDamage(attacker, defender, move, battleContext)`: 命中後、タイプ決定の前に1回。`battleContext.multiHitCount` を2以上にすると、その回数だけダメージを与えます（`BaseMultiHitEffect` が使う）。
@@ -241,6 +247,7 @@ getAdditionalHitPowerRatios(_p: BattlePokemonStatus, ctx?: BattleContext): reado
 | `unaffectedByMoldBreaker` | `boolean` | `AbilityRegistry.isIgnoredByMoldBreaker` | プリズムアーマー |
 | `secondaryEffectChanceMultiplier` | `number` | `rollSecondaryEffect`（攻撃側） | てんのめぐみ（`2`） |
 | `blocksSecondaryEffects` | `boolean` | `rollSecondaryEffect`（防御側、かたやぶりで無視） | りんぷん |
+| `preventsRecoil` | `boolean` | `BaseRecoilEffect.afterDamage`（攻撃側） | いしあたま、マジックガード |
 
 テラボルテージ・ターボブレイズは `MoldBreakerEffect` をそのまま登録します。
 
@@ -265,6 +272,7 @@ export class SereneGraceEffect implements IAbilityEffect { readonly secondaryEff
 | `typeEffectiveness` | このヒットのタイプ相性（0〜4） | ダメージ計算中の特性フック |
 | `weather` | 効果のある天候（ノーてんき等がいれば `None`） | 技の実行・行動順・ターン終了時・ダメージ計算 |
 | `isLastToMove` | このターン最後に行動するか | 技の実行・ダメージ計算 |
+| `hasRecoil` | 反動・外したときの自傷がある技か（技の `hasRecoil`） | 技の実行・ダメージ計算 |
 | `multiHitCount` / `hitIndex` | 総ヒット数 / 何回目のヒットか（0始まり） | 技の実行・ダメージ計算 |
 | `ignoredAttackerRanks` / `ignoredDefenderRanks` | 0として扱うランク | 技の実行・命中判定・ダメージ計算 |
 | `secondaryEffectChanceMultiplier` / `secondaryEffectsSuppressed` | 追加効果の確率倍率 / 相手への追加効果の無効化 | ダメージ技の `beforeDamage` 以降・`onHit` |

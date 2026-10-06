@@ -347,6 +347,28 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       expect(context?.defenderAbilityName).toBeUndefined();
     });
 
+    it('反動のある技（hasRecoil）ならコンテキストの hasRecoil を true にする', async () => {
+      // Arrange
+      const { execute, calculateParams } = setup({ moveEffect: new DoubleEdgeEffect() });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(calculateParams().battleContext?.hasRecoil).toBe(true);
+    });
+
+    it('反動のない技ならコンテキストの hasRecoil は false', async () => {
+      // Arrange
+      const { execute, calculateParams } = setup();
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(calculateParams().battleContext?.hasRecoil).toBe(false);
+    });
+
     it('攻撃側特性の modifyMoveFlags で技フラグを変更できる', async () => {
       // Arrange
       register('テストえんかく', {

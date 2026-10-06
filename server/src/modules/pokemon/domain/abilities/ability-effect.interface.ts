@@ -26,7 +26,11 @@ export interface IAbilityEffect {
    * @param battleContext バトルコンテキスト
    * @returns 修正後のダメージ
    */
-  modifyDamage?(_pokemon: BattlePokemonStatus, _damage: number, _battleContext?: BattleContext): number;
+  modifyDamage?(
+    _pokemon: BattlePokemonStatus,
+    _damage: number,
+    _battleContext?: BattleContext,
+  ): number;
 
   /**
    * ダメージを与えるとき（OnDealingDamage）に発動する効果
@@ -59,7 +63,10 @@ export interface IAbilityEffect {
    * 常時発動（Passive）の効果
    * 必要に応じて様々なメソッドで呼び出される
    */
-  passiveEffect?(_pokemon: BattlePokemonStatus, _battleContext?: BattleContext): void | Promise<void>;
+  passiveEffect?(
+    _pokemon: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): void | Promise<void>;
 
   /**
    * 命中率を修正する効果
@@ -68,7 +75,11 @@ export interface IAbilityEffect {
    * @param battleContext バトルコンテキスト
    * @returns 修正後の命中率（0-100）、修正しない場合はundefined
    */
-  modifyAccuracy?(_pokemon: BattlePokemonStatus, _accuracy: number, _battleContext?: BattleContext): number | undefined;
+  modifyAccuracy?(
+    _pokemon: BattlePokemonStatus,
+    _accuracy: number,
+    _battleContext?: BattleContext,
+  ): number | undefined;
 
   /**
    * 回避率を修正する効果
@@ -77,7 +88,11 @@ export interface IAbilityEffect {
    * @param battleContext バトルコンテキスト
    * @returns 回避率の補正値（0-1）、補正しない場合はundefined
    */
-  modifyEvasion?(_pokemon: BattlePokemonStatus, _accuracy: number, _battleContext?: BattleContext): number | undefined;
+  modifyEvasion?(
+    _pokemon: BattlePokemonStatus,
+    _accuracy: number,
+    _battleContext?: BattleContext,
+  ): number | undefined;
 
   /**
    * 技の優先度を修正する効果
@@ -86,7 +101,11 @@ export interface IAbilityEffect {
    * @param battleContext バトルコンテキスト
    * @returns 修正後の優先度、修正しない場合はundefined
    */
-  modifyPriority?(_pokemon: BattlePokemonStatus, _movePriority: number, _battleContext?: BattleContext): number | undefined;
+  modifyPriority?(
+    _pokemon: BattlePokemonStatus,
+    _movePriority: number,
+    _battleContext?: BattleContext,
+  ): number | undefined;
 
   /**
    * 速度を修正する効果
@@ -95,7 +114,11 @@ export interface IAbilityEffect {
    * @param battleContext バトルコンテキスト
    * @returns 修正後の速度、修正しない場合はundefined
    */
-  modifySpeed?(_pokemon: BattlePokemonStatus, _speed: number, _battleContext?: BattleContext): number | undefined;
+  modifySpeed?(
+    _pokemon: BattlePokemonStatus,
+    _speed: number,
+    _battleContext?: BattleContext,
+  ): number | undefined;
 
   /**
    * 状態異常を受けられるかどうかを判定する効果
@@ -298,4 +321,10 @@ export interface IAbilityEffect {
    * 防御側: 相手の技の追加効果を受けない特性かどうか（例: りんぷん）。かたやぶりでは無視される
    */
   readonly blocksSecondaryEffects?: boolean;
+
+  /**
+   * 攻撃側: 与えたダメージに応じた反動を受けない特性かどうか（例: いしあたま、マジックガード）
+   * BaseRecoilEffect の afterDamage で参照される
+   */
+  readonly preventsRecoil?: boolean;
 }

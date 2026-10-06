@@ -130,4 +130,10 @@ export interface IMoveEffect {
    * やけどによる物理技のダメージ半減を受けないかどうか（例: からげんき）
    */
   readonly ignoresBurnPenalty?: boolean;
+
+  /**
+   * 反動または外したときの自傷がある技かどうか（すてみの対象。例: すてみタックル、とびげり）
+   * executeMove がコンテキストの hasRecoil に入れる
+   */
+  readonly hasRecoil?: boolean;
 }

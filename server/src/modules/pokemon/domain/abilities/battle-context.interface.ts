@@ -93,7 +93,7 @@ export interface BattleContext {
   isCriticalHit?: boolean;
 
   /**
-   * 反動ダメージがある技かどうか
+   * 反動ダメージ、または外したときの自傷がある技かどうか（技の hasRecoil）
    * すてみなどの特性で使用
    */
   hasRecoil?: boolean;

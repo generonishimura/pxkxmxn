@@ -1,12 +1,14 @@
 import { IMoveEffect } from '../../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
+import { AbilityRegistry } from '../../../abilities/ability-registry';
 
 /**
  * 反動ダメージの基底クラス
  * 技を使用した後に、使用者自身に反動ダメージを与える汎用的な実装
  *
  * 各技の特殊効果は、このクラスを継承して反動率を設定するだけで実装できる
+ * 使用者の特性が反動を受けない特性（いしあたま・マジックガード）なら反動を受けない
  */
 export abstract class BaseRecoilEffect implements IMoveEffect {
   /**
@@ -18,6 +20,11 @@ export abstract class BaseRecoilEffect implements IMoveEffect {
    * 反動ダメージ適用時のメッセージ
    */
   protected abstract readonly message: string;
+
+  /**
+   * 反動のある技（すてみの対象）
+   */
+  readonly hasRecoil = true;
 
   /**
    * ダメージ適用後に発動
@@ -36,6 +43,14 @@ export abstract class BaseRecoilEffect implements IMoveEffect {
 
     // 与えたダメージが0の場合は反動ダメージを発生させない
     if (damage <= 0) {
+      return null;
+    }
+
+    // 反動を受けない特性（いしあたま・マジックガード）
+    const attackerAbilityEffect = battleContext.attackerAbilityName
+      ? AbilityRegistry.get(battleContext.attackerAbilityName)
+      : undefined;
+    if (attackerAbilityEffect?.preventsRecoil === true) {
       return null;
     }
 
@@ -71,4 +86,3 @@ export abstract class BaseRecoilEffect implements IMoveEffect {
     return `${this.message} (${recoilDamage} damage)`;
   }
 }
-
