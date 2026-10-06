@@ -119,6 +119,9 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// 能力ランクの変化を変える・写す特性（Issue #135 一部）
+import { SimpleEffect } from './effects/stat-change/simple-effect';
+import { ContraryEffect } from './effects/stat-change/contrary-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +335,9 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // 能力ランクの変化を変える・写す特性（Issue #135 一部）
+      this.registry.set('たんじゅん', new SimpleEffect());
+      this.registry.set('あまのじゃく', new ContraryEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
