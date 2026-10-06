@@ -15,6 +15,7 @@ import { Move } from '@/modules/pokemon/domain/entities/move.entity';
 import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
+import { CHARGE_MOVE_NAME } from './move-lifecycle';
 
 /**
  * 技を出す前の判定の結果
@@ -61,7 +62,8 @@ const INFATUATION_IMMOBILIZE_CHANCE = 0.5;
  *
  * 判定の前に、おんねん（grudge）を消す（本家の onBeforeMove 優先度 100）
  * 1〜9 で技を出せなかったときは、みちづれ（destinyBond）を消す（本家の onMoveAborted）
- * 2〜9 で技を出せなかったときは、ため技・出し続ける技の状態も消す（ころがる・あばれるなどが止まる）
+ * 2〜9 で技を出せなかったときは、ため技・出し続ける技の状態も消す（ころがる・あばれるなどが止まる）。
+ * でんき技なら、じゅうでん（charged）も消す
  */
 export class BeforeMoveChecker {
   constructor(private readonly battleRepository: IBattleRepository) {}
@@ -70,7 +72,7 @@ export class BeforeMoveChecker {
     const { move, attackerAbilityEffect, battleContext } = params;
     let attacker = params.attacker;
     const prevented = (message: string): Promise<BeforeMoveResult> =>
-      this.prevent(attacker, message);
+      this.prevent(attacker, move, message);
 
     // 0. おんねんは、技を出そうとしたら必ず消える（本家の onBeforeMove 優先度 100）
     if (attacker.volatileState.grudge !== undefined) {
@@ -175,10 +177,19 @@ export class BeforeMoveChecker {
 
   /**
    * 技を出せなかったときの片付け（ため技・出し続ける技・連続で出した回数・みちづれとおんねんを消す）
+   * でんき技（じゅうでんを除く）を出せなかったときは、じゅうでん（charged）も消す（第 9 世代の本家の onMoveAborted）
+   * 注: 技のタイプは技本来のタイプで判定する（本家も、タイプを変える処理は技を出したあとに走る）
    */
-  private async prevent(attacker: BattlePokemonStatus, message: string): Promise<BeforeMoveResult> {
+  private async prevent(
+    attacker: BattlePokemonStatus,
+    move: Move,
+    message: string,
+  ): Promise<BeforeMoveResult> {
     const state = attacker.volatileState;
     const patch: MutableStatePatch<VolatileState> = this.untilNextMovePatch(state);
+    if (state.charged === true && move.type.name === 'でんき' && move.name !== CHARGE_MOVE_NAME) {
+      patch.charged = null;
+    }
     if (state.chargingMoveId !== undefined) {
       patch.chargingMoveId = null;
     }

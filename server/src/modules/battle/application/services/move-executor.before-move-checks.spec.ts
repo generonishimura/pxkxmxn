@@ -1,6 +1,7 @@
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { Move, MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
+import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
@@ -11,6 +12,8 @@ import {
   createMove,
   setupMoveExecutor,
 } from './__tests__/move-executor-test-setup';
+
+const ELECTRIC = new Type(13, 'でんき', 'Electric');
 
 describe('MoveExecutorService - 技を出す前の判定（BeforeMoveChecker）', () => {
   beforeEach(() => {
@@ -343,6 +346,47 @@ describe('MoveExecutorService - 技を出す前の判定（BeforeMoveChecker）'
 
     // Assert
     expect(statuses.get(ATTACKER_ID).volatileState.loafing).toBeUndefined();
+  });
+
+  it('じゅうでん中に、でんき技を出そうとしてまひで動けなかったら、じゅうでんが消える', async () => {
+    // Arrange
+    jest.spyOn(StatusConditionHandler, 'canAct').mockReturnValue(false);
+    const thunderbolt = new Move(
+      1,
+      '１０まんボルト',
+      'Thunderbolt',
+      ELECTRIC,
+      MoveCategory.Special,
+      90,
+      100,
+      15,
+      0,
+      null,
+    );
+    const { execute, statuses } = setupMoveExecutor({
+      move: thunderbolt,
+      attacker: { statusCondition: StatusCondition.Paralysis, volatileState: { charged: true } },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(ATTACKER_ID).volatileState.charged).toBeUndefined();
+  });
+
+  it('でんき以外の技で動けなかったときは、じゅうでんは消えない', async () => {
+    // Arrange
+    jest.spyOn(StatusConditionHandler, 'canAct').mockReturnValue(false);
+    const { execute, statuses } = setupMoveExecutor({
+      attacker: { statusCondition: StatusCondition.Paralysis, volatileState: { charged: true } },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(ATTACKER_ID).volatileState.charged).toBe(true);
   });
 
   it('技を出せなかったときは、ため技と出し続ける技の状態を消す', async () => {

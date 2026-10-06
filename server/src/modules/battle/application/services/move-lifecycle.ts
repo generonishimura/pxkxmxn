@@ -41,7 +41,7 @@ const RAMPAGE_LOCKED_IN: LockedInMoveConfig = { turns: [2, 3], confusesAtEnd: tr
 /**
  * じゅうでん（使ったときは charged を消さない）
  */
-const CHARGE_MOVE_NAME = 'じゅうでん';
+export const CHARGE_MOVE_NAME = 'じゅうでん';
 
 /**
  * さわぐで目を覚まさない特性（ぼうおん）
