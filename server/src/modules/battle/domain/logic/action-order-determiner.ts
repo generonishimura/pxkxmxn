@@ -5,6 +5,7 @@ import { IMoveRepository } from '@/modules/pokemon/domain/pokemon.repository.int
 import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { StatCalculator } from './stat-calculator';
+import { createMoveOrderContext, calculateBattleStats } from './move-order-context';
 import { NotFoundException } from '@/shared/domain/exceptions';
 
 /**
@@ -138,11 +139,25 @@ export class ActionOrderDeterminer {
       trainer2Active.trainedPokemonId,
     );
 
-    const battleContext = {
+    // 行動するポケモンごとのコンテキスト（技の情報・効果のある天候・実数値を含む）
+    const trainer1AbilityName = trainer1TrainedPokemon?.ability?.name;
+    const trainer2AbilityName = trainer2TrainedPokemon?.ability?.name;
+    const trainer1Context = createMoveOrderContext({
       battle,
-      weather: battle.weather,
-      field: battle.field,
-    };
+      move: trainer1Move,
+      pokemon: trainer1Active,
+      abilityName: trainer1AbilityName,
+      opponentAbilityName: trainer2AbilityName,
+      stats: trainer1TrainedPokemon ? calculateBattleStats(trainer1TrainedPokemon) : undefined,
+    });
+    const trainer2Context = createMoveOrderContext({
+      battle,
+      move: trainer2Move,
+      pokemon: trainer2Active,
+      abilityName: trainer2AbilityName,
+      opponentAbilityName: trainer1AbilityName,
+      stats: trainer2TrainedPokemon ? calculateBattleStats(trainer2TrainedPokemon) : undefined,
+    });
 
     let trainer1Priority = trainer1Move.priority;
     let trainer2Priority = trainer2Move.priority;
@@ -153,7 +168,7 @@ export class ActionOrderDeterminer {
         const modifiedPriority = abilityEffect.modifyPriority(
           trainer1Active,
           trainer1Move.priority,
-          battleContext,
+          trainer1Context,
         );
         if (modifiedPriority !== undefined) {
           trainer1Priority = modifiedPriority;
@@ -167,7 +182,7 @@ export class ActionOrderDeterminer {
         const modifiedPriority = abilityEffect.modifyPriority(
           trainer2Active,
           trainer2Move.priority,
-          battleContext,
+          trainer2Context,
         );
         if (modifiedPriority !== undefined) {
           trainer2Priority = modifiedPriority;
@@ -229,7 +244,7 @@ export class ActionOrderDeterminer {
           const modifiedSpeed = abilityEffect.modifySpeed(
             trainer1Active,
             finalTrainer1Speed,
-            battleContext,
+            trainer1Context,
           );
           if (modifiedSpeed !== undefined) {
             finalTrainer1Speed = modifiedSpeed;
@@ -243,7 +258,7 @@ export class ActionOrderDeterminer {
           const modifiedSpeed = abilityEffect.modifySpeed(
             trainer2Active,
             finalTrainer2Speed,
-            battleContext,
+            trainer2Context,
           );
           if (modifiedSpeed !== undefined) {
             finalTrainer2Speed = modifiedSpeed;
