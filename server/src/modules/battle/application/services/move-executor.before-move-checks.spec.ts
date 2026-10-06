@@ -1,12 +1,13 @@
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
-import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
+import { Move, MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 import {
   ATTACKER_ID,
   DEFENDER_ID,
+  NORMAL,
   createMove,
   setupMoveExecutor,
 } from './__tests__/move-executor-test-setup';
@@ -231,6 +232,71 @@ describe('MoveExecutorService - 技を出す前の判定（BeforeMoveChecker）'
     // Assert
     expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
     expect(statuses.get(ATTACKER_ID).volatileState.chargingMoveId).toBeUndefined();
+  });
+
+  it('選んだ技と違う技をアンコールされていたら、このターンからアンコールされた技を出し、その技の PP を減らす', async () => {
+    // Arrange
+    const encored = new Move(
+      7,
+      'はたく',
+      'Pound',
+      NORMAL,
+      MoveCategory.Physical,
+      40,
+      100,
+      35,
+      0,
+      null,
+    );
+    const { execute, battleRepository } = setupMoveExecutor({
+      moves: [encored],
+      attacker: { volatileState: { encore: { moveId: 7, turns: 3 } } },
+    });
+    battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValue([
+      new BattlePokemonMove(1, ATTACKER_ID, 1, 10, 10),
+      new BattlePokemonMove(2, ATTACKER_ID, 7, 35, 35),
+    ]);
+    battleRepository.findBattlePokemonMoveById.mockResolvedValue(
+      new BattlePokemonMove(2, ATTACKER_ID, 7, 35, 35),
+    );
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used はたく and dealt 10 damage');
+    expect(battleRepository.updateBattlePokemonMove).toHaveBeenCalledWith(2, { currentPp: 34 });
+  });
+
+  it('アンコールされた技の PP が 0 なら、アンコールが解けて選んだ技を出す', async () => {
+    // Arrange
+    const encored = new Move(
+      7,
+      'はたく',
+      'Pound',
+      NORMAL,
+      MoveCategory.Physical,
+      40,
+      100,
+      35,
+      0,
+      null,
+    );
+    const { execute, statuses, battleRepository } = setupMoveExecutor({
+      moves: [encored],
+      attacker: { volatileState: { encore: { moveId: 7, turns: 3 } } },
+    });
+    battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValue([
+      new BattlePokemonMove(1, ATTACKER_ID, 1, 10, 10),
+      new BattlePokemonMove(2, ATTACKER_ID, 7, 0, 35),
+    ]);
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used ほのおのパンチ and dealt 10 damage');
+    expect(statuses.get(ATTACKER_ID).volatileState.encore).toBeUndefined();
   });
 
   it('技を出せなかったときは、ため技と出し続ける技の状態を消す', async () => {

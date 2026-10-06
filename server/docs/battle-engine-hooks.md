@@ -727,7 +727,7 @@ async onFlinch(holder: BattlePokemonStatus, ctx?: BattleContext): Promise<string
 
 - シグネチャ: `findMoveRestriction(state: VolatileState, move: { moveId, moveName, category }, { imprisonedMoveIds?, phase? }): MoveRestrictionReason | undefined`
 - 場所: `battle/domain/logic/move-selection.ts`。エンジンが技を出す前（`BeforeMoveChecker`、`phase: 'execute'`）と、わるあがきを出すかの判定（`ExecuteTurnUseCase`、`phase` なし = `'select'`）で使う
-- `phase: 'execute'` では `torment` と続けて出せない技を見ない。本家ではこの 2 つは技を選ぶときだけ効く（onDisableMove）ので、ため技の 2 ターン目や出し続ける技は止まらない
+- `phase: 'execute'` では `encore`・`torment`・続けて出せない技を見ない。本家ではこの 3 つは技を選ぶときだけ効く（onDisableMove）ので、ため技の 2 ターン目や出し続ける技は止まらない。行動を決めたあとにアンコールされたときは、エンジンが技を出す前にアンコールされた技に変える
 - 判定する状態: `disable` → `healBlockTurns`（回復技）→ `throatChopTurns`（音技）→ `tauntTurns`（変化技）→ 相手の `imprison` → `encore` → `torment`（直前の技）→ `choiceLockedMoveId` → 続けて出せない技（デカハンマー・ブラッドムーン）。わるあがきは制限を受けない
 - 使う技・特性: かなしばり・かいふくふうじ・じごくづき・ちょうはつ・ふういん・アンコール・いちゃもん・ごりむちゅう・のろわれボディ。技の実装は、キーを書くだけでよい
 
@@ -999,7 +999,7 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 | みちづれ | `shouldFail`（`consecutiveMoveCount > 0`）と `destinyBond: true`。発動はエンジン |
 | ほろびのうた | 両者に `perishCount: 3`（すでにあるポケモン・ぼうおんは除く）。ひんしにするのはエンジン |
 | かなしばり | 相手の `lastMoveId` で `disable: { moveId, turns }`（9.2） |
-| アンコール | 相手の `lastMoveId`（`failEncore` でない）で `encore: { moveId, turns: 3 }`。技の強制はエンジン |
+| アンコール | 相手の `lastMoveId`（`failEncore` でない）で `encore: { moveId, turns: ctx.defenderPendingMoveId ? 3 : 4 }`（本家は相手がもう行動していれば 1 足す）。技の強制はエンジン（このターンにまだ行動していない相手も、このターンからアンコールされた技を出す） |
 | ちょうはつ | `tauntTurns: 3`（相手がもう行動していれば 4。9.1） |
 | ねをはる | `ingrain: true`。回復・交代の制限・じめん技はエンジン |
 | おんねん | `grudge: true`。発動はエンジン |

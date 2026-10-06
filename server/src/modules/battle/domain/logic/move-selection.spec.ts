@@ -172,6 +172,16 @@ describe('move-selection', () => {
         expect(reason).toBeUndefined();
       });
 
+      it('アンコールは技を出すときには止めない（エンジンがアンコールされた技に変える）', () => {
+        // Act
+        const reason = findMoveRestriction({ encore: { moveId: 99, turns: 3 } }, candidate(), {
+          phase: 'execute',
+        });
+
+        // Assert
+        expect(reason).toBeUndefined();
+      });
+
       it('かなしばり・ちょうはつ・こだわりは、技を出すときも止める', () => {
         // Act
         const reasons = [

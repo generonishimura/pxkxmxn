@@ -46,7 +46,8 @@ export interface MoveCandidate {
  * - select: 技を選ぶとき（わるあがきを出すかの判定）。すべての制限を見る
  * - execute: 技を出すとき（BeforeMoveChecker）。本家で onBeforeMove を持つ制限だけを見る。
  *   いちゃもん・続けて出せない技は技を選ぶときだけ効くので、ため技の 2 ターン目・出し続ける技・
- *   同じターンにいちゃもんをつけられたときの技は止めない
+ *   同じターンにいちゃもんをつけられたときの技は止めない。
+ *   アンコールは、エンジンが技を出す前にアンコールされた技に変える（MoveExecutorService.executeMove）ので見ない
  */
 export type MoveRestrictionPhase = 'select' | 'execute';
 
@@ -63,7 +64,7 @@ export interface MoveRestrictionOptions {
 /**
  * 技を出せない理由を返す（出せるなら undefined）
  * 判定の順は本家の onBeforeMove の優先度に合わせる（かなしばり → かいふくふうじ・じごくづき → ちょうはつ → ふういん）。
- * いちゃもん・続けて出せない技は、本家では技を選ぶ時点だけで選べない技として扱われる（phase: execute では見ない）
+ * アンコール・いちゃもん・続けて出せない技は、本家では技を選ぶ時点だけで選べない技として扱われる（phase: execute では見ない）
  * わるあがきはどの制限も受けない
  */
 export const findMoveRestriction = (
@@ -89,10 +90,10 @@ export const findMoveRestriction = (
   if (options.imprisonedMoveIds?.includes(move.moveId)) {
     return 'imprison';
   }
-  if (user.encore !== undefined && user.encore.moveId !== move.moveId) {
+  const selecting = options.phase !== 'execute';
+  if (selecting && user.encore !== undefined && user.encore.moveId !== move.moveId) {
     return 'encore';
   }
-  const selecting = options.phase !== 'execute';
   if (selecting && user.torment === true && user.lastMoveId === move.moveId) {
     return 'torment';
   }

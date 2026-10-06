@@ -495,12 +495,14 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 本家の onBeforeMove の順に判定し、止まったら技を出しません（PP も減りません）。
 
+判定の前に、`encore` があるのに別の技を出そうとしていたら（行動を決めたあと、このターンに先にアンコールされたとき）、アンコールされた技に変えます（`MoveExecutorService.executeMove`。本家の onOverrideAction）。PP はアンコールされた技の欄から減ります。その技の PP が 0 ならアンコールを消し、選んだ技を出します。ため技の 2 ターン目・出し続ける技・反動のターン・わるあがきは変えません。
+
 1. `mustRecharge`: 動けない（キーを消す）
 2. ねむり: 動けない（`MoveBehaviors` の `sleepUsable` の技は出せる）
 3. こおり: 20% で溶ける（`defrost` の技は必ず溶ける）
 4. 特性の `onBeforeMove`（なまけ）
 5. `flinched`: 動けない。特性の `onFlinch`（ふくつのこころ）を呼ぶ
-6. 技の制限（`findMoveRestriction` の `phase: 'execute'`）: `disable`・`healBlockTurns`・`throatChopTurns`・`tauntTurns`・相手の `imprison`・`encore`・`choiceLockedMoveId`。`torment` と続けて出せない技は、技を選ぶとき（`planAction`）だけ見る。本家でも技を選ぶときだけ効くので、ため技の 2 ターン目・出し続ける技は止まらない
+6. 技の制限（`findMoveRestriction` の `phase: 'execute'`）: `disable`・`healBlockTurns`・`throatChopTurns`・`tauntTurns`・相手の `imprison`・`choiceLockedMoveId`。`encore`・`torment`・続けて出せない技は、技を選ぶとき（`planAction`）だけ見る。本家でも技を選ぶときだけ効くので、ため技の 2 ターン目・出し続ける技は止まらない
 7. `confusionTurns`: 1 減らす。0 なら解けて技を出す。残っていれば 33% で自分を攻撃する
 8. `infatuatedWithStatusId`: 相手がそのポケモンなら 50% で動けない
 9. まひ: 25% で動けない

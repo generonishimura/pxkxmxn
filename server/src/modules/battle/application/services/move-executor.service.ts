@@ -44,7 +44,12 @@ import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
 import { getSideConditions } from '../../domain/state/side-state';
-import { findMoveRestriction } from '../../domain/logic/move-selection';
+import {
+  STRUGGLE_MOVE_NAME,
+  findMoveRestriction,
+  findMoveSlot,
+  resolveMoveSlots,
+} from '../../domain/logic/move-selection';
 import { BeforeMoveChecker } from './before-move-checker';
 import { MoveLifecycle, MoveOutcome } from './move-lifecycle';
 
@@ -154,6 +159,7 @@ export class MoveExecutorService {
   /**
    * 技を実行
    *
+   * 0. このターンに先にアンコールされていたら、アンコールされた技に変える（resolveEncoreOverride）
    * 1. 技を出す前の判定（BeforeMoveChecker: 反動・ねむり・こおり・なまけ・ひるみ・技の制限・こんらん・メロメロ・まひ）
    * 2. 技を使う（useMove）
    *    - PP を減らす（ため技の 2 ターン目・出し続ける技の 2 ターン目以降は減らさない）
@@ -189,7 +195,7 @@ export class MoveExecutorService {
     options: ExecuteMoveOptions = {},
   ): Promise<string> {
     // 技情報を取得
-    const move = await this.moveRepository.findById(moveId);
+    let move = await this.moveRepository.findById(moveId);
 
     if (!move) {
       throw new NotFoundException('Move', moveId);
@@ -198,6 +204,13 @@ export class MoveExecutorService {
     // 先に行動した側が書いた状態（こおりが溶けた・ちょうはつなど）を見るため、最新の状態を読み直す
     attacker = (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? attacker;
     defender = (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? defender;
+
+    // このターンに先にアンコールされたら、アンコールされた技に変える（本家の onOverrideAction）
+    const encored = await this.resolveEncoreOverride(attacker, move);
+    if (encored) {
+      move = encored.move;
+      battlePokemonMoveId = encored.battlePokemonMoveId;
+    }
 
     // 攻撃側と防御側のポケモン情報を取得
     const attackerTrainedPokemon = await this.trainedPokemonRepository.findById(
@@ -263,6 +276,47 @@ export class MoveExecutorService {
     });
     const observerMessage = observerMessages.map(message => ` ${message}`).join('');
     return `${beforeMove.prefix}${result.message}${observerMessage}`;
+  }
+
+  /**
+   * アンコールされているのに別の技を出そうとしたとき、代わりに出すアンコールされた技と技の欄
+   * 行動を決めたあと（このターン）にアンコールされたときに当たる。本家の encore の onOverrideAction と同じく、
+   * アンコールされた技の PP を使う（このあとの PP を減らす処理がその欄を減らす）
+   * - ため技の 2 ターン目・出し続ける技・反動のターン・わるあがきは変えない
+   * - アンコールされた技の PP が 0 なら、アンコールを消して選んだ技を出す
+   * @returns 変えないときは undefined
+   */
+  private async resolveEncoreOverride(
+    attacker: BattlePokemonStatus,
+    move: Move,
+  ): Promise<{ move: Move; battlePokemonMoveId: number } | undefined> {
+    const state = attacker.volatileState;
+    const encore = state.encore;
+    if (
+      encore === undefined ||
+      encore.moveId === move.id ||
+      move.name === STRUGGLE_MOVE_NAME ||
+      state.mustRecharge === true ||
+      state.chargingMoveId !== undefined ||
+      state.lockedInMove !== undefined
+    ) {
+      return undefined;
+    }
+    const moves =
+      (await this.battleRepository.findBattlePokemonMovesByBattlePokemonStatusId(attacker.id)) ??
+      [];
+    const slot = findMoveSlot(resolveMoveSlots(moves, state), encore.moveId);
+    if (!slot) {
+      return undefined;
+    }
+    if (slot.currentPp <= 0) {
+      await this.battleRepository.patchVolatileState(attacker.id, { encore: null });
+      return undefined;
+    }
+    const encoredMove = await this.moveRepository.findById(encore.moveId);
+    return encoredMove
+      ? { move: encoredMove, battlePokemonMoveId: slot.battlePokemonMoveId }
+      : undefined;
   }
 
   /**
