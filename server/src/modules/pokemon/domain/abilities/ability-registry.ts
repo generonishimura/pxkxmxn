@@ -124,6 +124,7 @@ import { SimpleEffect } from './effects/stat-change/simple-effect';
 import { ContraryEffect } from './effects/stat-change/contrary-effect';
 import { MirrorArmorEffect } from './effects/stat-change/mirror-armor-effect';
 import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
+import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 
 /**
  * 特性レジストリ
@@ -342,6 +343,7 @@ export class AbilityRegistry {
       this.registry.set('あまのじゃく', new ContraryEffect());
       this.registry.set('ミラーアーマー', new MirrorArmorEffect());
       this.registry.set('ばんけん', new GuardDogEffect());
+      this.registry.set('びんじょう', new OpportunistEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
