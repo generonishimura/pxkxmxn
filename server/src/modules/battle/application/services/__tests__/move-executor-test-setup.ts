@@ -129,6 +129,10 @@ export const createMove = (
 export interface MoveExecutorSetupOptions {
   move?: Move;
   moveEffect?: IMoveEffect;
+  /** ID・技名で引ける技（ゆびをふるなどで呼ぶ技）。ここにない ID は move を返す */
+  moves?: Move[];
+  /** 技名ごとの効果（ここにない技は moveEffect） */
+  moveEffects?: Readonly<Record<string, IMoveEffect>>;
   attackerAbility?: string;
   defenderAbility?: string;
   attacker?: Partial<BattlePokemonStatus>;
@@ -200,16 +204,27 @@ export const setupMoveExecutor = (options: MoveExecutorSetupOptions = {}) => {
     findById: jest.fn((id: number) => Promise.resolve(trainedPokemons.get(id) ?? null)),
     findByTrainerId: jest.fn(),
   };
+  const defaultMove = options.move ?? createMove('ほのおのパンチ');
+  const moves = options.moves ?? [];
   const moveRepository: jest.Mocked<IMoveRepository> = {
-    findById: jest.fn().mockResolvedValue(options.move ?? createMove('ほのおのパンチ')),
+    findById: jest.fn((id: number) =>
+      Promise.resolve(moves.find(move => move.id === id) ?? defaultMove),
+    ),
     findByPokemonId: jest.fn(),
+    findByName: jest.fn((name: string) =>
+      Promise.resolve(
+        moves.find(move => move.name === name) ?? (defaultMove.name === name ? defaultMove : null),
+      ),
+    ),
   };
   const typeEffectivenessRepository: jest.Mocked<ITypeEffectivenessRepository> = {
     getTypeEffectivenessMap: jest.fn().mockResolvedValue(new Map()),
     findTypeByName: jest.fn().mockResolvedValue(null),
   };
 
-  jest.spyOn(MoveRegistry, 'get').mockReturnValue(options.moveEffect);
+  jest
+    .spyOn(MoveRegistry, 'get')
+    .mockImplementation(name => options.moveEffects?.[name] ?? options.moveEffect);
   const checkHit = jest.spyOn(AccuracyCalculator, 'checkHit').mockReturnValue(true);
   const damages = Array.isArray(options.damage) ? [...options.damage] : undefined;
   const calculate = jest
@@ -237,6 +252,9 @@ export const setupMoveExecutor = (options: MoveExecutorSetupOptions = {}) => {
 
   return {
     execute,
+    service,
+    battle,
+    moveRepository,
     statuses,
     calculate,
     checkHit,

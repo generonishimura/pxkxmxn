@@ -57,6 +57,12 @@ export interface IMoveRepository {
    * ポケモンIDで覚えている技一覧を取得(最大4つ、簡略化のため最初の4つ)
    */
   findByPokemonId(pokemonId: number): Promise<Move[]>;
+
+  /**
+   * 技名（DB の name）で技を取得（ゆびをふる・しぜんのちから・わるあがきなど、別の技を名前で出すときに使う）
+   * 任意。実装がないときは、名前で技を出す処理が失敗する
+   */
+  findByName?(name: string): Promise<Move | null>;
 }
 
 /**

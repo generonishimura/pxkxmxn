@@ -1086,9 +1086,10 @@ describe('ExecuteTurnUseCase', () => {
       battleRepository.updateBattlePokemonStatus
         .mockResolvedValueOnce(defenderStatus) // trainer1の技でdefenderがダメージを受ける
         .mockResolvedValueOnce(attackerStatus); // trainer2の技でattackerがダメージを受ける
-      battleRepository.findBattlePokemonStatusById
-        .mockResolvedValueOnce(defenderStatus) // trainer1の技でdefenderを取得
-        .mockResolvedValueOnce(attackerStatus); // trainer2の技でattackerを取得
+      // 技の処理は何度も読み直すので、呼ばれた順ではなく ID で返す
+      battleRepository.findBattlePokemonStatusById.mockImplementation((id: number) =>
+        Promise.resolve([attackerStatus, defenderStatus].find(status => status.id === id) ?? null),
+      );
       battleRepository.updateBattlePokemonMove.mockResolvedValue(battlePokemonMoveAfterConsumption);
       battleRepository.update.mockResolvedValue({
         ...battle,

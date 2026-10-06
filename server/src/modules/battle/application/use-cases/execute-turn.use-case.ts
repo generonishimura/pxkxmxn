@@ -5,8 +5,6 @@ import {
 } from '../../domain/battle.repository.interface';
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
-import { StatusCondition } from '../../domain/entities/status-condition.enum';
-import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 import { isEmptyObject } from '../../domain/state/state-field-parser';
 import {
   clearVolatileOnSwitchOut,
@@ -153,63 +151,21 @@ export class ExecuteTurnUseCase {
           continue;
         }
 
-        // 状態異常による行動不能判定
-        if (!StatusConditionHandler.canAct(attacker)) {
-          // こおりの場合は解除判定を行う
-          if (
-            attacker.statusCondition === StatusCondition.Freeze &&
-            StatusConditionHandler.shouldClearFreeze()
-          ) {
-            await this.battleRepository.updateBattlePokemonStatus(attacker.id, {
-              statusCondition: StatusCondition.None,
-            });
-            actionResults.push({
-              trainerId: action.trainerId,
-              action: 'move',
-              result: 'Pokemon thawed out and can act',
-            });
-            // 解除されたので行動を続行
-            const result = await this.moveExecutor.executeMove(
-              currentBattle,
-              action.trainerId,
-              action.moveId,
-              attacker,
-              defender,
-              battlePokemonMove.id,
-              { isLastToMove },
-            );
-            actionResults.push({
-              trainerId: action.trainerId,
-              action: 'move',
-              result,
-            });
-          } else {
-            // 行動不能
-            const statusMessage = this.statusConditionProcessor.getStatusConditionMessage(
-              attacker.statusCondition,
-            );
-            actionResults.push({
-              trainerId: action.trainerId,
-              action: 'move',
-              result: `Cannot act due to ${statusMessage}`,
-            });
-          }
-        } else {
-          const result = await this.moveExecutor.executeMove(
-            currentBattle,
-            action.trainerId,
-            action.moveId,
-            attacker,
-            defender,
-            battlePokemonMove.id,
-            { isLastToMove },
-          );
-          actionResults.push({
-            trainerId: action.trainerId,
-            action: 'move',
-            result,
-          });
-        }
+        // ねむり・こおり・まひ・ひるみ・こんらんなど、技を出せるかの判定は MoveExecutorService が行う
+        const result = await this.moveExecutor.executeMove(
+          currentBattle,
+          action.trainerId,
+          action.moveId,
+          attacker,
+          defender,
+          battlePokemonMove.id,
+          { isLastToMove },
+        );
+        actionResults.push({
+          trainerId: action.trainerId,
+          action: 'move',
+          result,
+        });
 
         // 勝敗判定
         const winner = await this.winnerChecker.checkWinner(battle.id);

@@ -7,6 +7,7 @@ import type { MoveFlag } from '../moves/move-flags';
 import type { StatType } from '../moves/effects/base/base-stat-change-effect';
 import type { CallMove } from '../battle-events/called-move';
 import type { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import type { IMoveRepository } from '../pokemon.repository.interface';
 
 /**
  * ランク補正前の実数値（種族値・個体値・努力値・性格補正を反映済み）
@@ -242,4 +243,10 @@ export interface BattleContext {
    * この技がみがわりに当たったかどうか（afterDamage の damage は、みがわりに与えた量）
    */
   hitSubstitute?: boolean;
+
+  /**
+   * 技のリポジトリ（技名・分類・PP を引く。ものまね・スケッチ・ねこのて・ねごとが候補の技を調べる）
+   * 技の実行（MoveExecutorService）のコンテキストにだけ入る
+   */
+  moveRepository?: IMoveRepository;
 }
