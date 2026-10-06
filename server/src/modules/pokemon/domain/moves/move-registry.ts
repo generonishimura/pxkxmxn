@@ -490,6 +490,7 @@ export class MoveRegistry {
       this.registry.set('フラワーガード', new FlowerShieldEffect());
       this.registry.set('じばそうさ', new MagneticFluxEffect());
       this.registry.set('アシストギア', new GearUpEffect());
+      this.registry.set('ハッピータイム', noOpEffect);
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
