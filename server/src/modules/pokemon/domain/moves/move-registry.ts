@@ -481,6 +481,19 @@ export class MoveRegistry {
       this.registry.set('きりばらい', new DefogEffect());
       this.registry.set('ゆうわく', new CaptivateEffect());
       this.registry.set('ゆきげしき', new SnowscapeEffect());
+      // シングルバトルで効果のない特性・技（ダブル専用含む）（Issue #102, #103, #107 一部）
+      // 味方や複数の相手が必要なダブルバトル専用の技は NoOpEffect を共有
+      this.registry.set('サイドチェンジ', noOpEffect);
+      this.registry.set('てだすけ', noOpEffect);
+      this.registry.set('デコレーション', noOpEffect);
+      this.registry.set('コーチング', noOpEffect);
+      this.registry.set('アロマミスト', noOpEffect);
+      this.registry.set('ドラゴンエール', noOpEffect);
+      this.registry.set('このゆびとまれ', noOpEffect);
+      this.registry.set('いかりのこな', noOpEffect);
+      this.registry.set('おさきにどうぞ', noOpEffect);
+      this.registry.set('さきおくり', noOpEffect);
+      this.registry.set('スポットライト', noOpEffect);
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
