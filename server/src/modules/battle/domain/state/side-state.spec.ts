@@ -39,6 +39,7 @@ const FULL_SIDE_CONDITIONS: Required<SideConditions> = {
   wish: { turns: 1, healAmount: 80 },
   healingWish: 'lunarDance',
   pendingChoice: { reason: 'revivalBlessing' },
+  futureAttack: { turns: 2, moveId: 248, sourceStatusId: 3 },
 };
 
 /**
@@ -318,6 +319,24 @@ describe('SideState', () => {
 
       // Assert
       expect(ticked).toEqual({ sides: { '1': { wish: { turns: 1, healAmount: 80 } } } });
+    });
+
+    it('みらいよちは技と使用者を残してターン数だけ減らし、1 なら消す', () => {
+      // Arrange
+      const state: SideState = {
+        sides: {
+          '1': { futureAttack: { turns: 3, moveId: 248, sourceStatusId: 4 } },
+          '2': { futureAttack: { turns: 1, moveId: 353, sourceStatusId: 3 } },
+        },
+      };
+
+      // Act
+      const ticked = tickSideStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({
+        sides: { '1': { futureAttack: { turns: 2, moveId: 248, sourceStatusId: 4 } } },
+      });
     });
 
     it('このターンだけ陣営を守るフラグは消し、空になった陣営はキーごと消す', () => {

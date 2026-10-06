@@ -26,6 +26,19 @@ export type PendingWish = {
 };
 
 /**
+ * みらいよち・はめつのねがい。turns ターン後のターン終了時に、その陣営の場のポケモンに技が当たる
+ * 陣営（ポケモンのいる場所）に置くので、交代しても、そこにいるポケモンに当たる
+ */
+export type PendingFutureAttack = {
+  /** 残りターン数。1 のときのターン終了時に当たる（使ったターンに 3 を書く） */
+  readonly turns: number;
+  /** 当たる技（Move の ID） */
+  readonly moveId: number;
+  /** 技を使ったポケモン（BattlePokemonStatus の ID）。場を離れていても、このポケモンの能力で当たる */
+  readonly sourceStatusId: number;
+};
+
+/**
  * 次に出てきたポケモンを回復する技の種類
  * いやしのねがいは HP と状態異常だけを、みかづきのまいは PP も回復する
  */
@@ -100,6 +113,8 @@ export type SideConditions = {
   readonly wish?: PendingWish;
   /** いやしのねがい・みかづきのまい。次に出てきたポケモンを回復する */
   readonly healingWish?: HealingWishKind;
+  /** みらいよち・はめつのねがい（この陣営に当たる） */
+  readonly futureAttack?: PendingFutureAttack;
 
   // ---- プレイヤーの選択待ち ----
   /** 交代先（復活させるポケモン）の選択を待っている */
@@ -153,6 +168,12 @@ const pendingWish = requiredFieldsOf<PendingWish>({
   healAmount: positiveInteger,
 });
 
+const pendingFutureAttack = requiredFieldsOf<PendingFutureAttack>({
+  turns: nonNegativeInteger,
+  moveId: positiveInteger,
+  sourceStatusId: positiveInteger,
+});
+
 const pendingChoice = requiredFieldsOf<PendingChoice>({
   reason: oneOf(PENDING_CHOICE_REASONS),
 });
@@ -180,6 +201,7 @@ export const SIDE_CONDITIONS_PARSERS: FieldParsers<SideConditions> = {
   wish: pendingWish,
   healingWish: oneOf(HEALING_WISH_KINDS),
   pendingChoice,
+  futureAttack: pendingFutureAttack,
 };
 
 /**
@@ -388,7 +410,7 @@ export const GLOBAL_TURN_SCOPED_FLAGS = ['ionDeluge'] as const satisfies Readonl
 >;
 
 /**
- * 陣営のターン終了時の変更（残りターン数・ねがいごとを減らし、このターンだけのフラグを消す）
+ * 陣営のターン終了時の変更（残りターン数・ねがいごと・みらいよちを減らし、このターンだけのフラグを消す）
  */
 const sideConditionsTickPatch = (conditions: SideConditions): StatePatch<SideConditions> => {
   const patch: MutableStatePatch<SideConditions> = {};
@@ -401,6 +423,10 @@ const sideConditionsTickPatch = (conditions: SideConditions): StatePatch<SideCon
   if (conditions.wish !== undefined) {
     const turns = tickTurnCount(conditions.wish.turns);
     patch.wish = turns === undefined ? undefined : { ...conditions.wish, turns };
+  }
+  if (conditions.futureAttack !== undefined) {
+    const turns = tickTurnCount(conditions.futureAttack.turns);
+    patch.futureAttack = turns === undefined ? undefined : { ...conditions.futureAttack, turns };
   }
   for (const key of SIDE_TURN_SCOPED_FLAGS) {
     if (conditions[key] !== undefined) {
