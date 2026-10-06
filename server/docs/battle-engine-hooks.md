@@ -274,9 +274,10 @@ preventsMove(_h: BattlePokemonStatus, role: 'attacker' | 'defender', ctx?: Battl
 
 - シグネチャ: `onDamagingHit?(holder, attacker, hit: HitResult, battleContext): Promise<string | null>`
 - 呼ばれる場所: `executeMove`。1以上のダメージを受けたヒットのたびに、HPを減らした直後。ひんしになったヒットでも呼ばれる（`hit.targetFainted === true`）。かたやぶりでは無視されない
-- 使う特性: じきゅうりょく、せいぎのこころ、びびり、みずがため、じょうききかん、ねつこうかん（攻撃+1の部分）、わたげ、すなはき、こぼれダネ、てつのトゲ・さめはだ（新しく作る場合）、ゆうばく・とびだすなかみ（ひんしになったとき）
+- 使う特性: じきゅうりょく、せいぎのこころ、びびり、みずがため、じょうききかん、ねつこうかん（攻撃+1の部分）、わたげ、すなはき、こぼれダネ、とびだすなかみ（ひんしになったとき）
 - `holder` はダメージを反映した状態です。ここで変えたランクは次のヒットのダメージ計算に使われます。
-- 本家で「かたやぶりで止まる」特性（ねつこうかんなど）は、`AbilityRegistry.isIgnoredByMoldBreaker(ctx.attackerAbilityName, '<自分の特性名>')` で自分で判定します。
+- てつのトゲ・さめはだ・ゆうばくはここに書きません。`BaseContactRecoilDamageEffect`（`applyContactStatusCondition`）で作ります。両方に書くと、攻撃側が2回ダメージを受けます。
+- 本家で「かたやぶりで止まる」特性（ねつこうかんなど）は、`await isIgnoredByMoldBreaker(ctx.attackerAbilityName, 'ねつこうかん')`（`pokemon/domain/battle-events/ability-lookup` から import）で自分で判定します。特性のファイルから `AbilityRegistry` を import すると循環参照になるため、使いません。
 
 ```ts
 async onDamagingHit(holder: BattlePokemonStatus, _a: BattlePokemonStatus, hit: HitResult, ctx?: BattleContext) {
@@ -335,6 +336,7 @@ async onKnockOut(holder: BattlePokemonStatus, _fainted: BattlePokemonStatus, ctx
 - 呼ばれる場所: `executeMove`。ヒットのループのあと、合計ダメージが1以上のとき1回（以前は duck typing だった。今はインターフェースに定義済み）。`true` を返すと `<特性名> activated!` が付く
 - 使う特性: 既存の基底クラス `BaseContactStatusConditionEffect`（せいでんきなど）、`BaseContactRecoilDamageEffect`（さめはだ・ゆうばく）、`BaseContactStatChangeEffect`（ぬめぬめなど）
 - てつのトゲは `BaseContactRecoilDamageEffect` を継承して `damageDivisor = 8` にするだけで作れます（ダメージは `applyIndirectDamage` で与えるので、攻撃側のマジックガードで防がれる）。
+- 注: 本家のてつのトゲ・さめはだは接触したヒットごとにダメージを与えますが、ここでは連続技でも技全体で1回です。
 
 ```ts
 export class IronBarbsEffect extends BaseContactRecoilDamageEffect {
@@ -469,6 +471,7 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `moveName` | 技名（DB の name） | 技の実行・行動順 |
 | `moveFlags` | 技フラグ。技の実行・ダメージ計算では `modifyMoveFlags` の反映後、行動順では技フラグ表のまま | 技の実行・行動順・ダメージ計算 |
 | `moveTypeName` | 技のタイプ名（タイプ変更の反映後） | 技の実行・行動順・ダメージ計算 |
+| `moveCategory` | 技の分類（`'Physical'` / `'Special'` / `'Status'`） | 技の実行・行動順・ダメージ計算 |
 | `baseMoveTypeName` | 技本来のタイプ名（タイプ変更の前） | 技の実行・ダメージ計算 |
 | `movePower` | 技の威力（`modifyMovePower` の反映後、特性補正の前） | 技の実行・ダメージ計算 |
 | `movePriority` | 技の優先度（特性補正の前） | 技の実行・行動順 |
@@ -557,7 +560,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - ポケモンの重さのデータがないため、重さを使う効果（ヘヴィメタル、ライトメタル、けたぐり等）は実装できません。
 - `onDamagingHit` / `onSourceDamagingHit` はヒットごとですが、`applyContactStatusCondition` と技の `onHit` は今までどおり技全体で1回です。
 - 状態異常は1つの欄（`statusCondition`）に入るため、ひるみ・こんらんは状態異常と同時に持てません。あくしゅうのひるみも、相手が状態異常なら付与できません（ひるみ技と同じ）。
-- 次の効果は `applyStatChanges` を通らず、ランクを直接書きます。たんじゅん・あまのじゃく・ミラーアーマー・びんじょうなどは効きません: はらだいこ、はいすいのじん、ソウルビート、みをけずる、つぼをつく、ナインエボルブースト、ブレイブチャージ、ほおばる、じばそうさ・ギアアップ（`BasePlusMinusSelfStatBoostEffect`）、たがやす・フラワーガード（`BaseGrassTypeStatBoostEffect`）、いばる・おだてる（`BaseConfuseWithStatBoostEffect`）、おきみやげ、どくのいと、ひっくりかえす、くろいきり・クリアスモッグ、じこあんじ、ガードスワップなどの入れ替え技、かそく・ムラっけ・まけんき・かちき・そうしょく・でんきエンジン・ひらいしん・よびみず・こんがりボディ（`BaseTypeImmunityWithStatBoostEffect`）・`kongyou-effect.ts` の `GutsHpThresholdEffect`（未登録）などの既存の特性。必要になったら `applyStatChanges` に乗せ換えます。
+- 次の効果は `applyStatChanges` を通らず、ランクを直接書きます。たんじゅん・あまのじゃく・ミラーアーマー・びんじょうなどは効きません: はらだいこ、はいすいのじん、ソウルビート、みをけずる、つぼをつく、ナインエボルブースト、ブレイブチャージ、ほおばる、じばそうさ・ギアアップ（`BasePlusMinusSelfStatBoostEffect`）、たがやす・フラワーガード（`BaseGrassTypeStatBoostEffect`）、いばる・おだてる（`BaseConfuseWithStatBoostEffect`）、おきみやげ、どくのいと、ひっくりかえす、くろいきり・クリアスモッグ、じこあんじ、ガードスワップなどの入れ替え技、かそく・ムラっけ・まけんき・かちき・そうしょく・でんきエンジン・ひらいしん・よびみず・こんがりボディ（`BaseTypeImmunityWithStatBoostEffect`）・こんじょう（`kongyou-effect.ts` の `GutsHpThresholdEffect`）などの既存の特性。必要になったら `applyStatChanges` に乗せ換えます。
 - 次の効果は `inflictStatus` を通らず、状態異常を直接書きます。シンクロ・ふしょく・`onInflictStatus` などは効きません: どくのいと（`ToxicThreadEffect`）、サイコシフト（`PsychoShiftEffect`）。必要になったら `canInflictStatus` / `inflictStatus` に乗せ換えます。トライアタック（`TriAttackEffect`）は乗せ換え済みです。
 - `onOpponentStatChanged`（びんじょう）の「相手」は、相手が起こした変化ならその相手、技の実行中ならコンテキストの `attacker` / `defender` です。場に出たとき・ターン終了時に相手が自分で上げた変化（ふとうのつるぎなど）では呼ばれません。また本家は行動の終わりにまとめて写しますが、ここではすぐに写します。
 - `onKnockOut` は「自分の技で相手をひんしにした」ときだけです。ソウルハートは本家では誰がひんしになっても発動しますが、ここでは自分の技で倒したときだけになります（反動・状態異常・さめはだで相手が倒れたときは発動しない）。

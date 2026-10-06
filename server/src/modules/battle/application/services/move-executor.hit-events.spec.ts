@@ -88,12 +88,12 @@ describe('MoveExecutorService - ヒットとひんしのイベント', () => {
       );
     });
 
-    it('ひんしになったヒットでも呼ばれ、targetFainted が true になる（ゆうばく用）', async () => {
+    it('ひんしになったヒットでも呼ばれ、targetFainted が true になる（とびだすなかみ用）', async () => {
       // Arrange
       const onDamagingHit = jest.fn().mockResolvedValue(null);
-      AbilityRegistry.register('テストゆうばく', { onDamagingHit });
+      AbilityRegistry.register('テストとびだすなかみ', { onDamagingHit });
       const { execute } = setupMoveExecutor({
-        defenderAbility: 'テストゆうばく',
+        defenderAbility: 'テストとびだすなかみ',
         defender: { currentHp: 5 },
         damage: 30,
       });
