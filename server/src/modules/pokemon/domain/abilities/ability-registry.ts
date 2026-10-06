@@ -119,6 +119,8 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// 天候の効果をなくす特性（Issue #135 一部）
+import { CloudNineEffect } from './effects/weather/cloud-nine-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +334,8 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // 天候の効果をなくす特性（Issue #135 一部）
+      this.registry.set('ノーてんき', new CloudNineEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
