@@ -6,6 +6,7 @@ import { PoisonPointEffect } from './effects/stat-change/poison-point-effect';
 import { FlameBodyEffect } from './effects/stat-change/flame-body-effect';
 import { ClearBodyEffect } from './effects/stat-change/clear-body-effect';
 import { NoBattleEffectAbility } from './effects/other/no-battle-effect-ability';
+import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 
 describe('AbilityRegistry', () => {
   beforeEach(() => {
@@ -38,6 +39,36 @@ describe('AbilityRegistry', () => {
       'ハッピータイム',
     ])('存在しない特性名 %s は登録されていない', name => {
       expect(AbilityRegistry.get(name)).toBeUndefined();
+    });
+  });
+
+  describe('しろいけむり', () => {
+    it('レジストリ経由で能力ランクの低下を無効化する', () => {
+      const pokemon = new BattlePokemonStatus(
+        1,
+        1,
+        1,
+        1,
+        true,
+        100,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+      );
+
+      const canReceive = AbilityRegistry.get('しろいけむり')?.canReceiveStatChange?.(
+        pokemon,
+        'attack',
+        -1,
+      );
+
+      expect(canReceive).toBe(false);
     });
   });
 });
