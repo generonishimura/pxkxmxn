@@ -33,6 +33,31 @@ describe('ShoreUpEffect', () => {
     });
   });
 
+  it('すなあらしのときは 4096 基準の補正値で計算する（最大 HP 100 で 67 回復）', async () => {
+    // Arrange
+    const effect = new ShoreUpEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 0, maxHp: 100 });
+    const defender = createBattlePokemonStatus({ id: 2 });
+    const battleRepository = {
+      updateBattlePokemonStatus: jest.fn().mockResolvedValue(undefined),
+    } as unknown as IBattleRepository;
+    const ctx: BattleContext = {
+      ...createBattleContext({
+        battle: { weather: Weather.Sandstorm } as Battle,
+        battleRepository,
+      }),
+      weather: Weather.Sandstorm,
+    };
+
+    // Act
+    await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
+      currentHp: 67,
+    });
+  });
+
   it('HP が満タンなら失敗する', async () => {
     // Arrange
     const effect = new ShoreUpEffect();

@@ -39,7 +39,7 @@ describe('BaseSelfHealEffect', () => {
     });
   });
 
-  it('回復量は切り捨てで計算する', async () => {
+  it('回復量は四捨五入で計算する', async () => {
     // Arrange
     const effect = new TestHalfHealEffect();
     const attacker = createBattlePokemonStatus({ currentHp: 10, maxHp: 101 });
@@ -50,7 +50,7 @@ describe('BaseSelfHealEffect', () => {
 
     // Assert
     expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
-      currentHp: 60,
+      currentHp: 61,
     });
   });
 

@@ -15,7 +15,7 @@ export interface HealFraction {
 /**
  * 自分の HP を回復する技の基底クラス
  *
- * 効果: 自分の HP を「最大 HP × 割合」（切り捨て、最低 1）だけ回復する
+ * 効果: 自分の HP を「最大 HP × 割合」（四捨五入、最低 1）だけ回復する
  *
  * - 回復後の HP は最大 HP を超えない
  * - HP が満タンのときは失敗する
@@ -28,6 +28,15 @@ export abstract class BaseSelfHealEffect implements IMoveEffect {
    * 天候などで割合が変わる技のために battleContext を受け取る
    */
   protected abstract getHealFraction(battleContext: BattleContext): HealFraction;
+
+  /**
+   * 回復量を計算する（最低 1 にする処理は呼び出し側で行う）
+   * 端数処理が異なる技（4096 基準の補正値を使う技など）はオーバーライドする
+   */
+  protected computeHealAmount(maxHp: number, battleContext: BattleContext): number {
+    const { numerator, denominator } = this.getHealFraction(battleContext);
+    return Math.round((maxHp * numerator) / denominator);
+  }
 
   async onUse(
     attacker: BattlePokemonStatus,
@@ -42,8 +51,7 @@ export abstract class BaseSelfHealEffect implements IMoveEffect {
       return null;
     }
 
-    const { numerator, denominator } = this.getHealFraction(battleContext);
-    const healAmount = Math.max(1, Math.floor((attacker.maxHp * numerator) / denominator));
+    const healAmount = Math.max(1, this.computeHealAmount(attacker.maxHp, battleContext));
     const newHp = Math.min(attacker.maxHp, attacker.currentHp + healAmount);
 
     await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {

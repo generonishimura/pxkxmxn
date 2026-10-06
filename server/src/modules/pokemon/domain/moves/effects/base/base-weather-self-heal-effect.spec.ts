@@ -45,6 +45,54 @@ describe('BaseWeatherSelfHealEffect', () => {
     });
   });
 
+  it.each([
+    ['にほんばれ', 67, Weather.Sun],
+    ['天候なし', 50, null],
+    ['あめ', 25, Weather.Rain],
+  ])(
+    '%s のときの回復量は 4096 基準の補正値で計算する（最大 HP 100 で %i 回復）',
+    async (_label, expectedHp, weather) => {
+      // Arrange
+      const effect = new TestWeatherHealEffect();
+      const attacker = createBattlePokemonStatus({ currentHp: 0, maxHp: 100 });
+      const defender = createBattlePokemonStatus({ id: 2 });
+      const ctx: BattleContext = {
+        ...createBattleContext({
+          battle: { weather } as Battle,
+          battleRepository: createRepository(),
+        }),
+        weather,
+      };
+
+      // Act
+      await effect.onUse(attacker, defender, ctx);
+
+      // Assert
+      expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
+        currentHp: expectedHp,
+      });
+    },
+  );
+
+  it('補正値の計算は端数がちょうど 0.5 のとき切り捨てる（最大 HP 101 の天候なしは 50 回復）', async () => {
+    // Arrange
+    const effect = new TestWeatherHealEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 0, maxHp: 101 });
+    const defender = createBattlePokemonStatus({ id: 2 });
+    const ctx = createBattleContext({
+      battle: { weather: null } as Battle,
+      battleRepository: createRepository(),
+    });
+
+    // Act
+    await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
+      currentHp: 50,
+    });
+  });
+
   it('battleContext.weather がないときは battle.weather を使う', async () => {
     // Arrange
     const effect = new TestWeatherHealEffect();
