@@ -638,7 +638,9 @@ export interface IAbilityEffect {
   /**
    * 相手が技を出し終えたあとの効果（例: おどりこ）
    * MoveExecutorService が、相手の技の処理がすべて終わったあとに 1 回呼ぶ（呼ばれた技のあとでは呼ばない）。
-   * battleContext.moveName / moveId は相手が出した技。技を出し直すときは battleContext.callMove を使う
+   * 相手の技が外れた・失敗したとき、この特性を持つポケモンが隠れている（そらをとぶなど）ときは呼ばない。
+   * battleContext.moveName / moveId は相手が最後に出し始めた技（ゆびをふるで出た技なら、その技）。
+   * 技を出し直すときは battleContext.callMove を使う（おどりこは runBeforeMoveChecks: true）
    * @param holder この特性を持つポケモン
    * @param user 技を出した相手
    * @returns メッセージ（nullの場合は何も起こらない）

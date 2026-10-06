@@ -2,6 +2,8 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { Move, MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
+import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
+import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import {
   ATTACKER_ID,
   DEFENDER_ID,
@@ -185,6 +187,75 @@ describe('MoveExecutorService - 別の技を出す（callMove）', () => {
     expect(statuses.get(DEFENDER_ID).currentHp).toBe(100);
   });
 
+  it('runBeforeMoveChecks を渡すと、技を出すポケモンの技を出す前の判定をする（ねむっていれば出せない）', async () => {
+    // Arrange
+    const { execute, statuses } = setupCalledMove(
+      {
+        onUse: (_a, defender, ctx) =>
+          ctx.callMove!({
+            moveId: 2,
+            calledBy: 'さいはい',
+            user: defender,
+            runBeforeMoveChecks: true,
+          }),
+      },
+      { defender: { statusCondition: StatusCondition.Sleep } },
+    );
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used テストよびだし Cannot act due to sleep');
+    expect(statuses.get(ATTACKER_ID).currentHp).toBe(100);
+  });
+
+  it('runBeforeMoveChecks がなければ、技を出す前の判定はしない', async () => {
+    // Arrange
+    const { execute, statuses } = setupCalledMove(
+      {
+        onUse: (_a, defender, ctx) =>
+          ctx.callMove!({ moveId: 2, calledBy: 'テストよびだし', user: defender }),
+      },
+      { defender: { statusCondition: StatusCondition.Sleep } },
+    );
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(ATTACKER_ID).currentHp).toBe(90);
+  });
+
+  it('consumePp を渡すと、技を出すポケモンの技の欄の PP を減らし、そのポケモンの lastMoveId を書く（さいはい）', async () => {
+    // Arrange
+    const { execute, statuses, battleRepository } = setupCalledMove({
+      onUse: (_a, defender, ctx) =>
+        ctx.callMove!({
+          moveId: 2,
+          calledBy: 'さいはい',
+          user: defender,
+          runBeforeMoveChecks: true,
+          consumePp: true,
+        }),
+    });
+    battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockImplementation(
+      (statusId: number) =>
+        Promise.resolve(
+          statusId === DEFENDER_ID
+            ? [new BattlePokemonMove(5, DEFENDER_ID, 2, 10, 10)]
+            : [new BattlePokemonMove(1, ATTACKER_ID, 1, 10, 10)],
+        ),
+    );
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(battleRepository.updateBattlePokemonMove).toHaveBeenCalledWith(5, { currentPp: 9 });
+    expect(statuses.get(DEFENDER_ID).volatileState.lastMoveId).toBe(2);
+  });
+
   it('呼び出しが深くなりすぎると失敗する', async () => {
     // Arrange
     const { execute } = setupCalledMove({
@@ -240,6 +311,55 @@ describe('MoveExecutorService - 別の技を出す（callMove）', () => {
     expect(onUse).toHaveBeenCalledTimes(2);
     expect(onUse.mock.calls[1][0].id).toBe(DEFENDER_ID);
     expect(message).toBe('Used つるぎのまい Used つるぎのまい');
+  });
+
+  it('相手の技が外れたときは、onOpponentMoveUsed を呼ばない', async () => {
+    // Arrange
+    const onOpponentMoveUsed = jest.fn().mockResolvedValue(null);
+    AbilityRegistry.register('テストおどりこ', { onOpponentMoveUsed });
+    const { execute, checkHit } = setupMoveExecutor({ defenderAbility: 'テストおどりこ' });
+    checkHit.mockReturnValue(false);
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(onOpponentMoveUsed).not.toHaveBeenCalled();
+  });
+
+  it('自分が隠れている（そらをとぶなど）ときは、onOpponentMoveUsed を呼ばない', async () => {
+    // Arrange
+    const onOpponentMoveUsed = jest.fn().mockResolvedValue(null);
+    AbilityRegistry.register('テストおどりこ', { onOpponentMoveUsed });
+    const { execute } = setupMoveExecutor({
+      move: moveOf(1, 'つるぎのまい', MoveCategory.Status, null),
+      moveEffect: { onUse: () => Promise.resolve(null) },
+      defenderAbility: 'テストおどりこ',
+      defender: { volatileState: { semiInvulnerable: 'air' } },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(onOpponentMoveUsed).not.toHaveBeenCalled();
+  });
+
+  it('相手が別の技から呼んだ技を出したときは、呼ばれた技を onOpponentMoveUsed に渡す（ゆびをふる → ちょうのまい）', async () => {
+    // Arrange
+    const onOpponentMoveUsed = jest.fn().mockResolvedValue(null);
+    AbilityRegistry.register('テストおどりこ', { onOpponentMoveUsed });
+    const { execute } = setupCalledMove(
+      { onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ゆびをふる' }) },
+      { defenderAbility: 'テストおどりこ' },
+    );
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(onOpponentMoveUsed.mock.calls[0][2].moveName).toBe('テストよばれる');
+    expect(onOpponentMoveUsed.mock.calls[0][2].moveId).toBe(2);
   });
 });
 

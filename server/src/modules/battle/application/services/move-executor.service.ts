@@ -79,6 +79,8 @@ interface CalledMoveInfo {
   readonly depth: number;
   /** みらいよち・はめつのねがいが当たるとき（技を置かずに、そのまま当てる） */
   readonly isFutureAttack?: boolean;
+  /** 使用者が自分で出したのと同じに扱う（PP を減らし、使用者の記録を書く。さいはいの consumePp） */
+  readonly actsAsOwnMove?: boolean;
 }
 
 /**
@@ -286,9 +288,11 @@ export class MoveExecutorService {
         lastMoveId: trace.activeMove.id,
       });
     }
+    // おどりこなどには、最後に出し始めた技（ゆびをふるで出た技など）と、行動の結果を渡す
     const observerMessages = await this.runOpponentMoveObservers({
       battle,
-      move,
+      move: trace.activeMove ?? move,
+      outcome: result.outcome,
       userId: attacker.id,
       observerId: defender.id,
       observerTrainedPokemon: defenderTrainedPokemon,
@@ -463,13 +467,14 @@ export class MoveExecutorService {
 
   /**
    * 技を出す前の判定を通ったあとに、技を使う
-   * called は、別の技（ゆびをふるなど）から呼ばれた技のときだけ渡す（PP を減らさず、使用者の記録を書かない）
+   * called は、別の技（ゆびをふるなど）から呼ばれた技のときだけ渡す（PP を減らさず、使用者の記録を書かない。
+   * actsAsOwnMove なら、使用者が自分で出したのと同じに扱う）
    */
   private async useMove(params: MoveUseParams): Promise<MoveUseResult> {
     const { battle, move, defender, options, called } = params;
     const { attackerTrainedPokemon, defenderTrainedPokemon } = params;
     let attacker = params.attacker;
-    const isCalled = called !== undefined;
+    const isCalled = called !== undefined && called.actsAsOwnMove !== true;
     const previousState = attacker.volatileState;
     // ため技の 2 ターン目・出し続ける技の 2 ターン目以降は、PP を減らさない（本家と同じ）
     const isContinuation =
@@ -618,7 +623,9 @@ export class MoveExecutorService {
 
   /**
    * 別の技を、技の処理の流れに乗せて出す（battleContext.callMove の中身）
-   * PP を減らさず、技を出す前の判定もしない。呼び出しが深くなりすぎたら失敗する
+   * 既定では PP を減らさず、技を出す前の判定もしない。呼び出しが深くなりすぎたら失敗する
+   * - request.runBeforeMoveChecks: 技を出すポケモンの技を出す前の判定をする（おどりこ・さいはい）
+   * - request.consumePp: 技を出すポケモンが自分で出したのと同じに扱う（PP・lastMoveId。さいはい）
    */
   private async executeCalledMove(
     battle: Battle,
@@ -659,12 +666,62 @@ export class MoveExecutorService {
       return 'But it failed';
     }
     const latestBattle = (await this.battleRepository.findById(battle.id)) ?? battle;
+
+    // おどりこ・さいはい: 技を出すポケモンの、技を出す前の判定（ねむり・まひ・ひるみ・こんらんなど）
+    let actingUser = user;
+    let prefix = '';
+    if (request.runBeforeMoveChecks === true) {
+      const userAbilityEffect = userTrainedPokemon.ability
+        ? AbilityRegistry.get(userTrainedPokemon.ability.name)
+        : undefined;
+      const beforeMove = await this.beforeMoveChecker.check({
+        battle: latestBattle,
+        move,
+        attacker: user,
+        defender: target,
+        attackerAbilityEffect: userAbilityEffect,
+        battleContext: this.createHitContext({
+          battle: latestBattle,
+          move,
+          moveEffect: MoveRegistry.get(move.name),
+          attacker: user,
+          defender: target,
+          attackerTrainedPokemon: userTrainedPokemon,
+          defenderTrainedPokemon: targetTrainedPokemon,
+          attackerAbilityEffect: userAbilityEffect,
+          defenderAbilityEffect: undefined,
+          options: {},
+        }),
+        calculateConfusionSelfDamage: current =>
+          this.calculateConfusionSelfDamage(latestBattle, current, userTrainedPokemon),
+      });
+      if (beforeMove.cancelled === true) {
+        return beforeMove.message;
+      }
+      actingUser = beforeMove.attacker;
+      prefix = beforeMove.prefix;
+    }
+
+    // さいはい: 技を出すポケモンの技の欄から PP を減らす
+    const battlePokemonMoveId =
+      request.consumePp === true
+        ? findMoveSlot(
+            resolveMoveSlots(
+              (await this.battleRepository.findBattlePokemonMovesByBattlePokemonStatusId(
+                actingUser.id,
+              )) ?? [],
+              actingUser.volatileState,
+            ),
+            move.id,
+          )?.battlePokemonMoveId
+        : undefined;
+
     const result = await this.useMove({
       battle: latestBattle,
       move,
-      attacker: user,
+      attacker: actingUser,
       defender: target,
-      battlePokemonMoveId: undefined,
+      battlePokemonMoveId,
       options: {},
       attackerTrainedPokemon: userTrainedPokemon,
       defenderTrainedPokemon: targetTrainedPokemon,
@@ -672,18 +729,22 @@ export class MoveExecutorService {
         calledBy: request.calledBy,
         powerMultiplier: request.powerMultiplier,
         depth,
+        actsAsOwnMove: request.consumePp === true,
       },
       trace: caller.trace,
     });
-    return result.message;
+    return `${prefix}${result.message}`;
   }
 
   /**
    * 相手が技を出し終えたあとの、自分の特性の onOpponentMoveUsed（おどりこ）
+   * 本家のおどりこと同じく、相手の技が何かをしたとき（outcome が hit）だけ呼び、自分が隠れているとき（そらをとぶなど）は呼ばない
+   * move は相手が最後に出し始めた技（ゆびをふるで出た技なら、その技）
    */
   private async runOpponentMoveObservers(params: {
     battle: Battle;
     move: Move;
+    outcome: MoveOutcome;
     userId: number;
     observerId: number;
     observerTrainedPokemon: TrainedPokemon;
@@ -691,12 +752,17 @@ export class MoveExecutorService {
   }): Promise<string[]> {
     const abilityName = params.observerTrainedPokemon.ability?.name;
     const abilityEffect = abilityName ? AbilityRegistry.get(abilityName) : undefined;
-    if (!abilityEffect?.onOpponentMoveUsed) {
+    if (!abilityEffect?.onOpponentMoveUsed || params.outcome !== 'hit') {
       return [];
     }
     const observer = await this.battleRepository.findBattlePokemonStatusById(params.observerId);
     const user = await this.battleRepository.findBattlePokemonStatusById(params.userId);
-    if (!observer || !user || observer.isFainted()) {
+    if (
+      !observer ||
+      !user ||
+      observer.isFainted() ||
+      observer.volatileState.semiInvulnerable !== undefined
+    ) {
       return [];
     }
     const userTrainedPokemon = await this.trainedPokemonRepository.findById(user.trainedPokemonId);

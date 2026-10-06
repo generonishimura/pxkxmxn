@@ -842,10 +842,12 @@ export class PressureEffect implements IAbilityEffect { modifyOpponentPpDeductio
 
 #### battleContext.callMove
 
-- シグネチャ: `callMove(request: { moveId?; moveName?; user?; target?; calledBy; powerMultiplier? }): Promise<string>`（`pokemon/domain/battle-events/called-move.ts`）
+- シグネチャ: `callMove(request: { moveId?; moveName?; user?; target?; calledBy; powerMultiplier?; runBeforeMoveChecks?; consumePp? }): Promise<string>`（`pokemon/domain/battle-events/called-move.ts`）
 - 入る場所: 技の実行のコンテキスト（`onUse`・`onHit`・`afterDamage` など）と、`onOpponentMoveUsed` のコンテキスト
-- 呼んだ技は、特性の無効化・命中判定・ダメージ・追加効果のすべてを通る。PP は減らず、技を出す前の判定もしない。使用者の `lastMoveId` は呼んだ技のまま、`GlobalFieldState.lastMoveId` は（行動が終わったときに）呼ばれた技になる。呼ばれた技の中では `ctx.calledBy` に呼んだ技の名前が入る。3 段より深く呼ぶと `But it failed`
+- 呼んだ技は、特性の無効化・命中判定・ダメージ・追加効果のすべてを通る。既定では PP は減らず、技を出す前の判定もしない。使用者の `lastMoveId` は呼んだ技のまま、`GlobalFieldState.lastMoveId` は（行動が終わったときに）呼ばれた技になる。呼ばれた技の中では `ctx.calledBy` に呼んだ技の名前が入る。3 段より深く呼ぶと `But it failed`
 - `user` を渡すと、そのポケモンが技を出す（さいはい・おどりこ）。`target` を省くと、`user` の相手
+- `runBeforeMoveChecks: true` を渡すと、`user` の技を出す前の判定（ねむり・こおり・ひるみ・技の制限・こんらん・メロメロ・まひ）をする。止まったら技を出さず、そのメッセージを返す。おどりこは `{ runBeforeMoveChecks: true }`、さいはいは `{ runBeforeMoveChecks: true, consumePp: true }` を渡す（本家ではどちらも技を出す前の判定を通る）
+- `consumePp: true` を渡すと、`user` が自分で出したのと同じに扱う。その技の欄の PP を減らし（プレッシャーも）、`user` の `lastMoveId`・こだわりなどを書く（さいはい）
 - `powerMultiplier` は威力に 4096 分率で掛ける（さきどり = 1.5）
 - 技を名前で呼ぶには、技のリポジトリの `findByName` を使う（Prisma のリポジトリは実装済み）
 - 使う技・特性: ゆびをふる・ねごと・まねっこ・オウムがえし・さきどり・ねこのて・しぜんのちから・さいはい・おどりこ。よこどりはエンジンが行う（相手が `snatch` を持っていれば、`MoveBehaviors` の `snatch` の技を相手が代わりに出す）
@@ -874,12 +876,13 @@ return move && move.category !== 'Status' ? ctx.callMove!({ moveId: move.id, cal
 #### onOpponentMoveUsed（特性）
 
 - シグネチャ: `onOpponentMoveUsed?(holder, user, ctx?): Promise<string | null>`
-- 呼ばれる場所: `executeMove` の最後。相手の技の処理がすべて終わったあと（技を出す前の判定で止まったとき・呼ばれた技のあとでは呼ばない）。`ctx.moveName` / `ctx.moveId` は相手が出した技。`ctx.callMove` は `holder` が技を出す
+- 呼ばれる場所: `executeMove` の最後。相手の技の処理がすべて終わったあと。次のときは呼ばない: 技を出す前の判定で止まった、技が外れた・失敗した（本家の moveDidSomething）、`holder` が隠れている（そらをとぶなど）、呼ばれた技のあと
+- `ctx.moveName` / `ctx.moveId` は相手が最後に出し始めた技（ゆびをふるでちょうのまいが出たら、ちょうのまい）。`ctx.callMove` は `holder` が技を出す
 - 使う特性: おどりこ（`MoveBehaviors` の `dance` の技を出し直す）
 
 ```ts
 async onOpponentMoveUsed(_h: BattlePokemonStatus, _u: BattlePokemonStatus, ctx?: BattleContext): Promise<string | null> {
-  return ctx?.moveName && ctx.moveId && MoveBehaviors.has(ctx.moveName, 'dance') ? ctx.callMove!({ moveId: ctx.moveId, calledBy: 'おどりこ' }) : null;
+  return ctx?.moveName && ctx.moveId && MoveBehaviors.has(ctx.moveName, 'dance') ? ctx.callMove!({ moveId: ctx.moveId, calledBy: 'おどりこ', runBeforeMoveChecks: true }) : null;
 }
 ```
 
@@ -992,7 +995,7 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 | パワートリック・パワーシフト・ガードシェア・パワーシェア・スピードスワップ | `statOverrides` を書く（9.6）。シェアは両者の実数値の平均（切り捨て） |
 | さきどり | `ctx.defenderPendingMoveId` の技（`failMeFirst` でないダメージ技）を `callMove({ powerMultiplier: 1.5 })` |
 | まねっこ | `getGlobalFieldState(battle.sideState).lastMoveId`（`failCopycat` でない）を `callMove` |
-| さいはい | 相手の `lastMoveId`（`failInstruct` でない）を `callMove({ user: defender })` |
+| さいはい | 相手の `lastMoveId`（`failInstruct` でない）を `callMove({ user: defender, runBeforeMoveChecks: true, consumePp: true })` |
 | タールショット | 素早さ -1 と `tryApplyVolatile(defender, 'tarShot', { tarShot: true })` |
 | たこがため | `trappedByStatusId` と `octolock` を書く。毎ターンの低下・交代の制限はエンジン |
 | あくむ | 相手がねむり（`isEffectivelyAsleep`）なら `tryApplyVolatile(defender, 'nightmare', { nightmare: true })` |

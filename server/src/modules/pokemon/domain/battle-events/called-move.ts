@@ -19,11 +19,22 @@ export interface CalledMoveRequest {
   readonly calledBy: string;
   /** 技の威力に掛ける倍率（さきどり = 1.5）。4096 分率で丸める */
   readonly powerMultiplier?: number;
+  /**
+   * true なら、技を出すポケモンの技を出す前の判定（ねむり・まひ・ひるみ・こんらん・ちょうはつ・かなしばりなど）をする。
+   * 止まったら技を出さず、そのメッセージを返す（おどりこ・さいはい）
+   */
+  readonly runBeforeMoveChecks?: boolean;
+  /**
+   * true なら、技を出すポケモンが自分で技を出したのと同じに扱う。その技の欄の PP を減らし（プレッシャーも）、
+   * そのポケモンの lastMoveId・こだわりなどを書く（さいはい）
+   */
+  readonly consumePp?: boolean;
 }
 
 /**
  * 別の技を、技の処理の流れ（特性の無効化・命中判定・ダメージ・追加効果）に乗せて出す関数
- * PP は減らさず、技を出す前の判定（ねむり・まひ・ちょうはつなど）もしない（呼び出した技で済んでいる）。
+ * 既定では PP は減らさず、技を出す前の判定（ねむり・まひ・ちょうはつなど）もしない（呼び出した技で済んでいる）。
+ * 別のポケモンに技を出させるとき（おどりこ・さいはい）は runBeforeMoveChecks・consumePp で変えられる。
  * 戻り値は出した技のメッセージ（"Used かえんほうしゃ and dealt 50 damage" など）
  */
 export type CallMove = (request: CalledMoveRequest) => Promise<string>;
