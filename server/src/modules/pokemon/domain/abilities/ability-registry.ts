@@ -119,6 +119,9 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// 追加効果・天候・連続技・ランク無視の特性（Issue #135 一部）
+import { ShieldDustEffect } from './effects/other/shield-dust-effect';
+import { SereneGraceEffect } from './effects/other/serene-grace-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +335,9 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // 追加効果・天候・連続技・ランク無視の特性（Issue #135 一部）
+      this.registry.set('りんぷん', new ShieldDustEffect());
+      this.registry.set('てんのめぐみ', new SereneGraceEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
