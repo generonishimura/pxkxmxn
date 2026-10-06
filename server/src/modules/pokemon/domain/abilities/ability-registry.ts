@@ -139,6 +139,12 @@ import { UnawareEffect } from './effects/other/unaware-effect';
 import { GaleWingsEffect } from './effects/other/gale-wings-effect';
 import { ParentalBondEffect } from './effects/other/parental-bond-effect';
 import { DarkAuraEffect } from './effects/damage-modify/dark-aura-effect';
+// フェアリーオーラ・オーラブレイク・こだいかっせい・クォークチャージ・しんがん（Issue #135 一部）
+import { FairyAuraEffect } from './effects/damage-modify/fairy-aura-effect';
+import { AuraBreakEffect } from './effects/damage-modify/aura-break-effect';
+import { ProtosynthesisEffect } from './effects/stat-change/protosynthesis-effect';
+import { QuarkDriveEffect } from './effects/stat-change/quark-drive-effect';
+import { MindsEyeEffect } from './effects/stat-change/minds-eye-effect';
 
 /**
  * 特性レジストリ
@@ -374,6 +380,12 @@ export class AbilityRegistry {
       this.registry.set('はやてのつばさ', new GaleWingsEffect());
       this.registry.set('おやこあい', new ParentalBondEffect());
       this.registry.set('ダークオーラ', new DarkAuraEffect());
+      // フェアリーオーラ・オーラブレイク・こだいかっせい・クォークチャージ・しんがん（Issue #135 一部）
+      this.registry.set('フェアリーオーラ', new FairyAuraEffect());
+      this.registry.set('オーラブレイク', new AuraBreakEffect());
+      this.registry.set('こだいかっせい', new ProtosynthesisEffect());
+      this.registry.set('クォークチャージ', new QuarkDriveEffect());
+      this.registry.set('しんがん', new MindsEyeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
