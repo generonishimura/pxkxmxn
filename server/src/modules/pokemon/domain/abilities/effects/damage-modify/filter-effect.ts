@@ -11,6 +11,9 @@ import { modifyByFixedPoint } from '@/modules/battle/domain/logic/fixed-point-mo
  * （4096分率で 3072、本家と同じ丸め）
  *
  * - かたやぶりで無視される（エンジンが判定する）
+ *
+ * 注: エンジンは攻撃側と防御側のダメージ補正を別々に丸め、天候補正をこの補正のあとに掛ける。
+ *     本家は補正を掛け合わせてから1回だけ丸め、天候補正は先に掛けるため、ダメージが1ずれることがある
  */
 export class FilterEffect implements IAbilityEffect {
   /**

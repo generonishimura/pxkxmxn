@@ -14,6 +14,9 @@ import { BattleContext } from '../../battle-context.interface';
  *
  * 注: このエンジンのわるあがきはノーマルタイプなので、ゴーストタイプ（ヌケニン）には
  *     タイプ相性で当たらない（本家はタイプなしで当たる）
+ * 注: エンジンは、この特性でダメージが0になっても技の追加効果（onHit）と自分への効果
+ *     （afterDamage）を止めない。たとえば10まんボルトを無効にしてもまひの判定が残り、
+ *     りゅうせいぐんを無効にされても使った側の特攻が下がる（本家は技そのものが失敗する）
  */
 export class WonderGuardEffect implements IAbilityEffect {
   private static readonly STRUGGLE_MOVE_NAME = 'わるあがき';
