@@ -632,7 +632,12 @@ export class MoveExecutorService {
     currentUser: BattlePokemonStatus,
     currentTarget: BattlePokemonStatus,
     request: CalledMoveRequest,
-    caller: { readonly depth?: number; readonly trace?: MoveTrace } = {},
+    caller: {
+      readonly depth?: number;
+      readonly trace?: MoveTrace;
+      /** 呼んだ技の行動順の情報（同じポケモンが同じ相手に出すときだけ、呼ばれた技に渡す） */
+      readonly options?: ExecuteMoveOptions;
+    } = {},
   ): Promise<string> {
     const depth = caller.depth ?? 1;
     if (depth > MoveExecutorService.MAX_CALLED_MOVE_DEPTH) {
@@ -716,13 +721,16 @@ export class MoveExecutorService {
           )?.battlePokemonMoveId
         : undefined;
 
+    // ゆびをふる・ねごとで出た技にも、相手がまだ行動していないか・最後に行動するかを渡す（ふいうち・アナライズ・
+    // ちょうはつのターン数）。別のポケモンが出すとき（さいはい・おどりこ・よこどり）は、行動順が変わるので渡さない
+    const inheritsOptions = user.id === currentUser.id && target.id === currentTarget.id;
     const result = await this.useMove({
       battle: latestBattle,
       move,
       attacker: actingUser,
       defender: target,
       battlePokemonMoveId,
-      options: {},
+      options: inheritsOptions ? (caller.options ?? {}) : {},
       attackerTrainedPokemon: userTrainedPokemon,
       defenderTrainedPokemon: targetTrainedPokemon,
       called: {
@@ -1407,7 +1415,7 @@ export class MoveExecutorService {
         context.attacker ?? attacker,
         context.defender ?? defender,
         request,
-        { depth: (params.called?.depth ?? 0) + 1, trace: params.trace },
+        { depth: (params.called?.depth ?? 0) + 1, trace: params.trace, options: params.options },
       );
 
     const baseFlags = MoveFlags.get(move.name);

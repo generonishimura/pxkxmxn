@@ -118,6 +118,82 @@ describe('MoveExecutorService - 別の技を出す（callMove）', () => {
     expect(battleRepository.patchGlobalFieldState).toHaveBeenCalledWith(1, { lastMoveId: 2 });
   });
 
+  it('呼ばれた技にも、相手がまだ行動していないか（defenderPendingMoveId）と最後に行動するかを渡す（ゆびをふる → ふいうち）', async () => {
+    // Arrange
+    const seen: Array<{ pending?: number; last?: boolean }> = [];
+    const { service, statuses } = setupCalledMove(
+      { onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ゆびをふる' }) },
+      {
+        moveEffects: {
+          [CALLER.name]: {
+            onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ゆびをふる' }),
+          },
+          [CALLED.name]: {
+            onHit: (_a, _d, ctx) => {
+              seen.push({ pending: ctx.defenderPendingMoveId, last: ctx.isLastToMove });
+              return Promise.resolve(null);
+            },
+          },
+        },
+      },
+    );
+    const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
+
+    // Act
+    await service.executeMove(
+      battle,
+      ATTACKER_ID,
+      1,
+      statuses.get(ATTACKER_ID)!,
+      statuses.get(DEFENDER_ID)!,
+      1,
+      { defenderPendingMoveId: 7, isLastToMove: false },
+    );
+
+    // Assert
+    expect(seen).toEqual([{ pending: 7, last: false }]);
+  });
+
+  it('別のポケモンが呼ばれた技を出すときは、呼んだ技の行動順の情報を渡さない（さいはい）', async () => {
+    // Arrange
+    const seen: Array<number | undefined> = [];
+    const { service, statuses } = setupCalledMove(
+      {
+        onUse: (_a, defender, ctx) =>
+          ctx.callMove!({ moveId: 2, calledBy: 'さいはい', user: defender }),
+      },
+      {
+        moveEffects: {
+          [CALLER.name]: {
+            onUse: (_a, defender, ctx) =>
+              ctx.callMove!({ moveId: 2, calledBy: 'さいはい', user: defender }),
+          },
+          [CALLED.name]: {
+            onHit: (_a, _d, ctx) => {
+              seen.push(ctx.defenderPendingMoveId);
+              return Promise.resolve(null);
+            },
+          },
+        },
+      },
+    );
+    const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
+
+    // Act
+    await service.executeMove(
+      battle,
+      ATTACKER_ID,
+      1,
+      statuses.get(ATTACKER_ID)!,
+      statuses.get(DEFENDER_ID)!,
+      1,
+      { defenderPendingMoveId: 7 },
+    );
+
+    // Assert
+    expect(seen).toEqual([undefined]);
+  });
+
   it('技名で呼べる（ゆびをふる・しぜんのちから）', async () => {
     // Arrange
     const { execute, statuses } = setupCalledMove({

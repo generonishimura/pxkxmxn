@@ -849,6 +849,7 @@ export class PressureEffect implements IAbilityEffect { modifyOpponentPpDeductio
 - `runBeforeMoveChecks: true` を渡すと、`user` の技を出す前の判定（ねむり・こおり・ひるみ・技の制限・こんらん・メロメロ・まひ）をする。止まったら技を出さず、そのメッセージを返す。おどりこは `{ runBeforeMoveChecks: true }`、さいはいは `{ runBeforeMoveChecks: true, consumePp: true }` を渡す（本家ではどちらも技を出す前の判定を通る）
 - `consumePp: true` を渡すと、`user` が自分で出したのと同じに扱う。その技の欄の PP を減らし（プレッシャーも）、`user` の `lastMoveId`・こだわりなどを書く（さいはい）
 - `powerMultiplier` は威力に 4096 分率で掛ける（さきどり = 1.5）
+- 同じポケモンが同じ相手に出す呼ばれた技（ゆびをふる・ねごとなど）では、`ctx.defenderPendingMoveId`・`ctx.isLastToMove` は呼んだ技と同じ値になる（ふいうち・アナライズ・ターン数の調整が効く）。別のポケモンが出すとき（さいはい・おどりこ・よこどり）は入らない
 - 技を名前で呼ぶには、技のリポジトリの `findByName` を使う（Prisma のリポジトリは実装済み）
 - 使う技・特性: ゆびをふる・ねごと・まねっこ・オウムがえし・さきどり・ねこのて・しぜんのちから・さいはい・おどりこ。よこどりはエンジンが行う（相手が `snatch` を持っていれば、`MoveBehaviors` の `snatch` の技を相手が代わりに出す）
 
