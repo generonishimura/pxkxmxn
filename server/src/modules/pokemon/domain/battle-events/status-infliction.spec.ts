@@ -98,6 +98,51 @@ describe('状態異常の付与', () => {
       expect(result).toBe(true);
     });
 
+    describe('ふしょく（どくのこな: どく・はがね・くさに無効）', () => {
+      const poisonPowderImmuneTypes = ['どく', 'はがね', 'くさ'];
+      const registerCorrosion = () =>
+        AbilityRegistry.register('テストふしょく', {
+          bypassesStatusTypeImmunity: (_holder, status) =>
+            status === StatusCondition.Poison || status === StatusCondition.BadPoison,
+        });
+
+      it('くさタイプ（粉技の免疫）は、付与元がふしょくでも付与できない', async () => {
+        // Arrange
+        registerCorrosion();
+        const { context, get } = createInMemoryBattle(
+          { ability: 'テストふしょく' },
+          { types: ['くさ'] },
+        );
+
+        // Act
+        const result = await canInflictStatus(get(2), StatusCondition.Poison, context(), {
+          source: { ...byMove(), pokemon: get(1) },
+          immuneTypes: poisonPowderImmuneTypes,
+        });
+
+        // Assert
+        expect(result).toBe(false);
+      });
+
+      it('はがねタイプ（どくの免疫）は、付与元がふしょくなら付与できる', async () => {
+        // Arrange
+        registerCorrosion();
+        const { context, get } = createInMemoryBattle(
+          { ability: 'テストふしょく' },
+          { types: ['はがね'] },
+        );
+
+        // Act
+        const result = await canInflictStatus(get(2), StatusCondition.Poison, context(), {
+          source: { ...byMove(), pokemon: get(1) },
+          immuneTypes: poisonPowderImmuneTypes,
+        });
+
+        // Assert
+        expect(result).toBe(true);
+      });
+    });
+
     it('immuneTypes を渡すと、そのタイプで免疫を判定する', async () => {
       // Arrange
       const { context, get } = createInMemoryBattle({}, { types: ['くさ'] });

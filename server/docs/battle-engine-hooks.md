@@ -520,7 +520,7 @@ const boosted = modifyByFixedPoint(power, 5325);
 | --- | --- | --- |
 | `applyStatChanges(target, changes, ctx, { source?, reflected? })` | `stat-change.ts` | 能力ランクを変える。`modifyIncomingStatChange` → `reflectsStatDrops` / `canReceiveStatChange`（相手が起こした低下） → ±6 に収めて書き込む → `onStatChanged` → 相手の `onOpponentStatChanged`。ランクが変わらなければ書き込まない |
 | `joinStatChangeMessages(result)` / `moveEffectSource(attacker, ctx)` | `moves/effects/base/base-stat-change-effect.ts` | `"Attack rose!"` 形式のメッセージを作る / 技が起こした変化の `EffectSource` を作る |
-| `canInflictStatus(target, status, ctx, { source?, immuneTypes? })` | `status-infliction.ts` | 状態異常を付与できるか（ひんし・状態異常済み・タイプ免疫（付与元の `bypassesStatusTypeImmunity` で無視）・対象の `canReceiveStatusCondition`）。書き込まない |
+| `canInflictStatus(target, status, ctx, { source?, immuneTypes? })` | `status-infliction.ts` | 状態異常を付与できるか（ひんし・状態異常済み・タイプ免疫・対象の `canReceiveStatusCondition`）。書き込まない。タイプ免疫のうち `STATUS_IMMUNE_TYPES` の分だけ付与元の `bypassesStatusTypeImmunity` で無視でき、`immuneTypes` で足した分（粉技のくさ、でんじはのじめん）は無視できない |
 | `inflictStatus(target, status, ctx, options)` | 同上 | 書き込み、`onStatusInflicted`（対象）と `onInflictStatus`（付与元）を呼ぶ。メッセージの配列を返す |
 | `tryInflictStatus(target, status, ctx, options)` | 同上 | 上の2つをまとめたもの。`{ inflicted, messages }` を返す。確率で付与する効果は `canInflictStatus` → 確率判定 → `inflictStatus` の順にする |
 | `STATUS_IMMUNE_TYPES` | 同上 | 状態異常ごとの免疫タイプ（どく・もうどく: どく/はがね、やけど: ほのお、まひ: でんき、こおり: こおり） |

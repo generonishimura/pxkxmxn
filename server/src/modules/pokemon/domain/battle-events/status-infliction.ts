@@ -39,7 +39,8 @@ export interface StatusInflictionOptions {
  * 状態異常を付与できるかを判定する（書き込みはしない）
  *
  * 1. ひんし・すでに状態異常がある場合は付与できない
- * 2. タイプによる免疫。付与元の特性の bypassesStatusTypeImmunity（ふしょく）が true なら無視する
+ * 2. タイプによる免疫。状態異常そのものの免疫（STATUS_IMMUNE_TYPES）は、付与元の特性の
+ *    bypassesStatusTypeImmunity（ふしょく）が true なら無視する。immuneTypes で足した免疫は無視できない
  * 3. 対象の特性の canReceiveStatusCondition。技で付与するときは、付与元のかたやぶりで無視される
  */
 export const canInflictStatus = async (
@@ -71,13 +72,22 @@ export const canInflictStatus = async (
     return sourceAbilityName;
   };
 
-  // タイプによる免疫（ふしょくなど、付与元の特性で無視できる）
+  // タイプによる免疫
+  // 状態異常そのものの免疫（どく・はがねのどくなど）だけ、付与元の特性（ふしょく）で無視できる。
+  // 技が足した免疫（粉技のくさ、でんじはのじめんなど）は無視できない
   const immuneTypes = options.immuneTypes ?? STATUS_IMMUNE_TYPES[statusCondition];
+  const statusImmuneTypes = immuneTypes.filter(typeName =>
+    STATUS_IMMUNE_TYPES[statusCondition].includes(typeName),
+  );
+  const extraImmuneTypes = immuneTypes.filter(typeName => !statusImmuneTypes.includes(typeName));
   const typeNames = [
     trainedPokemon.pokemon.primaryType.name,
     trainedPokemon.pokemon.secondaryType?.name,
-  ];
-  if (typeNames.some(typeName => typeName !== undefined && immuneTypes.includes(typeName))) {
+  ].filter((typeName): typeName is string => typeName !== undefined);
+  if (typeNames.some(typeName => extraImmuneTypes.includes(typeName))) {
+    return false;
+  }
+  if (typeNames.some(typeName => statusImmuneTypes.includes(typeName))) {
     const sourceAbility = source?.pokemon
       ? await getAbilityEffect(await getSourceAbilityName())
       : undefined;
