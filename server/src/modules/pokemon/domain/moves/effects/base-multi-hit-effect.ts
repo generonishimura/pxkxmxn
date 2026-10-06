@@ -30,6 +30,13 @@ export abstract class BaseMultiHitEffect implements IMoveEffect {
   protected abstract readonly maxHits: number;
 
   /**
+   * 攻撃回数の範囲（特性補正の前）
+   */
+  getHitRange(): { min: number; max: number } {
+    return { min: this.minHits, max: this.maxHits };
+  }
+
+  /**
    * 攻撃回数を決定
    * 2-5回攻撃は TWO_TO_FIVE_HIT_TABLE で抽選し、それ以外はminHitsからmaxHitsの間で均等に抽選する
    */
