@@ -21,7 +21,6 @@ import { LeafGuardEffect } from './effects/immunity/leaf-guard-effect';
 import { ObliviousEffect } from './effects/oblivious-effect';
 import { MultiscaleEffect } from './effects/damage-modify/multiscale-effect';
 import { GutsEffect } from './effects/stat-change/guts-effect';
-import { GutsHpThresholdEffect } from './effects/stat-change/kongyou-effect';
 import { ThickFatEffect } from './effects/damage-modify/thick-fat-effect';
 import { HeatproofEffect } from './effects/damage-modify/heatproof-effect';
 import { SpeedBoostEffect } from './effects/stat-change/speed-boost-effect';
@@ -203,6 +202,8 @@ import { ContraryEffect } from './effects/stat-change/contrary-effect';
 import { MirrorArmorEffect } from './effects/stat-change/mirror-armor-effect';
 import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
+// 状態異常・素早さ・タイプ相性で発動する特性（Issue #135 一部）
+import { GutsAttackBoostEffect } from './effects/damage-modify/guts-attack-boost-effect';
 
 /**
  * 特性レジストリ
@@ -279,7 +280,6 @@ export class AbilityRegistry {
       // 天候依存の回避率ブースト（Issue #84 一部）
       this.registry.set('すながくれ', new SandVeilEffect());
       this.registry.set('ゆきがくれ', new SnowCloakEffect());
-      this.registry.set('こんじょう', new GutsHpThresholdEffect());
       this.registry.set('しんりょく', new ShinryokuEffect());
       this.registry.set('もうか', new MoukaEffect());
       this.registry.set('げきりゅう', new GekiryuuEffect());
@@ -505,6 +505,8 @@ export class AbilityRegistry {
       this.registry.set('ミラーアーマー', new MirrorArmorEffect());
       this.registry.set('ばんけん', new GuardDogEffect());
       this.registry.set('びんじょう', new OpportunistEffect());
+      // 状態異常・素早さ・タイプ相性で発動する特性（Issue #135 一部）
+      this.registry.set('こんじょう', new GutsAttackBoostEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
