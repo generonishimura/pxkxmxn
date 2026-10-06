@@ -205,6 +205,7 @@ import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 // ひるみ・ねむりとして扱う特性（Issue #135 一部）
 import { SteadfastEffect } from './effects/stat-change/steadfast-effect';
+import { ComatoseEffect } from './effects/immunity/comatose-effect';
 
 /**
  * 特性レジストリ
@@ -509,6 +510,7 @@ export class AbilityRegistry {
       this.registry.set('びんじょう', new OpportunistEffect());
       // ひるみ・ねむりとして扱う特性（Issue #135 一部）
       this.registry.set('ふくつのこころ', new SteadfastEffect());
+      this.registry.set('ぜったいねむり', new ComatoseEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
