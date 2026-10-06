@@ -39,13 +39,38 @@ export abstract class BaseStatusConditionEffect implements IMoveEffect {
   protected abstract readonly message: string;
 
   /**
-   * 技が命中したときに発動
+   * 変化技（どくどく・でんじは・おにびなど）を使ったときに発動
+   * 変化技の状態異常は追加効果ではないため、確率判定をせず、りんぷんでも防がれない
+   */
+  async onUse(
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): Promise<string | null> {
+    return this.inflict(attacker, defender, battleContext, false);
+  }
+
+  /**
+   * ダメージ技が命中したときに発動（追加効果）
    * 確率に基づいて状態異常を付与
    */
   async onHit(
     attacker: BattlePokemonStatus,
     defender: BattlePokemonStatus,
     battleContext: BattleContext,
+  ): Promise<string | null> {
+    return this.inflict(attacker, defender, battleContext, true);
+  }
+
+  /**
+   * 状態異常を付与する（canInflictStatus → 確率判定 → inflictStatus）
+   * @param isSecondaryEffect 追加効果なら true（てんのめぐみ・りんぷんを考慮して確率判定する）
+   */
+  private async inflict(
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+    isSecondaryEffect: boolean,
   ): Promise<string | null> {
     if (!battleContext.battleRepository || !battleContext.trainedPokemonRepository) {
       return null;
@@ -65,8 +90,8 @@ export abstract class BaseStatusConditionEffect implements IMoveEffect {
       return null;
     }
 
-    // 確率判定（てんのめぐみ・りんぷんを考慮。chanceが1.0の場合は必ず付与）
-    if (!rollSecondaryEffect(this.chance, battleContext)) {
+    // 追加効果の確率判定（てんのめぐみ・りんぷんを考慮。chanceが1.0の場合は必ず付与）
+    if (isSecondaryEffect && !rollSecondaryEffect(this.chance, battleContext)) {
       return null;
     }
 

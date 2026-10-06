@@ -534,6 +534,7 @@ const { inflicted } = await tryInflictStatus(target, StatusCondition.BadPoison, 
 const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(damage, 0.5), ctx);
 ```
 
+- `BaseStatusConditionEffect` は、変化技（どくどく・でんじは・おにびなど）では `onUse`、ダメージ技の追加効果では `onHit` で付与します。変化技の状態異常は追加効果ではないので、確率判定をせず、りんぷんでも防がれません。
 - 既存の基底クラスは乗せ換え済みです: 能力ランクは `BaseStatChangeEffect`・`BaseOpponentStatChangeMoveEffect`・`BaseSelfStatChangeMoveEffect`・`BaseSelfMultiStatChangeMoveEffect`・`BaseOpponentMultiStatChangeMoveEffect`・`BaseSelfAllStatsBoostEffect`・`BaseOpponentStatChangeEffect`（いかくなど）・`BaseStatBoostEffect`・`BaseContactStatChangeEffect`。状態異常は `BaseStatusConditionEffect`・`BaseMultipleStatusConditionEffect`・`BaseContactStatusConditionEffect`。技以外のダメージはターン終了時の状態異常・`BaseRecoilEffect`・`applyMaxHpSelfDamage`（とびげり・わるあがき）・`BaseContactRecoilDamageEffect`・ナイトメア。
 
 ## 6. 技フラグ表の追加方法
@@ -557,7 +558,6 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - 次の効果は `applyStatChanges` を通らず、ランクを直接書きます。たんじゅん・あまのじゃく・ミラーアーマー・びんじょうなどは効きません: はらだいこ、はいすいのじん、ソウルビート、みをけずる、つぼをつく、ナインエボルブースト、ブレイブチャージ、ほおばる、じばそうさ・ギアアップ（`BasePlusMinusSelfStatBoostEffect`）、たがやす・フラワーガード（`BaseGrassTypeStatBoostEffect`）、いばる・おだてる（`BaseConfuseWithStatBoostEffect`）、おきみやげ、どくのいと、ひっくりかえす、くろいきり・クリアスモッグ、じこあんじ、ガードスワップなどの入れ替え技、かそく・ムラっけ・ぎゃくじょう・まけんき・かちき・そうしょく・でんきエンジンなどの既存の特性。必要になったら `applyStatChanges` に乗せ換えます。
 - `onOpponentStatChanged`（びんじょう）の「相手」は、相手が起こした変化ならその相手、技の実行中ならコンテキストの `attacker` / `defender` です。場に出たとき・ターン終了時に相手が自分で上げた変化（ふとうのつるぎなど）では呼ばれません。また本家は行動の終わりにまとめて写しますが、ここではすぐに写します。
 - `onKnockOut` は「自分の技で相手をひんしにした」ときだけです。ソウルハートは本家では誰がひんしになっても発動しますが、ここでは自分の技で倒したときだけになります（反動・状態異常・さめはだで相手が倒れたときは発動しない）。
-- 変化技（どくどく・でんじは・おにびなど）は、エンジンが `onUse` だけを呼び、`BaseStatusConditionEffect` は `onHit` しか持たないため、今は状態異常を付与しません。ふしょく（どくどく）・シンクロ（変化技の状態異常）は、追加効果と接触時の特性による付与でだけ確かめられます。
 - ちからをすいとるは回復を直接書いているため、ヘドロえきを効かせるには `applyDrainHeal` に乗せ換えます。
 - 場に出たときの特性のコンテキスト（バトル開始時・交代時）には `trainedPokemonRepository` が入ります。いかくに対するクリアボディ・ばんけん・ミラーアーマーなどはこれで判定します。
 
