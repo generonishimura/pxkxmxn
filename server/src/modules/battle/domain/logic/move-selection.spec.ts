@@ -26,6 +26,32 @@ describe('move-selection', () => {
       expect(reason).toBeUndefined();
     });
 
+    it('じゅうりょくの間は、そらをとぶなど gravity の技を出せない', () => {
+      // Act
+      const reason = findMoveRestriction({}, candidate({ moveName: 'そらをとぶ' }), {
+        gravity: true,
+      });
+
+      // Assert
+      expect(reason).toBe('gravity');
+    });
+
+    it('じゅうりょくの間でも、gravity でない技は出せる', () => {
+      // Act
+      const reason = findMoveRestriction({}, candidate(), { gravity: true });
+
+      // Assert
+      expect(reason).toBeUndefined();
+    });
+
+    it('じゅうりょくで出せないときのメッセージ', () => {
+      // Act
+      const message = moveRestrictionMessage('gravity', 'とびげり');
+
+      // Assert
+      expect(message).toBe('Cannot use とびげり because of gravity');
+    });
+
     it('ちょうはつ中は変化技を出せない', () => {
       // Act
       const reason = findMoveRestriction(

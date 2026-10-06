@@ -2,6 +2,9 @@ import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { alwaysHitsByVolatile, ignoresPositiveEvasionByVolatile } from './volatile-modifiers';
+// 場の状態・設置技・交代の仕組み（Issue #107 一部）
+import { getGlobalFieldState } from '../state/side-state';
+import { GRAVITY_ACCURACY_MODIFIER } from './field-modifiers';
 
 /**
  * AccuracyCalculator
@@ -18,6 +21,7 @@ import { alwaysHitsByVolatile, ignoresPositiveEvasionByVolatile } from './volati
  * - 必中技（accuracy === null）の場合は常に命中
  * - 一時的な状態: 使用者のロックオン・こころのめ、相手のテレキネシスなら必ず命中。
  *   相手がみやぶられている（みやぶる・かぎわける・ミラクルアイ）なら、上がった回避ランクを 0 として扱う
+ * - 場の状態: じゅうりょくの間は命中率を 6840/4096 倍にする（特性の補正の前）
  */
 export class AccuracyCalculator {
   /**
@@ -91,7 +95,13 @@ export class AccuracyCalculator {
 
     // 実効命中率を計算: accuracy * (accuracyMultiplier / evasionMultiplier)
     // ランク補正は命中率と回避率の比率で適用される
-    const finalAccuracy = effectiveAccuracy * (accuracyMultiplier / evasionMultiplier);
+    const rankedAccuracy = effectiveAccuracy * (accuracyMultiplier / evasionMultiplier);
+    // じゅうりょく（本家の onModifyAccuracy の chainModify([6840, 4096])）
+    const sideState = battleContext?.battle?.sideState;
+    const finalAccuracy =
+      sideState && getGlobalFieldState(sideState).gravityTurns !== undefined
+        ? (rankedAccuracy * GRAVITY_ACCURACY_MODIFIER) / 4096
+        : rankedAccuracy;
 
     // 特性による命中率補正（攻撃側）
     // デフォルトはfinalAccuracyを使用し、特性による補正がある場合のみ上書き

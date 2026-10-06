@@ -16,6 +16,8 @@ import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { CHARGE_MOVE_NAME } from './move-lifecycle';
+// 場の状態・設置技・交代の仕組み（Issue #107 一部）
+import { getGlobalFieldState } from '../../domain/state/side-state';
 
 /**
  * 技を出す前の判定の結果
@@ -131,7 +133,11 @@ export class BeforeMoveChecker {
     const restriction = findMoveRestriction(
       attacker.volatileState,
       { moveId: move.id, moveName: move.name, category: move.category },
-      { imprisonedMoveIds: await this.findImprisonedMoveIds(params.defender), phase: 'execute' },
+      {
+        imprisonedMoveIds: await this.findImprisonedMoveIds(params.defender),
+        phase: 'execute',
+        gravity: getGlobalFieldState(params.battle.sideState).gravityTurns !== undefined,
+      },
     );
     if (restriction) {
       return prevented(moveRestrictionMessage(restriction, move.name));

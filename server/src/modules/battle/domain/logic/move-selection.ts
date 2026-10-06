@@ -19,6 +19,7 @@ export const STRUGGLE_MOVE_NAME = 'わるあがき';
  * - torment: いちゃもん（直前に出した技）
  * - choiceLock: こだわり・ごりむちゅう（固定された技以外）
  * - cantUseTwice: デカハンマー・ブラッドムーン（続けて出せない）
+ * - gravity: じゅうりょくの間の、MoveBehaviors の gravity の技（そらをとぶ・とびげりなど）
  */
 export type MoveRestrictionReason =
   | 'disable'
@@ -29,7 +30,8 @@ export type MoveRestrictionReason =
   | 'encore'
   | 'torment'
   | 'choiceLock'
-  | 'cantUseTwice';
+  | 'cantUseTwice'
+  | 'gravity';
 
 /**
  * 出せるかを判定する技
@@ -59,11 +61,13 @@ export interface MoveRestrictionOptions {
   readonly imprisonedMoveIds?: readonly number[];
   /** 判定する場面（既定は select） */
   readonly phase?: MoveRestrictionPhase;
+  /** じゅうりょくの間か（GlobalFieldState.gravityTurns があるか） */
+  readonly gravity?: boolean;
 }
 
 /**
  * 技を出せない理由を返す（出せるなら undefined）
- * 判定の順は本家の onBeforeMove の優先度に合わせる（かなしばり → かいふくふうじ・じごくづき → ちょうはつ → ふういん）。
+ * 判定の順は本家の onBeforeMove の優先度に合わせる（かなしばり → じゅうりょく → かいふくふうじ・じごくづき → ちょうはつ → ふういん）。
  * アンコール・いちゃもん・続けて出せない技は、本家では技を選ぶ時点だけで選べない技として扱われる（phase: execute では見ない）
  * わるあがきはどの制限も受けない
  */
@@ -77,6 +81,9 @@ export const findMoveRestriction = (
   }
   if (user.disable?.moveId === move.moveId) {
     return 'disable';
+  }
+  if (options.gravity === true && MoveBehaviors.has(move.moveName, 'gravity')) {
+    return 'gravity';
   }
   if (user.healBlockTurns !== undefined && MoveFlags.has(move.moveName, 'heal')) {
     return 'healBlock';
@@ -120,6 +127,7 @@ const RESTRICTION_LABELS: Readonly<Record<MoveRestrictionReason, string>> = {
   torment: 'because of Torment',
   choiceLock: 'because it is locked into another move',
   cantUseTwice: 'twice in a row',
+  gravity: 'because of gravity',
 };
 
 /**

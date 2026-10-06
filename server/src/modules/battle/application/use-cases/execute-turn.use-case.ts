@@ -16,7 +16,7 @@ import {
   releaseVolatileReferencesTo,
   tickVolatileStateAtTurnEnd,
 } from '../../domain/state/volatile-state';
-import { tickSideStateAtTurnEnd } from '../../domain/state/side-state';
+import { getGlobalFieldState, tickSideStateAtTurnEnd } from '../../domain/state/side-state';
 import {
   MoveSlot,
   STRUGGLE_MOVE_NAME,
@@ -139,11 +139,11 @@ export class ExecuteTurnUseCase {
     const plans = new Map<number, PlannedAction>([
       [
         params.trainer1Action.trainerId,
-        await this.planAction(params.trainer1Action, trainer1Active, trainer2Active),
+        await this.planAction(battle, params.trainer1Action, trainer1Active, trainer2Active),
       ],
       [
         params.trainer2Action.trainerId,
-        await this.planAction(params.trainer2Action, trainer2Active, trainer1Active),
+        await this.planAction(battle, params.trainer2Action, trainer2Active, trainer1Active),
       ],
     ]);
     const planOf = (trainerId: number): PlannedAction | undefined => plans.get(trainerId);
@@ -319,10 +319,12 @@ export class ExecuteTurnUseCase {
    *    PP がない・技の制限で出せない技を選び、ほかに出せる技もないときは、わるあがきを出す
    */
   private async planAction(
+    battle: Battle,
     action: TrainerAction,
     active: BattlePokemonStatus,
     opponent: BattlePokemonStatus,
   ): Promise<PlannedAction> {
+    const gravity = getGlobalFieldState(battle.sideState).gravityTurns !== undefined;
     const forced = resolveForcedAction(active.volatileState);
     if (forced && forced.kind !== 'encore') {
       const forcedMoveId = forced.moveId ?? action.moveId;
@@ -367,19 +369,19 @@ export class ExecuteTurnUseCase {
     }
     if (slot.currentPp <= 0) {
       return (
-        (await this.planStruggle(action, active, opponent, slots)) ?? {
+        (await this.planStruggle(action, active, opponent, slots, gravity)) ?? {
           action: chosen,
           failure: 'Move has no PP left',
         }
       );
     }
     if (
-      this.hasSelectionRestriction(active, opponent) &&
-      !(await this.moveExecutor.isMoveSelectable(active, opponent, moveId))
+      this.hasSelectionRestriction(active, opponent, gravity) &&
+      !(await this.moveExecutor.isMoveSelectable(active, opponent, moveId, { gravity }))
     ) {
       // 制限で出せない技でも、ほかに出せる技があれば選んだまま出す（技を出す前の判定で止まる）
       return (
-        (await this.planStruggle(action, active, opponent, slots)) ?? {
+        (await this.planStruggle(action, active, opponent, slots, gravity)) ?? {
           action: chosen,
           battlePokemonMoveId: slot.battlePokemonMoveId,
         }
@@ -397,15 +399,16 @@ export class ExecuteTurnUseCase {
     active: BattlePokemonStatus,
     opponent: BattlePokemonStatus,
     slots: readonly MoveSlot[],
+    gravity: boolean,
   ): Promise<PlannedAction | undefined> {
-    const restricted = this.hasSelectionRestriction(active, opponent);
+    const restricted = this.hasSelectionRestriction(active, opponent, gravity);
     for (const slot of slots) {
       if (slot.currentPp <= 0) {
         continue;
       }
       if (
         !restricted ||
-        (await this.moveExecutor.isMoveSelectable(active, opponent, slot.moveId))
+        (await this.moveExecutor.isMoveSelectable(active, opponent, slot.moveId, { gravity }))
       ) {
         return undefined;
       }
@@ -417,15 +420,17 @@ export class ExecuteTurnUseCase {
   }
 
   /**
-   * 技の選択を制限する状態があるか（ちょうはつ・かなしばり・いちゃもん・かいふくふうじ・じごくづき・こだわり・相手のふういん）
-   * ないときは、技ごとの判定（技のリポジトリを引く）をしない
+   * 技の選択を制限する状態があるか（ちょうはつ・かなしばり・いちゃもん・かいふくふうじ・じごくづき・こだわり・相手のふういん・
+   * じゅうりょく）。ないときは、技ごとの判定（技のリポジトリを引く）をしない
    */
   private hasSelectionRestriction(
     active: BattlePokemonStatus,
     opponent: BattlePokemonStatus,
+    gravity: boolean,
   ): boolean {
     const state = active.volatileState;
     return (
+      gravity ||
       state.tauntTurns !== undefined ||
       state.disable !== undefined ||
       state.torment === true ||

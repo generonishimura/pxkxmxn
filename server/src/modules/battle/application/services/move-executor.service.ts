@@ -436,13 +436,14 @@ export class MoveExecutorService {
 
   /**
    * 技を選べるか（技の制限を受けないか）を判定する（ExecuteTurnUseCase が、わるあがきを出すかの判定に使う）
-   * かなしばり・かいふくふうじ・じごくづき・ちょうはつ・相手のふういん・アンコール・いちゃもん・こだわりを見る
+   * かなしばり・かいふくふうじ・じごくづき・ちょうはつ・相手のふういん・アンコール・いちゃもん・こだわり・じゅうりょくを見る
    * 技が見つからないときは選べるとみなす
    */
   async isMoveSelectable(
     user: BattlePokemonStatus,
     opponent: BattlePokemonStatus,
     moveId: number,
+    options: { readonly gravity?: boolean } = {},
   ): Promise<boolean> {
     const move = await this.moveRepository.findById(moveId);
     if (!move) {
@@ -451,7 +452,10 @@ export class MoveExecutorService {
     const restriction = findMoveRestriction(
       user.volatileState,
       { moveId: move.id, moveName: move.name, category: move.category },
-      { imprisonedMoveIds: await this.beforeMoveChecker.findImprisonedMoveIds(opponent) },
+      {
+        imprisonedMoveIds: await this.beforeMoveChecker.findImprisonedMoveIds(opponent),
+        gravity: options.gravity,
+      },
     );
     return restriction === undefined;
   }
