@@ -2,6 +2,7 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../abilities/battle-context.interface';
 import { getAbilityEffect, resolveAbilityName } from './ability-lookup';
 import { applyIndirectDamage } from './indirect-damage';
+import { isHealBlocked } from './heal';
 
 /**
  * 吸収技の回復の結果
@@ -28,7 +29,7 @@ export const calculateDrainAmount = (damage: number, ratio: number): number =>
  * - 吸い取られた側が reversesDrainHeal の特性（ヘドロえき）なら、回復せずに同じ量のダメージを受ける。
  *   このダメージは applyIndirectDamage で与えるため、マジックガードで防がれる
  * - ヘドロえきはかたやぶりでは無視されない
- * - 回復する側がひんしなら何もしない。最大HPを超えて回復しない
+ * - 回復する側がひんし・かいふくふうじ中なら回復しない。最大HPを超えて回復しない
  *
  * @param healer 回復するポケモン（最新の状態を渡す）
  * @param drainedFrom HPを吸い取られたポケモン
@@ -52,6 +53,9 @@ export const applyDrainHeal = async (
     return { healed: 0, damaged };
   }
 
+  if (isHealBlocked(healer)) {
+    return { healed: 0, damaged: 0 };
+  }
   const newHp = Math.min(healer.maxHp, healer.currentHp + amount);
   if (newHp === healer.currentHp) {
     return { healed: 0, damaged: 0 };

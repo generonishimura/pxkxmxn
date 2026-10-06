@@ -5,6 +5,8 @@ import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repo
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import type { MoveFlag } from '../moves/move-flags';
 import type { StatType } from '../moves/effects/base/base-stat-change-effect';
+import type { CallMove } from '../battle-events/called-move';
+import type { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 
 /**
  * ランク補正前の実数値（種族値・個体値・努力値・性格補正を反映済み）
@@ -205,4 +207,39 @@ export interface BattleContext {
    * ダメージ計算・命中判定で、ここに含まれるランクを0として扱う
    */
   ignoredDefenderRanks?: ReadonlySet<StatType>;
+  // ---- 一時的な状態（volatile）の仕組み（Issue #103 #104 #107 #135 一部） ----
+
+  /**
+   * 技の ID（Move の ID）。技の実行・ダメージ計算で入る（のろわれボディのかなしばりなど）
+   */
+  moveId?: number;
+
+  /**
+   * 相手がこのターンにまだ技を出していなければ、相手が出す予定の技の ID（さきどり・ふいうち）
+   * 相手がもう行動した・交代した・技を選んでいないときは undefined
+   */
+  defenderPendingMoveId?: number;
+
+  /**
+   * 別の技を、技の処理の流れに乗せて出す（ゆびをふる・ねごと・まねっこなど）
+   * 技の実行（MoveExecutorService）のコンテキストにだけ入る
+   */
+  callMove?: CallMove;
+
+  /**
+   * この技を呼び出した技・特性の名前（ゆびをふるで出た技なら 'ゆびをふる'）。呼ばれた技のときだけ入る
+   */
+  calledBy?: string;
+
+  /**
+   * 攻撃側・防御側の「状態異常として扱う状態」（ぜったいねむりならねむり）
+   * 状態異常があればその状態異常、なければ特性の treatedAsStatusCondition。getEffectiveStatusCondition が読む
+   */
+  attackerEffectiveStatus?: StatusCondition | null;
+  defenderEffectiveStatus?: StatusCondition | null;
+
+  /**
+   * この技がみがわりに当たったかどうか（afterDamage の damage は、みがわりに与えた量）
+   */
+  hitSubstitute?: boolean;
 }

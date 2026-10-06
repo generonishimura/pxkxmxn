@@ -29,6 +29,8 @@ export interface InMemoryPokemon {
   ability?: string;
   types?: readonly string[];
   status?: Partial<BattlePokemonStatus>;
+  /** 性別（省略するとオス） */
+  gender?: Gender;
 }
 
 const toType = (name: string, index: number): Type => new Type(index + 1, name, name);
@@ -82,7 +84,7 @@ const toTrainedPokemon = (id: number, pokemon: InMemoryPokemon): TrainedPokemon 
     new Pokemon(id, id, 'テスト', 'Test', primary, secondary ?? null, 100, 100, 100, 100, 100, 100),
     null,
     50,
-    Gender.Male,
+    pokemon.gender ?? Gender.Male,
     Nature.Hardy,
     pokemon.ability
       ? new Ability(

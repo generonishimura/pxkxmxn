@@ -6,6 +6,7 @@ import type { StatType } from '../moves/effects/base/base-stat-change-effect';
 import type { HitResult } from '../battle-events/hit-result';
 import type { EffectSource } from '../battle-events/effect-source';
 import type { StatChange } from '../battle-events/stat-change';
+import type { VolatileKind } from '../battle-events/volatile-infliction';
 
 /**
  * 特性効果のインターフェース
@@ -568,4 +569,83 @@ export interface IAbilityEffect {
    * applyDrainHeal で、吸い取られた側の特性として参照される。かたやぶりでは無視されない
    */
   readonly reversesDrainHeal?: boolean;
+  // ---- 一時的な状態（volatile）の仕組み（Issue #103 #104 #107 #135 一部） ----
+
+  /**
+   * 使用者: 技を出そうとしたときに、行動そのものを止める効果（例: なまけ）
+   * MoveExecutorService が、ねむり・こおりの判定のあと、ひるみの判定の前に呼ぶ（本家の onBeforeMove の優先度 9）。
+   * 呼ばれた技（ゆびをふるで出た技など）では呼ばない
+   * @param holder この特性を持つ技の使用者
+   * @returns 行動を止めるときはメッセージ（例: "is loafing around!"）、止めないときは null
+   */
+  onBeforeMove?(
+    _holder: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null> | string | null;
+
+  /**
+   * ひるんで動けなかったときの効果（例: ふくつのこころ）
+   * MoveExecutorService が、ひるみで技を出せなかったときに 1 回呼ぶ
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onFlinch?(_holder: BattlePokemonStatus, _battleContext?: BattleContext): Promise<string | null>;
+
+  /**
+   * 一時的な状態（ちょうはつ・メロメロなど）を受けられるかどうか（例: アロマベール、どんかん）
+   * canApplyVolatile / tryApplyVolatile が呼ぶ。相手の技で付与されるときは、かたやぶりで無視される。
+   * こんらん・ひるみは canReceiveStatusCondition（StatusCondition.Confusion / Flinch）で判定する
+   * @returns 受けない場合はfalse、判定しない場合はundefined
+   */
+  canReceiveVolatile?(
+    _holder: BattlePokemonStatus,
+    _kind: VolatileKind,
+    _battleContext?: BattleContext,
+    _source?: EffectSource,
+  ): boolean | undefined;
+
+  /**
+   * 状態異常がないときに、この状態異常として扱う（例: ぜったいねむり = StatusCondition.Sleep）
+   * getEffectiveStatusCondition / resolveEffectiveStatusCondition が参照する（たたりめ・ゆめくい・ねごとなど）。
+   * 状態異常の欄には書かない
+   */
+  readonly treatedAsStatusCondition?: StatusCondition;
+
+  /**
+   * 防御側: 相手が自分を対象にする技を出したとき、余分に減らす PP（例: プレッシャー = 1）
+   * MoveExecutorService が PP を減らすときに、相手を対象にする技（と mustPressure の技）だけで呼ぶ。
+   * かたやぶりでは無視されない
+   * @param holder この特性を持つポケモン
+   * @param user 技の使用者
+   * @returns 余分に減らす PP、減らさない場合はundefined
+   */
+  modifyOpponentPpDeduction?(
+    _holder: BattlePokemonStatus,
+    _user: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): number | undefined;
+
+  /**
+   * 使用者: 最初に出した技に固定される特性かどうか（例: ごりむちゅう）
+   * true なら MoveExecutorService が、技を出したときに volatileState.choiceLockedMoveId を書く（わるあがきを除く）
+   */
+  readonly locksMoveChoice?: boolean;
+
+  /**
+   * 攻撃側: 相手のみがわりを無視して技を当てる特性かどうか（例: すりぬけ）
+   */
+  readonly infiltrates?: boolean;
+
+  /**
+   * 相手が技を出し終えたあとの効果（例: おどりこ）
+   * MoveExecutorService が、相手の技の処理がすべて終わったあとに 1 回呼ぶ（呼ばれた技のあとでは呼ばない）。
+   * battleContext.moveName / moveId は相手が出した技。技を出し直すときは battleContext.callMove を使う
+   * @param holder この特性を持つポケモン
+   * @param user 技を出した相手
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onOpponentMoveUsed?(
+    _holder: BattlePokemonStatus,
+    _user: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
 }

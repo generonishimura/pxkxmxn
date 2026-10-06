@@ -18,6 +18,43 @@ export interface AttackStatOverride {
 }
 
 /**
+ * ため技の 1 ターン目の設定（ソーラービーム・メテオビーム・ロケットずつきなど）
+ * MoveBehaviors の charge を持つ技は、この設定がなくても 1 ターンためる
+ */
+export interface ChargeTurnConfig {
+  /**
+   * ためずにすぐ出すかどうか（ソーラービームは晴れなら true）
+   */
+  skipCharge?(attacker: BattlePokemonStatus, battleContext: BattleContext): boolean;
+
+  /**
+   * ためたときの効果（メテオビームの特攻+1、ロケットずつきの防御+1）
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onCharge?(
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): Promise<string | null>;
+}
+
+/**
+ * 出し続ける技の設定（さわぐ・ころがる・アイスボール）
+ * MoveBehaviors の lockedMove を持つ技（あばれる・げきりんなど）は、この設定がなくても
+ * 2〜3 ターン出し続け、終わるとこんらんする
+ */
+export interface LockedInMoveConfig {
+  /** 出し続けるターン数（使ったターンを含む）。[最小, 最大] なら一様乱数で決める */
+  readonly turns: number | readonly [number, number];
+  /** 出し終わったときに使用者をこんらんにするか（あばれる・げきりん） */
+  readonly confusesAtEnd?: boolean;
+  /** 出している間、場の誰も眠れないか（さわぐ。volatileState.uproar を書く） */
+  readonly preventsSleep?: boolean;
+  /** 外れたら終わるか（ころがる・アイスボール） */
+  readonly endsOnMiss?: boolean;
+}
+
+/**
  * 技の特殊効果のインターフェース
  * 各技の特殊効果ロジックが実装すべき共通規格
  *
@@ -156,4 +193,32 @@ export interface IMoveEffect {
    * executeMove がコンテキストの hasRecoil に入れる
    */
   readonly hasRecoil?: boolean;
+  // ---- 一時的な状態（volatile）の仕組み（Issue #103 #104 #107 #110 #123 一部） ----
+
+  /**
+   * ため技の 1 ターン目の設定（ためずに出す条件・ためたときの効果）
+   */
+  readonly chargeTurn?: ChargeTurnConfig;
+
+  /**
+   * 出し続ける技の設定（さわぐ・ころがるなど）
+   */
+  readonly lockedIn?: LockedInMoveConfig;
+
+  /**
+   * まもる系の技かどうか（まもる・みきり・キングシールドなど）
+   * true でない技を出すと、エンジンが volatileState.protectCount を消す
+   */
+  readonly isProtectionMove?: boolean;
+
+  /**
+   * ターンの初め、どちらの技よりも先に呼ばれる効果（くちばしキャノンの加熱、きあいパンチの集中）
+   * ExecuteTurnUseCase が、技を選んだポケモンごとに行動順で呼ぶ
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onTurnStart?(
+    user: BattlePokemonStatus,
+    opponent: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): Promise<string | null>;
 }
