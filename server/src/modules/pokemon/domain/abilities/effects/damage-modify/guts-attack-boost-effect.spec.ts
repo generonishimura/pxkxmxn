@@ -33,7 +33,6 @@ describe('GutsAttackBoostEffect（こんじょう）', () => {
       ['どく', StatusCondition.Poison],
       ['もうどく', StatusCondition.BadPoison],
       ['ねむり', StatusCondition.Sleep],
-      ['こおり', StatusCondition.Freeze],
     ])('%s のとき、物理技の威力を1.5倍にする', (_label, status) => {
       // Arrange
       const pokemon = createStatus(status);
@@ -43,6 +42,17 @@ describe('GutsAttackBoostEffect（こんじょう）', () => {
 
       // Assert
       expect(result).toBe(120);
+    });
+
+    it('こおりのまま技を出すときは、こおりが治ったあとなので威力を変えない', () => {
+      // Arrange
+      const pokemon = createStatus(StatusCondition.Freeze);
+
+      // Act
+      const result = effect.modifyBasePower(pokemon, 80, createCtx('Physical'));
+
+      // Assert
+      expect(result).toBeUndefined();
     });
 
     it('1.5倍は4096分率で丸める（威力75 → 112）', () => {
