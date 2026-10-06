@@ -193,6 +193,10 @@ import { ToughClawsEffect } from './effects/damage-modify/tough-claws-effect';
 import { LongReachEffect } from './effects/other/long-reach-effect';
 import { LiquidVoiceEffect } from './effects/other/liquid-voice-effect';
 import { TriageEffect } from './effects/other/triage-effect';
+// 技フラグで判定する特性: 音技・風技・切る技（Issue #135 一部）
+import { PunkRockEffect } from './effects/damage-modify/punk-rock-effect';
+import { SharpnessEffect } from './effects/damage-modify/sharpness-effect';
+import { WindRiderEffect } from './effects/immunity/wind-rider-effect';
 
 /**
  * 特性レジストリ
@@ -485,6 +489,10 @@ export class AbilityRegistry {
       this.registry.set('えんかく', new LongReachEffect());
       this.registry.set('うるおいボイス', new LiquidVoiceEffect());
       this.registry.set('ヒーリングシフト', new TriageEffect());
+      // 技フラグで判定する特性: 音技・風技・切る技（Issue #135 一部）
+      this.registry.set('パンクロック', new PunkRockEffect());
+      this.registry.set('きれあじ', new SharpnessEffect());
+      this.registry.set('かぜのり', new WindRiderEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
