@@ -48,6 +48,18 @@ describe('volatile-status-condition', () => {
       expect(patch).toEqual({ flinched: true });
     });
 
+    it('ひるみの patch を作るときは乱数を使わない（追加効果の確率判定の乱数を消費しない）', () => {
+      // Arrange
+      const random = jest.spyOn(Math, 'random');
+
+      // Act
+      volatileStatusConditionPatch(StatusCondition.Flinch);
+
+      // Assert
+      expect(random).not.toHaveBeenCalled();
+      random.mockRestore();
+    });
+
     it('状態異常を渡すと空の patch を返す', () => {
       // Act
       const patch = volatileStatusConditionPatch(StatusCondition.Burn);

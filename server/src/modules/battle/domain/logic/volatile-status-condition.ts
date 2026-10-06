@@ -69,15 +69,16 @@ export const hasVolatileStatusCondition = (
 
 /**
  * volatileState に置く StatusCondition を付与する patch を返す
- * こんらんは残り回数を 2〜5 で決める。こんらん・ひるみ以外を渡したときは空の patch
+ * こんらんは残り回数を 2〜5 で決める（乱数はこんらんのときだけ引く）。こんらん・ひるみ以外を渡したときは空の patch
+ * @param random 0 以上 1 未満の乱数（テスト用に差し替えられる。省略するとこんらんのときに Math.random を引く）
  */
 export const volatileStatusConditionPatch = (
   status: StatusCondition,
-  random: number = Math.random(),
+  random?: number,
 ): StatePatch<VolatileState> => {
   switch (status) {
     case StatusCondition.Confusion:
-      return { confusionTurns: rollConfusionTurns(random) };
+      return { confusionTurns: rollConfusionTurns(random ?? Math.random()) };
     case StatusCondition.Flinch:
       return { flinched: true };
     default:
