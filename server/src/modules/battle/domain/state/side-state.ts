@@ -7,6 +7,7 @@ import {
   isEmptyObject,
   isPlainObject,
   nonNegativeInteger,
+  oneOf,
   parseFields,
   positiveInteger,
   requiredFieldsOf,
@@ -18,6 +19,35 @@ import {
 export type PendingWish = {
   readonly turns: number;
   readonly healAmount: number;
+};
+
+/**
+ * 次に出てきたポケモンを回復する技の種類
+ * いやしのねがいは HP と状態異常だけを、みかづきのまいは PP も回復する
+ */
+export const HEALING_WISH_KINDS = ['healingWish', 'lunarDance'] as const;
+
+export type HealingWishKind = (typeof HEALING_WISH_KINDS)[number];
+
+/**
+ * 技や特性のあとで、プレイヤーに交代先（復活させるポケモン）を選んでもらう理由
+ */
+export const PENDING_CHOICE_REASONS = [
+  'pivot', // とんぼがえり・ボルトチェンジ・すてゼリフ・テレポートなど
+  'batonPass', // バトンタッチ
+  'shedTail', // しっぽきり
+  'emergencyExit', // ききかいひ・にげごし
+  'revivalBlessing', // さいきのいのり（復活させるポケモンを選ぶ）
+] as const;
+
+export type PendingChoiceReason = (typeof PENDING_CHOICE_REASONS)[number];
+
+/**
+ * プレイヤーの選択を待っている状態
+ * ターンの処理はここで止め、次のリクエストで選ばれたポケモンを受け取る
+ */
+export type PendingChoice = {
+  readonly reason: PendingChoiceReason;
 };
 
 /**
@@ -64,8 +94,12 @@ export type SideConditions = {
   // ---- 遅れて効く効果 ----
   /** ねがいごと */
   readonly wish?: PendingWish;
-  /** みかづきのまい。次に出てきたポケモンを全回復する */
-  readonly lunarDancePending?: boolean;
+  /** いやしのねがい・みかづきのまい。次に出てきたポケモンを回復する */
+  readonly healingWish?: HealingWishKind;
+
+  // ---- プレイヤーの選択待ち ----
+  /** 交代先（復活させるポケモン）の選択を待っている */
+  readonly pendingChoice?: PendingChoice;
 };
 
 /**
@@ -73,6 +107,10 @@ export type SideConditions = {
  * 天候とフィールドの種類は Battle.weather / Battle.field が持つ。ここには残りターン数などを置く
  */
 export type GlobalFieldState = {
+  /** Battle.weather の天候の残りターン数。キーがない天候は終わらない（ゲンシ天候など） */
+  readonly weatherTurns?: number;
+  /** ゲンシ天候を出したポケモン（BattlePokemonStatus の ID）。このポケモンが場を離れたら天候が終わる */
+  readonly weatherSourceStatusId?: number;
   /** トリックルーム */
   readonly trickRoomTurns?: number;
   /** じゅうりょく */
@@ -111,11 +149,15 @@ const pendingWish = requiredFieldsOf<PendingWish>({
   healAmount: positiveInteger,
 });
 
+const pendingChoice = requiredFieldsOf<PendingChoice>({
+  reason: oneOf(PENDING_CHOICE_REASONS),
+});
+
 /**
  * SideConditions の全キーの読み方
  * SideConditions にキーを足したら、ここにも足す（足さないとコンパイルが通らない）
  */
-const SIDE_CONDITIONS_PARSERS: FieldParsers<SideConditions> = {
+export const SIDE_CONDITIONS_PARSERS: FieldParsers<SideConditions> = {
   reflectTurns: nonNegativeInteger,
   lightScreenTurns: nonNegativeInteger,
   auroraVeilTurns: nonNegativeInteger,
@@ -132,14 +174,17 @@ const SIDE_CONDITIONS_PARSERS: FieldParsers<SideConditions> = {
   craftyShield: booleanValue,
   matBlock: booleanValue,
   wish: pendingWish,
-  lunarDancePending: booleanValue,
+  healingWish: oneOf(HEALING_WISH_KINDS),
+  pendingChoice,
 };
 
 /**
  * GlobalFieldState の全キーの読み方
  * GlobalFieldState にキーを足したら、ここにも足す（足さないとコンパイルが通らない）
  */
-const GLOBAL_FIELD_STATE_PARSERS: FieldParsers<GlobalFieldState> = {
+export const GLOBAL_FIELD_STATE_PARSERS: FieldParsers<GlobalFieldState> = {
+  weatherTurns: nonNegativeInteger,
+  weatherSourceStatusId: positiveInteger,
   trickRoomTurns: nonNegativeInteger,
   gravityTurns: nonNegativeInteger,
   wonderRoomTurns: nonNegativeInteger,
