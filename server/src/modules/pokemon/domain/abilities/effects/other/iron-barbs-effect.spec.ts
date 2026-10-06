@@ -1,8 +1,20 @@
 import { IronBarbsEffect } from './iron-barbs-effect';
+import { HitResult } from '../../../battle-events/hit-result';
 import { AbilityRegistry } from '../../ability-registry';
 import { createInMemoryBattle } from '../../../battle-events/__tests__/in-memory-battle';
 
 describe('IronBarbsEffect（てつのトゲ）', () => {
+  const createHit = (isContact: boolean): HitResult => ({
+    damage: 10,
+    hpBefore: 100,
+    hitIndex: 0,
+    hitCount: 1,
+    isContact,
+    moveTypeName: 'ノーマル',
+    moveCategory: 'Physical',
+    targetFainted: false,
+  });
+
   beforeEach(() => {
     AbilityRegistry.clear();
     AbilityRegistry.initialize();
@@ -13,7 +25,7 @@ describe('IronBarbsEffect（てつのトゲ）', () => {
     AbilityRegistry.initialize();
   });
 
-  describe('applyContactStatusCondition', () => {
+  describe('onDamagingHit', () => {
     it('接触技を受けたとき、攻撃側に最大HPの1/8（切り捨て）のダメージを与える', async () => {
       // Arrange
       const { context, get } = createInMemoryBattle(
@@ -22,14 +34,15 @@ describe('IronBarbsEffect（てつのトゲ）', () => {
       );
 
       // Act
-      const result = await new IronBarbsEffect().applyContactStatusCondition(
+      const result = await new IronBarbsEffect().onDamagingHit(
         get(2),
         get(1),
+        createHit(true),
         context({ moveFlags: new Set(['contact']), moveCategory: 'Physical' }),
       );
 
       // Assert
-      expect(result).toBe(true);
+      expect(result).toBe('てつのトゲ activated!');
       expect(get(1).currentHp).toBe(129);
     });
 
@@ -41,14 +54,15 @@ describe('IronBarbsEffect（てつのトゲ）', () => {
       );
 
       // Act
-      const result = await new IronBarbsEffect().applyContactStatusCondition(
+      const result = await new IronBarbsEffect().onDamagingHit(
         get(2),
         get(1),
+        createHit(false),
         context({ moveFlags: new Set(), moveCategory: 'Physical' }),
       );
 
       // Assert
-      expect(result).toBe(false);
+      expect(result).toBeNull();
       expect(get(1).currentHp).toBe(160);
     });
 
@@ -61,14 +75,15 @@ describe('IronBarbsEffect（てつのトゲ）', () => {
       );
 
       // Act
-      const result = await new IronBarbsEffect().applyContactStatusCondition(
+      const result = await new IronBarbsEffect().onDamagingHit(
         get(2),
         get(1),
+        createHit(true),
         context({ moveFlags: new Set(['contact']), moveCategory: 'Physical' }),
       );
 
       // Assert
-      expect(result).toBe(false);
+      expect(result).toBeNull();
       expect(get(1).currentHp).toBe(160);
     });
 
@@ -80,9 +95,10 @@ describe('IronBarbsEffect（てつのトゲ）', () => {
       );
 
       // Act
-      await new IronBarbsEffect().applyContactStatusCondition(
+      await new IronBarbsEffect().onDamagingHit(
         get(2),
         get(1),
+        createHit(true),
         context({ moveFlags: new Set(['contact']), moveCategory: 'Physical' }),
       );
 

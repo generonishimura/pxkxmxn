@@ -309,7 +309,7 @@ export interface IAbilityEffect {
   ): void | Promise<void>;
 
   /**
-   * 防御側: 接触技などを受けたあと、技全体で1回だけ発動する効果（例: さめはだ、せいでんき、ぬめぬめ）
+   * 防御側: 接触技などを受けたあと、技全体で1回だけ発動する効果（例: せいでんき、ぬめぬめ）
    * ダメージが1以上のとき、ヒットのループのあと・技の onHit の前に呼ばれる。かたやぶりでは無視されない
    * @param defender 防御側のポケモン（この特性を持つ側）
    * @param attacker 攻撃側のポケモン
@@ -324,8 +324,8 @@ export interface IAbilityEffect {
   /**
    * 防御側: 攻撃技のダメージを受けたヒットごとに発動する効果
    * （例: じきゅうりょく、せいぎのこころ、びびり、みずがため、わたげ、すなはき、とびだすなかみ）
-   * てつのトゲ・さめはだ・ゆうばくは BaseContactRecoilDamageEffect（applyContactStatusCondition）で作る。
-   * ここにも書くと攻撃側が2回ダメージを受ける
+   * てつのトゲ・さめはだ・ゆうばくも BaseContactRecoilDamageEffect がこのフックで作る（接触したヒットごと）。
+   * applyContactStatusCondition にも書くと攻撃側が2回ダメージを受ける
    * ダメージが1以上のヒットのたびに、ダメージを減らした直後に呼ばれる。ひんしになったヒットでも呼ばれる
    * （hit.targetFainted が true）。かたやぶりでは無視されない
    * @param holder この特性を持つ防御側のポケモン（ダメージ反映後の状態）

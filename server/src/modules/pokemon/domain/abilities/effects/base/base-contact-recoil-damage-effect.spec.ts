@@ -3,12 +3,14 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../battle-context.interface';
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
+import { HitResult } from '../../../battle-events/hit-result';
 
 /**
  * テスト用の具象クラス（最大HPの1/8）
  */
 class TestRecoilEffect extends BaseContactRecoilDamageEffect {
   protected readonly damageDivisor = 8;
+  protected readonly abilityName = 'テストさめはだ';
 }
 
 /**
@@ -16,9 +18,10 @@ class TestRecoilEffect extends BaseContactRecoilDamageEffect {
  */
 class TestFaintOnlyRecoilEffect extends BaseContactRecoilDamageEffect {
   protected readonly damageDivisor = 4;
+  protected readonly abilityName = 'テストゆうばく';
 
-  protected shouldActivate(defender: BattlePokemonStatus): boolean {
-    return defender.currentHp === 0;
+  protected shouldActivate(holder: BattlePokemonStatus): boolean {
+    return holder.currentHp === 0;
   }
 }
 
@@ -41,77 +44,89 @@ describe('BaseContactRecoilDamageEffect', () => {
     findBattlePokemonMoveById: jest.fn(),
   });
 
-  const createContext = (
-    battleRepository: IBattleRepository | undefined,
-    moveCategory: BattleContext['moveCategory'],
-  ): BattleContext => ({
+  const createContext = (battleRepository: IBattleRepository | undefined): BattleContext => ({
     battle: new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null),
     battleRepository,
-    moveCategory,
+    moveCategory: 'Physical',
   });
 
-  describe('applyContactStatusCondition', () => {
-    it('battleContextがない場合、falseを返す', async () => {
+  const createHit = (isContact: boolean): HitResult => ({
+    damage: 10,
+    hpBefore: 100,
+    hitIndex: 0,
+    hitCount: 1,
+    isContact,
+    moveTypeName: 'ノーマル',
+    moveCategory: 'Physical',
+    targetFainted: false,
+  });
+
+  describe('onDamagingHit', () => {
+    it('battleContextがない場合、何もしない', async () => {
       // Arrange
       const effect = new TestRecoilEffect();
 
       // Act
-      const result = await effect.applyContactStatusCondition(
+      const result = await effect.onDamagingHit(
         createStatus(1, 100, 100),
         createStatus(2, 100, 100),
+        createHit(true),
         undefined,
       );
 
       // Assert
-      expect(result).toBe(false);
+      expect(result).toBeNull();
     });
 
-    it('battleRepositoryがない場合、falseを返す', async () => {
+    it('battleRepositoryがない場合、何もしない', async () => {
       // Arrange
       const effect = new TestRecoilEffect();
 
       // Act
-      const result = await effect.applyContactStatusCondition(
+      const result = await effect.onDamagingHit(
         createStatus(1, 100, 100),
         createStatus(2, 100, 100),
-        createContext(undefined, 'Physical'),
+        createHit(true),
+        createContext(undefined),
       );
 
       // Assert
-      expect(result).toBe(false);
+      expect(result).toBeNull();
     });
 
-    it('特殊技の場合、攻撃側にダメージを与えない', async () => {
+    it('接触しないヒットの場合、攻撃側にダメージを与えない', async () => {
       // Arrange
       const effect = new TestRecoilEffect();
       const battleRepository = createMockBattleRepository();
 
       // Act
-      const result = await effect.applyContactStatusCondition(
+      const result = await effect.onDamagingHit(
         createStatus(1, 100, 100),
         createStatus(2, 100, 100),
-        createContext(battleRepository, 'Special'),
+        createHit(false),
+        createContext(battleRepository),
       );
 
       // Assert
-      expect(result).toBe(false);
+      expect(result).toBeNull();
       expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
-    it('物理技の場合、攻撃側の最大HPの1/damageDivisor（切り捨て）のダメージを与える', async () => {
+    it('接触したヒットの場合、攻撃側の最大HPの1/damageDivisor（切り捨て）のダメージを与える', async () => {
       // Arrange
       const effect = new TestRecoilEffect();
       const battleRepository = createMockBattleRepository();
 
       // Act
-      const result = await effect.applyContactStatusCondition(
+      const result = await effect.onDamagingHit(
         createStatus(1, 100, 100),
         createStatus(2, 150, 150),
-        createContext(battleRepository, 'Physical'),
+        createHit(true),
+        createContext(battleRepository),
       );
 
       // Assert
-      expect(result).toBe(true);
+      expect(result).toBe('テストさめはだ activated!');
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
         currentHp: 150 - 18,
       });
@@ -123,10 +138,11 @@ describe('BaseContactRecoilDamageEffect', () => {
       const battleRepository = createMockBattleRepository();
 
       // Act
-      await effect.applyContactStatusCondition(
+      await effect.onDamagingHit(
         createStatus(1, 100, 100),
         createStatus(2, 5, 5),
-        createContext(battleRepository, 'Physical'),
+        createHit(true),
+        createContext(battleRepository),
       );
 
       // Assert
@@ -139,30 +155,32 @@ describe('BaseContactRecoilDamageEffect', () => {
       const battleRepository = createMockBattleRepository();
 
       // Act
-      await effect.applyContactStatusCondition(
+      await effect.onDamagingHit(
         createStatus(1, 100, 100),
         createStatus(2, 3, 100),
-        createContext(battleRepository, 'Physical'),
+        createHit(true),
+        createContext(battleRepository),
       );
 
       // Assert
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, { currentHp: 0 });
     });
 
-    it('攻撃側のHPが既に0の場合、falseを返す', async () => {
+    it('攻撃側のHPが既に0の場合、何もしない', async () => {
       // Arrange
       const effect = new TestRecoilEffect();
       const battleRepository = createMockBattleRepository();
 
       // Act
-      const result = await effect.applyContactStatusCondition(
+      const result = await effect.onDamagingHit(
         createStatus(1, 100, 100),
         createStatus(2, 0, 100),
-        createContext(battleRepository, 'Physical'),
+        createHit(true),
+        createContext(battleRepository),
       );
 
       // Assert
-      expect(result).toBe(false);
+      expect(result).toBeNull();
       expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
@@ -172,14 +190,15 @@ describe('BaseContactRecoilDamageEffect', () => {
       const battleRepository = createMockBattleRepository();
 
       // Act
-      const result = await effect.applyContactStatusCondition(
+      const result = await effect.onDamagingHit(
         createStatus(1, 10, 100),
         createStatus(2, 100, 100),
-        createContext(battleRepository, 'Physical'),
+        createHit(true),
+        createContext(battleRepository),
       );
 
       // Assert
-      expect(result).toBe(false);
+      expect(result).toBeNull();
       expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
@@ -189,26 +208,27 @@ describe('BaseContactRecoilDamageEffect', () => {
       const battleRepository = createMockBattleRepository();
 
       // Act
-      const result = await effect.applyContactStatusCondition(
+      const result = await effect.onDamagingHit(
         createStatus(1, 0, 100),
         createStatus(2, 100, 100),
-        createContext(battleRepository, 'Physical'),
+        createHit(true),
+        createContext(battleRepository),
       );
 
       // Assert
-      expect(result).toBe(true);
+      expect(result).toBe('テストゆうばく activated!');
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, { currentHp: 75 });
     });
   });
 
-  it('modifyDamageはダメージを変更しない', () => {
+  it('技全体で1回だけのフック（applyContactStatusCondition）は持たない（ヒットごとと二重にダメージを与えないため）', () => {
     // Arrange
     const effect = new TestRecoilEffect();
 
     // Act
-    const result = effect.modifyDamage(createStatus(1, 100, 100), 50);
+    const hasHook = 'applyContactStatusCondition' in effect;
 
     // Assert
-    expect(result).toBe(50);
+    expect(hasHook).toBe(false);
   });
 });

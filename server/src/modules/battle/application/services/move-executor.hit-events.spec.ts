@@ -158,6 +158,62 @@ describe('MoveExecutorService - ヒットとひんしのイベント', () => {
     });
   });
 
+  describe('接触したヒットごとに攻撃側へダメージを与える特性（さめはだ・てつのトゲ・ゆうばく）', () => {
+    it.each(['さめはだ', 'てつのトゲ'])(
+      '%s: 連続技の接触では、ヒットごとに攻撃側へ最大HPの1/8のダメージを与える',
+      async abilityName => {
+        // Arrange
+        const { execute, statuses } = setupMoveExecutor({
+          defenderAbility: abilityName,
+          moveEffect: twoHits,
+        });
+
+        // Act
+        const message = await execute();
+
+        // Assert
+        expect(statuses.get(ATTACKER_ID)?.currentHp).toBe(76);
+        expect(message).toBe(
+          `Used ほのおのパンチ and dealt 20 damage (hit 2 times) ${abilityName} activated! ${abilityName} activated!`,
+        );
+      },
+    );
+
+    it('さめはだのダメージで攻撃側がひんしになったら、残りのヒットをしない', async () => {
+      // Arrange
+      const { execute, calculate, statuses } = setupMoveExecutor({
+        defenderAbility: 'さめはだ',
+        attacker: { currentHp: 12 },
+        moveEffect: twoHits,
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(calculate).toHaveBeenCalledTimes(1);
+      expect(statuses.get(ATTACKER_ID)?.currentHp).toBe(0);
+    });
+
+    it('ゆうばく: 連続技の途中でひんしになったヒットで、攻撃側へ最大HPの1/4のダメージを1回だけ与える', async () => {
+      // Arrange
+      const { execute, statuses } = setupMoveExecutor({
+        defenderAbility: 'ゆうばく',
+        defender: { currentHp: 15 },
+        moveEffect: twoHits,
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID)?.currentHp).toBe(75);
+      expect(message).toBe(
+        'Used ほのおのパンチ and dealt 15 damage (hit 2 times) ゆうばく activated!',
+      );
+    });
+  });
+
   describe('攻撃側特性の onSourceDamagingHit', () => {
     it('ダメージを与えたヒットごとに、防御側とヒットの情報を渡して呼ばれる', async () => {
       // Arrange

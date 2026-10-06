@@ -274,9 +274,9 @@ preventsMove(_h: BattlePokemonStatus, role: 'attacker' | 'defender', ctx?: Battl
 
 - シグネチャ: `onDamagingHit?(holder, attacker, hit: HitResult, battleContext): Promise<string | null>`
 - 呼ばれる場所: `executeMove`。1以上のダメージを受けたヒットのたびに、HPを減らした直後。ひんしになったヒットでも呼ばれる（`hit.targetFainted === true`）。かたやぶりでは無視されない
-- 使う特性: じきゅうりょく、せいぎのこころ、びびり、みずがため、じょうききかん、ねつこうかん（攻撃+1の部分）、わたげ、すなはき、こぼれダネ、とびだすなかみ（ひんしになったとき）
+- 使う特性: じきゅうりょく、せいぎのこころ、びびり、みずがため、じょうききかん、ねつこうかん（攻撃+1の部分）、わたげ、すなはき、こぼれダネ、とびだすなかみ（ひんしになったとき）、さめはだ・てつのトゲ・ゆうばく（`BaseContactRecoilDamageEffect`）
 - `holder` はダメージを反映した状態です。ここで変えたランクは次のヒットのダメージ計算に使われます。
-- てつのトゲ・さめはだ・ゆうばくはここに書きません。`BaseContactRecoilDamageEffect`（`applyContactStatusCondition`）で作ります。両方に書くと、攻撃側が2回ダメージを受けます。
+- てつのトゲ・さめはだ・ゆうばくは `BaseContactRecoilDamageEffect` を継承して作ります。この基底クラスがここで `hit.isContact` を見て、接触したヒットごとに攻撃側へダメージを与えます（本家と同じ）。`applyContactStatusCondition` にも書くと、攻撃側が2回ダメージを受けます。
 - 本家で「かたやぶりで止まる」特性（ねつこうかんなど）は、`await isIgnoredByMoldBreaker(ctx.attackerAbilityName, 'ねつこうかん')`（`pokemon/domain/battle-events/ability-lookup` から import）で自分で判定します。特性のファイルから `AbilityRegistry` を import すると循環参照になるため、使いません。
 
 ```ts
@@ -334,13 +334,14 @@ async onKnockOut(holder: BattlePokemonStatus, _fainted: BattlePokemonStatus, ctx
 
 - シグネチャ: `applyContactStatusCondition?(defender, attacker, battleContext): Promise<boolean>`
 - 呼ばれる場所: `executeMove`。ヒットのループのあと、合計ダメージが1以上のとき1回（以前は duck typing だった。今はインターフェースに定義済み）。`true` を返すと `<特性名> activated!` が付く
-- 使う特性: 既存の基底クラス `BaseContactStatusConditionEffect`（せいでんきなど）、`BaseContactRecoilDamageEffect`（さめはだ・ゆうばく）、`BaseContactStatChangeEffect`（ぬめぬめなど）
-- てつのトゲは `BaseContactRecoilDamageEffect` を継承して `damageDivisor = 8` にするだけで作れます（ダメージは `applyIndirectDamage` で与えるので、攻撃側のマジックガードで防がれる）。
-- 注: 本家のてつのトゲ・さめはだは接触したヒットごとにダメージを与えますが、ここでは連続技でも技全体で1回です。
+- 使う特性: 既存の基底クラス `BaseContactStatusConditionEffect`（せいでんきなど）、`BaseContactStatChangeEffect`（ぬめぬめなど）
+- 注: 本家のせいでんき・ぬめぬめなどはヒットごとに判定しますが、ここでは連続技でも技全体で1回です。
+- てつのトゲ・さめはだ・ゆうばくはこのフックを使いません（`onDamagingHit` でヒットごとに与える）。
 
 ```ts
 export class IronBarbsEffect extends BaseContactRecoilDamageEffect {
   protected readonly damageDivisor = 8;
+  protected readonly abilityName = 'てつのトゲ';
 }
 ```
 
@@ -599,7 +600,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | マジックガード | `preventsIndirectDamage = true`（`preventsRecoil` も残す） |
 | いしあたま | `preventsRecoil = true`（作成済み） |
 | ヘドロえき | `reversesDrainHeal = true`（ちからをすいとるは `applyDrainHeal` で回復するので、HPが満タンでもダメージを受ける） |
-| てつのトゲ | `BaseContactRecoilDamageEffect` を継承して `damageDivisor = 8` |
+| てつのトゲ | `BaseContactRecoilDamageEffect` を継承して `damageDivisor = 8`（`onDamagingHit` で接触したヒットごと） |
 | たんじゅん・あまのじゃく | `modifyIncomingStatChange`（`change.rankChange * 2` / `-change.rankChange`） |
 | ばんけん | `modifyIncomingStatChange`（`source?.name === 'いかく'` で攻撃の低下を `+1` に） |
 | ミラーアーマー | `reflectsStatDrops = true` |

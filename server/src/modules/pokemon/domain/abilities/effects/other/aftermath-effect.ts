@@ -9,29 +9,21 @@ const DAMP_ABILITY_NAME = 'しめりけ';
 
 /**
  * ゆうばく（Aftermath）特性の効果
- * 接触技でひんしになったとき、攻撃側に最大HPの1/4のダメージを与える
- * 攻撃側の特性が しめりけ なら、ダメージを与えない（本家と同じ）
- * 注: 接触技の判定は物理技で近似している（せいでんき・ほのおのからだと同じ）。
- * 反動で攻撃側がひんしになったときの処理は扱わない。
+ * 接触技でひんしになったとき、攻撃側に最大HPの1/4（切り捨て、最低1）のダメージを与える
+ *
+ * - ひんしになったヒットで1回だけ発動する（連続技の途中でひんしになっても1回。本家と同じ）
+ * - 接触技の判定は技フラグの contact で行う
+ * - 攻撃側の特性が しめりけ なら、ダメージを与えない（本家と同じ）
+ * - ダメージは技以外のダメージなので、攻撃側のマジックガードで防がれる
  */
 export class AftermathEffect extends BaseContactRecoilDamageEffect {
   protected readonly damageDivisor = 4;
-
-  async applyContactStatusCondition(
-    defender: BattlePokemonStatus,
-    attacker: BattlePokemonStatus,
-    battleContext?: BattleContext,
-  ): Promise<boolean> {
-    if (battleContext?.attackerAbilityName === DAMP_ABILITY_NAME) {
-      return false;
-    }
-    return super.applyContactStatusCondition(defender, attacker, battleContext);
-  }
+  protected readonly abilityName = 'ゆうばく';
 
   /**
-   * 特性を持つポケモンがひんしになったときだけ発動する
+   * 特性を持つポケモンがひんしになったときだけ発動する。攻撃側がしめりけなら発動しない
    */
-  protected shouldActivate(defender: BattlePokemonStatus): boolean {
-    return defender.currentHp === 0;
+  protected shouldActivate(holder: BattlePokemonStatus, battleContext: BattleContext): boolean {
+    return holder.currentHp === 0 && battleContext.attackerAbilityName !== DAMP_ABILITY_NAME;
   }
 }

@@ -4,7 +4,6 @@ import { IBattleRepository } from '@/modules/battle/domain/battle.repository.int
 import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
 import { BattleContext } from '../../battle-context.interface';
 import { MoveFlag } from '../../../moves/move-flags';
-import { RoughSkinEffect } from '../other/rough-skin-effect';
 import { GooeyEffect } from '../stat-change/gooey-effect';
 import { WeakArmorEffect } from '../stat-change/weak-armor-effect';
 import { PoisonPointEffect } from '../stat-change/poison-point-effect';
@@ -44,36 +43,6 @@ describe('接触判定（技フラグ）', () => {
       moveFlags: new Set(flags),
     };
   };
-
-  it('接触しない物理技では、さめはだが発動しない', async () => {
-    // Arrange
-    const context = createContext('Physical', []);
-
-    // Act
-    const result = await new RoughSkinEffect().applyContactStatusCondition(
-      createStatus(1),
-      createStatus(2),
-      context,
-    );
-
-    // Assert
-    expect(result).toBe(false);
-  });
-
-  it('接触する特殊技では、さめはだが発動する', async () => {
-    // Arrange
-    const context = createContext('Special', ['contact']);
-
-    // Act
-    const result = await new RoughSkinEffect().applyContactStatusCondition(
-      createStatus(1),
-      createStatus(2),
-      context,
-    );
-
-    // Assert
-    expect(result).toBe(true);
-  });
 
   it('接触しない物理技では、ぬめぬめが発動しない', async () => {
     // Arrange

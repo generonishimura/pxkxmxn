@@ -1,4 +1,5 @@
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { HitResult } from './hit-result';
 import { AbilityRegistry } from '../abilities/ability-registry';
 import { RoughSkinEffect } from '../abilities/effects/other/rough-skin-effect';
 import { BadDreamsEffect } from '../abilities/effects/other/bad-dreams-effect';
@@ -11,6 +12,17 @@ import { createInMemoryBattle } from './__tests__/in-memory-battle';
  * 技以外のダメージを与えるすべての処理が、preventsIndirectDamage（マジックガード）を守るかを確かめる
  */
 describe('技以外のダメージを受けない特性（preventsIndirectDamage）', () => {
+  const createHit = (isContact: boolean): HitResult => ({
+    damage: 10,
+    hpBefore: 100,
+    hitIndex: 0,
+    hitCount: 1,
+    isContact,
+    moveTypeName: 'ノーマル',
+    moveCategory: 'Physical',
+    targetFainted: false,
+  });
+
   const GUARD = 'テストマジックガード';
 
   beforeEach(() => {
@@ -29,14 +41,15 @@ describe('技以外のダメージを受けない特性（preventsIndirectDamage
     const { get, context } = createInMemoryBattle({ ability: GUARD });
 
     // Act
-    const activated = await new RoughSkinEffect().applyContactStatusCondition(
+    const activated = await new RoughSkinEffect().onDamagingHit(
       get(2),
       get(1),
+      createHit(true),
       context({ moveName: 'たいあたり', moveCategory: 'Physical' }),
     );
 
     // Assert
-    expect(activated).toBe(false);
+    expect(activated).toBeNull();
     expect(get(1).currentHp).toBe(100);
   });
 
