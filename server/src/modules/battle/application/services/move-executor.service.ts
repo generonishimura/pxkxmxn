@@ -83,7 +83,7 @@ export class MoveExecutorService {
    *
    * ダメージ技の流れ:
    * 1. ヒットのコンテキストを作る（技名・技フラグ・効果のある天候・実数値・ランク無視）
-   * 2. 防御側特性の isImmuneToMove（ぼうおんなど）で技そのものが無効かを判定する
+   * 2. 防御側特性の isImmuneToMove（ぼうおんなど）で技そのものが無効かを判定する（無効なら onMoveBlocked）
    * 3. 命中判定
    * 4. 技の beforeDamage（連続技の回数決定）
    * 5. 技タイプの決定（技の modifyMoveType → 攻撃側特性の modifyMoveType）
@@ -178,7 +178,11 @@ export class MoveExecutorService {
       defenderAbilityEffect?.isImmuneToMove?.(defender, battleContext) === true
     ) {
       await this.consumePp(battlePokemonMoveId);
-      return `Used ${move.name} but it had no effect`;
+      // 無効にしたあとの防御側特性の効果（かぜのりの攻撃ランク+1など）
+      const blockedMessage = await defenderAbilityEffect.onMoveBlocked?.(defender, battleContext);
+      return blockedMessage
+        ? `Used ${move.name} but it had no effect ${blockedMessage}`
+        : `Used ${move.name} but it had no effect`;
     }
 
     // 命中率判定（変化技の場合は常に命中とみなす）

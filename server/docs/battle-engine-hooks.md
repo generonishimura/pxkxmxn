@@ -12,7 +12,7 @@
 `MoveExecutorService.executeMove`（`src/modules/battle/application/services/move-executor.service.ts`）は次の順で処理します。
 
 1. ヒット共通のコンテキストを作る（技名・技フラグ・効果のある天候・実数値・無視するランク）
-2. 防御側特性の `isImmuneToMove` で技そのものを無効にするか判定する（変化技も含む）
+2. 防御側特性の `isImmuneToMove` で技そのものを無効にするか判定する（変化技も含む）。無効なら防御側特性の `onMoveBlocked` を呼んで終わり
 3. 命中判定（`AccuracyCalculator.checkHit`）
 4. 変化技なら `onUse` を呼んで終わり（威力が null で `modifyMovePower` もない攻撃技も、今までどおりここで終わる）
 5. 技の `beforeDamage`（連続技の回数決定）
@@ -194,11 +194,26 @@ ignoresTypeImmunity(_p: BattlePokemonStatus, moveType: string, defenderType: str
 - シグネチャ: `isImmuneToMove?(pokemon, battleContext): boolean | undefined`
 - 呼ばれる場所: `executeMove`。命中判定の前。変化技を含む、相手を対象にする技（`MoveFlags.targetsOpponent`）だけ。かたやぶりで無視される
 - 使う特性: ぼうおん、ぼうだん、ぼうじん（粉技）、かぜのり（変化技の風技）
-- `true` を返すと PP だけ減り、`Used <技> but it had no effect` になります。能力を上げるなどの副作用が要る場合は、ダメージ技なら `isImmuneToType` + `onAfterTakingDamage` を使います。
+- `true` を返すと PP だけ減り、`Used <技> but it had no effect` になります。能力を上げるなどの副作用は `onMoveBlocked` に書きます（変化技にも使えます）。
 
 ```ts
 isImmuneToMove(_p: BattlePokemonStatus, ctx?: BattleContext): boolean {
   return ctx?.moveFlags?.has('sound') === true;
+}
+```
+
+### onMoveBlocked（防御側）
+
+- シグネチャ: `onMoveBlocked?(pokemon, battleContext): Promise<string | null>`
+- 呼ばれる場所: `executeMove`。`isImmuneToMove` が `true` を返し、PP を減らしたあとに1回
+- 使う特性: かぜのり（風技を無効にして攻撃ランク+1）
+- 戻り値のメッセージは `Used <技> but it had no effect` のあとに足されます。
+
+```ts
+async onMoveBlocked(pokemon: BattlePokemonStatus, ctx?: BattleContext): Promise<string | null> {
+  if (!ctx?.battleRepository || pokemon.attackRank >= 6) return null;
+  await ctx.battleRepository.updateBattlePokemonStatus(pokemon.id, { attackRank: pokemon.attackRank + 1 });
+  return "'s Attack rose!";
 }
 ```
 
@@ -312,3 +327,13 @@ const boosted = modifyByFixedPoint(power, 5325);
 - ほろびのうたは場全体の技なので、`isImmuneToMove` では止まりません。
 - 混乱の自傷ダメージでは、特性のフック（`isImmuneToType`・`modifyBasePower`・`modifyAnyBasePower`・`modifyDamageDealt`・`modifyDamage`）を呼びません。本家と同じく、能力値とランクだけで決まります。
 - ポケモンの重さのデータがないため、重さを使う効果（ヘヴィメタル、ライトメタル、けたぐり等）は実装できません。
+
+### まだ作れない効果
+
+| 効果 | 足りないもの |
+| --- | --- |
+| ふうりょくでんき | 「次のでんき技の威力2倍」を覚えておく状態（じゅうでん状態）がない。じゅうでん（`ChargeEffect`）は特防+1だけ |
+| ヘヴィメタル、ライトメタル | ポケモンの重さのデータがない |
+| かぜのりの「おいかぜで攻撃+1」 | おいかぜ（場の状態）がない。風技を無効にして攻撃+1にする部分は `isImmuneToMove` + `onMoveBlocked` で作れる |
+| メガランチャーの「いやしのはどう」の回復量1.5倍 | 回復量を変えるフックがない。はどう技の威力1.5倍は `modifyBasePower` で作れる |
+| こだいかっせい・クォークチャージの「ブーストエナジー」 | 持ち物の仕組みがない。晴れ・エレキフィールドで発動する部分は作れる |

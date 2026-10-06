@@ -272,6 +272,17 @@ export interface IAbilityEffect {
   ): boolean | undefined;
 
   /**
+   * 防御側: isImmuneToMove で技を無効にしたあとの効果（例: かぜのりの攻撃ランク+1）
+   * isImmuneToMove が true を返したときだけ、PP を消費したあとに呼ばれる
+   * @param pokemon 防御側のポケモン
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onMoveBlocked?(
+    _pokemon: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
    * 攻撃側: 連続技の攻撃回数を決める効果（例: スキルリンク）
    * @param pokemon 攻撃側のポケモン
    * @param minHits 技の最小回数

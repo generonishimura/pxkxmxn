@@ -624,6 +624,40 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       expect(message).toContain('had no effect');
     });
 
+    it('無効にしたあと防御側特性の onMoveBlocked を呼び、そのメッセージを足す', async () => {
+      // Arrange
+      const onMoveBlocked = jest.fn().mockResolvedValue("defender's Attack rose!");
+      register('テストかぜのり', { isImmuneToMove: () => true, onMoveBlocked });
+      const { execute, calculate } = setup({
+        move: createMove('ふきとばし', MoveCategory.Status, null),
+        defenderAbility: 'テストかぜのり',
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(calculate).not.toHaveBeenCalled();
+      expect(onMoveBlocked).toHaveBeenCalledTimes(1);
+      expect(onMoveBlocked.mock.calls[0][0].id).toBe(DEFENDER_ID);
+      expect(message).toBe("Used ふきとばし but it had no effect defender's Attack rose!");
+    });
+
+    it('onMoveBlocked が null を返したらメッセージを足さない', async () => {
+      // Arrange
+      register('テストかぜのり', {
+        isImmuneToMove: () => true,
+        onMoveBlocked: jest.fn().mockResolvedValue(null),
+      });
+      const { execute } = setup({ defenderAbility: 'テストかぜのり' });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(message).toBe('Used ほのおのパンチ but it had no effect');
+    });
+
     it('変化技も無効にできる', async () => {
       // Arrange
       register('テストぼうおん', { isImmuneToMove: (_p, ctx) => ctx?.moveFlags?.has('sound') });
