@@ -81,6 +81,9 @@ import { BerserkEffect } from './effects/stat-change/berserk-effect';
 import { HyperCutterEffect } from './effects/stat-change/hyper-cutter-effect';
 import { KeenEyeEffect } from './effects/stat-change/keen-eye-effect';
 import { FurCoatEffect } from './effects/damage-modify/fur-coat-effect';
+import { TransistorEffect } from './effects/damage-modify/transistor-effect';
+import { DragonsMawEffect } from './effects/damage-modify/dragons-maw-effect';
+import { RockyPayloadEffect } from './effects/damage-modify/rocky-payload-effect';
 
 /**
  * 特性レジストリ
@@ -226,6 +229,10 @@ export class AbilityRegistry {
       this.registry.set('するどいめ', new KeenEyeEffect());
       // ファーコート: 物理ダメージ半減（Issue #84 一部、ふしぎなうろこと同パターン）
       this.registry.set('ファーコート', new FurCoatEffect());
+      // ダメージ補正特性（タイプ・天候・HP）（Issue #135 一部）
+      this.registry.set('トランジスタ', new TransistorEffect());
+      this.registry.set('りゅうのあぎと', new DragonsMawEffect());
+      this.registry.set('いわはこび', new RockyPayloadEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
