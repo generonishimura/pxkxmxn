@@ -109,8 +109,8 @@ describe('ExecuteTurnUseCase - 最後に行動するかどうか', () => {
     });
 
     // Assert
-    expect(executeMove.mock.calls[0][6]).toEqual({ isLastToMove: false });
-    expect(executeMove.mock.calls[1][6]).toEqual({ isLastToMove: true });
+    expect(executeMove.mock.calls[0][6]).toMatchObject({ isLastToMove: false });
+    expect(executeMove.mock.calls[1][6]).toMatchObject({ isLastToMove: true });
   });
 
   it('相手が交代した場合、技を使う側は最後に行動する扱いになる', async () => {

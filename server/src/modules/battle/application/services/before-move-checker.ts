@@ -190,7 +190,7 @@ export class BeforeMoveChecker {
   /**
    * 相手がふういんを使っていれば、相手が覚えている技の ID（ものまねの入れ替えを含む）
    */
-  private async findImprisonedMoveIds(
+  async findImprisonedMoveIds(
     opponent: BattlePokemonStatus,
   ): Promise<readonly number[] | undefined> {
     if (opponent.volatileState.imprison !== true) {

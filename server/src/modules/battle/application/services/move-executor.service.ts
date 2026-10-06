@@ -44,6 +44,7 @@ import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
 import { getSideConditions } from '../../domain/state/side-state';
+import { findMoveRestriction } from '../../domain/logic/move-selection';
 import { BeforeMoveChecker } from './before-move-checker';
 import { MoveLifecycle, MoveOutcome } from './move-lifecycle';
 
@@ -351,6 +352,28 @@ export class MoveExecutorService {
       messages.push(result.message);
     }
     return messages;
+  }
+
+  /**
+   * 技を選べるか（技の制限を受けないか）を判定する（ExecuteTurnUseCase が、わるあがきを出すかの判定に使う）
+   * かなしばり・かいふくふうじ・じごくづき・ちょうはつ・相手のふういん・アンコール・いちゃもん・こだわりを見る
+   * 技が見つからないときは選べるとみなす
+   */
+  async isMoveSelectable(
+    user: BattlePokemonStatus,
+    opponent: BattlePokemonStatus,
+    moveId: number,
+  ): Promise<boolean> {
+    const move = await this.moveRepository.findById(moveId);
+    if (!move) {
+      return true;
+    }
+    const restriction = findMoveRestriction(
+      user.volatileState,
+      { moveId: move.id, moveName: move.name, category: move.category },
+      { imprisonedMoveIds: await this.beforeMoveChecker.findImprisonedMoveIds(opponent) },
+    );
+    return restriction === undefined;
   }
 
   /**
