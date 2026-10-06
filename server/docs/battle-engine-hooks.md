@@ -21,7 +21,7 @@
 7. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType`）。技全体のタイプ相性を `moveTypeEffectiveness` に入れる
 8. 技の `beforeDamage`（連続技の回数決定）。このあと攻撃側・防御側の状態を取り直す
 9. 技の威力を決める（技の `modifyMovePower`）
-10. ヒットごとにダメージを計算して当てる（連続技・おやこあいの追加ヒット）。1以上減らしたヒットごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼び、両者の状態を取り直す。ダメージ0・どちらかがひんしで止まる
+10. ヒットごとにダメージを計算して当てる（連続技・おやこあいの追加ヒット）。1以上減らしたヒットごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
 11. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
 12. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut`
 

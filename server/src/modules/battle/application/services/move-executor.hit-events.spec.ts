@@ -180,6 +180,42 @@ describe('MoveExecutorService - ヒットとひんしのイベント', () => {
       expect(hit.isContact).toBe(true);
       expect(message).toBe('Used ほのおのパンチ and dealt 10 damage was poisoned!');
     });
+
+    it('防御側の onDamagingHit が変えた状態（わたげの素早さ低下など）を受け取る', async () => {
+      // Arrange
+      AbilityRegistry.register('テストわたげ', {
+        onDamagingHit: async (holder, attacker, _hit, ctx) => {
+          await ctx?.battleRepository?.updateBattlePokemonStatus(attacker.id, {
+            speedRank: attacker.speedRank - 1,
+          });
+          await ctx?.battleRepository?.updateBattlePokemonStatus(holder.id, {
+            defenseRank: holder.defenseRank + 1,
+          });
+          return null;
+        },
+      });
+      const onSourceDamagingHit = jest.fn().mockResolvedValue(null);
+      AbilityRegistry.register('テストどくしゅ', { onSourceDamagingHit });
+      const { execute } = setupMoveExecutor({
+        attackerAbility: 'テストどくしゅ',
+        defenderAbility: 'テストわたげ',
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      const [holder, target, , ctx] = onSourceDamagingHit.mock.calls[0] as [
+        BattlePokemonStatus,
+        BattlePokemonStatus,
+        HitResult,
+        { attacker?: BattlePokemonStatus; defender?: BattlePokemonStatus },
+      ];
+      expect(holder.speedRank).toBe(-1);
+      expect(target.defenseRank).toBe(1);
+      expect(ctx.attacker?.speedRank).toBe(-1);
+      expect(ctx.defender?.defenseRank).toBe(1);
+    });
   });
 
   describe('防御側特性の onAfterMoveHit', () => {

@@ -392,29 +392,43 @@ export class MoveExecutorService {
         dealtDamage > 0 &&
         (defenderEventEffect?.onDamagingHit || attackerAbilityEffect?.onSourceDamagingHit)
       ) {
+        // 特性で能力ランク・HP・状態異常が変わるため、そのたびに両者の状態を取り直す
+        const refreshStatuses = async (): Promise<void> => {
+          currentAttacker =
+            (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ??
+            currentAttacker;
+          updatedDefender =
+            (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ??
+            updatedDefender;
+          battleContext.attacker = currentAttacker;
+          battleContext.defender = updatedDefender;
+        };
         const hit = createHitResult(dealtDamage, hpBeforeHit, hitIndex);
-        const defenderMessage = await defenderEventEffect?.onDamagingHit?.(
-          updatedDefender,
-          currentAttacker,
-          hit,
-          battleContext,
-        );
-        const attackerMessage = await attackerAbilityEffect?.onSourceDamagingHit?.(
-          currentAttacker,
-          updatedDefender,
-          hit,
-          battleContext,
-        );
+        let defenderMessage: string | null = null;
+        if (defenderEventEffect?.onDamagingHit) {
+          defenderMessage = await defenderEventEffect.onDamagingHit(
+            updatedDefender,
+            currentAttacker,
+            hit,
+            battleContext,
+          );
+          // 攻撃側の特性に、防御側の特性で変わったあとの状態を渡す（わたげの素早さ低下など）
+          await refreshStatuses();
+        }
+        let attackerMessage: string | null = null;
+        if (attackerAbilityEffect?.onSourceDamagingHit) {
+          attackerMessage = await attackerAbilityEffect.onSourceDamagingHit(
+            currentAttacker,
+            updatedDefender,
+            hit,
+            battleContext,
+          );
+          // 次のヒットのために取り直す
+          await refreshStatuses();
+        }
         hitEventMessages.push(
           ...[defenderMessage, attackerMessage].filter((m): m is string => Boolean(m)),
         );
-        // 特性で能力ランク・HP・状態異常が変わるため、次のヒットのために取り直す
-        currentAttacker =
-          (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? currentAttacker;
-        updatedDefender =
-          (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? updatedDefender;
-        battleContext.attacker = currentAttacker;
-        battleContext.defender = updatedDefender;
       }
 
       // 無効化された・どちらかがひんしになった場合は残りのヒットをしない
