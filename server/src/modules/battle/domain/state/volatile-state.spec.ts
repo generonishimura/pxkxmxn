@@ -1,8 +1,16 @@
 import {
+  VOLATILE_MOVE_TURNS_COUNTER_KEYS,
   VOLATILE_STATE_PARSERS,
+  VOLATILE_TURN_COUNTER_KEYS,
+  VOLATILE_TURN_SCOPED_FLAGS,
+  VOLATILE_UNTIL_NEXT_MOVE_FLAGS,
   VolatileState,
+  clearVolatileOnBeforeMove,
+  clearVolatileOnSwitchOut,
   emptyVolatileState,
   parseVolatileState,
+  releaseVolatileReferencesTo,
+  tickVolatileStateAtTurnEnd,
   updateVolatileState,
 } from './volatile-state';
 
@@ -335,6 +343,207 @@ describe('VolatileState', () => {
 
       // Assert
       expect(state.encore).not.toBe(json.encore);
+    });
+  });
+
+  describe('clearVolatileOnSwitchOut', () => {
+    it('交代で引っ込むときは、すべてのキーを消した状態を返す', () => {
+      // Act
+      const state = clearVolatileOnSwitchOut();
+
+      // Assert
+      expect(state).toEqual({});
+    });
+  });
+
+  describe('tickVolatileStateAtTurnEnd', () => {
+    it('残りターン数を 1 減らす', () => {
+      // Arrange
+      const state: VolatileState = { tauntTurns: 3, magnetRiseTurns: 5, yawnTurns: 2 };
+
+      // Act
+      const ticked = tickVolatileStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({ tauntTurns: 2, magnetRiseTurns: 4, yawnTurns: 1 });
+    });
+
+    it('残りターン数が 1 のキーは消す', () => {
+      // Arrange
+      const state: VolatileState = { healBlockTurns: 1, lockOnTurns: 1, laserFocusTurns: 2 };
+
+      // Act
+      const ticked = tickVolatileStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({ laserFocusTurns: 1 });
+    });
+
+    it('アンコール・かなしばりは技を残してターン数だけ減らし、1 なら消す', () => {
+      // Arrange
+      const state: VolatileState = {
+        encore: { moveId: 12, turns: 3 },
+        disable: { moveId: 7, turns: 1 },
+      };
+
+      // Act
+      const ticked = tickVolatileStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({ encore: { moveId: 12, turns: 2 } });
+    });
+
+    it('このターンだけのフラグは消す', () => {
+      // Arrange
+      const state: VolatileState = {
+        protection: 'protect',
+        flinched: true,
+        magicCoat: true,
+        snatch: true,
+        powder: true,
+        electrified: true,
+        roosting: true,
+      };
+
+      // Act
+      const ticked = tickVolatileStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({});
+    });
+
+    it('ターン終了時に減らさないキーは、そのまま残す', () => {
+      // Arrange
+      const state: VolatileState = {
+        confusionTurns: 2,
+        toxicCounter: 3,
+        perishCount: 2,
+        lockedInMove: { moveId: 253, turns: 2 },
+        protectCount: 1,
+        destinyBond: true,
+        grudge: true,
+        leechSeed: true,
+      };
+
+      // Act
+      const ticked = tickVolatileStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual(state);
+    });
+
+    it('変える所がないときは、同じオブジェクトを返す', () => {
+      // Arrange
+      const state: VolatileState = { leechSeed: true };
+
+      // Act
+      const ticked = tickVolatileStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toBe(state);
+    });
+
+    it('元の状態は書き換えない', () => {
+      // Arrange
+      const state: VolatileState = { tauntTurns: 3, protection: 'protect' };
+
+      // Act
+      tickVolatileStateAtTurnEnd(state);
+
+      // Assert
+      expect(state).toEqual({ tauntTurns: 3, protection: 'protect' });
+    });
+
+    it('〜Turns のキーは、こんらん以外すべてターン終了時に減らす', () => {
+      // Arrange
+      const turnsKeys = Object.keys(FULL_VOLATILE_STATE).filter(key => key.endsWith('Turns'));
+
+      // Act
+      const notTicked = turnsKeys.filter(
+        key => !(VOLATILE_TURN_COUNTER_KEYS as readonly string[]).includes(key),
+      );
+
+      // Assert
+      expect(notTicked).toEqual(['confusionTurns']);
+    });
+
+    it('グループどうしでキーが重ならない', () => {
+      // Arrange
+      const groups: ReadonlyArray<readonly string[]> = [
+        VOLATILE_TURN_COUNTER_KEYS,
+        VOLATILE_MOVE_TURNS_COUNTER_KEYS,
+        VOLATILE_TURN_SCOPED_FLAGS,
+        VOLATILE_UNTIL_NEXT_MOVE_FLAGS,
+      ];
+
+      // Act
+      const allKeys = groups.flat();
+
+      // Assert
+      expect(new Set(allKeys).size).toBe(allKeys.length);
+    });
+  });
+
+  describe('clearVolatileOnBeforeMove', () => {
+    it('みちづれとおんねんを消し、ほかのキーは残す', () => {
+      // Arrange
+      const state: VolatileState = { destinyBond: true, grudge: true, leechSeed: true };
+
+      // Act
+      const cleared = clearVolatileOnBeforeMove(state);
+
+      // Assert
+      expect(cleared).toEqual({ leechSeed: true });
+    });
+
+    it('消すキーがないときは、同じオブジェクトを返す', () => {
+      // Arrange
+      const state: VolatileState = { tauntTurns: 2 };
+
+      // Act
+      const cleared = clearVolatileOnBeforeMove(state);
+
+      // Assert
+      expect(cleared).toBe(state);
+    });
+  });
+
+  describe('releaseVolatileReferencesTo', () => {
+    it('場を離れたポケモンによる、逃げられない状態とたこがためを消す', () => {
+      // Arrange
+      const state: VolatileState = { trappedByStatusId: 5, octolock: true, leechSeed: true };
+
+      // Act
+      const released = releaseVolatileReferencesTo(state, 5);
+
+      // Assert
+      expect(released).toEqual({ leechSeed: true });
+    });
+
+    it('場を離れたポケモンへのメロメロを消す', () => {
+      // Arrange
+      const state: VolatileState = { infatuatedWithStatusId: 5 };
+
+      // Act
+      const released = releaseVolatileReferencesTo(state, 5);
+
+      // Assert
+      expect(released).toEqual({});
+    });
+
+    it('ほかのポケモンを指しているときは、同じオブジェクトを返す', () => {
+      // Arrange
+      const state: VolatileState = {
+        trappedByStatusId: 6,
+        octolock: true,
+        infatuatedWithStatusId: 6,
+      };
+
+      // Act
+      const released = releaseVolatileReferencesTo(state, 5);
+
+      // Assert
+      expect(released).toBe(state);
     });
   });
 });

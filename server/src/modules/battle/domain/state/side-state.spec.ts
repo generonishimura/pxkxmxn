@@ -1,7 +1,9 @@
 import {
   GLOBAL_FIELD_STATE_PARSERS,
+  GLOBAL_TURN_COUNTER_KEYS,
   GlobalFieldState,
   SIDE_CONDITIONS_PARSERS,
+  SIDE_TURN_COUNTER_KEYS,
   SideConditions,
   SideState,
   emptySideState,
@@ -9,6 +11,7 @@ import {
   getSideConditions,
   parseSideState,
   swapCourtChangeConditions,
+  tickSideStateAtTurnEnd,
   updateGlobalFieldState,
   updateSideConditions,
 } from './side-state';
@@ -279,6 +282,139 @@ describe('SideState', () => {
 
       // Assert
       expect(state).toEqual({ sides: { '1': { reflectTurns: 3 } } });
+    });
+  });
+
+  describe('tickSideStateAtTurnEnd', () => {
+    it('両陣営の残りターン数を 1 減らし、1 のキーは消す', () => {
+      // Arrange
+      const state: SideState = {
+        sides: {
+          '1': { reflectTurns: 5, tailwindTurns: 1 },
+          '2': { safeguardTurns: 2, mistTurns: 1, luckyChantTurns: 3 },
+        },
+      };
+
+      // Act
+      const ticked = tickSideStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({
+        sides: { '1': { reflectTurns: 4 }, '2': { safeguardTurns: 1, luckyChantTurns: 2 } },
+      });
+    });
+
+    it('ねがいごとは回復量を残してターン数だけ減らし、1 なら消す', () => {
+      // Arrange
+      const state: SideState = {
+        sides: {
+          '1': { wish: { turns: 2, healAmount: 80 } },
+          '2': { wish: { turns: 1, healAmount: 50 } },
+        },
+      };
+
+      // Act
+      const ticked = tickSideStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({ sides: { '1': { wish: { turns: 1, healAmount: 80 } } } });
+    });
+
+    it('このターンだけ陣営を守るフラグは消し、空になった陣営はキーごと消す', () => {
+      // Arrange
+      const state: SideState = {
+        sides: {
+          '1': { wideGuard: true, quickGuard: true, craftyShield: true, matBlock: true },
+          '2': { wideGuard: true, stealthRock: true },
+        },
+      };
+
+      // Act
+      const ticked = tickSideStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({ sides: { '2': { stealthRock: true } } });
+    });
+
+    it('両陣営にかかる状態の残りターン数を減らし、プラズマシャワーは消す', () => {
+      // Arrange
+      const state: SideState = {
+        global: {
+          weatherTurns: 3,
+          weatherSourceStatusId: 4,
+          trickRoomTurns: 1,
+          terrainTurns: 5,
+          ionDeluge: true,
+          lastMoveId: 85,
+        },
+      };
+
+      // Act
+      const ticked = tickSideStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({
+        global: { weatherTurns: 2, weatherSourceStatusId: 4, terrainTurns: 4, lastMoveId: 85 },
+      });
+    });
+
+    it('設置技・いやしのねがい・選択待ちは、そのまま残す', () => {
+      // Arrange
+      const state: SideState = {
+        sides: {
+          '1': {
+            spikesLayers: 2,
+            toxicSpikesLayers: 1,
+            stickyWeb: true,
+            healingWish: 'lunarDance',
+            pendingChoice: { reason: 'pivot' },
+          },
+        },
+      };
+
+      // Act
+      const ticked = tickSideStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual(state);
+    });
+
+    it('変える所がないときは、同じオブジェクトを返す', () => {
+      // Arrange
+      const state: SideState = { sides: { '1': { stealthRock: true } }, global: { lastMoveId: 3 } };
+
+      // Act
+      const ticked = tickSideStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toBe(state);
+    });
+
+    it('元の状態は書き換えない', () => {
+      // Arrange
+      const state: SideState = { sides: { '1': { reflectTurns: 5 } }, global: { gravityTurns: 1 } };
+
+      // Act
+      tickSideStateAtTurnEnd(state);
+
+      // Assert
+      expect(state).toEqual({ sides: { '1': { reflectTurns: 5 } }, global: { gravityTurns: 1 } });
+    });
+
+    it('〜Turns のキーは、すべてターン終了時に減らす', () => {
+      // Arrange
+      const sideTurnsKeys = Object.keys(FULL_SIDE_CONDITIONS).filter(key => key.endsWith('Turns'));
+      const globalTurnsKeys = Object.keys(FULL_GLOBAL_FIELD_STATE).filter(key =>
+        key.endsWith('Turns'),
+      );
+
+      // Act
+      const sideCounterKeys: readonly string[] = SIDE_TURN_COUNTER_KEYS;
+      const globalCounterKeys: readonly string[] = GLOBAL_TURN_COUNTER_KEYS;
+
+      // Assert
+      expect([...sideCounterKeys].sort()).toEqual(sideTurnsKeys.sort());
+      expect([...globalCounterKeys].sort()).toEqual(globalTurnsKeys.sort());
     });
   });
 

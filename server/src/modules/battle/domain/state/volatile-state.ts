@@ -1,10 +1,14 @@
 import {
   FieldParsers,
+  KeysOfType,
+  MutableStatePatch,
   StatePatch,
   applyStatePatch,
   arrayOf,
   booleanValue,
   integerInRange,
+  isEmptyObject,
+  markRemoved,
   nonEmptyString,
   nonNegativeInteger,
   oneOf,
@@ -12,6 +16,7 @@ import {
   parseFields,
   positiveInteger,
   requiredFieldsOf,
+  tickTurnCount,
 } from './state-field-parser';
 
 /**
@@ -80,7 +85,8 @@ export type StockpileBoosts = {
  * - すべてのキーは任意。キーがないことは「その状態ではない」を意味する
  * - 〜Turns は残りターン数。0 になったらキーを消す
  * - 技は Move の ID、タイプは Type の ID、特性は AbilityRegistry のキー（日本語名）で持つ
- * - 交代で引っ込むときに消すものが多い。消す処理はまだ入れていない（docs/battle-state.md）
+ * - 交代で引っ込むと、すべてのキーを消す（clearVolatileOnSwitchOut）。交代しても残る状態は PersistentPokemonState に置く
+ * - ターン終了時に減らすキー・消すキーは、下の 〜_KEYS / 〜_FLAGS にまとめる（docs/battle-state.md）
  */
 export type VolatileState = {
   // ---- 状態異常に近いカウンタ ----
@@ -350,3 +356,124 @@ export const updateVolatileState = (
  */
 export const parseVolatileState = (json: unknown): VolatileState =>
   parseFields(json, VOLATILE_STATE_PARSERS);
+
+/**
+ * ターン終了時に 1 減らし、0 になったら消す残りターン数
+ * こんらん（confusionTurns）は技を出そうとするたびに減らすので入れない
+ * 切れたときに効果があるもの（あくびで眠るなど）は、tick の前に値が 1 かどうかで判定する
+ */
+export const VOLATILE_TURN_COUNTER_KEYS = [
+  'tauntTurns',
+  'healBlockTurns',
+  'lockOnTurns',
+  'telekinesisTurns',
+  'magnetRiseTurns',
+  'yawnTurns',
+  'laserFocusTurns',
+] as const satisfies ReadonlyArray<KeysOfType<VolatileState, number>>;
+
+/**
+ * ターン終了時に turns を 1 減らし、0 になったら消す「技とターン数」
+ * さわぐ・あばれる（lockedInMove）は技を出すたびに減らすので入れない
+ */
+export const VOLATILE_MOVE_TURNS_COUNTER_KEYS = [
+  'encore',
+  'disable',
+] as const satisfies ReadonlyArray<KeysOfType<VolatileState, MoveTurns>>;
+
+/**
+ * このターンだけ続き、ターン終了時に消すキー
+ */
+export const VOLATILE_TURN_SCOPED_FLAGS = [
+  'protection',
+  'flinched',
+  'magicCoat',
+  'snatch',
+  'powder',
+  'electrified',
+  'roosting',
+] as const satisfies ReadonlyArray<keyof VolatileState>;
+
+/**
+ * 使用者が次に技を出そうとしたときに消すキー（ターン終了時には消さない）
+ */
+export const VOLATILE_UNTIL_NEXT_MOVE_FLAGS = [
+  'destinyBond',
+  'grudge',
+] as const satisfies ReadonlyArray<keyof VolatileState>;
+
+/**
+ * patch が空なら元の状態をそのまま、そうでなければ patch を当てた新しい状態を返す
+ */
+const applyIfChanged = (
+  state: VolatileState,
+  patch: MutableStatePatch<VolatileState>,
+): VolatileState => (isEmptyObject(patch) ? state : updateVolatileState(state, patch));
+
+/**
+ * 交代で引っ込むときの VolatileState を返す（すべてのキーを消す）
+ * バトンタッチ・しっぽきりで引き継ぐキーは、引っ込む前の状態から読んで次のポケモンに書く
+ */
+export const clearVolatileOnSwitchOut = (): VolatileState => emptyVolatileState();
+
+/**
+ * ターン終了時の VolatileState を返す
+ * 残りターン数を 1 減らして 0 になったキーを消し、このターンだけのフラグを消す
+ * 変える所がないときは、同じオブジェクトを返す（書き込みが要るかを === で判定できる）
+ */
+export const tickVolatileStateAtTurnEnd = (state: VolatileState): VolatileState => {
+  const patch: MutableStatePatch<VolatileState> = {};
+  for (const key of VOLATILE_TURN_COUNTER_KEYS) {
+    const turns = state[key];
+    if (turns !== undefined) {
+      patch[key] = tickTurnCount(turns);
+    }
+  }
+  for (const key of VOLATILE_MOVE_TURNS_COUNTER_KEYS) {
+    const moveTurns = state[key];
+    if (moveTurns !== undefined) {
+      const turns = tickTurnCount(moveTurns.turns);
+      patch[key] = turns === undefined ? undefined : { ...moveTurns, turns };
+    }
+  }
+  for (const key of VOLATILE_TURN_SCOPED_FLAGS) {
+    if (state[key] !== undefined) {
+      markRemoved(patch, key);
+    }
+  }
+  return applyIfChanged(state, patch);
+};
+
+/**
+ * 技を出そうとしたときの VolatileState を返す（みちづれ・おんねんを消す）
+ * 変える所がないときは、同じオブジェクトを返す
+ */
+export const clearVolatileOnBeforeMove = (state: VolatileState): VolatileState => {
+  const patch: MutableStatePatch<VolatileState> = {};
+  for (const key of VOLATILE_UNTIL_NEXT_MOVE_FLAGS) {
+    if (state[key] !== undefined) {
+      markRemoved(patch, key);
+    }
+  }
+  return applyIfChanged(state, patch);
+};
+
+/**
+ * statusId のポケモンが場を離れたときの、ほかのポケモンの VolatileState を返す
+ * そのポケモンによる「逃げられない」「たこがため」「メロメロ」を消す
+ * 変える所がないときは、同じオブジェクトを返す
+ */
+export const releaseVolatileReferencesTo = (
+  state: VolatileState,
+  statusId: number,
+): VolatileState => {
+  const patch: MutableStatePatch<VolatileState> = {};
+  if (state.trappedByStatusId === statusId) {
+    patch.trappedByStatusId = undefined;
+    patch.octolock = undefined;
+  }
+  if (state.infatuatedWithStatusId === statusId) {
+    patch.infatuatedWithStatusId = undefined;
+  }
+  return applyIfChanged(state, patch);
+};

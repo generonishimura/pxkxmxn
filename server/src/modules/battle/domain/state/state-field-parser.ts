@@ -22,6 +22,32 @@ export type FieldParsers<T> = { readonly [K in keyof T]-?: FieldParser<NonNullab
 export type StatePatch<T> = { readonly [K in keyof T]?: T[K] | null };
 
 /**
+ * 組み立てている途中の StatePatch（キーを 1 つずつ足すため readonly を外したもの）
+ */
+export type MutableStatePatch<T> = { -readonly [K in keyof T]?: T[K] | null };
+
+/**
+ * T のキーのうち、値の型が V のもの
+ */
+export type KeysOfType<T, V> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends V ? K : never;
+}[keyof T];
+
+/**
+ * 組み立てている patch に「key を取り除く」を足す
+ * 値の型が違うキーをまとめて回すとき、patch[key] = undefined と直接書くと型が合わないため
+ */
+export const markRemoved = <T, K extends keyof T>(patch: MutableStatePatch<T>, key: K): void => {
+  patch[key] = undefined;
+};
+
+/**
+ * 残りターン数を 1 減らした値を返す。0 になるなら undefined（キーを消す）を返す
+ */
+export const tickTurnCount = (turns: number): number | undefined =>
+  turns > 1 ? turns - 1 : undefined;
+
+/**
  * 配列でも null でもないオブジェクトかどうか
  */
 export const isPlainObject = (value: unknown): value is Readonly<Record<string, unknown>> =>

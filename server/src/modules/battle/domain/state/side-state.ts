@@ -1,16 +1,20 @@
 import {
   FieldParsers,
+  KeysOfType,
+  MutableStatePatch,
   StatePatch,
   applyStatePatch,
   booleanValue,
   integerInRange,
   isEmptyObject,
   isPlainObject,
+  markRemoved,
   nonNegativeInteger,
   oneOf,
   parseFields,
   positiveInteger,
   requiredFieldsOf,
+  tickTurnCount,
 } from './state-field-parser';
 
 /**
@@ -254,8 +258,6 @@ export const COURT_CHANGE_KEYS = [
   'stickyWeb',
 ] as const satisfies ReadonlyArray<keyof SideConditions>;
 
-type MutableStatePatch<T> = { -readonly [K in keyof T]?: T[K] | null };
-
 const copyKey = <K extends keyof SideConditions>(
   target: MutableStatePatch<SideConditions>,
   source: SideConditions,
@@ -336,4 +338,113 @@ export const parseSideState = (json: unknown): SideState => {
     sides,
     global: isEmptyObject(global) ? undefined : global,
   });
+};
+
+/**
+ * 陣営ごとに、ターン終了時に 1 減らし、0 になったら消す残りターン数
+ * 切れたときに効果があるものは、tick の前に値が 1 かどうかで判定する
+ */
+export const SIDE_TURN_COUNTER_KEYS = [
+  'reflectTurns',
+  'lightScreenTurns',
+  'auroraVeilTurns',
+  'tailwindTurns',
+  'safeguardTurns',
+  'mistTurns',
+  'luckyChantTurns',
+] as const satisfies ReadonlyArray<KeysOfType<SideConditions, number>>;
+
+/**
+ * 陣営ごとに、このターンだけ続きターン終了時に消すキー
+ */
+export const SIDE_TURN_SCOPED_FLAGS = [
+  'wideGuard',
+  'quickGuard',
+  'craftyShield',
+  'matBlock',
+] as const satisfies ReadonlyArray<keyof SideConditions>;
+
+/**
+ * 両陣営にかかる、ターン終了時に 1 減らし、0 になったら消す残りターン数
+ * weatherTurns・terrainTurns が切れたときに Battle.weather / Battle.field を戻すのは、tick の前に値が 1 かどうかで判定する
+ */
+export const GLOBAL_TURN_COUNTER_KEYS = [
+  'weatherTurns',
+  'terrainTurns',
+  'trickRoomTurns',
+  'gravityTurns',
+  'wonderRoomTurns',
+  'magicRoomTurns',
+  'mudSportTurns',
+  'waterSportTurns',
+  'fairyLockTurns',
+] as const satisfies ReadonlyArray<KeysOfType<GlobalFieldState, number>>;
+
+/**
+ * 両陣営にかかる、このターンだけ続きターン終了時に消すキー
+ */
+export const GLOBAL_TURN_SCOPED_FLAGS = ['ionDeluge'] as const satisfies ReadonlyArray<
+  keyof GlobalFieldState
+>;
+
+/**
+ * 陣営のターン終了時の変更（残りターン数・ねがいごとを減らし、このターンだけのフラグを消す）
+ */
+const sideConditionsTickPatch = (conditions: SideConditions): StatePatch<SideConditions> => {
+  const patch: MutableStatePatch<SideConditions> = {};
+  for (const key of SIDE_TURN_COUNTER_KEYS) {
+    const turns = conditions[key];
+    if (turns !== undefined) {
+      patch[key] = tickTurnCount(turns);
+    }
+  }
+  if (conditions.wish !== undefined) {
+    const turns = tickTurnCount(conditions.wish.turns);
+    patch.wish = turns === undefined ? undefined : { ...conditions.wish, turns };
+  }
+  for (const key of SIDE_TURN_SCOPED_FLAGS) {
+    if (conditions[key] !== undefined) {
+      markRemoved(patch, key);
+    }
+  }
+  return patch;
+};
+
+/**
+ * 両陣営にかかる状態のターン終了時の変更
+ */
+const globalFieldStateTickPatch = (global: GlobalFieldState): StatePatch<GlobalFieldState> => {
+  const patch: MutableStatePatch<GlobalFieldState> = {};
+  for (const key of GLOBAL_TURN_COUNTER_KEYS) {
+    const turns = global[key];
+    if (turns !== undefined) {
+      patch[key] = tickTurnCount(turns);
+    }
+  }
+  for (const key of GLOBAL_TURN_SCOPED_FLAGS) {
+    if (global[key] !== undefined) {
+      markRemoved(patch, key);
+    }
+  }
+  return patch;
+};
+
+/**
+ * ターン終了時の SideState を返す
+ * 両陣営と全体の残りターン数を 1 減らして 0 になったキーを消し、このターンだけのフラグを消す
+ * 変える所がないときは、同じオブジェクトを返す（書き込みが要るかを === で判定できる）
+ */
+export const tickSideStateAtTurnEnd = (state: SideState): SideState => {
+  let next = state;
+  for (const [trainerId, conditions] of Object.entries(state.sides ?? {})) {
+    const patch = sideConditionsTickPatch(conditions);
+    if (!isEmptyObject(patch)) {
+      next = updateSideConditions(next, Number(trainerId), patch);
+    }
+  }
+  const globalPatch = globalFieldStateTickPatch(getGlobalFieldState(state));
+  if (!isEmptyObject(globalPatch)) {
+    next = updateGlobalFieldState(next, globalPatch);
+  }
+  return next;
 };
