@@ -22,12 +22,13 @@ describe('PunkRockEffect（パンクロック）', () => {
       expect(result).toBe(117);
     });
 
-    it('4096分率で丸める（威力50 → 65）', () => {
+    it('4096分率で丸める（威力85 → 111。85 × 1.3 = 110.5 の切り捨てなら110になる）', () => {
       // Act
-      const result = new PunkRockEffect().modifyBasePower(pokemon, 50, createCtx(['sound']));
+      const result = new PunkRockEffect().modifyBasePower(pokemon, 85, createCtx(['sound']));
 
       // Assert
-      expect(result).toBe(65);
+      // floor((85 × 5325 + 2047) / 4096) = 111
+      expect(result).toBe(111);
     });
 
     it('音技でない技の威力は変えない', () => {

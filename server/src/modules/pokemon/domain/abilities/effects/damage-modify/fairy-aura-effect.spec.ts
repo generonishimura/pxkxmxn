@@ -31,6 +31,15 @@ describe('FairyAuraEffect', () => {
       expect(result).toBe(133);
     });
 
+    it('倍率は 5448/4096 で、4/3（5461/4096）ではない（威力80 → 106。4/3 なら107になる）', () => {
+      // Act
+      const result = effect.modifyAnyBasePower(holder, 80, createCtx());
+
+      // Assert
+      // floor((80 × 5448 + 2047) / 4096) = 106
+      expect(result).toBe(106);
+    });
+
     it('相手が使ったフェアリー技の威力も上げる', () => {
       // Arrange
       const ctx = createCtx({
