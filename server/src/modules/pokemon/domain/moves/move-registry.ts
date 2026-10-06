@@ -218,6 +218,13 @@ import { MorningSunEffect } from './effects/morning-sun-effect';
 import { SynthesisEffect } from './effects/synthesis-effect';
 import { MoonlightEffect } from './effects/moonlight-effect';
 import { ShoreUpEffect } from './effects/shore-up-effect';
+import { HealPulseEffect } from './effects/heal-pulse-effect';
+import { FloralHealingEffect } from './effects/floral-healing-effect';
+import { JungleHealingEffect } from './effects/jungle-healing-effect';
+import { LifeDewEffect } from './effects/life-dew-effect';
+import { LunarBlessingEffect } from './effects/lunar-blessing-effect';
+import { PurifyEffect } from './effects/purify-effect';
+import { StrengthSapEffect } from './effects/strength-sap-effect';
 
 /**
  * 技のレジストリ
@@ -500,6 +507,14 @@ export class MoveRegistry {
       this.registry.set('こうごうせい', new SynthesisEffect());
       this.registry.set('つきのひかり', new MoonlightEffect());
       this.registry.set('すなあつめ', new ShoreUpEffect());
+      // 回復・状態異常回復技（相手/自分）（Issue #103, #110 一部）
+      this.registry.set('いやしのはどう', new HealPulseEffect());
+      this.registry.set('フラワーヒール', new FloralHealingEffect());
+      this.registry.set('ジャングルヒール', new JungleHealingEffect());
+      this.registry.set('いのちのしずく', new LifeDewEffect());
+      this.registry.set('みかづきのいのり', new LunarBlessingEffect());
+      this.registry.set('じょうか', new PurifyEffect());
+      this.registry.set('ちからをすいとる', new StrengthSapEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
