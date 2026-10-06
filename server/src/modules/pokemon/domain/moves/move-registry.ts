@@ -225,6 +225,11 @@ import { LifeDewEffect } from './effects/life-dew-effect';
 import { LunarBlessingEffect } from './effects/lunar-blessing-effect';
 import { PurifyEffect } from './effects/purify-effect';
 import { StrengthSapEffect } from './effects/strength-sap-effect';
+import { VictoryDanceEffect } from './effects/victory-dance-effect';
+import { SpicyExtractEffect } from './effects/spicy-extract-effect';
+import { TidyUpEffect } from './effects/tidy-up-effect';
+import { ClangorousSoulEffect } from './effects/clangorous-soul-effect';
+import { VenomDrenchEffect } from './effects/venom-drench-effect';
 
 /**
  * 技のレジストリ
@@ -515,6 +520,12 @@ export class MoveRegistry {
       this.registry.set('みかづきのいのり', new LunarBlessingEffect());
       this.registry.set('じょうか', new PurifyEffect());
       this.registry.set('ちからをすいとる', new StrengthSapEffect());
+      // 能力変化技（Issue #103, #108 一部）
+      this.registry.set('しょうりのまい', new VictoryDanceEffect());
+      this.registry.set('ハバネロエキス', new SpicyExtractEffect());
+      this.registry.set('おかたづけ', new TidyUpEffect());
+      this.registry.set('ソウルビート', new ClangorousSoulEffect());
+      this.registry.set('ベノムトラップ', new VenomDrenchEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
