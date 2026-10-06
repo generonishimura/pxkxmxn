@@ -86,6 +86,7 @@ import { AftermathEffect } from './effects/other/aftermath-effect';
 import { GooeyEffect } from './effects/stat-change/gooey-effect';
 import { TanglingHairEffect } from './effects/stat-change/tangling-hair-effect';
 import { WeakArmorEffect } from './effects/stat-change/weak-armor-effect';
+import { EffectSporeEffect } from './effects/stat-change/effect-spore-effect';
 
 /**
  * 特性レジストリ
@@ -237,6 +238,7 @@ export class AbilityRegistry {
       this.registry.set('ぬめぬめ', new GooeyEffect());
       this.registry.set('カーリーヘアー', new TanglingHairEffect());
       this.registry.set('くだけるよろい', new WeakArmorEffect());
+      this.registry.set('ほうし', new EffectSporeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

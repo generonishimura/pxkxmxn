@@ -5,7 +5,7 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 
 /**
  * 接触技を受けたときに状態異常を付与する基底クラス
- * どくのトゲ（Poison Point）、せいでんき（Static）、ほのおのからだ（Flame Body）などで使用
+ * どくのトゲ（Poison Point）、せいでんき（Static）、ほのおのからだ（Flame Body）、ほうし（Effect Spore）などで使用
  *
  * 各特性は、このクラスを継承してパラメータを設定するだけで実装できる
  */
@@ -30,6 +30,20 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
    * 状態異常を付与できないタイプ（免疫タイプ）
    */
   protected abstract readonly immuneTypes: readonly string[];
+
+  /**
+   * 付与する状態異常を抽選する
+   * 既定では chance の確率で statusCondition を返す（chanceが1.0の場合は必ず返す）。
+   * ほうし（Effect Spore）のように複数の状態異常から選ぶ特性は、このメソッドを上書きする。
+   *
+   * @returns 付与する状態異常、付与しない場合はnull
+   */
+  protected selectStatusCondition(): StatusCondition | null {
+    if (this.chance < 1.0 && Math.random() >= this.chance) {
+      return null;
+    }
+    return this.statusCondition;
+  }
 
   /**
    * 接触技を受けたときに状態異常を付与する
@@ -76,6 +90,12 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       return false;
     }
 
+    // 確率判定と付与する状態異常の決定
+    const statusCondition = this.selectStatusCondition();
+    if (statusCondition === null) {
+      return false;
+    }
+
     // 特性による無効化チェック（動的に取得して循環参照を回避）
     if (attackerTrainedPokemon.ability) {
       // 動的インポートで循環参照を回避
@@ -84,7 +104,7 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       if (abilityEffect?.canReceiveStatusCondition) {
         const canReceive = abilityEffect.canReceiveStatusCondition(
           attacker,
-          this.statusCondition,
+          statusCondition,
           battleContext,
         );
         // canReceiveがfalseの場合は無効化（undefinedの場合は判定しない）
@@ -94,14 +114,9 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       }
     }
 
-    // 確率判定（chanceが1.0の場合は必ず付与）
-    if (this.chance < 1.0 && Math.random() >= this.chance) {
-      return false;
-    }
-
     // 状態異常を付与
     await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {
-      statusCondition: this.statusCondition,
+      statusCondition,
     });
 
     return true;
