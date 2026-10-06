@@ -12,6 +12,13 @@ const AIRBORNE_TYPE_NAME = 'ひこう';
 const AIRBORNE_ABILITY_NAMES: readonly string[] = ['ふゆう'];
 
 /**
+ * 地面にいない特性か（ふゆう）
+ * じゅうりょくの間は、この特性のじめん技の無効を DamageCalculator が無視する
+ */
+export const isAirborneAbility = (abilityName: string | undefined): boolean =>
+  abilityName !== undefined && AIRBORNE_ABILITY_NAMES.includes(abilityName);
+
+/**
  * 地面にいるかの判定に使う情報
  */
 export interface GroundedParams {
@@ -46,7 +53,7 @@ export const isGrounded = (params: GroundedParams): boolean => {
   if (params.typeNames.includes(AIRBORNE_TYPE_NAME) && state.roosting !== true) {
     return false;
   }
-  if (params.abilityName !== undefined && AIRBORNE_ABILITY_NAMES.includes(params.abilityName)) {
+  if (isAirborneAbility(params.abilityName)) {
     return false;
   }
   return state.magnetRiseTurns === undefined && state.telekinesisTurns === undefined;

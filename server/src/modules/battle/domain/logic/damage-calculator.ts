@@ -14,6 +14,16 @@ import {
   semiInvulnerableDamageMultiplier,
   typeEffectivenessMultiplierByVolatile,
 } from './volatile-modifiers';
+// 場の状態・設置技・交代の仕組み（Issue #103 #107 #110 #135 一部）
+import { SideState, getGlobalFieldState, getSideConditions } from '../state/side-state';
+import { isAirborneAbility, isGrounded } from './grounded';
+import {
+  effectivePrimalWeather,
+  fieldBasePowerModifiers,
+  isNeutralizedByStrongWinds,
+  screenDamageModifier,
+  swapDefensesInWonderRoom,
+} from './field-modifiers';
 
 /**
  * Moveの情報
@@ -91,6 +101,8 @@ export interface DamageCalculationParams {
  * - フィールド
  * - 一時的な状態（volatileState）: 実数値の上書き、みやぶる・ミラクルアイ・ねをはるの相性、
  *   タールショット・でんじふゆう・テレキネシスの相性、じゅうでんの威力、隠れている相手への 2 倍
+ * - 場の状態（sideState）: 壁（最後に掛ける）、ワンダールーム、フィールド・どろあそび・みずあそびの威力、
+ *   じゅうりょく（ひこう・ふゆうにじめん技が当たる）、らんきりゅう（ひこうタイプの弱点を等倍）
  */
 export class DamageCalculator {
   /**
@@ -163,6 +175,12 @@ export class DamageCalculator {
    * 雨の時のほのおタイプ技の倍率
    */
   private static readonly RAIN_FIRE_TYPE_MULTIPLIER = 0.5;
+
+  /**
+   * じゅうりょくで当たるようになる技のタイプと、当たるようになる相手のタイプ
+   */
+  private static readonly GROUND_TYPE_NAME = 'じめん';
+  private static readonly FLYING_TYPE_NAME = 'ひこう';
   /**
    * ダメージを計算
    * @param params ダメージ計算の入力パラメータ
@@ -310,7 +328,64 @@ export class DamageCalculator {
       return 0;
     }
 
+    // 壁（リフレクター・ひかりのかべ・オーロラベール）。本家の ModifyDamage と同じく最後に掛け、最低 1
+    const screenModifier = this.resolveScreenModifier(params);
+    if (screenModifier !== undefined) {
+      return Math.max(1, modifyByFixedPoint(finalDamage, screenModifier));
+    }
+
     return finalDamage;
+  }
+
+  /**
+   * バトルの sideState（なければ空の状態）
+   */
+  private static sideStateOf(params: DamageCalculationParams): SideState {
+    return (params.battleContext?.battle ?? params.battle)?.sideState ?? {};
+  }
+
+  /**
+   * じゅうりょくの間か
+   */
+  private static isGravityActive(params: DamageCalculationParams): boolean {
+    return getGlobalFieldState(this.sideStateOf(params)).gravityTurns !== undefined;
+  }
+
+  /**
+   * 防御側の陣営の壁の補正（4096 分率。効かないときは undefined）
+   * 自分を攻撃するとき（こんらんの自傷）・急所・すりぬけには効かない
+   */
+  private static resolveScreenModifier(params: DamageCalculationParams): number | undefined {
+    if (params.attacker.trainerId === params.defender.trainerId) {
+      return undefined;
+    }
+    const infiltrates = params.attackerAbilityName
+      ? AbilityRegistry.get(params.attackerAbilityName)?.infiltrates === true
+      : false;
+    return screenDamageModifier(
+      getSideConditions(this.sideStateOf(params), params.defender.trainerId),
+      params.move.category,
+      { isCriticalHit: params.battleContext?.isCriticalHit === true, infiltrates },
+    );
+  }
+
+  /**
+   * ポケモンが地面にいるか（フィールドの補正に使う）
+   */
+  private static isPokemonGrounded(
+    params: DamageCalculationParams,
+    pokemon: BattlePokemonStatus,
+    types: { primary: Type; secondary: Type | null },
+    abilityName: string | undefined,
+  ): boolean {
+    return isGrounded({
+      typeNames: [types.primary.name, types.secondary?.name].filter(
+        (name): name is string => name !== undefined,
+      ),
+      abilityName,
+      volatileState: pokemon.volatileState,
+      sideState: this.sideStateOf(params),
+    });
   }
 
   /**
@@ -338,6 +413,14 @@ export class DamageCalculator {
     if (
       !params.defenderAbilityName ||
       AbilityRegistry.isIgnoredByMoldBreaker(params.attackerAbilityName, params.defenderAbilityName)
+    ) {
+      return false;
+    }
+    // じゅうりょくの間は、ふゆうでもじめん技を受ける（地面にいるため）
+    if (
+      params.moveType.name === DamageCalculator.GROUND_TYPE_NAME &&
+      isAirborneAbility(params.defenderAbilityName) &&
+      this.isGravityActive(params)
     ) {
       return false;
     }
@@ -428,6 +511,31 @@ export class DamageCalculator {
       power = modifyByFixedPoint(power, volatileModifier);
     }
 
+    // フィールド（エレキ・グラス・サイコ・ミスト）・どろあそび・みずあそび
+    const fieldModifiers = fieldBasePowerModifiers({
+      field: params.field ?? params.battle?.field,
+      sideState: this.sideStateOf(params),
+      moveTypeName: params.moveType.name,
+      moveName: params.battleContext?.moveName,
+      attackerGrounded: this.isPokemonGrounded(
+        params,
+        params.attacker,
+        params.attackerTypes,
+        params.attackerAbilityName,
+      ),
+      defenderGrounded: this.isPokemonGrounded(
+        params,
+        params.defender,
+        params.defenderTypes,
+        params.defenderAbilityName,
+      ),
+      attackerSemiInvulnerable: params.attacker.volatileState.semiInvulnerable !== undefined,
+      defenderSemiInvulnerable: params.defender.volatileState.semiInvulnerable !== undefined,
+    });
+    for (const modifier of fieldModifiers) {
+      power = modifyByFixedPoint(power, modifier);
+    }
+
     return power;
   }
 
@@ -435,13 +543,21 @@ export class DamageCalculator {
    * 実数値の上書き（volatileState.statOverrides）を、攻撃側・防御側の実数値に反映したパラメータを返す
    */
   private static withStatOverrides(params: DamageCalculationParams): DamageCalculationParams {
+    // ワンダールームの間は、上書きを反映したあとの防御と特防の実数値を入れ替える（ランクは入れ替えない）
+    const sideState = this.sideStateOf(params);
     return {
       ...params,
       attackerStats: params.attackerStats
-        ? applyStatOverrides(params.attackerStats, params.attacker.volatileState)
+        ? swapDefensesInWonderRoom(
+            applyStatOverrides(params.attackerStats, params.attacker.volatileState),
+            sideState,
+          )
         : params.attackerStats,
       defenderStats: params.defenderStats
-        ? applyStatOverrides(params.defenderStats, params.defender.volatileState)
+        ? swapDefensesInWonderRoom(
+            applyStatOverrides(params.defenderStats, params.defender.volatileState),
+            sideState,
+          )
         : params.defenderStats,
     };
   }
@@ -452,18 +568,34 @@ export class DamageCalculator {
    * 2. 防御側の一時的な状態の倍率（タールショットのほのお 2 倍、でんじふゆう・テレキネシスのじめん 0 倍）
    */
   private static calculateFullTypeEffectiveness(params: DamageCalculationParams): number {
+    // じゅうりょくの間は、じめん技がひこうタイプ・でんじふゆう・テレキネシスにも当たる（地面にいるため）
+    const groundedByGravity =
+      params.moveType.name === DamageCalculator.GROUND_TYPE_NAME && this.isGravityActive(params);
+    const primal = effectivePrimalWeather(this.sideStateOf(params), [
+      params.attackerAbilityName,
+      params.defenderAbilityName,
+    ]);
     const effectiveness = this.calculateTypeEffectiveness(
       params.move.typeId,
       params.defenderTypes,
       params.typeEffectiveness,
       defenderType =>
+        (groundedByGravity && defenderType.name === DamageCalculator.FLYING_TYPE_NAME) ||
         this.ignoresTypeImmunity(params, defenderType) ||
         ignoresTypeImmunityByVolatile(
           params.defender.volatileState,
           params.moveType.name,
           defenderType.name,
         ),
+      // らんきりゅう: ひこうタイプへの弱点を等倍にする
+      (defenderType, multiplier) =>
+        isNeutralizedByStrongWinds(primal, defenderType.name, multiplier, params.move.category)
+          ? 1
+          : multiplier,
     );
+    if (groundedByGravity) {
+      return effectiveness;
+    }
     return (
       effectiveness *
       typeEffectivenessMultiplierByVolatile(params.defender.volatileState, params.moveType.name)
@@ -571,6 +703,7 @@ export class DamageCalculator {
     defenderTypes: { primary: Type; secondary: Type | null },
     typeEffectiveness: Map<string, number>,
     ignoresImmunity: (defenderType: Type) => boolean = () => false,
+    adjust: (defenderType: Type, multiplier: number) => number = (_type, multiplier) => multiplier,
   ): number {
     let effectiveness = DamageCalculator.DEFAULT_TYPE_EFFECTIVENESS;
 
@@ -586,7 +719,7 @@ export class DamageCalculator {
       if (typeMultiplier === 0 && ignoresImmunity(defenderType)) {
         continue;
       }
-      effectiveness *= typeMultiplier;
+      effectiveness *= adjust(defenderType, typeMultiplier);
     }
 
     return effectiveness;
