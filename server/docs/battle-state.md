@@ -1,46 +1,53 @@
-# バトルの状態（volatileState と sideState）
+# バトルの状態（volatileState・persistentState・sideState）
 
-ターンをまたいで残す必要があるバトルの状態は、2 つの JSON 列に保存します。
+ターンをまたいで残す必要があるバトルの状態は、3 つの JSON 列に保存します。
 
-- `BattlePokemonStatus.volatileState`: 場に出ている間だけ続く、ポケモンごとの状態（やどりぎのタネ・みがわり・ちょうはつなど）
-- `Battle.sideState`: 陣営ごとの場の状態（リフレクター・まきびしなど）と、両陣営にかかる場の状態（トリックルームなど）
+- `BattlePokemonStatus.volatileState`: 場に出ている間だけ続く、ポケモンごとの状態（やどりぎのタネ・みがわり・ちょうはつなど）。交代で引っ込むとすべて消えます。
+- `BattlePokemonStatus.persistentState`: 交代しても消えない、ポケモンごとの状態（ばけのかわが破れた・ねむりの残りターン数など）。
+- `Battle.sideState`: 陣営ごとの場の状態（リフレクター・まきびしなど）と、両陣営にかかる場の状態（トリックルームなど）。
 
 型はドメイン層にあります。Prisma には依存しません。
 
 - `src/modules/battle/domain/state/volatile-state.ts`（`VolatileState`）
+- `src/modules/battle/domain/state/persistent-state.ts`（`PersistentPokemonState`）
 - `src/modules/battle/domain/state/side-state.ts`（`SideState` / `SideConditions` / `GlobalFieldState`）
 - `src/modules/battle/domain/state/state-field-parser.ts`（JSON を読む部品と、更新の共通処理）
 
-今はまだ、どの技・特性もこの状態を読み書きしていません。この文書は、これから技や特性を実装するときの置き場所を決めるためのものです。
+今はまだ、どの技・特性もこの状態を読み書きしていません。片付け（交代時の消去・ターン終了時の減算など）だけはエンジンに入っています（4 章）。この文書は、これから技や特性を実装するときの置き場所と決まりを書いたものです。
 
 ## 1. 保存のしかた
 
 | 列 | テーブル | 型 | 既定値 |
 | --- | --- | --- | --- |
 | `volatile_state` | `battle_pokemon_status` | `JSONB NOT NULL` | `'{}'` |
+| `persistent_state` | `battle_pokemon_status` | `JSONB NOT NULL` | `'{}'` |
 | `side_state` | `battles` | `JSONB NOT NULL` | `'{}'` |
 
-マイグレーションは `prisma/migrations/20261006170653_add_battle_state_columns/` です。既定値が `{}` なので、前からある行もそのまま読めます。
+マイグレーションは次の 2 つです。既定値が `{}` なので、前からある行もそのまま読めます。
+
+- `prisma/migrations/20261006170653_add_battle_state_columns/`（`volatile_state` と `side_state`）
+- `prisma/migrations/20261006190000_add_persistent_state_column/`（`persistent_state`）
 
 読み書きは `BattlePrismaRepository` がします。
 
-1. 読むとき: `parseVolatileState` / `parseSideState` で型付きの状態にする
+1. 読むとき: `parseVolatileState` / `parsePersistentPokemonState` / `parseSideState` で型付きの状態にする
 2. 作るとき: 空の状態（`{}`）を書き込む
-3. 更新するとき: `updateBattlePokemonStatus(id, { volatileState })` や `update(id, { sideState })` で渡したときだけ書き込む
+3. 一部だけ書き換えるとき: 部分更新のメソッド（3 章）を使う
+4. 丸ごと書き換えるとき: `updateBattlePokemonStatus(id, { volatileState })` や `update(id, { sideState })` で渡したときだけ書き込む。`null` を渡したときは空の状態を書く
 
 ## 2. 決まりごと
 
 - すべてのキーは任意です。キーがないことは「その状態ではない」という意味です。
-- `〜Turns` は残りターン数です。ターン終了時に 1 減らし、0 になったらキーを消します。
+- `〜Turns` は残りターン数です。どこで減らすかはキーごとに決まっています（4 章）。0 になったらキーを消します。
 - `〜Layers` は重ねた回数です（まきびしは 1〜3、どくびしは 1〜2）。
 - 技は `Move` の ID、タイプは `Type` の ID、特性は `AbilityRegistry` のキー（日本語名）で持ちます。
-- ポケモンを指すときは `BattlePokemonStatus` の ID を使います。
-- 状態は書き換えません。更新関数が新しいオブジェクトを返すので、それをリポジトリに渡します。
+- ポケモンを指すときは `BattlePokemonStatus` の ID を使います。例外はありません。
+- 状態は書き換えません。更新関数が新しいオブジェクトを返します。
 - バージョン番号は持ちません。キーの追加だけで型を広げます。
 
 ### 読むときの扱い（例外を投げない）
 
-`parseVolatileState` と `parseSideState` は例外を投げません。古い行や壊れた値があってもバトルは止まりません。
+`parseVolatileState` / `parsePersistentPokemonState` / `parseSideState` は例外を投げません。古い行や壊れた値があってもバトルは止まりません。
 
 - オブジェクトでない値（`null`・文字列・配列など）は空の状態として読む
 - 知らないキーは捨てる
@@ -49,43 +56,113 @@
 
 注意: 知らないキーは捨てるので、新しいキーを書いたあとで古いコードに戻すと、次に保存したときにそのキーは消えます。
 
-## 3. 使い方
+## 3. 読み書きのしかた
+
+### 必ず守ること: 書き換えるときは部分更新を使う
+
+状態を書き換えるときは、次の部分更新のメソッドを使ってください。手元の entity から作った状態を丸ごと書いてはいけません。これは例外のない決まりです。
+
+| メソッド | 書き換える所 |
+| --- | --- |
+| `patchVolatileState(statusId, patch)` | ポケモンの `volatileState` |
+| `patchPersistentState(statusId, patch)` | ポケモンの `persistentState` |
+| `patchSideConditions(battleId, trainerId, patch)` | 陣営の `SideConditions` |
+| `patchGlobalFieldState(battleId, patch)` | 両陣営にかかる `GlobalFieldState` |
+
+部分更新は、DB の最新の行を読み直してから patch を当てます（行を `FOR UPDATE` でロックし、トランザクションの中で読む → parse → patch → 書き込み）。
+
+理由: JSON 列は丸ごと置き換わります。古い entity から書くと、次のように先に書かれたキーが消えます。
+
+1. 速い A が B にちょうはつ → B の `volatileState` は `{ tauntTurns: 3 }`
+2. 遅い B の技の処理が、手元の古い B（`{}`）に `critStageBoost: 2` を足して丸ごと書く
+3. B の `volatileState` は `{ critStageBoost: 2 }` になり、ちょうはつが消える
+
+効果を書く人には、同じターンに先に誰かが書いたかどうかが分かりません。だから常に部分更新を使います。
 
 ```ts
-import { updateVolatileState } from '@/modules/battle/domain/state/volatile-state';
-import {
-  getSideConditions,
-  updateSideConditions,
-  updateGlobalFieldState,
-} from '@/modules/battle/domain/state/side-state';
-
 // やどりぎのタネを植える
-await battleRepository.updateBattlePokemonStatus(defender.id, {
-  volatileState: updateVolatileState(defender.volatileState, { leechSeed: true }),
-});
+await battleRepository.patchVolatileState(defender.id, { leechSeed: true });
 
 // ちょうはつを消す（undefined か null を渡したキーは取り除かれる）
-await battleRepository.updateBattlePokemonStatus(target.id, {
-  volatileState: updateVolatileState(target.volatileState, { tauntTurns: undefined }),
-});
+await battleRepository.patchVolatileState(target.id, { tauntTurns: null });
 
 // 自分の陣営にリフレクターを張る
-await battleRepository.update(battle.id, {
-  sideState: updateSideConditions(battle.sideState, trainerId, { reflectTurns: 5 }),
-});
-
-// 相手の陣営のまきびしを読む
-const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLayers ?? 0;
+await battleRepository.patchSideConditions(battle.id, trainerId, { reflectTurns: 5 });
 
 // トリックルームを張る
-await battleRepository.update(battle.id, {
-  sideState: updateGlobalFieldState(battle.sideState, { trickRoomTurns: 5 }),
-});
+await battleRepository.patchGlobalFieldState(battle.id, { trickRoomTurns: 5 });
+
+// ばけのかわが破れた（交代しても残る）
+await battleRepository.patchPersistentState(holder.id, { disguiseBusted: true });
 ```
 
-`battle` はターンの最初に読んだものです。同じターンの中で `sideState` を続けて書き換えるときは、`battleRepository.findById` で読み直してから更新してください。古い `battle` から更新すると、先に書いた内容が上書きされます。
+### 読むとき
 
-## 4. VolatileState のキー
+- `ExecuteTurnUseCase` は、行動のたびにバトルと場のポケモンを読み直してから技を出します。技の処理が受け取る `battle` / `attacker` / `defender` は、その行動の直前の最新の値です。先に行動した相手が張ったまもる・ちょうはつ・壁も見えます。
+- 自分で書いたあとに続けて読むときは、部分更新の返り値を使うか、`findById` / `findBattlePokemonStatusById` で読み直してください。
+
+```ts
+// 相手の陣営のまきびしを読む
+const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLayers ?? 0;
+```
+
+## 4. 片付けの場所（エンジンが書くもの）
+
+片付けはエンジンの決まった場所だけで行います。技や特性の実装では、自分で残りターン数を減らしたり、交代時に消したりしないでください。二重に減らす・消し忘れる、といったずれのもとになります。
+
+| いつ | どこで | 何をするか |
+| --- | --- | --- |
+| バトル開始で先発が場に出たとき | `StartBattleUseCase.execute` | `switchedInTurn` に `0` を書く |
+| 交代で引っ込むとき | `PokemonSwitcherService.executeSwitch` | 引っ込むポケモンの `volatileState` をすべて消す（`clearVolatileOnSwitchOut`）。`persistentState` は残す |
+| 交代で引っ込んだあと | `PokemonSwitcherService.executeSwitch` | ほかのポケモンの、引っ込んだポケモンによる `trappedByStatusId`・`octolock`・`infatuatedWithStatusId` を消す（`releaseVolatileReferencesTo`） |
+| 交代で場に出たとき | `PokemonSwitcherService.executeSwitch` | `switchedInTurn` に今の `Battle.turn` を書く |
+| 技を出そうとしたとき | `MoveExecutorService.executeMove`（こんらんの判定のあと） | 使用者の `destinyBond`・`grudge` を消す（`clearVolatileOnBeforeMove`） |
+| ターン終了時 | `ExecuteTurnUseCase.execute`（特性・状態異常のターン終了時の処理のあと） | 場のポケモンの `volatileState` を `tickVolatileStateAtTurnEnd` で、`sideState` を `tickSideStateAtTurnEnd` で進める |
+| ターン終了時に場のポケモンがひんしのとき | `ExecuteTurnUseCase.execute` | その `volatileState` をすべて消す（ほろびのカウント・みがわりを、さいきのいのりで持ち越さない） |
+
+### ターン終了時に進めるキー
+
+どのキーをどう進めるかは、型付きの一覧で決まっています。キーを足すときは、どの一覧に入れるか（どれにも入れないか）を決めてください。
+
+| 一覧 | 場所 | ターン終了時の動き |
+| --- | --- | --- |
+| `VOLATILE_TURN_COUNTER_KEYS` | `volatile-state.ts` | 1 減らし、0 になったら消す（ちょうはつ・かいふくふうじ・ロックオン・テレキネシス・でんじふゆう・あくび・とぎすます） |
+| `VOLATILE_MOVE_TURNS_COUNTER_KEYS` | `volatile-state.ts` | `turns` を 1 減らし、0 になったら消す（アンコール・かなしばり） |
+| `VOLATILE_TURN_SCOPED_FLAGS` | `volatile-state.ts` | 消す（まもる系・ひるみ・マジックコート・よこどり・ふんじん・そうでん・はねやすめ） |
+| `VOLATILE_UNTIL_NEXT_MOVE_FLAGS` | `volatile-state.ts` | 消さない。技を出そうとしたときに消す（みちづれ・おんねん） |
+| `SIDE_TURN_COUNTER_KEYS` | `side-state.ts` | 1 減らし、0 になったら消す（壁・おいかぜ・しんぴのまもり・しろいきり・おまじない） |
+| `SIDE_TURN_SCOPED_FLAGS` | `side-state.ts` | 消す（ワイドガード・ファストガード・トリックガード・たたみがえし） |
+| `GLOBAL_TURN_COUNTER_KEYS` | `side-state.ts` | 1 減らし、0 になったら消す（天候・フィールド・各ルーム・じゅうりょく・どろあそび・みずあそび・フェアリーロック） |
+| `GLOBAL_TURN_SCOPED_FLAGS` | `side-state.ts` | 消す（プラズマシャワー） |
+
+ねがいごと（`wish`）も、ターン終了時に `turns` を 1 減らし、0 になったら消します。
+
+どの一覧にも入らないキーは、ターン終了時には触りません。たとえば次のものです。
+
+- `confusionTurns`: 技を出そうとするたびに減らす（8 章）
+- `toxicCounter`: もうどくのダメージのたびに増やす
+- `perishCount`: ほろびのうたの処理が減らす
+- `lockedInMove`: 技を出すたびに減らす
+
+### 切れたときに効果があるもの
+
+あくびで眠る、ねがいごとで回復する、天候やフィールドが終わる、などの効果は、ターン終了時の特性・状態異常の処理の中で行います。この処理は減らす前に走るので、値が `1` なら「このターンの終わりで切れる」と判定できます。
+
+1. ターン終了時の処理が `yawnTurns === 1` を見て、眠らせる
+2. そのあとで `tickVolatileStateAtTurnEnd` が `yawnTurns` を消す
+
+天候とフィールドも同じです。`weatherTurns === 1` / `terrainTurns === 1` のとき、ターン終了時の処理で `Battle.weather` / `Battle.field` を元に戻します。
+
+### エンジンが書くキー
+
+次のキーは、技の処理の中心である `MoveExecutorService` の 1 か所だけで書くことにします。個々の技や特性の実装では書きません。まだどこも書いていないので、最初に使う項目を実装するときに `MoveExecutorService` に入れてください。
+
+- `lastMoveId`（使用者が最後に使った技）
+- `lastHitByMoveId`（最後に受けた技）
+- `GlobalFieldState.lastMoveId`（バトル全体で最後に使われた技）
+- `protectCount` を 0 に戻す処理（まもる系以外の技を使ったとき）
+
+## 5. VolatileState のキー
 
 「使う技・特性」は、これから実装するときにこのキーを読み書きする予定のものです。
 
@@ -93,8 +170,8 @@ await battleRepository.update(battle.id, {
 
 | キー | 型 | 意味 | 使う技・特性 |
 | --- | --- | --- | --- |
-| `confusionTurns` | 0 以上の整数 | こんらんの残りターン数 | こんらん（今はメモリ上で数えている。6 章） |
-| `toxicCounter` | 0 以上の整数 | もうどくの経過ターン数 | もうどく（今はメモリ上で数えている。6 章） |
+| `confusionTurns` | 0 以上の整数 | こんらんの残りターン数。こんらんかどうかは、このキーがあるかで決める | こんらん（今はメモリ上で数えている。8 章） |
+| `toxicCounter` | 0 以上の整数 | もうどくの経過ターン数 | もうどく（今はメモリ上で数えている。8 章） |
 
 ### ターン終了時に HP が増減する状態
 
@@ -120,8 +197,9 @@ await battleRepository.update(battle.id, {
 | `choiceLockedMoveId` | 技 ID | こだわり系で固定された技 | ごりむちゅう |
 | `lockedInMove` | `{ moveId, turns }` | 出し続ける技と残りターン数 | さわぐ |
 | `chargingMoveId` | 技 ID | ためている技 | ジオコントロール・くちばしキャノン |
-| `lastMoveId` | 技 ID | このポケモンが最後に使った技 | ものまね・オウムがえし・スケッチ・うらみ・いちゃもん・かなしばり・アンコール・さいはい |
-| `lastHitByMoveId` | 技 ID | このポケモンが最後に受けた技 | テクスチャー２ |
+| `lastMoveId` | 技 ID | このポケモンが最後に使った技（エンジンが書く。4 章） | ものまね・オウムがえし・スケッチ・うらみ・いちゃもん・かなしばり・アンコール・さいはい |
+| `lastHitByMoveId` | 技 ID | このポケモンが最後に受けた技（エンジンが書く。4 章） | テクスチャー２ |
+| `moveSlotOverrides` | `{ battlePokemonMoveId, moveId, currentPp, maxPp }[]` | 一時的に入れ替わった技 | ものまね・へんしん・かわりもの |
 
 さわぐの「場の誰も眠れない」は、場のポケモンの `lockedInMove` がさわぐかどうかで判定します。別のキーは持ちません。
 
@@ -136,17 +214,33 @@ await battleRepository.update(battle.id, {
 
 ### このターンだけ続くフラグ
 
-ターン終了時に消します。
+ターン終了時に消えます（`VOLATILE_TURN_SCOPED_FLAGS`）。
 
 | キー | 意味 | 使う技・特性 |
 | --- | --- | --- |
-| `destinyBond` | みちづれ | みちづれ |
-| `grudge` | おんねん | おんねん |
+| `flinched` | ひるんだ（このターンは動けない） | ひるみ・ふくつのこころ・せいしんりょく |
 | `magicCoat` | マジックコート | マジックコート |
 | `snatch` | よこどり | よこどり |
 | `powder` | ふんじんをかけられている | ふんじん |
 | `electrified` | このターンに出す技がでんきタイプになる | そうでん |
 | `roosting` | このターンはひこうタイプを失っている | はねやすめ |
+
+### 使用者が次に技を出そうとするまで続くフラグ
+
+ターン終了時には消えません。使用者が次に技を出そうとしたときに消えます（`VOLATILE_UNTIL_NEXT_MOVE_FLAGS`）。
+
+| キー | 意味 | 使う技・特性 |
+| --- | --- | --- |
+| `destinyBond` | みちづれ | みちづれ |
+| `grudge` | おんねん | おんねん |
+
+ターンをまたいでも続く例です。
+
+1. ターン N に、遅いみちづれの使用者が最後に行動する
+2. ターン N + 1 に、速い相手が使用者を倒す
+3. みちづれはまだ効いているので、相手も倒れる
+
+みちづれを続けて使ったときの失敗判定を入れるときは、`MoveExecutorService.executeMove` の消去より前で `attacker.volatileState.destinyBond` を読んでください。
 
 ### 命中・相性
 
@@ -167,6 +261,8 @@ await battleRepository.update(battle.id, {
 | `trappedByStatusId` | ポケモン ID | 逃げられなくした相手 | くろいまなざし・とおせんぼう・クモのす・たこがため |
 | `octolock` | 真偽値 | ターン終了時に防御・特防が下がる | たこがため |
 
+相手のポケモンが場を離れると、そのポケモンを指すこの 3 つは消えます（4 章）。
+
 ### 遅れて効く効果・段階
 
 | キー | 型 | 意味 | 使う技・特性 |
@@ -174,10 +270,13 @@ await battleRepository.update(battle.id, {
 | `yawnTurns` | 0 以上の整数 | 眠るまでの残りターン数 | あくび |
 | `perishCount` | 0〜3 | ほろびのうたのカウント（0 でひんし） | ほろびのうた・ほろびのボディ |
 | `stockpileCount` | 1〜3 | たくわえるの回数 | たくわえる・はきだす・のみこむ |
+| `stockpileBoosts` | `{ defense, specialDefense }`（各 0〜6） | たくわえるで実際に上がったランク | たくわえる・はきだす・のみこむ |
 | `critStageBoost` | 0 以上の整数 | 急所ランクの上昇 | きあいだめ |
 | `laserFocusTurns` | 0 以上の整数 | 次の技が必ず急所になる残りターン数 | とぎすます |
 | `charged` | 真偽値 | 次のでんき技の威力が 2 倍 | でんきにかえる |
 | `loafing` | 真偽値 | 次のターンは動かない | なまけ |
+
+`stockpileBoosts` は、ランクが +6 で上がらなかった分を数えません。のみこむ・はきだすでは、この値の分だけ防御・特防を下げます。
 
 ### 上書き
 
@@ -188,13 +287,53 @@ await battleRepository.update(battle.id, {
 | `typeOverride` | タイプ ID の配列 | タイプの上書き（空配列はタイプなし） | ミラータイプ・まほうのこな・みずびたし・テクスチャー・テクスチャー２・ほごしょく・へんしょく・へんげんじざい・リベロ・ぎたい・てんきや |
 | `addedTypeId` | タイプ ID | 3 つめに加わったタイプ | ハロウィン・もりののろい |
 | `statOverrides` | `{ attack?, defense?, specialAttack?, specialDefense?, speed? }` | 実数値の上書き（ランク補正の前の値） | パワートリック・パワーシフト・ガードシェア・パワーシェア・スピードスワップ |
-| `form` | 文字列 | 今のフォルム（`'blade'`・`'zen'`・`'busted'` など） | バトルスイッチ・ダルマモード・ばけのかわ・アイスフェイス など |
-| `illusionTrainedPokemonId` | 育成ポケモン ID | イリュージョンで化けている先 | イリュージョン |
-| `switchedInTurn` | 1 以上の整数 | 場に出たときの `Battle.turn` | スロースタート・はりこみ・たたみがえし |
+| `transformedIntoStatusId` | ポケモン ID | へんしん・かわりもので姿を写した相手 | へんしん・かわりもの |
+| `form` | 文字列 | 交代で元に戻るフォルム（`'blade'`・`'zen'` など） | バトルスイッチ・ダルマモード・うのミサイル・はらぺこスイッチ |
+| `illusionStatusId` | ポケモン ID | イリュージョンで化けている先 | イリュージョン |
+| `typeChangeAbilityUsed` | 真偽値 | へんげんじざい・リベロを、場に出てから使った | へんげんじざい・リベロ（第 9 世代は場に出るたびに 1 回） |
 
-へんしん・かわりものは、`typeOverride`・`abilityOverride`・`statOverrides` を組み合わせて表します。技の入れ替え（ものまね・スケッチ・へんしんの技）は、PP を持つ `BattlePokemonMove` の側で扱う想定で、ここには置いていません。
+交代しても戻らないフォルムは、`PersistentPokemonState.form` に置きます（6 章）。
 
-## 5. SideState のキー
+へんしん・かわりものは、`transformedIntoStatusId` で「へんしん中」を表し、`typeOverride`・`abilityOverride`・`statOverrides`・`moveSlotOverrides` を組み合わせます。スキルスワップとみずびたしを両方受けた状態とは、`transformedIntoStatusId` があるかで区別できます。
+
+### 技の入れ替え（moveSlotOverrides）
+
+ものまね・へんしん・かわりものの技は、引っ込むと元に戻ります。そのため `BattlePokemonMove.moveId` は書き換えず、`moveSlotOverrides` に置きます。
+
+- 1 つの要素が、技の欄 1 つ分の入れ替えです。`battlePokemonMoveId` が入れ替える前の欄、`moveId` / `currentPp` / `maxPp` が代わりの技です（へんしんは各 5 PP）。
+- 技を選ぶ処理（`ExecuteTurnUseCase` の `battlePokemonMoves.find(...)`）と、PP を減らす処理（`MoveExecutorService`）は、`moveSlotOverrides` を先に見ます。まだ見ていないので、ものまね・へんしんを実装するときに直してください。今のままでは、覚えた技を選ぶと「Move not found」になります。
+- 交代で `volatileState` ごと消えるので、元に戻す処理は要りません。
+- スケッチはずっと残るので、今までどおり `BattlePokemonMove.moveId` を書き換えます。
+
+### 場に出たタイミング
+
+| キー | 型 | 意味 | 使う技・特性 |
+| --- | --- | --- | --- |
+| `switchedInTurn` | 0 以上の整数 | 場に出たときの `Battle.turn`。先発は `0` | スロースタート・はりこみ・たたみがえし・ねこだまし・であいがしら |
+
+先発は `0`、ターン N に交代で出たら `N` です。出てから最初に行動するターンは `switchedInTurn + 1` になります。技ごとの比べ方は次のとおりです。
+
+| 技・特性 | 条件 |
+| --- | --- |
+| ねこだまし・であいがしら・たたみがえし（出てから最初の行動） | `battle.turn === switchedInTurn + 1` |
+| はりこみ（相手がこのターンに交代で出てきた） | `target.switchedInTurn === battle.turn` |
+| スロースタート（出てから 5 ターン） | `battle.turn - switchedInTurn <= 5` |
+
+## 6. PersistentPokemonState のキー
+
+交代しても消えません。ひんしになっても消しません（さいきのいのりで復活したときに引き継ぎます）。
+
+| キー | 型 | 意味 | 使う技・特性 |
+| --- | --- | --- | --- |
+| `sleepTurns` | 0 以上の整数 | ねむりの残りターン数（交代しても続く） | ねむり・ねむる・はやおき（今はメモリ上で数えている。8 章） |
+| `form` | 文字列 | 交代しても戻らないフォルム（`'hero'`・`'ash'`・`'complete'` など） | マイティチェンジ・きずなへんげ・スワームチェンジ |
+| `disguiseBusted` | 真偽値 | ばけのかわが破れた | ばけのかわ |
+| `iceFaceBroken` | 真偽値 | アイスフェイスが壊れた（ゆきで戻る） | アイスフェイス |
+| `oncePerBattleAbilityUsed` | 真偽値 | 1 バトルに 1 回だけの特性を使った | ふとうのけん・ふくつのたて・きずなへんげ |
+
+マイティチェンジは、引っ込むことでフォルムが変わります。引っ込むときに `PersistentPokemonState.form` に `'hero'` を書いてください。
+
+## 7. SideState のキー
 
 ```ts
 type SideState = {
@@ -203,7 +342,7 @@ type SideState = {
 };
 ```
 
-JSON のキーは文字列なので、`sides` のキーはトレーナー ID を文字列にしたもの（`'1'`・`'2'`）です。直接触らず、`getSideConditions` / `updateSideConditions` を使ってください。空になった陣営や `global` はキーごと消えます。
+JSON のキーは文字列なので、`sides` のキーはトレーナー ID を文字列にしたもの（`'1'`・`'2'`）です。直接触らず、`getSideConditions` と部分更新のメソッドを使ってください。空になった陣営や `global` はキーごと消えます。
 
 ### SideConditions（片方の陣営）
 
@@ -213,8 +352,8 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | `lightScreenTurns` | 0 以上の整数 | ひかりのかべの残りターン数 | ひかりのかべ・すりぬけ・バリアフリー・コートチェンジ |
 | `auroraVeilTurns` | 0 以上の整数 | オーロラベールの残りターン数 | オーロラベール・すりぬけ・バリアフリー・コートチェンジ |
 | `tailwindTurns` | 0 以上の整数 | おいかぜの残りターン数 | おいかぜ・コートチェンジ |
-| `safeguardTurns` | 0 以上の整数 | しんぴのまもりの残りターン数 | しんぴのまもり・すりぬけ |
-| `mistTurns` | 0 以上の整数 | しろいきりの残りターン数 | しろいきり・すりぬけ |
+| `safeguardTurns` | 0 以上の整数 | しんぴのまもりの残りターン数 | しんぴのまもり・すりぬけ・コートチェンジ |
+| `mistTurns` | 0 以上の整数 | しろいきりの残りターン数 | しろいきり・すりぬけ・コートチェンジ |
 | `luckyChantTurns` | 0 以上の整数 | おまじないの残りターン数 | おまじない |
 | `spikesLayers` | 1〜3 | まきびしの層 | まきびし・コートチェンジ |
 | `toxicSpikesLayers` | 1〜2 | どくびしの層 | どくびし・どくげしょう・コートチェンジ |
@@ -225,9 +364,29 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | `craftyShield` | 真偽値 | このターンのトリックガード | トリックガード |
 | `matBlock` | 真偽値 | このターンのたたみがえし | たたみがえし |
 | `wish` | `{ turns, healAmount }` | ねがいごと。`turns` ターン後に場のポケモンを回復する | ねがいごと |
-| `lunarDancePending` | 真偽値 | 次に出てきたポケモンを全回復する | みかづきのまい |
+| `healingWish` | `'healingWish' \| 'lunarDance'` | 次に出てきたポケモンを回復する技 | いやしのねがい（HP と状態異常）・みかづきのまい（PP も） |
+| `pendingChoice` | `{ reason }` | 交代先（復活させるポケモン）の選択を待っている | とんぼがえり・すてゼリフ・テレポート・バトンタッチ・しっぽきり・ききかいひ・にげごし・さいきのいのり |
 
-コートチェンジは、`sides` の 2 つの陣営の中身を入れ替えるだけで実装できます。
+### コートチェンジ
+
+コートチェンジは `swapCourtChangeConditions(state, trainerIdA, trainerIdB)` で実装します。入れ替えるのは `COURT_CHANGE_KEYS` のキーだけです（壁・おいかぜ・しんぴのまもり・しろいきり・おまじない・設置技）。
+
+次のキーは入れ替えません。陣営の中身を丸ごと入れ替えると、相手のねがいごとで自分のポケモンが回復したり、相手のワイドガードが移ったりします。
+
+- `wish`・`healingWish`
+- `wideGuard`・`quickGuard`・`craftyShield`・`matBlock`
+- `pendingChoice`
+
+### 交代先の選択（pendingChoice）
+
+技や特性のあとでプレイヤーが交代先を選ぶ仕組みは、`pendingChoice` を使う案に決めます。流れは次のとおりです。
+
+1. 技や特性の処理が、交代する側の陣営に `pendingChoice` を書く
+2. `ExecuteTurnUseCase` は、そこでターンの処理を止めて結果を返す
+3. クライアントが交代先（復活させるポケモン）を選んで送る
+4. 交代して `pendingChoice` を消し、残りの行動とターン終了時の処理を続ける
+
+`ExecuteTurnParams` に交代先を先に入れておく案は採りません。技が当たるか、ききかいひが発動するかは、ターンの途中まで分からないためです。2〜4 の API と処理はまだありません。最初に使う項目を実装するときに作ってください。
 
 ### GlobalFieldState（両陣営）
 
@@ -235,6 +394,8 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 | キー | 型 | 意味 | 使う技・特性 |
 | --- | --- | --- | --- |
+| `weatherTurns` | 0 以上の整数 | `Battle.weather` の天候の残りターン数。キーがない天候は終わらない | あまごい・にほんばれ・すなあらし・ゆき・あめふらし など |
+| `weatherSourceStatusId` | ポケモン ID | ゲンシ天候を出したポケモン。このポケモンが場を離れたら天候が終わる | はじまりのうみ・おわりのだいち・デルタストリーム |
 | `trickRoomTurns` | 0 以上の整数 | トリックルームの残りターン数 | トリックルーム |
 | `gravityTurns` | 0 以上の整数 | じゅうりょくの残りターン数 | じゅうりょく |
 | `wonderRoomTurns` | 0 以上の整数 | ワンダールームの残りターン数 | ワンダールーム |
@@ -244,36 +405,55 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | `fairyLockTurns` | 0 以上の整数 | フェアリーロックの残りターン数 | フェアリーロック |
 | `terrainTurns` | 0 以上の整数 | `Battle.field` の残りターン数 | グラスフィールドなどのフィールド |
 | `ionDeluge` | 真偽値 | このターンだけ、ノーマル技がでんき技になる | プラズマシャワー |
-| `lastMoveId` | 技 ID | バトル全体で最後に使われた技 | まねっこ |
+| `lastMoveId` | 技 ID | バトル全体で最後に使われた技（エンジンが書く。4 章） | まねっこ |
 
-## 6. まだしていないこと
+### 天候について
 
-### 交代で引っ込むときの消去
+- `Weather` enum（`battle.entity.ts` と `prisma/schema.prisma`）には、まだ `Snow`（ゆき）とゲンシ天候（`HarshSunlight`・`HeavyRain`・`StrongWinds`）がありません。さむいギャグ・ゆきふらし（第 9 世代）・ゲンシ天候を入れるときは、enum に値を足し、Prisma の enum のマイグレーションを作ってください。
+- ゲンシ天候は普通の天候で上書きできません。`weatherSourceStatusId` があるときは、天候を出す処理は何もしないでください。
+- 今ある天候とフィールドを出す処理は、残りターン数を書いていません。そのため天候もフィールドも終わりません。`weatherTurns` / `terrainTurns` を使い始めるときは、次の処理にも残りターン数を書く変更が要ります。
+  - `src/modules/pokemon/domain/abilities/effects/base/base-weather-effect.ts`（あめふらし・ひでり・すなおこし・ゆきふらし）
+  - `src/modules/pokemon/domain/moves/effects/base/base-weather-move-effect.ts`（あまごい・にほんばれ など）
+  - `src/modules/pokemon/domain/abilities/effects/weather/*-surge-effect.ts`（エレキメイカー など）
+  - `src/modules/pokemon/domain/moves/effects/*-terrain-effect.ts`（エレキフィールド など）
 
-`volatileState` の多くは、交代で引っ込むと消えるはずです。ただし、今は消していません。交代の動きは今までと同じです。
-
-消す処理は `PokemonSwitcherService.executeSwitch`（`src/modules/battle/application/services/pokemon-switcher.service.ts`）に入れます。引っ込むポケモンを `updateBattlePokemonStatus(currentActive.id, { isActive: false, statusCondition })` で更新している所です。ここで `volatileState` も一緒に渡します。
-
-入れるときは次の点に気をつけてください。
-
-1. 引っ込んでも消さないキーがある（たとえば `form` のうち、ばけのかわの `'busted'` はバトル中ずっと残る）
-2. バトンタッチは `substituteHp`・`confusionTurns`・`leechSeed`・`cursed`・`ingrain`・`aquaRing`・`perishCount`・`trappedByStatusId` などを次のポケモンに引き継ぐ
-3. 場に出たときに `switchedInTurn` を書き込む（出てくる側の `updateBattlePokemonStatus(targetStatus.id, { isActive: true })` の所）
-4. 相手を逃げられなくしたポケモンが引っ込んだら、相手の `trappedByStatusId` と `infatuatedWithStatusId` も消す
+## 8. まだしていないこと
 
 ### メモリ上だけで数えている状態
 
-`StatusConditionProcessorService`（`src/modules/battle/application/services/status-condition-processor.service.ts`）は、もうどく・ねむり・こんらんのターン数を `Map` に持っています。サーバーを再起動すると、この数は 0 に戻ります。
+`StatusConditionProcessorService`（`src/modules/battle/application/services/status-condition-processor.service.ts`）は、もうどく・ねむり・こんらんのターン数を `Map` に持っています。サーバーを再起動すると、この数は 0 に戻ります。移すときは次のようにします。
 
-この 3 つは今回は移していません。移すときは次のようにします。
+1. もうどく: `volatileState.toxicCounter` を使う。交代で消えるのは今と同じ
+2. ねむり: `persistentState.sleepTurns` を使う。今の `Map` は経過ターン数を数えているので、眠らせるときに残りターン数を決めて書き、減らしていく形に変える
+3. こんらん: 次の 3 点を守る
 
-1. もうどく: `toxicCounter` を使う
-2. こんらん: `confusionTurns` を使う
-3. ねむり: ねむりは交代しても続くので、`volatileState` には置かない。`BattlePokemonStatus` に別の列を足すか、交代で消さないキーとして扱う
+こんらんの移し方の 3 点です。
 
-## 7. キーの足し方
+1. こんらんかどうかは `volatileState.confusionTurns` があるかで決め、`StatusCondition.Confusion` は使わなくする。直す箇所は次のとおり
+   - `src/modules/battle/application/services/move-executor.service.ts`（技を出す前のこんらんの判定）
+   - `src/modules/battle/application/services/status-condition-processor.service.ts`（こんらんの解除）
+   - `src/modules/battle/domain/logic/status-condition-handler.ts`
+   - `src/modules/pokemon/domain/abilities/effects/stat-change/tangled-feet-effect.ts`（ちどりあし）
+   - `src/modules/pokemon/domain/abilities/effects/other/inner-focus-effect.ts`
+   - こんらんにする技（`confuse-ray-effect.ts`・`supersonic-effect.ts`・`sweet-kiss-effect.ts`・`teeter-dance-effect.ts`・`base-confuse-with-stat-boost-effect.ts` など）
+2. こんらんの付与は、`src/modules/pokemon/domain/battle-events/status-infliction.ts` の `canInflictStatus` を通さない。55 行目は「すでに状態異常がある」と付与を断るので、今はやけど中のポケモンがこんらんしない
+3. `confusionTurns` は残りターン数。今の `Map` は経過ターン数を数えている（`shouldClearConfusion(count)`）ので、付与するときに残りターン数を決めて書き、技を出そうとするたびに 1 減らす形に変える
 
-例として、`VolatileState` に「アンコールのように技とターン数を持つ」キーを足す場合です。`SideConditions` / `GlobalFieldState` も同じ手順です。
+ひるみも同じです。`StatusCondition.Flinch` をやめ、`volatileState.flinched` を使います。`flinched` はターン終了時に自動で消えます（4 章）。直す箇所は、ひるませる技（`bite-effect.ts`・`fake-out-effect.ts`・`headbutt-effect.ts` など）、`status-condition-processor.service.ts` のひるみの解除、`status-infliction.ts`、`inner-focus-effect.ts`（せいしんりょく）です。ひるみも、状態異常のチェックを通さずに付与します。
+
+### バトンタッチ・しっぽきりの引き継ぎ
+
+交代で引っ込むと `volatileState` はすべて消えます。バトンタッチは `substituteHp`・`confusionTurns`・`leechSeed`・`cursed`・`ingrain`・`aquaRing`・`perishCount`・`trappedByStatusId` などを、しっぽきりは `substituteHp` を次のポケモンに引き継ぎます。引き継ぐ処理は、引っ込む前の状態を読んでおき、場に出たあとで次のポケモンに部分更新で書いてください。
+
+### API で状態をそのまま返している
+
+`battle.controller.ts` の `POST /battle/start`・`POST /battle/:id/turn`・`GET /battle/:id` は、entity をそのまま返しています。そのため `volatileState`・`persistentState`・`sideState` が、両方のプレイヤーにそのまま見えます。
+
+イリュージョンを実装する前に、controller で状態を response DTO に詰め替えてください。そのとき、相手に見せないキー（`illusionStatusId` など）を外します。
+
+## 9. キーの足し方
+
+例として、`VolatileState` に「アンコールのように技とターン数を持つ」キーを足す場合です。`PersistentPokemonState` / `SideConditions` / `GlobalFieldState` も同じ手順です。
 
 1. `volatile-state.ts` の `VolatileState` にキーを足す。任意（`?`）にし、`readonly` を付け、日本語のコメントを書く
 2. 同じファイルの `VOLATILE_STATE_PARSERS` に読み方を足す（足さないとコンパイルが通らない）
@@ -285,8 +465,12 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
    - 配列: `arrayOf(...)`
    - キーがすべて必須のオブジェクト: `requiredFieldsOf({...})`
    - キーがすべて任意のオブジェクト: `optionalFieldsOf({...})`
-3. `volatile-state.spec.ts` の「正しい値はそのまま読み込む」にキーを足し、型が合わない値を捨てるテストも足す
-4. この文書の表に 1 行足す
-5. マイグレーションは要らない（JSON 列の中身が増えるだけ）
+3. 片付けのグループを決める（4 章の一覧のどれかに入れるか、どれにも入れないか）。`〜Turns` のキーをターン終了時に減らさないときは、テストの例外にも足す
+4. `volatile-state.spec.ts` を直す
+   - `FULL_VOLATILE_STATE` にキーを足す（`Required` なので、足さないとコンパイルが通らない）。往復のテストと、読み方の表とのキーの一致のテストがこれを使う
+   - 数値のキーなら `LOWER_BOUNDS` に足す（足さないとテストが落ちる）。上限があれば `UPPER_BOUNDS` にも足す
+   - 型が合わない値を捨てるテストを足す
+5. この文書の表に 1 行足す
+6. マイグレーションは要らない（JSON 列の中身が増えるだけ）
 
 型は JSON にできる値（数値・真偽値・文字列・配列・オブジェクト）だけで組んでください。`Date`・`Map`・`Set`・`undefined` を値に使うと、保存したときに消えたり形が変わったりします。型は `interface` ではなく `type` で書きます。`interface` にすると、リポジトリで Prisma の JSON 型に渡せなくなります。
