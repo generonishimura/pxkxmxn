@@ -261,6 +261,7 @@ import { ChipAwayEffect } from './effects/chip-away-effect';
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 // 一時的な状態を書く技（Issue #103 一部）
 import { StockpileEffect } from './effects/stockpile-effect';
+import { PowerTrickEffect } from './effects/power-trick-effect';
 
 /**
  * 技のレジストリ
@@ -630,6 +631,7 @@ export class MoveRegistry {
       this.registry.set('シャドースチール', new SpectralThiefEffect());
       // 一時的な状態を書く技（Issue #103 一部）
       this.registry.set('たくわえる', new StockpileEffect());
+      this.registry.set('パワートリック', new PowerTrickEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
