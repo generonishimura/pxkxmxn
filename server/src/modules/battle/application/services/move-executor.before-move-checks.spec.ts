@@ -389,6 +389,33 @@ describe('MoveExecutorService - 技を出す前の判定（BeforeMoveChecker）'
     expect(statuses.get(ATTACKER_ID).volatileState.charged).toBe(true);
   });
 
+  it('まひで動けなかったら、まもるを続けた回数（protectCount）を消す', async () => {
+    // Arrange
+    jest.spyOn(StatusConditionHandler, 'canAct').mockReturnValue(false);
+    const { execute, statuses } = setupMoveExecutor({
+      attacker: { statusCondition: StatusCondition.Paralysis, volatileState: { protectCount: 2 } },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(ATTACKER_ID).volatileState.protectCount).toBeUndefined();
+  });
+
+  it('反動で動けないターンも、まもるを続けた回数（protectCount）を消す', async () => {
+    // Arrange
+    const { execute, statuses } = setupMoveExecutor({
+      attacker: { volatileState: { mustRecharge: true, lastMoveId: 1, protectCount: 1 } },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(ATTACKER_ID).volatileState.protectCount).toBeUndefined();
+  });
+
   it('技を出せなかったときは、ため技と出し続ける技の状態を消す', async () => {
     // Arrange
     const { execute, statuses } = setupMoveExecutor({

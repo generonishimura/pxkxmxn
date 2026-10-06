@@ -113,7 +113,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | 交代で引っ込むとき | `PokemonSwitcherService.executeSwitch` | 引っ込むポケモンの `volatileState` をすべて消す（`clearVolatileOnSwitchOut`）。`persistentState` は残す |
 | 交代で引っ込んだあと | `PokemonSwitcherService.executeSwitch` | ほかのポケモンの、引っ込んだポケモンによる `trappedByStatusId`・`octolock`・`infatuatedWithStatusId` を消す（`releaseVolatileReferencesTo`） |
 | 交代で場に出たとき | `PokemonSwitcherService.executeSwitch` | `switchedInTurn` に今の `Battle.turn` を書く。`transfer` を渡したときは、引っ込む前の状態から引き継ぐキーも書く（10 章） |
-| 技を出そうとしたとき | `BeforeMoveChecker.check` | 最初に `grudge` を消す。反動のターンは `mustRecharge` を消す。こんらんの `confusionTurns` を 1 減らす。技を出せなかったら（反動のターンも）`destinyBond` を消し、反動以外で止まったら `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` も消す。でんき技（じゅうでんを除く）で止まったら `charged` も消す |
+| 技を出そうとしたとき | `BeforeMoveChecker.check` | 最初に `grudge` を消す。反動のターンは `mustRecharge` を消す。こんらんの `confusionTurns` を 1 減らす。技を出せなかったら（反動のターンも）`destinyBond`・`protectCount` を消し、反動以外で止まったら `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` も消す。でんき技（じゅうでんを除く）で止まったら `charged` も消す |
 | 技を出す前の判定を通ったとき | `MoveLifecycle.recordMoveUse` | 使用者の `destinyBond`・`grudge` を消す（`clearVolatileOnBeforeMove`。技を出せなかったときは `BeforeMoveChecker` が消す）。`lastMoveId`・`GlobalFieldState.lastMoveId`・`choiceLockedMoveId` を書き、`protectCount` を消す |
 | 技を出したあと | `MoveLifecycle.afterMove` | `mustRecharge`・`lockedInMove`・`uproar`・`consecutiveMoveCount` を書き直し、でんき技なら `charged` を消す |
 | ターン終了時（特性の前） | `StatusConditionProcessorService.processTurnEndAbilities` → `VolatileResidualProcessor` | すなあらし・ねがいごと・アクアリング・ねをはる・やどりぎのタネ・あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた（10 章） |
@@ -164,7 +164,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `consecutiveMoveCount` | `recordMoveUse` / `afterMove` | 同じ技を続けて成功させた回数。技の処理の中では「この技を直前まで続けて成功させた回数」（別の技なら、ない） |
 | `lastHitByMoveId` | 技の本体 | 1 以上のダメージを受けた技 |
 | `GlobalFieldState.lastMoveId` | `recordMoveUse` | バトル全体で最後に出た技（呼ばれた技も書く。まねっこが読む） |
-| `protectCount` | `recordMoveUse` | まもる系（技の `isProtectionMove`）以外の技を出したら消す |
+| `protectCount` | `recordMoveUse` / `BeforeMoveChecker` | まもる系（技の `isProtectionMove`）以外の技を出したら消す。技を出せなかったとき（ひるみ・まひ・ねむり・反動など）も消す（本家の stall は、次のターンにまもる系を成功させなければ切れる） |
 | `choiceLockedMoveId` | `recordMoveUse` | 特性の `locksMoveChoice`（ごりむちゅう）なら、最初に出した技（わるあがきを除く） |
 | `chargingMoveId`・`semiInvulnerable` | `MoveLifecycle.handleChargeTurn` | ため技の 1 ターン目に書き、2 ターン目・技を出せなかったときに消す |
 | `mustRecharge` | `afterMove` / `BeforeMoveChecker` | 反動技（`MoveBehaviors` の `recharge`）が当たったら書き、次の行動で消す |
@@ -507,7 +507,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 8. `infatuatedWithStatusId`: 相手がそのポケモンなら 50% で動けない
 9. まひ: 25% で動けない
 
-判定の前に `grudge` を消します。1〜9 で止まったときは `destinyBond` を消し、2〜9 で止まったときは `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` も消します。でんき技（じゅうでんを除く）で止まったときは `charged` も消します。
+判定の前に `grudge` を消します。1〜9 で止まったときは `destinyBond`・`protectCount` を消し、2〜9 で止まったときは `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` も消します。でんき技（じゅうでんを除く）で止まったときは `charged` も消します。
 
 ### 行動を決めるとき（`ExecuteTurnUseCase.planAction`）
 

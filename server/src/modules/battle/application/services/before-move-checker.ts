@@ -61,7 +61,7 @@ const INFATUATION_IMMOBILIZE_CHANCE = 0.5;
  * 9. まひ: 25% で動けない
  *
  * 判定の前に、おんねん（grudge）を消す（本家の onBeforeMove 優先度 100）
- * 1〜9 で技を出せなかったときは、みちづれ（destinyBond）を消す（本家の onMoveAborted）
+ * 1〜9 で技を出せなかったときは、みちづれ（destinyBond）とまもるを続けた回数（protectCount）を消す
  * 2〜9 で技を出せなかったときは、ため技・出し続ける技の状態も消す（ころがる・あばれるなどが止まる）。
  * でんき技なら、じゅうでん（charged）も消す
  */
@@ -85,7 +85,7 @@ export class BeforeMoveChecker {
       await this.battleRepository.patchVolatileState(attacker.id, {
         mustRecharge: null,
         loafing: null,
-        ...this.untilNextMovePatch(attacker.volatileState),
+        ...this.abortedMovePatch(attacker.volatileState),
       });
       return { cancelled: true, message: 'Pokemon must recharge' };
     }
@@ -176,7 +176,7 @@ export class BeforeMoveChecker {
   }
 
   /**
-   * 技を出せなかったときの片付け（ため技・出し続ける技・連続で出した回数・みちづれとおんねんを消す）
+   * 技を出せなかったときの片付け（ため技・出し続ける技・連続で出した回数・みちづれとおんねん・まもるを続けた回数を消す）
    * でんき技（じゅうでんを除く）を出せなかったときは、じゅうでん（charged）も消す（第 9 世代の本家の onMoveAborted）
    * 注: 技のタイプは技本来のタイプで判定する（本家も、タイプを変える処理は技を出したあとに走る）
    */
@@ -186,7 +186,7 @@ export class BeforeMoveChecker {
     message: string,
   ): Promise<BeforeMoveResult> {
     const state = attacker.volatileState;
-    const patch: MutableStatePatch<VolatileState> = this.untilNextMovePatch(state);
+    const patch: MutableStatePatch<VolatileState> = this.abortedMovePatch(state);
     if (state.charged === true && move.type.name === 'でんき' && move.name !== CHARGE_MOVE_NAME) {
       patch.charged = null;
     }
@@ -212,15 +212,20 @@ export class BeforeMoveChecker {
   }
 
   /**
-   * 技を出せなかったときに消す、次に技を出そうとするまで続くキー（みちづれ・おんねん）の patch
-   * 本家はみちづれを onMoveAborted で、おんねんを onBeforeMove で消す。技を出せたときは MoveLifecycle.recordMoveUse が消す
+   * 技を出せなかったとき（反動のターンを含む）に消すキーの patch
+   * - みちづれ・おんねん（次に技を出そうとするまで続くキー）: 本家はみちづれを onMoveAborted で、おんねんを onBeforeMove で消す
+   * - まもるを続けた回数（protectCount）: 本家の stall は duration 2 なので、次のターンにまもる系を成功させなければ切れる
+   * 技を出せたときは MoveLifecycle.recordMoveUse が消す
    */
-  private untilNextMovePatch(state: VolatileState): MutableStatePatch<VolatileState> {
+  private abortedMovePatch(state: VolatileState): MutableStatePatch<VolatileState> {
     const patch: MutableStatePatch<VolatileState> = {};
     for (const key of VOLATILE_UNTIL_NEXT_MOVE_FLAGS) {
       if (state[key] !== undefined) {
         patch[key] = null;
       }
+    }
+    if (state.protectCount !== undefined) {
+      patch.protectCount = null;
     }
     return patch;
   }
