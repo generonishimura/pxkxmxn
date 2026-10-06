@@ -262,6 +262,7 @@ import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 // 一時的な状態を付与する技（Issue #104, #107 一部）
 import { LeechSeedEffect } from './effects/leech-seed-effect';
 import { NightmareEffect } from './effects/nightmare-effect';
+import { CurseEffect } from './effects/curse-effect';
 
 /**
  * 技のレジストリ
@@ -632,6 +633,7 @@ export class MoveRegistry {
       // 一時的な状態を付与する技（Issue #104, #107 一部）
       this.registry.set('やどりぎのタネ', new LeechSeedEffect());
       this.registry.set('あくむ', new NightmareEffect());
+      this.registry.set('のろい', new CurseEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
