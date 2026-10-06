@@ -48,6 +48,8 @@ export interface StatusInflictionOptions {
  * 2. タイプによる免疫。状態異常そのものの免疫（STATUS_IMMUNE_TYPES）は、付与元の特性の
  *    bypassesStatusTypeImmunity（ふしょく）が true なら無視する。immuneTypes で足した免疫は無視できない
  * 3. 対象の特性の canReceiveStatusCondition。技で付与するときは、付与元のかたやぶりで無視される
+ *
+ * ねむりは、場の誰かがさわいでいる（volatileState.uproar）と付与できない（さわいでいるポケモン自身も）
  */
 export const canInflictStatus = async (
   target: BattlePokemonStatus,
@@ -63,6 +65,9 @@ export const canInflictStatus = async (
       return false;
     }
   } else if (target.statusCondition && target.statusCondition !== StatusCondition.None) {
+    return false;
+  }
+  if (statusCondition === StatusCondition.Sleep && (await isUproarActive(target, battleContext))) {
     return false;
   }
 
@@ -130,6 +135,31 @@ export const canInflictStatus = async (
     targetAbility.canReceiveStatusCondition(target, statusCondition, battleContext, source) !==
     false
   );
+};
+
+/**
+ * 場の誰かがさわいでいるか（さわぐの間は、場の誰も眠れない）
+ * 対象・コンテキストの攻撃側と防御側を見る。シングルバトルでは攻撃側と防御側が場の 2 匹なので、
+ * どちらかがコンテキストにないとき（ターン終了時など）だけ、場のポケモンを読み直して確かめる
+ */
+export const isUproarActive = async (
+  target: BattlePokemonStatus,
+  battleContext: BattleContext,
+): Promise<boolean> => {
+  const known = [target, battleContext.attacker, battleContext.defender];
+  if (known.some(pokemon => pokemon?.volatileState.uproar === true)) {
+    return true;
+  }
+  if (battleContext.attacker && battleContext.defender) {
+    return false;
+  }
+  const battleId = battleContext.battle?.id;
+  if (battleId === undefined || !battleContext.battleRepository) {
+    return false;
+  }
+  const statuses =
+    (await battleContext.battleRepository.findBattlePokemonStatusByBattleId(battleId)) ?? [];
+  return statuses.some(status => status.isActive && status.volatileState.uproar === true);
 };
 
 /**
