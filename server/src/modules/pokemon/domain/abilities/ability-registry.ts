@@ -81,6 +81,10 @@ import { BerserkEffect } from './effects/stat-change/berserk-effect';
 import { HyperCutterEffect } from './effects/stat-change/hyper-cutter-effect';
 import { KeenEyeEffect } from './effects/stat-change/keen-eye-effect';
 import { FurCoatEffect } from './effects/damage-modify/fur-coat-effect';
+import { VesselOfRuinEffect } from './effects/damage-modify/vessel-of-ruin-effect';
+import { SwordOfRuinEffect } from './effects/damage-modify/sword-of-ruin-effect';
+import { TabletsOfRuinEffect } from './effects/damage-modify/tablets-of-ruin-effect';
+import { BeadsOfRuinEffect } from './effects/damage-modify/beads-of-ruin-effect';
 
 /**
  * 特性レジストリ
@@ -226,6 +230,11 @@ export class AbilityRegistry {
       this.registry.set('するどいめ', new KeenEyeEffect());
       // ファーコート: 物理ダメージ半減（Issue #84 一部、ふしぎなうろこと同パターン）
       this.registry.set('ファーコート', new FurCoatEffect());
+      // わざわい系・フラワーギフト・きよめのしお（Issue #135 一部）
+      this.registry.set('わざわいのうつわ', new VesselOfRuinEffect());
+      this.registry.set('わざわいのつるぎ', new SwordOfRuinEffect());
+      this.registry.set('わざわいのおふだ', new TabletsOfRuinEffect());
+      this.registry.set('わざわいのたま', new BeadsOfRuinEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
