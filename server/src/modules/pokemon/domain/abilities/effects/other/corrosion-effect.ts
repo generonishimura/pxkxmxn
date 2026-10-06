@@ -7,8 +7,8 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
  * はがねタイプ・どくタイプの相手も、どく・もうどくにできる
  *
  * - タイプによる免疫だけを無視する。めんえきなどの特性や、粉技のくさタイプの免疫では防がれる
- * - canInflictStatus が付与元の特性として呼ぶ。変化技（どくどく）・技の追加効果・特性（どくしゅ）のどれにも効く
- * 注: どくのいと・サイコシフトは inflictStatus を通らないため、ふしょくでもはがね・どくタイプをどくにできない
+ * - 持ち主の技（変化技のどくどく・どくのいと、攻撃技の追加効果）で canInflictStatus を通るものに効く。
+ *   canInflictStatus が付与元の特性として呼ぶ
  */
 export class CorrosionEffect implements IAbilityEffect {
   bypassesStatusTypeImmunity(

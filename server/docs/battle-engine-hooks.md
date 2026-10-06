@@ -237,7 +237,7 @@ ignoresTypeImmunity(_p: BattlePokemonStatus, moveType: string, defenderType: str
 
 - シグネチャ: `isImmuneToMove?(pokemon, battleContext): boolean | undefined`
 - 呼ばれる場所: `executeMove`。命中判定の前。変化技を含む、相手を対象にする技（`MoveFlags.targetsOpponent`）だけ。かたやぶりで無視される
-- 使う特性: ぼうおん、ぼうだん、ぼうじん（粉技）、かぜのり（変化技の風技）
+- 使う特性: ぼうおん、ぼうだん、ぼうじん（粉技）、かぜのり（風技。攻撃技・変化技とも）
 - `true` を返すと PP だけ減り、`Used <技> but it had no effect` になります。能力を上げるなどの副作用は `onMoveBlocked` に書きます（変化技にも使えます）。
 
 ```ts
@@ -411,7 +411,7 @@ async onOpponentStatChanged(holder: BattlePokemonStatus, _o: BattlePokemonStatus
 ### isImmuneToType（既存。コンテキストが増えた）
 
 - 呼ばれる場所: `DamageCalculator`。`battleContext.typeEffectiveness` と `moveFlags` が入るようになりました。混乱の自傷では呼ばれません
-- 使う特性: ふしぎなまもり（効果抜群以外を無効）、ぼうだん・かぜのりのダメージ技部分
+- 使う特性: ふしぎなまもり（効果抜群以外を無効）。ぼうだん・かぜのりは攻撃技も `isImmuneToMove` で止めるので、ここには書きません
 
 ```ts
 isImmuneToType(_p: BattlePokemonStatus, _type: string, ctx?: BattleContext): boolean {
@@ -566,6 +566,9 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - 混乱の自傷ダメージでは、特性のフック（`isImmuneToType`・`modifyBasePower`・`modifyAnyBasePower`・`modifyDamageDealt`・`modifyDamage`）を呼びません。本家と同じく、能力値とランクだけで決まります。
 - ポケモンの重さのデータがないため、重さを使う効果（ヘヴィメタル、ライトメタル、けたぐり等）は実装できません。
 - `onDamagingHit` / `onSourceDamagingHit` はヒットごとですが、`applyContactStatusCondition` と技の `onHit` は今までどおり技全体で1回です。
+- `onDamagingHit` / `onSourceDamagingHit` は、技の `onHit`（追加効果）より先に呼ばれます。本家（Showdown の `spreadMoveHit`）は追加効果のあとに `DamagingHit` を呼びます。そのため、どくしゅの使い手が状態異常の追加効果を持つ接触技（ほっぺすりすりなど）を使うと、ここでは先にどくしゅが判定され、技自身の状態異常が失敗することがあります（本家は技の状態異常が先）。
+- 特性や技が書き換えた天候・フィールド（すなはき・こぼれダネ・あまごいなど）は、その技の残りのヒット・同じターンの相手の技・ターン終了時の処理には反映されません。`execute-turn` がターンの初めに読んだ `battle` を使い続けるためです。次のターンから反映されます。
+- 場に出たときの特性（`onEntry`）はメッセージを返せません。いかくで発動したびびりの「Speed rose!」や、ノーてんき・エアロックの登場時のメッセージは出ません。
 - 状態異常は1つの欄（`statusCondition`）に入るため、ひるみ・こんらんは状態異常と同時に持てません。あくしゅうのひるみも、相手が状態異常なら付与できません（ひるみ技と同じ）。
 - 次の効果は `applyStatChanges` を通らず、ランクを直接書きます。たんじゅん・あまのじゃく・ミラーアーマー・びんじょうなどは効きません: はらだいこ、はいすいのじん、ソウルビート、みをけずる、つぼをつく、ナインエボルブースト、ブレイブチャージ、ほおばる、じばそうさ・ギアアップ（`BasePlusMinusSelfStatBoostEffect`）、たがやす・フラワーガード（`BaseGrassTypeStatBoostEffect`）、いばる・おだてる（`BaseConfuseWithStatBoostEffect`）、おきみやげ、どくのいと、ひっくりかえす、くろいきり・クリアスモッグ、じこあんじ、ガードスワップなどの入れ替え技、かそく・ムラっけ・まけんき・かちき・そうしょく・でんきエンジン・ひらいしん・よびみず・こんがりボディ（`BaseTypeImmunityWithStatBoostEffect`）・こんじょう（`kongyou-effect.ts` の `GutsHpThresholdEffect`）などの既存の特性。必要になったら `applyStatChanges` に乗せ換えます。
 - トライアタック（`TriAttackEffect`）・どくのいと（`ToxicThreadEffect`）・サイコシフト（`PsychoShiftEffect`）は `canInflictStatus` / `inflictStatus` に乗せ換え済みです（シンクロ・ふしょく・`onInflictStatus` などが効く）。サイコシフトは相手に移してから使用者を治すので、相手がシンクロでもうつし返されません（本家と同じ）。

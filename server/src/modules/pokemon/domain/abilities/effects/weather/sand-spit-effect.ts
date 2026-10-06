@@ -11,6 +11,8 @@ import { Weather } from '@/modules/battle/domain/entities/battle.entity';
  * - 自分がひんしになったヒットでも発動する（本家と同じ）
  * - すでにすなあらしなら何もしない。連続技の前のヒットで変えた天候も見るため、バトルを取り直して判定する
  * - かたやぶりでは無視されない（本家と同じ）
+ * 注: 書き換えた天候は、その技の残りのヒット・同じターンの相手の技・ターン終了時の処理には反映されない
+ *     （エンジンがターンの初めに読んだバトルの天候を使い続けるため）。次のターンから反映される
  */
 export class SandSpitEffect implements IAbilityEffect {
   async onDamagingHit(

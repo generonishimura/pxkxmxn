@@ -14,6 +14,8 @@ import { joinStatChangeMessages } from '../../../moves/effects/base/base-stat-ch
  * - 技はヒットごとに判定する（連続技ではヒットのたびに上がる）。ひんしになったときは上がらない
  * - いかくは、攻撃ランクが実際に変わったときだけ発動する（-6 で下がらなかった・クリアボディなどで防いだときは発動しない）
  * - かたやぶりでは無視されない（本家と同じ）
+ * 注: いかくで発動したときは素早さが上がるが、「Speed rose!」のメッセージは出ない
+ *     （いかくが呼ばれる onEntry にはメッセージを返す仕組みがないため）
  */
 export class RattledEffect implements IAbilityEffect {
   private static readonly ABILITY_NAME = 'びびり';
