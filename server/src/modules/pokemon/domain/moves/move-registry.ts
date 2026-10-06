@@ -238,6 +238,7 @@ import { JumpKickEffect } from './effects/jump-kick-effect';
 import { HighJumpKickEffect } from './effects/high-jump-kick-effect';
 import { StruggleEffect } from './effects/struggle-effect';
 import { SecretPowerEffect } from './effects/secret-power-effect';
+import { DecorateEffect } from './effects/decorate-effect';
 
 /**
  * 技のレジストリ
@@ -545,6 +546,20 @@ export class MoveRegistry {
       this.registry.set('とびひざげり', new HighJumpKickEffect());
       this.registry.set('わるあがき', new StruggleEffect());
       this.registry.set('ひみつのちから', new SecretPowerEffect());
+      // シングルバトルで効果のない特性・技（ダブル専用含む）（Issue #102, #103, #107 一部）
+      // 味方や複数の相手が必要なダブルバトル専用の技は NoOpEffect を共有
+      this.registry.set('サイドチェンジ', noOpEffect);
+      this.registry.set('てだすけ', noOpEffect);
+      // デコレーションは相手も対象にできるため、シングルバトルでも相手の攻撃と特攻が上がる
+      this.registry.set('デコレーション', new DecorateEffect());
+      this.registry.set('コーチング', noOpEffect);
+      this.registry.set('アロマミスト', noOpEffect);
+      this.registry.set('ドラゴンエール', noOpEffect);
+      this.registry.set('このゆびとまれ', noOpEffect);
+      this.registry.set('いかりのこな', noOpEffect);
+      this.registry.set('おさきにどうぞ', noOpEffect);
+      this.registry.set('さきおくり', noOpEffect);
+      this.registry.set('スポットライト', noOpEffect);
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
