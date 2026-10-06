@@ -211,6 +211,8 @@ import { CaptivateEffect } from './effects/captivate-effect';
 import { SnowscapeEffect } from './effects/snowscape-effect';
 import { RototillerEffect } from './effects/rototiller-effect';
 import { FlowerShieldEffect } from './effects/flower-shield-effect';
+import { MagneticFluxEffect } from './effects/magnetic-flux-effect';
+import { GearUpEffect } from './effects/gear-up-effect';
 
 /**
  * 技のレジストリ
@@ -486,6 +488,8 @@ export class MoveRegistry {
       // タイプ・特性条件つき能力変化技（Issue #103 一部）
       this.registry.set('たがやす', new RototillerEffect());
       this.registry.set('フラワーガード', new FlowerShieldEffect());
+      this.registry.set('じばそうさ', new MagneticFluxEffect());
+      this.registry.set('アシストギア', new GearUpEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
