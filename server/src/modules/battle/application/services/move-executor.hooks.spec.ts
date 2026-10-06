@@ -28,6 +28,7 @@ import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
 import { MoldBreakerEffect } from '@/modules/pokemon/domain/abilities/effects/mold-breaker-effect';
 import { DoubleEdgeEffect } from '@/modules/pokemon/domain/moves/effects/double-edge-effect';
+import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 
 describe('MoveExecutorService - ダメージ前後のフック', () => {
   const ATTACKER_ID = 1;
@@ -605,6 +606,46 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
 
       // Assert
       expect(calculate).toHaveBeenCalled();
+    });
+  });
+
+  describe('混乱の自傷', () => {
+    const executeConfusionSelfHit = async (attackerAbility?: string): Promise<number> => {
+      const { execute, statuses, calculate } = setup({ attackerAbility });
+      calculate.mockRestore();
+      jest.spyOn(StatusConditionHandler, 'shouldSelfAttackFromConfusion').mockReturnValue(true);
+      statuses.set(
+        ATTACKER_ID,
+        withChanges(statuses.get(ATTACKER_ID)!, { statusCondition: StatusCondition.Confusion }),
+      );
+
+      await execute();
+
+      return 100 - (statuses.get(ATTACKER_ID)?.currentHp ?? 100);
+    };
+
+    it('テクニシャンを持っていても、特性なしと同じ自傷ダメージになる', async () => {
+      // Arrange
+      const withoutAbility = await executeConfusionSelfHit();
+      jest.restoreAllMocks();
+
+      // Act
+      const withTechnician = await executeConfusionSelfHit('テクニシャン');
+
+      // Assert
+      expect(withoutAbility).toBe(19);
+      expect(withTechnician).toBe(withoutAbility);
+    });
+
+    it('isImmuneToType で常に無効にする特性でも、自傷ダメージは0にならない', async () => {
+      // Arrange
+      register('テストふしぎなまもり', { isImmuneToType: () => true });
+
+      // Act
+      const selfDamage = await executeConfusionSelfHit('テストふしぎなまもり');
+
+      // Assert
+      expect(selfDamage).toBe(19);
     });
   });
 

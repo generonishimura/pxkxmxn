@@ -549,6 +549,7 @@ export class MoveExecutorService {
   /**
    * 混乱による自分へのダメージを計算
    * 混乱の自傷ダメージはタイプなしで威力40の物理攻撃として計算
+   * 特性のフックは呼ばない（本家の getConfusionDamage と同じく、特性の補正を受けない）
    * @param battle バトル
    * @param attacker 攻撃側（自分自身）
    * @param attackerTrainedPokemon 攻撃側の育成個体
@@ -599,8 +600,9 @@ export class MoveExecutorService {
       typeEffectiveness: emptyTypeEffectiveness, // タイプ相性を1.0倍として扱う
       weather: battle.weather,
       field: battle.field,
-      attackerAbilityName: attackerTrainedPokemon.ability?.name,
-      defenderAbilityName: attackerTrainedPokemon.ability?.name,
+      // 混乱の自傷は能力値とランクだけで決まり、特性の補正・無効化を受けない（テクニシャン・ふしぎなまもりなど）
+      attackerAbilityName: undefined,
+      defenderAbilityName: undefined,
       attackerStats: attackerStats,
       defenderStats: attackerStats, // 自分自身なので同じステータス
       battle,

@@ -196,7 +196,7 @@ isImmuneToMove(_p: BattlePokemonStatus, ctx?: BattleContext): boolean {
 
 ### isImmuneToType（既存。コンテキストが増えた）
 
-- 呼ばれる場所: `DamageCalculator`。`battleContext.typeEffectiveness` と `moveFlags` が入るようになりました
+- 呼ばれる場所: `DamageCalculator`。`battleContext.typeEffectiveness` と `moveFlags` が入るようになりました。混乱の自傷では呼ばれません
 - 使う特性: ふしぎなまもり（効果抜群以外を無効）、ぼうだん・かぜのりのダメージ技部分
 
 ```ts
@@ -300,4 +300,5 @@ const boosted = modifyByFixedPoint(power, 5325);
 - `modifyBasePower` などの補正は順番に掛けます（ゲームは補正をまとめてから1回掛けるため、まれに1違うことがあります）。
 - 行動順のコンテキストの `moveTypeName` は技本来のタイプです（うるおいボイスなどのタイプ変更は反映しません）。
 - ほろびのうたは場全体の技なので、`isImmuneToMove` では止まりません。
+- 混乱の自傷ダメージでは、特性のフック（`isImmuneToType`・`modifyBasePower`・`modifyAnyBasePower`・`modifyDamageDealt`・`modifyDamage`）を呼びません。本家と同じく、能力値とランクだけで決まります。
 - ポケモンの重さのデータがないため、重さを使う効果（ヘヴィメタル、ライトメタル、けたぐり等）は実装できません。
