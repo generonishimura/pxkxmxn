@@ -15,6 +15,10 @@ import {
   updateVolatileState,
 } from '../../domain/state/volatile-state';
 import {
+  isLegacyVolatileStatusCondition,
+  normalizeLegacyStatusCondition,
+} from '../../domain/logic/volatile-status-condition';
+import {
   GlobalFieldState,
   SideConditions,
   SideState,
@@ -209,10 +213,15 @@ export class BattlePrismaRepository implements IBattleRepository {
   ): Promise<BattlePokemonStatus> {
     const statusData = await this.prisma.$transaction(async (tx: StateTransactionClient) => {
       const current = await this.lockBattlePokemonStatus(tx, statusId);
-      const next = updateVolatileState(parseVolatileState(current.volatileState), patch);
+      // 古い行のこんらん・ひるみ（statusCondition）は、ここで volatileState に移して None にする
+      const legacy = isLegacyVolatileStatusCondition(current.statusCondition);
+      const next = updateVolatileState(this.readVolatileState(current), patch);
       return tx.battlePokemonStatus.update({
         where: { id: statusId },
-        data: { volatileState: this.toJsonObject(next) },
+        data: {
+          volatileState: this.toJsonObject(next),
+          ...(legacy ? { statusCondition: 'None' as const } : {}),
+        },
       });
     });
 
@@ -348,6 +357,11 @@ export class BattlePrismaRepository implements IBattleRepository {
    * PrismaのBattlePokemonStatusモデルをDomain層のBattlePokemonStatusエンティティに変換
    */
   private toBattlePokemonStatusEntity(statusData: BattlePokemonStatusData): BattlePokemonStatus {
+    // こんらん・ひるみは volatileState に移したので、古い行の statusCondition の値は読み替える
+    const normalized = normalizeLegacyStatusCondition(
+      this.mapStatusCondition(statusData.statusCondition),
+      parseVolatileState(statusData.volatileState),
+    );
     return new BattlePokemonStatus(
       statusData.id,
       statusData.battleId,
@@ -363,11 +377,22 @@ export class BattlePrismaRepository implements IBattleRepository {
       statusData.speedRank,
       statusData.accuracyRank,
       statusData.evasionRank,
-      this.mapStatusCondition(statusData.statusCondition),
-      // JSON 列は古い行や壊れた値もありうるので、例外を投げない parse で読む
-      parseVolatileState(statusData.volatileState),
+      normalized.statusCondition,
+      normalized.volatileState,
       parsePersistentPokemonState(statusData.persistentState),
     );
+  }
+
+  /**
+   * 行の volatileState を読む
+   * JSON 列は古い行や壊れた値もありうるので、例外を投げない parse で読む。
+   * 古い行の statusCondition のこんらんは confusionTurns に読み替える
+   */
+  private readVolatileState(statusData: BattlePokemonStatusData): VolatileState {
+    return normalizeLegacyStatusCondition(
+      this.mapStatusCondition(statusData.statusCondition),
+      parseVolatileState(statusData.volatileState),
+    ).volatileState;
   }
 
   /**

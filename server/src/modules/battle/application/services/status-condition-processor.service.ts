@@ -23,10 +23,10 @@ import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indi
  */
 @Injectable()
 export class StatusConditionProcessorService {
-  // もうどく・ねむり・こんらんのターン数を追跡（バトルID -> バトルポケモンステータスID -> ターン数）
+  // もうどく・ねむりのターン数を追跡（バトルID -> バトルポケモンステータスID -> ターン数）
+  // こんらん・ひるみは volatileState にある（confusionTurns は技を出そうとするたびに減り、flinched はターン終了時に消える）
   private badPoisonTurnCounts: Map<number, Map<number, number>> = new Map();
   private sleepTurnCounts: Map<number, Map<number, number>> = new Map();
-  private confusionTurnCounts: Map<number, Map<number, number>> = new Map();
 
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
@@ -130,35 +130,6 @@ export class StatusConditionProcessorService {
       }
 
       battleMap.set(status.id, sleepTurnCount + sleepStep);
-    }
-
-    // ひるみの自動解除（ターン終了時に必ず解除、ねむりと同様のパターンで早期リターン）
-    if (status.statusCondition === StatusCondition.Flinch) {
-      await this.battleRepository.updateBattlePokemonStatus(status.id, {
-        statusCondition: StatusCondition.None,
-      });
-      return; // 早期リターンにより後続のダメージ計算をスキップ
-    }
-
-    // こんらんのターン数を取得・更新
-    let confusionTurnCount = 0;
-    if (status.statusCondition === StatusCondition.Confusion) {
-      if (!this.confusionTurnCounts.has(battleId)) {
-        this.confusionTurnCounts.set(battleId, new Map());
-      }
-      const battleMap = this.confusionTurnCounts.get(battleId)!;
-      confusionTurnCount = battleMap.get(status.id) || 0;
-
-      // こんらんの自動解除判定
-      if (StatusConditionHandler.shouldClearConfusion(confusionTurnCount)) {
-        await this.battleRepository.updateBattlePokemonStatus(status.id, {
-          statusCondition: StatusCondition.None,
-        });
-        battleMap.delete(status.id);
-        return; // 早期リターンにより後続のダメージ計算をスキップ
-      }
-
-      battleMap.set(status.id, confusionTurnCount + 1);
     }
 
     // ダメージを計算（ポイズンヒールなどの特性で変える。マジックガードなら減らさない）

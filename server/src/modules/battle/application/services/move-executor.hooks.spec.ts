@@ -4,6 +4,8 @@ import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status
 import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { IBattleRepository } from '../../domain/battle.repository.interface';
+import { StatePatch } from '../../domain/state/state-field-parser';
+import { VolatileState, updateVolatileState } from '../../domain/state/volatile-state';
 import { DamageCalculator, DamageCalculationParams } from '../../domain/logic/damage-calculator';
 import { AccuracyCalculator } from '../../domain/logic/accuracy-calculator';
 import { Nature } from '../../domain/logic/stat-calculator';
@@ -145,7 +147,17 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       findBattlePokemonMoveById: jest
         .fn()
         .mockResolvedValue(new BattlePokemonMove(BATTLE_POKEMON_MOVE_ID, ATTACKER_ID, 1, 10, 10)),
-      patchVolatileState: jest.fn(),
+      patchVolatileState: jest.fn((id: number, patch: StatePatch<VolatileState>) => {
+        const current = statuses.get(id);
+        if (!current) {
+          throw new Error(`status ${id} not found`);
+        }
+        const updated = withChanges(current, {
+          volatileState: updateVolatileState(current.volatileState, patch),
+        });
+        statuses.set(id, updated);
+        return Promise.resolve(updated);
+      }),
       patchPersistentState: jest.fn(),
       patchSideConditions: jest.fn(),
       patchGlobalFieldState: jest.fn(),
@@ -740,7 +752,7 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       jest.spyOn(StatusConditionHandler, 'shouldSelfAttackFromConfusion').mockReturnValue(true);
       statuses.set(
         ATTACKER_ID,
-        withChanges(statuses.get(ATTACKER_ID)!, { statusCondition: StatusCondition.Confusion }),
+        withChanges(statuses.get(ATTACKER_ID)!, { volatileState: { confusionTurns: 3 } }),
       );
 
       await execute();

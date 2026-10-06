@@ -3,6 +3,11 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 import { BattleContext } from '../abilities/battle-context.interface';
 import { EffectSource } from './effect-source';
 import { getAbilityEffect, isIgnoredByMoldBreaker, resolveAbilityName } from './ability-lookup';
+import {
+  hasVolatileStatusCondition,
+  isVolatileStatusCondition,
+  volatileStatusConditionPatch,
+} from '@/modules/battle/domain/logic/volatile-status-condition';
 
 /**
  * 状態異常ごとの、付与できないタイプ（本家と同じ）
@@ -38,7 +43,8 @@ export interface StatusInflictionOptions {
 /**
  * 状態異常を付与できるかを判定する（書き込みはしない）
  *
- * 1. ひんし・すでに状態異常がある場合は付与できない
+ * 1. ひんし・すでに状態異常がある場合は付与できない。こんらん・ひるみは volatileState に置くので、
+ *    状態異常があっても付与できる（すでにこんらん・ひるみなら付与できない）
  * 2. タイプによる免疫。状態異常そのものの免疫（STATUS_IMMUNE_TYPES）は、付与元の特性の
  *    bypassesStatusTypeImmunity（ふしょく）が true なら無視する。immuneTypes で足した免疫は無視できない
  * 3. 対象の特性の canReceiveStatusCondition。技で付与するときは、付与元のかたやぶりで無視される
@@ -52,7 +58,11 @@ export const canInflictStatus = async (
   if (target.currentHp <= 0) {
     return false;
   }
-  if (target.statusCondition && target.statusCondition !== StatusCondition.None) {
+  if (isVolatileStatusCondition(statusCondition)) {
+    if (hasVolatileStatusCondition(target, statusCondition)) {
+      return false;
+    }
+  } else if (target.statusCondition && target.statusCondition !== StatusCondition.None) {
     return false;
   }
 
@@ -125,6 +135,7 @@ export const canInflictStatus = async (
 /**
  * 状態異常を書き込み、付与されたあとの特性を呼ぶ
  * 付与できるかは canInflictStatus で先に判定しておく
+ * こんらん・ひるみは statusCondition ではなく volatileState に書く（confusionTurns は 2〜5、flinched は true）
  *
  * - 対象の特性の onStatusInflicted（シンクロ）
  * - 付与元の特性の onInflictStatus（どくくぐつ）。自分で自分に付与したときは呼ばない
@@ -140,7 +151,14 @@ export const inflictStatus = async (
   if (!battleContext.battleRepository) {
     return [];
   }
-  await battleContext.battleRepository.updateBattlePokemonStatus(target.id, { statusCondition });
+  if (isVolatileStatusCondition(statusCondition)) {
+    await battleContext.battleRepository.patchVolatileState(
+      target.id,
+      volatileStatusConditionPatch(statusCondition),
+    );
+  } else {
+    await battleContext.battleRepository.updateBattlePokemonStatus(target.id, { statusCondition });
+  }
 
   const source = options.source;
   const targetAbility = await getAbilityEffect(await resolveAbilityName(target, battleContext));

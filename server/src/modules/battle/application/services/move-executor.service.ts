@@ -24,7 +24,6 @@ import {
 import { AccuracyCalculator } from '../../domain/logic/accuracy-calculator';
 import { StatCalculator } from '../../domain/logic/stat-calculator';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
-import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
@@ -38,6 +37,7 @@ import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
 import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
 import { removalPatch } from '../../domain/state/state-field-parser';
+import { hasFlinched } from '../../domain/logic/volatile-status-condition';
 import {
   VOLATILE_UNTIL_NEXT_MOVE_FLAGS,
   VolatileState,
@@ -134,9 +134,23 @@ export class MoveExecutorService {
       throw new NotFoundException('TrainedPokemon', missingId);
     }
 
-    // 混乱状態の判定（技を使おうとしたときに自分を攻撃する可能性がある）
-    if (attacker.statusCondition === StatusCondition.Confusion) {
-      if (StatusConditionHandler.shouldSelfAttackFromConfusion()) {
+    // ひるみ（volatileState.flinched）。このターンは技を出せない（flinched はターン終了時に消える）
+    if (hasFlinched(attacker)) {
+      return "Pokemon flinched and couldn't move";
+    }
+
+    // こんらん（volatileState.confusionTurns）。技を出そうとするたびに残り回数を 1 減らし、
+    // 0 になったら解けてそのまま技を出す。解けていなければ、一定の確率で自分を攻撃する
+    let beforeMoveMessage = '';
+    const confusionTurns = attacker.volatileState.confusionTurns;
+    if (confusionTurns !== undefined) {
+      const remaining = confusionTurns - 1;
+      attacker = await this.battleRepository.patchVolatileState(attacker.id, {
+        confusionTurns: remaining > 0 ? remaining : null,
+      });
+      if (remaining <= 0) {
+        beforeMoveMessage = 'Pokemon snapped out of confusion! ';
+      } else if (StatusConditionHandler.shouldSelfAttackFromConfusion()) {
         // 自分を攻撃する場合、技を使わずに自分にダメージを与える
         // 混乱の自傷ダメージはタイプなしで威力40の物理攻撃として計算
         const selfDamage = await this.calculateConfusionSelfDamage(
@@ -151,6 +165,36 @@ export class MoveExecutorService {
         return `Pokemon is confused and hurt itself in confusion (${selfDamage} damage)`;
       }
     }
+
+    const result = await this.useMove({
+      battle,
+      move,
+      attacker,
+      defender,
+      battlePokemonMoveId,
+      options,
+      attackerTrainedPokemon,
+      defenderTrainedPokemon,
+    });
+    return `${beforeMoveMessage}${result}`;
+  }
+
+  /**
+   * 技を出す前の判定（こんらんなど）を通ったあとに、技を使う
+   */
+  private async useMove(params: {
+    battle: Battle;
+    move: Move;
+    attacker: BattlePokemonStatus;
+    defender: BattlePokemonStatus;
+    battlePokemonMoveId: number;
+    options: ExecuteMoveOptions;
+    attackerTrainedPokemon: TrainedPokemon;
+    defenderTrainedPokemon: TrainedPokemon;
+  }): Promise<string> {
+    const { battle, move, defender, battlePokemonMoveId, options } = params;
+    const { attackerTrainedPokemon, defenderTrainedPokemon } = params;
+    let attacker = params.attacker;
 
     // みちづれ・おんねんは、使用者が次に技を出そうとしたときに消える
     // みちづれを続けて使ったときの失敗判定を入れるときは、この消去より前で読む
