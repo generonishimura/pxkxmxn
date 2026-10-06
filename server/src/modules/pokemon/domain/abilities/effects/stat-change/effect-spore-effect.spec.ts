@@ -231,6 +231,30 @@ describe('EffectSporeEffect', () => {
     expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
+  it('攻撃側がぼうじんのとき、状態異常にしない', async () => {
+    // Arrange
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+    jest.spyOn(Math, 'random').mockReturnValue(0.0);
+    const effect = new EffectSporeEffect();
+    const battleRepository = createBattleRepository();
+    const battleContext: BattleContext = {
+      ...createContext(battleRepository, 'ノーマル', 'ぼうじん'),
+      defenderAbilityName: 'ほうし',
+    };
+
+    // Act
+    const result = await effect.applyContactStatusCondition(
+      createStatus(1),
+      createStatus(2),
+      battleContext,
+    );
+
+    // Assert
+    expect(result).toBe(false);
+    expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+  });
+
   it('AbilityRegistryに「ほうし」として登録されている', () => {
     // Arrange
     AbilityRegistry.clear();

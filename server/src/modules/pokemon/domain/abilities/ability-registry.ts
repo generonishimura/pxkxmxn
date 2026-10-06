@@ -181,6 +181,12 @@ import { TintedLensEffect } from './effects/damage-modify/tinted-lens-effect';
 import { FilterEffect } from './effects/damage-modify/filter-effect';
 import { PrismArmorEffect } from './effects/damage-modify/prism-armor-effect';
 import { NeuroforceEffect } from './effects/damage-modify/neuroforce-effect';
+// 技フラグで判定する特性（Issue #135 一部）
+import { SoundproofEffect } from './effects/immunity/soundproof-effect';
+import { BulletproofEffect } from './effects/immunity/bulletproof-effect';
+import { OvercoatEffect } from './effects/immunity/overcoat-effect';
+import { IronFistEffect } from './effects/damage-modify/iron-fist-effect';
+import { StrongJawEffect } from './effects/damage-modify/strong-jaw-effect';
 
 /**
  * 特性レジストリ
@@ -461,6 +467,12 @@ export class AbilityRegistry {
       this.registry.set('ハードロック', filter);
       this.registry.set('プリズムアーマー', new PrismArmorEffect());
       this.registry.set('ブレインフォース', new NeuroforceEffect());
+      // 技フラグで判定する特性（Issue #135 一部）
+      this.registry.set('ぼうおん', new SoundproofEffect());
+      this.registry.set('ぼうだん', new BulletproofEffect());
+      this.registry.set('ぼうじん', new OvercoatEffect());
+      this.registry.set('てつのこぶし', new IronFistEffect());
+      this.registry.set('がんじょうあご', new StrongJawEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

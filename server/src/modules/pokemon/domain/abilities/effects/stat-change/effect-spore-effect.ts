@@ -6,7 +6,8 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
  * 接触技を受けたとき、30%の確率で相手をどく・まひ・ねむりのいずれかにする
  * （どく 9%、まひ 10%、ねむり 11%）。くさタイプの相手には効かない。
  * 選ばれた状態異常にならないタイプ（どく: どく・はがね、まひ: でんき）の相手にも効かない。
- * 注: 接触技の判定は物理技で近似している。ぼうじん・ぼうじんゴーグルによる無効化は扱わない。
+ * ぼうじん（Overcoat）の相手には効かない（OvercoatEffect.canReceiveStatusCondition で判定）。
+ * 注: 接触技の判定は物理技で近似している。ぼうじんゴーグル（持ち物）による無効化は扱わない。
  */
 export class EffectSporeEffect extends BaseContactStatusConditionEffect {
   /**
