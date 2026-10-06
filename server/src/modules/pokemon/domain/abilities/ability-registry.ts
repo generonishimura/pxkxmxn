@@ -163,6 +163,13 @@ import { WaterCompactionEffect } from './effects/stat-change/water-compaction-ef
 import { CorrosionEffect } from './effects/other/corrosion-effect';
 import { SoulHeartEffect } from './effects/stat-change/soul-heart-effect';
 import { BeastBoostEffect } from './effects/stat-change/beast-boost-effect';
+// ダメージを受けたとき・相手を倒したときに発動する特性（Issue #135 一部）
+import { CottonDownEffect } from './effects/stat-change/cotton-down-effect';
+import { SteamEngineEffect } from './effects/stat-change/steam-engine-effect';
+import { SandSpitEffect } from './effects/weather/sand-spit-effect';
+import { ChillingNeighEffect } from './effects/stat-change/chilling-neigh-effect';
+import { GrimNeighEffect } from './effects/stat-change/grim-neigh-effect';
+import { AsOneGlastrierEffect } from './effects/stat-change/as-one-glastrier-effect';
 
 /**
  * 特性レジストリ
@@ -422,6 +429,13 @@ export class AbilityRegistry {
       this.registry.set('ふしょく', new CorrosionEffect());
       this.registry.set('ソウルハート', new SoulHeartEffect());
       this.registry.set('ビーストブースト', new BeastBoostEffect());
+      // ダメージを受けたとき・相手を倒したときに発動する特性（Issue #135 一部）
+      this.registry.set('わたげ', new CottonDownEffect());
+      this.registry.set('じょうききかん', new SteamEngineEffect());
+      this.registry.set('すなはき', new SandSpitEffect());
+      this.registry.set('しろのいななき', new ChillingNeighEffect());
+      this.registry.set('くろのいななき', new GrimNeighEffect());
+      this.registry.set('じんばいったい', new AsOneGlastrierEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
