@@ -209,6 +209,9 @@ import { TakeHeartEffect } from './effects/take-heart-effect';
 import { DefogEffect } from './effects/defog-effect';
 import { CaptivateEffect } from './effects/captivate-effect';
 import { SnowscapeEffect } from './effects/snowscape-effect';
+import { JumpKickEffect } from './effects/jump-kick-effect';
+import { HighJumpKickEffect } from './effects/high-jump-kick-effect';
+import { StruggleEffect } from './effects/struggle-effect';
 
 /**
  * 技のレジストリ
@@ -481,6 +484,10 @@ export class MoveRegistry {
       this.registry.set('きりばらい', new DefogEffect());
       this.registry.set('ゆうわく', new CaptivateEffect());
       this.registry.set('ゆきげしき', new SnowscapeEffect());
+      // 外したとき・最大HP基準の反動技と ひみつのちから（Issue #127, #129 一部）
+      this.registry.set('とびげり', new JumpKickEffect());
+      this.registry.set('とびひざげり', new HighJumpKickEffect());
+      this.registry.set('わるあがき', new StruggleEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
