@@ -14,8 +14,10 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
+import { isEmptyObject } from '../../domain/state/state-field-parser';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
+import { VolatileResidualProcessor } from './volatile-residual-processor';
 
 /**
  * StatusConditionProcessorService
@@ -28,15 +30,27 @@ export class StatusConditionProcessorService {
   private badPoisonTurnCounts: Map<number, Map<number, number>> = new Map();
   private sleepTurnCounts: Map<number, Map<number, number>> = new Map();
 
+  private readonly volatileResiduals: VolatileResidualProcessor;
+
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
     @Inject(TRAINED_POKEMON_REPOSITORY_TOKEN)
     private readonly trainedPokemonRepository: ITrainedPokemonRepository,
-  ) {}
+  ) {
+    this.volatileResiduals = new VolatileResidualProcessor(
+      battleRepository,
+      trainedPokemonRepository,
+    );
+  }
 
   /**
    * ターン終了時の特性効果と状態異常を処理
+   *
+   * 1. すなあらしのダメージ（場の全員）
+   * 2. ねがいごと（陣営）
+   * 3. 場のポケモンごとに: アクアリング・ねをはる・やどりぎのタネ → 状態異常（ねむりの解除・どく・やけど）→
+   *    あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた → 特性の onTurnEnd
    */
   async processTurnEndAbilities(battle: Battle): Promise<void> {
     const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
@@ -55,6 +69,15 @@ export class StatusConditionProcessorService {
         }),
     );
     const weather = resolveEffectiveWeather(battle.weather, activeAbilityNames);
+    const fieldContext: BattleContext = {
+      battle,
+      battleRepository: this.battleRepository,
+      trainedPokemonRepository: this.trainedPokemonRepository,
+      weather,
+      field: battle.field,
+    };
+    await this.volatileResiduals.applyWeatherDamage(activePokemon, weather, fieldContext);
+    await this.volatileResiduals.applyWish(battle, fieldContext);
 
     for (const status of activePokemon) {
       const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
@@ -69,8 +92,29 @@ export class StatusConditionProcessorService {
         field: battle.field,
       };
 
-      // 状態異常によるダメージ処理
-      await this.processStatusConditionDamage(battle.id, status, battleContext, abilityEffect);
+      // 状態異常のダメージより前の一時的な状態（アクアリング・ねをはる・やどりぎのタネ）
+      const opponent = activePokemon.find(other => other.trainerId !== status.trainerId);
+      if (!isEmptyObject(status.volatileState)) {
+        await this.volatileResiduals.applyBeforeStatusDamage(status, opponent, battleContext);
+      }
+
+      // 状態異常によるダメージ処理（天候・ねがいごと・一時的な状態で HP が変わるので、読み直したものを使う）
+      const beforeStatusDamage =
+        (await this.battleRepository.findBattlePokemonStatusById(status.id)) ?? status;
+      if (beforeStatusDamage.isFainted()) {
+        continue;
+      }
+      await this.processStatusConditionDamage(
+        battle.id,
+        beforeStatusDamage,
+        battleContext,
+        abilityEffect,
+      );
+
+      // 状態異常のダメージよりあとの一時的な状態（あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた）
+      if (!isEmptyObject(status.volatileState)) {
+        await this.volatileResiduals.applyAfterStatusDamage(status, battleContext);
+      }
 
       // 状態異常ダメージを反映した最新のステータスを読み直す
       // 古いステータスのまま特性が HP を書くと、状態異常ダメージが上書きされてしまうため
