@@ -2,7 +2,7 @@ import { Battle, Weather } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { IBattleRepository } from '../../domain/battle.repository.interface';
-import { getSideConditions } from '../../domain/state/side-state';
+import { getGlobalFieldState, getSideConditions } from '../../domain/state/side-state';
 import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
@@ -38,7 +38,7 @@ const SALT_CURE_WEAK_TYPES: readonly string[] = ['みず', 'はがね'];
  * ターン終了時の、天候・陣営・一時的な状態による HP の増減と、遅れて効く効果を処理する
  * StatusConditionProcessorService.processTurnEndAbilities が、本家の residual の順に近い順で呼ぶ
  *
- * - applyWeatherDamage: すなあらし（最大 HP の 1/16）
+ * - applyWeatherDamage: すなあらし（最大 HP の 1/16。天候の残りターン数があるときだけ）
  * - applyWish: ねがいごと（wish.turns が 1 の陣営の場のポケモンを回復）
  * - applyBeforeStatusDamage: アクアリング・ねをはる（1/16 回復）→ やどりぎのタネ（1/8 を吸う）
  * - applyAfterStatusDamage: あくむ（1/4）→ のろい（1/4）→ バインド（1/8）→ しおづけ（1/8、みず・はがねは 1/4）→
@@ -57,6 +57,10 @@ export class VolatileResidualProcessor {
 
   /**
    * すなあらしのダメージ（いわ・じめん・はがねタイプと、すながくれ・すなかき・すなのちから・ぼうじんは受けない）
+   * あなをほる・ダイビングで隠れているポケモンも受けない（本家の dig・dive の onImmunity）
+   * 注: 天候の残りターン数（GlobalFieldState.weatherTurns）があるときだけダメージを与える。
+   *     天候を出す処理がまだ残りターン数を書かず、天候が終わらないので、終わらないすなあらしで
+   *     ダメージを受け続けないようにしている（docs/battle-state.md の 7 章）
    * @param weather 効果のある天候（ノーてんき・エアロックを反映したもの）
    */
   async applyWeatherDamage(
@@ -67,9 +71,17 @@ export class VolatileResidualProcessor {
     if (weather !== Weather.Sandstorm) {
       return;
     }
+    const sideState = battleContext.battle?.sideState;
+    if (!sideState || getGlobalFieldState(sideState).weatherTurns === undefined) {
+      return;
+    }
     for (const status of activePokemon) {
       const latest = await this.refresh(status);
       if (latest.isFainted()) {
+        continue;
+      }
+      const hidden = latest.volatileState.semiInvulnerable;
+      if (hidden === 'underground' || hidden === 'underwater') {
         continue;
       }
       const trainedPokemon = await this.trainedPokemonRepository.findById(latest.trainedPokemonId);

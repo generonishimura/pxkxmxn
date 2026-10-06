@@ -39,8 +39,35 @@ describe('StatusConditionProcessorService - ターン終了時の一時的な状
   };
 
   describe('すなあらし', () => {
-    const sandstorm = (repo: ReturnType<typeof createInMemoryBattle>['battleRepository']) =>
-      repo.update(1, { weather: Weather.Sandstorm });
+    const sandstorm = async (repo: ReturnType<typeof createInMemoryBattle>['battleRepository']) => {
+      await repo.update(1, { weather: Weather.Sandstorm });
+      await repo.patchGlobalFieldState(1, { weatherTurns: 3 });
+    };
+
+    it('天候の残りターン数（weatherTurns）がなければ、ダメージはない（天候が終わる仕組みができるまで）', async () => {
+      // Act
+      const { get } = await runTurnEnd({}, {}, repo =>
+        repo.update(1, { weather: Weather.Sandstorm }),
+      );
+
+      // Assert
+      expect(get(1).currentHp).toBe(100);
+    });
+
+    it.each(['underground', 'underwater'] as const)(
+      'あなをほる・ダイビングで隠れている（%s）なら、ダメージを受けない',
+      async semiInvulnerable => {
+        // Act
+        const { get } = await runTurnEnd(
+          { status: { volatileState: { semiInvulnerable } } },
+          {},
+          sandstorm,
+        );
+
+        // Assert
+        expect(get(1).currentHp).toBe(100);
+      },
+    );
 
     it('いわ・じめん・はがねタイプでなければ、最大 HP の 1/16 のダメージを受ける', async () => {
       // Act

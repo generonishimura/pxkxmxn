@@ -437,7 +437,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 - `Weather` enum（`battle.entity.ts` と `prisma/schema.prisma`）には、まだ `Snow`（ゆき）とゲンシ天候（`HarshSunlight`・`HeavyRain`・`StrongWinds`）がありません。さむいギャグ・ゆきふらし（第 9 世代）・ゲンシ天候を入れるときは、enum に値を足し、Prisma の enum のマイグレーションを作ってください。
 - ゲンシ天候は普通の天候で上書きできません。`weatherSourceStatusId` があるときは、天候を出す処理は何もしないでください。
-- 今ある天候とフィールドを出す処理は、残りターン数を書いていません。そのため天候もフィールドも終わりません。`weatherTurns` / `terrainTurns` を使い始めるときは、次の処理にも残りターン数を書く変更が要ります。
+- 今ある天候とフィールドを出す処理は、残りターン数を書いていません。そのため天候もフィールドも終わりません。すなあらしのターン終了時のダメージも、`weatherTurns` があるときだけ与えます（10 章）。`weatherTurns` / `terrainTurns` を使い始めるときは、次の処理にも残りターン数を書く変更と、`weatherTurns === 1` のターン終了時に `Battle.weather` を戻す処理が要ります。
   - `src/modules/pokemon/domain/abilities/effects/base/base-weather-effect.ts`（あめふらし・ひでり・すなおこし・ゆきふらし）
   - `src/modules/pokemon/domain/moves/effects/base/base-weather-move-effect.ts`（あまごい・にほんばれ など）
   - `src/modules/pokemon/domain/abilities/effects/weather/*-surge-effect.ts`（エレキメイカー など）
@@ -539,7 +539,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 `processTurnEndAbilities` の中で、次の順に行います。ダメージは `applyIndirectDamage`（マジックガードは受けない）、回復は `applyHeal`（かいふくふうじ中は回復しない）です。
 
-1. すなあらし: 最大 HP の 1/16（いわ・じめん・はがねタイプ、すながくれ・すなかき・すなのちから・ぼうじんは受けない）
+1. すなあらし: 最大 HP の 1/16（いわ・じめん・はがねタイプ、すながくれ・すなかき・すなのちから・ぼうじん、あなをほる・ダイビングで隠れているポケモンは受けない）。`GlobalFieldState.weatherTurns` があるときだけ与える（天候が終わる仕組みができるまで、終わらないすなあらしでダメージを受け続けないため）
 2. `wish.turns === 1`: その陣営の場のポケモンを `healAmount` 回復
 3. ポケモンごとに:
    1. `aquaRing`・`ingrain`: 1/16 回復
