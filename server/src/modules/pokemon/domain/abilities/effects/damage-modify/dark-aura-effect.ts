@@ -7,9 +7,7 @@ import { modifyByFixedPoint } from '@/modules/battle/domain/logic/fixed-point-mo
  * ダークオーラ（Dark Aura）特性の効果
  * 場にいる間、自分と相手が使うあくタイプの技の威力を約1.33倍（5448/4096）にする
  * 場にオーラブレイクのポケモンがいると、逆に0.75倍（3072/4096）にする
- *
- * 注: オーラブレイクは攻撃側・防御側の特性名で判定する。
- * 攻撃側がかたやぶりで、防御側のオーラブレイクを無視する場合も 0.75倍になる
+ * オーラブレイクは攻撃側・防御側の特性名で判定する
  */
 export class DarkAuraEffect implements IAbilityEffect {
   /**

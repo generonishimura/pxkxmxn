@@ -430,6 +430,7 @@ modifyMultiHitCount(_p: BattlePokemonStatus, _min: number, max: number): number 
 - シグネチャ: `getAdditionalHitPowerRatios?(pokemon, battleContext): readonly number[] | undefined`
 - 呼ばれる場所: `executeMove`。連続技ではない攻撃技のときだけ
 - 使う特性: おやこあい（`[0.25]`）。追加ヒットの威力は `modifyByFixedPoint(power, 0.25, 1)` で計算されます。
+- 注: 本家（Showdown の `modifyDamage`）は、2回目の基礎ダメージ（ダメージ式の +2 のあと）を0.25倍にします。エンジンは威力に倍率を掛けるので、2回目のダメージが本家より 1〜数ポイント大きくなります（近似）。
 - 注: `onHit`（追加効果）と接触時の特性は、ヒット数にかかわらず1回だけです。
 
 ```ts

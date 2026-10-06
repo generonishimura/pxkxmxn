@@ -43,17 +43,20 @@ const CHARGE_OR_FUTURE_MOVE_NAMES: ReadonlySet<string> = new Set([
 
 /**
  * おやこあい（Parental Bond）特性の効果
- * 連続技ではない攻撃技が2回当たる。2回目の威力は0.25倍（1024/4096）
+ * 連続技ではない攻撃技が2回当たる。2回目のダメージは0.25倍（1024/4096）
  *
  * 次の技は1回だけ当たる（Pokemon Showdown と同じ）:
  * - だいばくはつ・じばく・いのちがけ・がむしゃら・なげつける・ころがる など（noparentalbond）
  * - ためる技（ソーラービームなど）と、みらいよち・はめつのねがい
  *
  * 注: 技の追加効果（onHit）と接触時の特性は、2回当たっても1回だけ判定する（エンジンの近似）
+ * 注: 本家は2回目の基礎ダメージ（ダメージ式の +2 のあと）を0.25倍にするが、
+ * エンジンは2回目の威力を0.25倍にして計算する（エンジンの近似）。
+ * そのため2回目のダメージが本家より 1〜数ポイント大きくなる
  */
 export class ParentalBondEffect implements IAbilityEffect {
   /**
-   * 2回目のヒットの威力倍率
+   * 2回目のヒットの倍率（エンジンは威力に掛ける）
    */
   private static readonly SECOND_HIT_POWER_RATIO = 0.25;
 
