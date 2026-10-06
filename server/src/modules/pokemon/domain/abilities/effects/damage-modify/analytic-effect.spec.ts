@@ -28,6 +28,17 @@ describe('AnalyticEffect', () => {
       expect(result).toBe(104);
     });
 
+    it('4096分率で四捨五入する（75 → 97.503 は98。切り捨てなら97になる）', () => {
+      // Arrange
+      const battleContext = { isLastToMove: true } as BattleContext;
+
+      // Act
+      const result = new AnalyticEffect().modifyBasePower(pokemon, 75, battleContext);
+
+      // Assert
+      expect(result).toBe(98);
+    });
+
     it('このあとに相手が行動するときは補正しない', () => {
       // Arrange
       const battleContext = { isLastToMove: false } as BattleContext;
