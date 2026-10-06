@@ -12,6 +12,7 @@ import {
 } from '@/modules/trainer/domain/trainer.repository.interface';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
+import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
 
 /**
  * StatusConditionProcessorService
@@ -38,6 +39,17 @@ export class StatusConditionProcessorService {
     const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
     const activePokemon = battleStatuses.filter(s => s.isActive);
 
+    // 場の特性を考慮した天候（ノーてんき・エアロックが場にいれば天候なし）
+    const activeAbilityNames = await Promise.all(
+      activePokemon.map(async status => {
+        const trainedPokemon = await this.trainedPokemonRepository.findById(
+          status.trainedPokemonId,
+        );
+        return trainedPokemon?.ability?.name;
+      }),
+    );
+    const weather = resolveEffectiveWeather(battle.weather, activeAbilityNames);
+
     for (const status of activePokemon) {
       // 状態異常によるダメージ処理
       await this.processStatusConditionDamage(battle.id, status);
@@ -60,6 +72,8 @@ export class StatusConditionProcessorService {
           await abilityEffect.onTurnEnd(latestStatus, {
             battle,
             battleRepository: this.battleRepository,
+            weather,
+            field: battle.field,
           });
         }
       }
