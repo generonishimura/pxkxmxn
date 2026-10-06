@@ -492,7 +492,7 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `HitResult`（`hit-result.ts`） | `damage`（実際に減らしたHP）、`hpBefore`（受ける前のHP）、`hitIndex`、`hitCount`、`isContact`、`moveTypeName`、`moveCategory`、`targetFainted` | `onDamagingHit`・`onSourceDamagingHit`（ヒットごと）、`onAfterMoveHit`（技全体: `damage` は合計、`hpBefore` は技の前） |
 | `EffectSource`（`effect-source.ts`） | `pokemon`（起こしたポケモン。自分で起こしたら対象と同じ）、`abilityName`（そのポケモンの特性名）、`kind`（`'move'` / `'ability'` / `'other'`）、`name`（技名・特性名。例: `'いかく'`） | 状態異常と能力ランクのフックすべて。`kind === 'move'` で相手が起こしたときだけ、対象の特性がかたやぶりで無視される |
 | `StatChange`（`stat-change.ts`） | `statType`、`rankChange` | 能力ランクのフック |
-| `StatChangeResult`（`stat-change.ts`） | `applied`（実際に変わった量）、`reflected`（ミラーアーマーで返した量）、`messages`（反応した特性のメッセージ） | `applyStatChanges` の戻り値 |
+| `StatChangeResult`（`stat-change.ts`） | `applied`（実際に変わった量）、`reflected`（ミラーアーマーで返した量）、`messages`（反応した特性のメッセージ。ミラーアーマーで返したときは `<特性名> reflected the stat drop!` と相手のランクの変化（例: `Accuracy fell!`）も入る） | `applyStatChanges` の戻り値 |
 
 ## 5. 補助関数
 

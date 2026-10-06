@@ -60,6 +60,27 @@ const MAX_RANK = 6;
 const EMPTY_RESULT: StatChangeResult = { applied: [], reflected: [], messages: [] };
 
 /**
+ * ステータスタイプから表示名へのマッピング
+ */
+export const STAT_NAME_MAP: Readonly<Record<StatType, string>> = {
+  attack: 'Attack',
+  defense: 'Defense',
+  specialAttack: 'Special Attack',
+  specialDefense: 'Special Defense',
+  speed: 'Speed',
+  accuracy: 'Accuracy',
+  evasion: 'Evasion',
+};
+
+/**
+ * 実際に変わった量を "Attack rose!" / "Speed fell!" の形のメッセージにする
+ */
+export const formatStatChanges = (changes: readonly StatChange[]): string[] =>
+  changes.map(
+    change => `${STAT_NAME_MAP[change.statType]} ${change.rankChange > 0 ? 'rose' : 'fell'}!`,
+  );
+
+/**
  * 能力ランクを変える。能力ランクを変える効果はこれを使う
  *
  * 1. 対象の特性の modifyIncomingStatChange で変化量を変える（たんじゅん・あまのじゃく・ばんけん）
@@ -69,6 +90,8 @@ const EMPTY_RESULT: StatChangeResult = { applied: [], reflected: [], messages: [
  * 3. -6〜+6 に収めて書き込む
  * 4. 変化したら、対象の特性の onStatChanged（まけんき・びびり）と、
  *    相手の特性の onOpponentStatChanged（びんじょう）を呼ぶ
+ *
+ * ミラーアーマーで返したときは、messages に「跳ね返したこと」と相手のランクの変化を入れる
  *
  * @param target ランクが変わるポケモン（最新の状態を渡す）
  * @param changes 変化の一覧
@@ -151,7 +174,12 @@ export const applyStatChanges = async (
       },
       reflected: true,
     });
-    messages.push(...result.messages);
+    // 跳ね返したことと、相手のランクの変化を伝える（例: "ミラーアーマー reflected the stat drop! Accuracy fell!"）
+    messages.push(
+      `${targetAbilityName} reflected the stat drop!`,
+      ...formatStatChanges(result.applied),
+      ...result.messages,
+    );
   }
 
   if (applied.length > 0) {

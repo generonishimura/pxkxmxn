@@ -3,6 +3,7 @@ import { MoldBreakerEffect } from '../abilities/effects/mold-breaker-effect';
 import { EffectSource } from './effect-source';
 import { StatChange, applyStatChanges } from './stat-change';
 import { createInMemoryBattle } from './__tests__/in-memory-battle';
+import { joinStatChangeMessages } from '../moves/effects/base/base-stat-change-effect';
 
 describe('applyStatChanges（能力ランクの変化）', () => {
   const growl: EffectSource = { kind: 'move', name: 'なきごえ' };
@@ -144,6 +145,30 @@ describe('applyStatChanges（能力ランクの変化）', () => {
       expect(result.reflected).toEqual([atk(-1)]);
       expect(get(1).attackRank).toBe(0);
       expect(get(2).attackRank).toBe(-1);
+      expect(result.messages).toEqual([
+        'テストミラーアーマー reflected the stat drop!',
+        'Attack fell!',
+      ]);
+    });
+
+    it('技の低下を返したときも、joinStatChangeMessages でメッセージになる（すなかけ）', async () => {
+      // Arrange
+      AbilityRegistry.register('テストミラーアーマー', { reflectsStatDrops: true });
+      const { context, get } = createInMemoryBattle({}, { ability: 'テストミラーアーマー' });
+
+      // Act
+      const result = await applyStatChanges(
+        get(2),
+        [{ statType: 'accuracy', rankChange: -1 }],
+        context(),
+        { source: { kind: 'move', name: 'すなかけ', pokemon: get(1) } },
+      );
+
+      // Assert
+      expect(joinStatChangeMessages(result)).toBe(
+        'テストミラーアーマー reflected the stat drop! Accuracy fell!',
+      );
+      expect(get(1).accuracyRank).toBe(-1);
     });
 
     it('返された低下は、相手もミラーアーマーでも跳ね返さない', async () => {

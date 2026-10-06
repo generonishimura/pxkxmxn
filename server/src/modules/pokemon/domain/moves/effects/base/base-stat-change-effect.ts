@@ -3,7 +3,11 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../../abilities/battle-context.interface';
 import { rollSecondaryEffect } from '../../secondary-effect';
 import { EffectSource } from '../../../battle-events/effect-source';
-import { StatChangeResult, applyStatChanges } from '../../../battle-events/stat-change';
+import {
+  StatChangeResult,
+  applyStatChanges,
+  formatStatChanges,
+} from '../../../battle-events/stat-change';
 
 /**
  * ステータスランクの種類
@@ -32,18 +36,10 @@ export const STAT_RANK_PROP_MAP: Record<StatType, keyof BattlePokemonStatus> = {
 };
 
 /**
- * ステータスタイプから表示名へのマッピング
+ * ステータスタイプから表示名へのマッピング（定義は battle-events/stat-change）
  * BaseStatChangeEffect、BaseSelfStatChangeMoveEffect、BaseOpponentStatChangeMoveEffectで共有
  */
-export const STAT_NAME_MAP: Record<StatType, string> = {
-  attack: 'Attack',
-  defense: 'Defense',
-  specialAttack: 'Special Attack',
-  specialDefense: 'Special Defense',
-  speed: 'Speed',
-  accuracy: 'Accuracy',
-  evasion: 'Evasion',
-};
+export { STAT_NAME_MAP } from '../../../battle-events/stat-change';
 
 /**
  * 相手のステータスランクを変更する技の基底クラス
@@ -115,11 +111,6 @@ export const moveEffectSource = (
  * 変化のあとに反応した特性のメッセージを後ろに足す。何も変わらなければ null
  */
 export const joinStatChangeMessages = (result: StatChangeResult): string | null => {
-  const messages = [
-    ...result.applied.map(
-      change => `${STAT_NAME_MAP[change.statType]} ${change.rankChange > 0 ? 'rose' : 'fell'}!`,
-    ),
-    ...result.messages,
-  ];
+  const messages = [...formatStatChanges(result.applied), ...result.messages];
   return messages.length > 0 ? messages.join(' ') : null;
 };
