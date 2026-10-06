@@ -158,6 +158,59 @@ describe('EffectSporeEffect', () => {
     expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['どく', 0.05],
+    ['はがね', 0.05],
+    ['でんき', 0.15],
+  ])(
+    '攻撃側が%sタイプで乱数が%sのとき、その状態異常にならないため状態異常にしない',
+    async (typeName, randomValue) => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(randomValue);
+      const effect = new EffectSporeEffect();
+      const battleRepository = createBattleRepository();
+
+      // Act
+      const result = await effect.applyContactStatusCondition(
+        createStatus(1),
+        createStatus(2),
+        createContext(battleRepository, typeName),
+      );
+
+      // Assert
+      expect(result).toBe(false);
+      expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ['どく', 0.15, StatusCondition.Paralysis],
+    ['はがね', 0.25, StatusCondition.Sleep],
+    ['でんき', 0.05, StatusCondition.Poison],
+    ['でんき', 0.25, StatusCondition.Sleep],
+  ])(
+    '攻撃側が%sタイプで乱数が%sのとき、効く状態異常（%s）にはする',
+    async (typeName, randomValue, expected) => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(randomValue);
+      const effect = new EffectSporeEffect();
+      const battleRepository = createBattleRepository();
+
+      // Act
+      const result = await effect.applyContactStatusCondition(
+        createStatus(1),
+        createStatus(2),
+        createContext(battleRepository, typeName),
+      );
+
+      // Assert
+      expect(result).toBe(true);
+      expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
+        statusCondition: expected,
+      });
+    },
+  );
+
   it('ねむりが選ばれても攻撃側がふみんのとき、状態異常にしない', async () => {
     // Arrange
     AbilityRegistry.clear();

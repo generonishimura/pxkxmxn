@@ -13,7 +13,11 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
   /**
    * ダメージ修正（この特性はダメージを修正しない）
    */
-  modifyDamage(_pokemon: BattlePokemonStatus, damage: number, _battleContext?: BattleContext): number {
+  modifyDamage(
+    _pokemon: BattlePokemonStatus,
+    damage: number,
+    _battleContext?: BattleContext,
+  ): number {
     return damage;
   }
   /**
@@ -43,6 +47,18 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       return null;
     }
     return this.statusCondition;
+  }
+
+  /**
+   * 抽選した状態異常ごとの免疫タイプを返す
+   * 既定では状態異常に関係なく immuneTypes を返す。
+   * ほうし（Effect Spore）のように状態異常ごとに効かないタイプが違う特性は、このメソッドを上書きする。
+   *
+   * @param _statusCondition 抽選で選ばれた状態異常
+   * @returns その状態異常を付与できないタイプ
+   */
+  protected immuneTypesFor(_statusCondition: StatusCondition): readonly string[] {
+    return this.immuneTypes;
   }
 
   /**
@@ -81,18 +97,19 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       return false;
     }
 
-    // タイプによる免疫チェック
-    const hasImmuneType =
-      this.immuneTypes.includes(attackerTrainedPokemon.pokemon.primaryType.name) ||
-      (attackerTrainedPokemon.pokemon.secondaryType &&
-        this.immuneTypes.includes(attackerTrainedPokemon.pokemon.secondaryType.name));
-    if (hasImmuneType) {
-      return false;
-    }
-
     // 確率判定と付与する状態異常の決定
     const statusCondition = this.selectStatusCondition();
     if (statusCondition === null) {
+      return false;
+    }
+
+    // タイプによる免疫チェック（選ばれた状態異常ごとに判定する）
+    const immuneTypes = this.immuneTypesFor(statusCondition);
+    const hasImmuneType =
+      immuneTypes.includes(attackerTrainedPokemon.pokemon.primaryType.name) ||
+      (attackerTrainedPokemon.pokemon.secondaryType &&
+        immuneTypes.includes(attackerTrainedPokemon.pokemon.secondaryType.name));
+    if (hasImmuneType) {
       return false;
     }
 
@@ -122,4 +139,3 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
     return true;
   }
 }
-
