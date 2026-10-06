@@ -261,6 +261,7 @@ import { ChipAwayEffect } from './effects/chip-away-effect';
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 // 相手に一時的な状態をかける技（Issue #107 一部）
 import { TelekinesisEffect } from './effects/telekinesis-effect';
+import { PowderEffect } from './effects/powder-effect';
 
 /**
  * 技のレジストリ
@@ -630,6 +631,7 @@ export class MoveRegistry {
       this.registry.set('シャドースチール', new SpectralThiefEffect());
       // 相手に一時的な状態をかける技（Issue #107 一部）
       this.registry.set('テレキネシス', new TelekinesisEffect());
+      this.registry.set('ふんじん', new PowderEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
