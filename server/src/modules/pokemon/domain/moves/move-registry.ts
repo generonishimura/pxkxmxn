@@ -259,6 +259,13 @@ import { FoulPlayEffect } from './effects/foul-play-effect';
 import { ChipAwayEffect } from './effects/chip-away-effect';
 // 相手のランクを奪う技（Issue #129 一部）
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
+// 一時的な状態を付与する技（Issue #107 一部）
+import { EncoreEffect } from './effects/encore-effect';
+import { TauntEffect } from './effects/taunt-effect';
+import { IngrainEffect } from './effects/ingrain-effect';
+import { HealBlockEffect } from './effects/heal-block-effect';
+import { AquaRingEffect } from './effects/aqua-ring-effect';
+import { MagnetRiseEffect } from './effects/magnet-rise-effect';
 
 /**
  * 技のレジストリ
@@ -626,6 +633,13 @@ export class MoveRegistry {
       this.registry.set('ＤＤラリアット', chipAwayEffect);
       // 相手のランクを奪う技（Issue #129 一部）
       this.registry.set('シャドースチール', new SpectralThiefEffect());
+      // 一時的な状態を付与する技（Issue #107 一部）
+      this.registry.set('アンコール', new EncoreEffect());
+      this.registry.set('ちょうはつ', new TauntEffect());
+      this.registry.set('ねをはる', new IngrainEffect());
+      this.registry.set('かいふくふうじ', new HealBlockEffect());
+      this.registry.set('アクアリング', new AquaRingEffect());
+      this.registry.set('でんじふゆう', new MagnetRiseEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
