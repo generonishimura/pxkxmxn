@@ -209,6 +209,30 @@ describe('DrySkinEffect', () => {
       expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
+    it('雨でも既に HP 0 なら回復しない', async () => {
+      // Arrange
+      const pokemon = createPokemon(0);
+      const ctx = createCtx(pokemon, { weather: Weather.Rain });
+
+      // Act
+      await effect.onTurnEnd(pokemon, ctx);
+
+      // Assert
+      expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
+    });
+
+    it('雨でも直前の状態異常ダメージで HP 0 になっていたら回復しない', async () => {
+      // Arrange
+      const pokemon = createPokemon(10);
+      const ctx = createCtx(createPokemon(0), { weather: Weather.Rain });
+
+      // Act
+      await effect.onTurnEnd(pokemon, ctx);
+
+      // Assert
+      expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
+    });
+
     it('ターン終了時点の最新 HP を基準に計算する', async () => {
       // Arrange: 引数の HP は 50 だが、直前の状態異常ダメージで最新 HP は 40
       const pokemon = createPokemon(50);

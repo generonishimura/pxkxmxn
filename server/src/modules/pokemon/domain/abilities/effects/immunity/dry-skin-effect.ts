@@ -51,7 +51,8 @@ export class DrySkinEffect extends BaseTypeAbsorbEffect {
     const currentStatus = await battleContext.battleRepository.findBattlePokemonStatusById(
       pokemon.id,
     );
-    if (!currentStatus) {
+    // ひんしのポケモンは雨でも回復しない
+    if (!currentStatus || currentStatus.isFainted()) {
       return;
     }
 
