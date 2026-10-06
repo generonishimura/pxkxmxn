@@ -87,6 +87,9 @@ import { HadronEngineEffect } from './effects/weather/hadron-engine-effect';
 import { IntrepidSwordEffect } from './effects/stat-change/intrepid-sword-effect';
 import { DauntlessShieldEffect } from './effects/stat-change/dauntless-shield-effect';
 import { SupersweetSyrupEffect } from './effects/stat-change/supersweet-syrup-effect';
+import { EarthEaterEffect } from './effects/immunity/earth-eater-effect';
+import { DrySkinEffect } from './effects/immunity/dry-skin-effect';
+import { WellBakedBodyEffect } from './effects/immunity/well-baked-body-effect';
 
 /**
  * 特性レジストリ
@@ -239,6 +242,9 @@ export class AbilityRegistry {
       this.registry.set('ふとうのけん', new IntrepidSwordEffect());
       this.registry.set('ふくつのたて', new DauntlessShieldEffect());
       this.registry.set('かんろなミツ', new SupersweetSyrupEffect());
+      this.registry.set('どしょく', new EarthEaterEffect());
+      this.registry.set('かんそうはだ', new DrySkinEffect());
+      this.registry.set('こんがりボディ', new WellBakedBodyEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
