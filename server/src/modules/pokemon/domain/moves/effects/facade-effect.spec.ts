@@ -16,7 +16,6 @@ describe('FacadeEffect', () => {
       StatusCondition.Paralysis,
       StatusCondition.Poison,
       StatusCondition.BadPoison,
-      StatusCondition.Freeze,
     ])('使用者が %s のとき威力が2倍（70 → 140）になる', status => {
       // Arrange
       const attacker = createStatus(1, status);
@@ -31,6 +30,17 @@ describe('FacadeEffect', () => {
     it('使用者がねむりのときは威力が変わらない', () => {
       // Arrange
       const attacker = createStatus(1, StatusCondition.Sleep);
+
+      // Act
+      const power = new FacadeEffect().modifyMovePower(attacker, defender, battleContext);
+
+      // Assert
+      expect(power).toBeUndefined();
+    });
+
+    it('使用者がこおりのときは威力が変わらない（こおりは技を出す前に治るため）', () => {
+      // Arrange
+      const attacker = createStatus(1, StatusCondition.Freeze);
 
       // Act
       const power = new FacadeEffect().modifyMovePower(attacker, defender, battleContext);

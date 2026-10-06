@@ -7,6 +7,7 @@ import { BattleContext } from '../../../abilities/battle-context.interface';
  *
  * 威力 = basePower + powerPerRank × （対象の上がっているランクの合計）。maxPower があればそれを上限にする。
  * ランクは攻撃・防御・特攻・特防・素早さ・命中・回避の7つで、下がっているランクは数えない（本家の positiveBoosts と同じ）
+ * 先に動いた側の技でこのターンに変わったランクも数える（beforeDamage を持つことで、威力を決める前に最新の状態を取り直させる）
  */
 export abstract class BasePositiveRankPowerEffect implements IMoveEffect {
   /**
@@ -28,6 +29,16 @@ export abstract class BasePositiveRankPowerEffect implements IMoveEffect {
    * 威力の上限（ない場合は undefined）
    */
   protected readonly maxPower?: number;
+
+  /**
+   * ダメージ計算前に何もしない
+   *
+   * このメソッドがあると、MoveExecutorService が威力を決める前に両者の最新の状態を取り直す。
+   * executeMove に渡る状態はターン開始時のものなので、先に動いた側の技で変わったランクを見るために必要
+   */
+  beforeDamage(): Promise<void> {
+    return Promise.resolve();
+  }
 
   /**
    * ダメージ計算前に威力を決める
