@@ -2,6 +2,7 @@ import { MoveRegistry } from './move-registry';
 import { LeechSeedEffect } from './effects/leech-seed-effect';
 import { NightmareEffect } from './effects/nightmare-effect';
 import { CurseEffect } from './effects/curse-effect';
+import { DestinyBondEffect } from './effects/destiny-bond-effect';
 
 describe('MoveRegistry: 一時的な状態を付与する技', () => {
   beforeEach(() => {
@@ -12,6 +13,7 @@ describe('MoveRegistry: 一時的な状態を付与する技', () => {
     ['やどりぎのタネ', LeechSeedEffect],
     ['あくむ', NightmareEffect],
     ['のろい', CurseEffect],
+    ['みちづれ', DestinyBondEffect],
   ])('%s が登録されている', (moveName, effectClass) => {
     // Act
     const effect = MoveRegistry.get(moveName);

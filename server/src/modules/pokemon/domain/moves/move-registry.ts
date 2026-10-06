@@ -263,6 +263,7 @@ import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 import { LeechSeedEffect } from './effects/leech-seed-effect';
 import { NightmareEffect } from './effects/nightmare-effect';
 import { CurseEffect } from './effects/curse-effect';
+import { DestinyBondEffect } from './effects/destiny-bond-effect';
 
 /**
  * 技のレジストリ
@@ -634,6 +635,7 @@ export class MoveRegistry {
       this.registry.set('やどりぎのタネ', new LeechSeedEffect());
       this.registry.set('あくむ', new NightmareEffect());
       this.registry.set('のろい', new CurseEffect());
+      this.registry.set('みちづれ', new DestinyBondEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
