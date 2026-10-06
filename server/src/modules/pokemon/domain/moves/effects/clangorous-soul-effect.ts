@@ -5,9 +5,9 @@ import { BattleContext } from '../../abilities/battle-context.interface';
 /**
  * ソウルビート（Clangorous Soul）技の効果
  *
- * 効果: 最大 HP の 1/3 を支払い、攻撃・防御・特攻・特防・素早さを 1 段階ずつ上げる
+ * 効果: 最大 HP の 33%（切り捨て、最低 1）を支払い、攻撃・防御・特攻・特防・素早さを 1 段階ずつ上げる
  *
- * - 現在 HP が支払う HP 以下なら失敗
+ * - 現在 HP が最大 HP の 33% 以下、または最大 HP が 1 なら失敗
  * - 5 つの能力が全て既に +6 なら失敗
  */
 export class ClangorousSoulEffect implements IMoveEffect {
@@ -20,10 +20,10 @@ export class ClangorousSoulEffect implements IMoveEffect {
       return null;
     }
 
-    const hpCost = Math.floor(attacker.maxHp / 3);
-    if (attacker.currentHp <= hpCost) {
+    if (attacker.currentHp <= (attacker.maxHp * 33) / 100 || attacker.maxHp === 1) {
       return null;
     }
+    const hpCost = Math.max(1, Math.floor((attacker.maxHp * 33) / 100));
 
     const clampUp = (current: number): number => Math.min(6, current + 1);
 
