@@ -87,6 +87,13 @@ import { GooeyEffect } from './effects/stat-change/gooey-effect';
 import { TanglingHairEffect } from './effects/stat-change/tangling-hair-effect';
 import { WeakArmorEffect } from './effects/stat-change/weak-armor-effect';
 import { EffectSporeEffect } from './effects/stat-change/effect-spore-effect';
+import { TransistorEffect } from './effects/damage-modify/transistor-effect';
+import { DragonsMawEffect } from './effects/damage-modify/dragons-maw-effect';
+import { RockyPayloadEffect } from './effects/damage-modify/rocky-payload-effect';
+import { GrassPeltEffect } from './effects/damage-modify/grass-pelt-effect';
+import { IceScalesEffect } from './effects/damage-modify/ice-scales-effect';
+import { SolarPowerEffect } from './effects/damage-modify/solar-power-effect';
+import { DefeatistEffect } from './effects/damage-modify/defeatist-effect';
 
 /**
  * 特性レジストリ
@@ -239,6 +246,14 @@ export class AbilityRegistry {
       this.registry.set('カーリーヘアー', new TanglingHairEffect());
       this.registry.set('くだけるよろい', new WeakArmorEffect());
       this.registry.set('ほうし', new EffectSporeEffect());
+      // ダメージ補正特性（タイプ・天候・HP）（Issue #135 一部）
+      this.registry.set('トランジスタ', new TransistorEffect());
+      this.registry.set('りゅうのあぎと', new DragonsMawEffect());
+      this.registry.set('いわはこび', new RockyPayloadEffect());
+      this.registry.set('くさのけがわ', new GrassPeltEffect());
+      this.registry.set('こおりのりんぷん', new IceScalesEffect());
+      this.registry.set('サンパワー', new SolarPowerEffect());
+      this.registry.set('よわき', new DefeatistEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
