@@ -285,7 +285,7 @@ export class MoveRegistry {
       // 技の特殊効果ロジックを登録
       // DBのnameをキーとして、対応するロジッククラスを登録
       this.registry.set('かえんほうしゃ', new FlamethrowerEffect());
-      this.registry.set('10まんボルト', new ThunderboltEffect());
+      this.registry.set('１０まんボルト', new ThunderboltEffect());
       this.registry.set('どくどく', new ToxicEffect());
       this.registry.set('れいとうビーム', new IceBeamEffect());
       this.registry.set('ねむりごな', new SleepPowderEffect());
@@ -304,8 +304,7 @@ export class MoveRegistry {
       this.registry.set('かたくなる', new HardenEffect());
       this.registry.set('つるぎのまい', new SwordsDanceEffect());
       // 天候変更系の変化技
-      this.registry.set('あめをよぶ', new RainDanceEffect());
-      this.registry.set('あまごい', new RainDanceEffect()); // Issue #115: あめをよぶの別表記
+      this.registry.set('あまごい', new RainDanceEffect());
       this.registry.set('にほんばれ', new SunnyDayEffect());
       this.registry.set('すなあらし', new SandstormMoveEffect());
       this.registry.set('あられ', new HailMoveEffect());
