@@ -21,7 +21,6 @@ import { LeafGuardEffect } from './effects/immunity/leaf-guard-effect';
 import { ObliviousEffect } from './effects/oblivious-effect';
 import { MultiscaleEffect } from './effects/damage-modify/multiscale-effect';
 import { GutsEffect } from './effects/stat-change/guts-effect';
-import { GutsHpThresholdEffect } from './effects/stat-change/kongyou-effect';
 import { ThickFatEffect } from './effects/damage-modify/thick-fat-effect';
 import { HeatproofEffect } from './effects/damage-modify/heatproof-effect';
 import { SpeedBoostEffect } from './effects/stat-change/speed-boost-effect';
@@ -208,6 +207,10 @@ import { StakeoutEffect } from './effects/damage-modify/stakeout-effect';
 import { InnardsOutEffect } from './effects/other/innards-out-effect';
 import { RivalryEffect } from './effects/damage-modify/rivalry-effect';
 import { DownloadEffect } from './effects/stat-change/download-effect';
+// 状態異常・素早さ・タイプ相性で発動する特性（Issue #135 一部）
+import { GutsAttackBoostEffect } from './effects/damage-modify/guts-attack-boost-effect';
+import { QuickDrawEffect } from './effects/other/quick-draw-effect';
+import { TeraShellEffect } from './effects/damage-modify/tera-shell-effect';
 
 /**
  * 特性レジストリ
@@ -284,7 +287,6 @@ export class AbilityRegistry {
       // 天候依存の回避率ブースト（Issue #84 一部）
       this.registry.set('すながくれ', new SandVeilEffect());
       this.registry.set('ゆきがくれ', new SnowCloakEffect());
-      this.registry.set('こんじょう', new GutsHpThresholdEffect());
       this.registry.set('しんりょく', new ShinryokuEffect());
       this.registry.set('もうか', new MoukaEffect());
       this.registry.set('げきりゅう', new GekiryuuEffect());
@@ -515,6 +517,10 @@ export class AbilityRegistry {
       this.registry.set('とびだすなかみ', new InnardsOutEffect());
       this.registry.set('とうそうしん', new RivalryEffect());
       this.registry.set('ダウンロード', new DownloadEffect());
+      // 状態異常・素早さ・タイプ相性で発動する特性（Issue #135 一部）
+      this.registry.set('こんじょう', new GutsAttackBoostEffect());
+      this.registry.set('クイックドロウ', new QuickDrawEffect());
+      this.registry.set('テラスシェル', new TeraShellEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
