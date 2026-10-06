@@ -1,5 +1,11 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { Battle } from '../../domain/entities/battle.entity';
+import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
+import {
+  clearVolatileOnSwitchOut,
+  releaseVolatileReferencesTo,
+  updateVolatileState,
+} from '../../domain/state/volatile-state';
 import {
   IBattleRepository,
   BATTLE_REPOSITORY_TOKEN,
@@ -61,9 +67,12 @@ export class PokemonSwitcherService {
         ? StatusCondition.None
         : currentActive.statusCondition;
 
+      // 場に出ている間だけの状態（volatileState）はすべて消す。交代しても残る状態は
+      // persistentState にあるので、ここでは触らない
       await this.battleRepository.updateBattlePokemonStatus(currentActive.id, {
         isActive: false,
         statusCondition,
+        volatileState: clearVolatileOnSwitchOut(),
       });
 
       // 注: もうどく・ねむりのターン数はStatusConditionProcessorServiceで管理されているが、
@@ -72,6 +81,12 @@ export class PokemonSwitcherService {
 
     // 新しいポケモンをアクティブにする
     const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
+
+    // 引っ込んだポケモンによる、ほかのポケモンの逃げられない状態・メロメロを消す
+    if (currentActive) {
+      await this.releaseReferencesTo(currentActive.id, battleStatuses);
+    }
+
     const targetStatus = battleStatuses.find(
       s => s.trainedPokemonId === trainedPokemonId && s.trainerId === trainerId,
     );
@@ -83,8 +98,12 @@ export class PokemonSwitcherService {
       );
     }
 
+    // 場に出たターンを書く（ねこだまし・たたみがえし・はりこみなどが読む）
     await this.battleRepository.updateBattlePokemonStatus(targetStatus.id, {
       isActive: true,
+      volatileState: updateVolatileState(targetStatus.volatileState, {
+        switchedInTurn: battle.turn,
+      }),
     });
 
     // 特性のOnEntry効果を発動
@@ -98,6 +117,27 @@ export class PokemonSwitcherService {
           battle,
           battleRepository: this.battleRepository,
           trainedPokemonRepository: this.trainedPokemonRepository,
+        });
+      }
+    }
+  }
+
+  /**
+   * 場を離れたポケモンを指している、ほかのポケモンの状態を消す
+   * statuses は場を離れたあとに読み直した一覧を渡す
+   */
+  private async releaseReferencesTo(
+    leavingStatusId: number,
+    statuses: readonly BattlePokemonStatus[],
+  ): Promise<void> {
+    for (const status of statuses) {
+      if (status.id === leavingStatusId) {
+        continue;
+      }
+      const released = releaseVolatileReferencesTo(status.volatileState, leavingStatusId);
+      if (released !== status.volatileState) {
+        await this.battleRepository.updateBattlePokemonStatus(status.id, {
+          volatileState: released,
         });
       }
     }
