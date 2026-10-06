@@ -252,6 +252,7 @@ export class MoveExecutorService {
     const typeEffectiveness = await this.typeEffectivenessRepository.getTypeEffectivenessMap();
 
     // ヒットごとにダメージを計算して適用
+    // damage は実際に減らしたHPの合計（残りHPを超えた分は含めない。反動などはこの値を使う）
     let damage = 0;
     let hitCount = 0;
     let updatedDefender = defender;
@@ -293,6 +294,7 @@ export class MoveExecutorService {
 
       // ダメージを適用
       const newHp = Math.max(0, updatedDefender.currentHp - hitDamage);
+      const dealtDamage = updatedDefender.currentHp - newHp;
       await this.battleRepository.updateBattlePokemonStatus(defender.id, {
         currentHp: newHp,
       });
@@ -304,7 +306,7 @@ export class MoveExecutorService {
       }
       updatedDefender = latestDefender;
       battleContext.defender = latestDefender;
-      damage += hitDamage;
+      damage += dealtDamage;
       hitCount += 1;
 
       // 無効化された・ひんしになった場合は残りのヒットをしない
@@ -364,7 +366,7 @@ export class MoveExecutorService {
       }
     }
 
-    // ダメージ適用後の技の効果（反動など）。全ヒットの合計ダメージを渡す
+    // ダメージ適用後の技の効果（反動など）。全ヒットで実際に減らしたHPの合計を渡す
     if (moveEffect?.afterDamage) {
       const afterDamageMessage = await moveEffect.afterDamage(
         attackerForMoveEffect,

@@ -19,7 +19,7 @@
 6. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType`）
 7. 技の威力を決める（技の `modifyMovePower`）
 8. ヒットごとにダメージを計算して当てる（連続技・おやこあいの追加ヒット）。ひんしかダメージ0で止まる
-9. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（合計ダメージ）
+9. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
 
 `DamageCalculator.calculate`（`src/modules/battle/domain/logic/damage-calculator.ts`）の中は次の順です。
 
@@ -96,7 +96,7 @@ export class FacadeEffect implements IMoveEffect {
 ### beforeDamage / afterDamage（呼ばれるようになった既存フック）
 
 - `beforeDamage(attacker, defender, move, battleContext)`: 命中後、タイプ決定の前に1回。`battleContext.multiHitCount` を2以上にすると、その回数だけダメージを与えます（`BaseMultiHitEffect` が使う）。
-- `afterDamage(attacker, defender, damage, battleContext)`: `onHit` のあとに1回。`damage` は全ヒットの合計です（反動技など）。
+- `afterDamage(attacker, defender, damage, battleContext)`: `onHit` のあとに1回。`damage` は全ヒットで実際に減らしたHPの合計です（反動技など）。相手の残りHPを超えた分は入りません。
 
 ```ts
 async beforeDamage(_a: BattlePokemonStatus, _d: BattlePokemonStatus, _m: Move, ctx: BattleContext) {

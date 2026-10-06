@@ -27,6 +27,7 @@ import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
 import { MoldBreakerEffect } from '@/modules/pokemon/domain/abilities/effects/mold-breaker-effect';
+import { DoubleEdgeEffect } from '@/modules/pokemon/domain/moves/effects/double-edge-effect';
 
 describe('MoveExecutorService - ダメージ前後のフック', () => {
   const ATTACKER_ID = 1;
@@ -507,6 +508,34 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       expect(afterDamage).toHaveBeenCalledTimes(1);
       expect(afterDamage.mock.calls[0][2]).toBe(20);
       expect(message).toContain('recoil!');
+    });
+
+    it('afterDamage とメッセージには、残りHPを超えた分を除いた実際に減らしたHPを使う', async () => {
+      // Arrange
+      const afterDamage = jest.fn().mockResolvedValue(null);
+      const { execute } = setup({ defenderHp: 10, damage: 50, moveEffect: { afterDamage } });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(afterDamage.mock.calls[0][2]).toBe(10);
+      expect(message).toBe('Used ほのおのパンチ and dealt 10 damage');
+    });
+
+    it('反動技の反動は実際に減らしたHPから計算する', async () => {
+      // Arrange
+      const { execute, statuses } = setup({
+        defenderHp: 10,
+        damage: 50,
+        moveEffect: new DoubleEdgeEffect(),
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID)?.currentHp).toBe(97);
     });
   });
 
