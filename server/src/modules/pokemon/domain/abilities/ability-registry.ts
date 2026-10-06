@@ -129,6 +129,12 @@ import { ArmorTailEffect } from './effects/other/armor-tail-effect';
 import { GoodAsGoldEffect } from './effects/immunity/good-as-gold-effect';
 // 天候の効果をなくす特性（Issue #135 一部）
 import { CloudNineEffect } from './effects/weather/cloud-nine-effect';
+// 追加効果・天候・連続技・ランク無視の特性（Issue #135 一部）
+import { ShieldDustEffect } from './effects/other/shield-dust-effect';
+import { SereneGraceEffect } from './effects/other/serene-grace-effect';
+import { AirLockEffect } from './effects/weather/air-lock-effect';
+import { SkillLinkEffect } from './effects/other/skill-link-effect';
+import { UnawareEffect } from './effects/other/unaware-effect';
 
 /**
  * 特性レジストリ
@@ -352,6 +358,12 @@ export class AbilityRegistry {
       this.registry.set('おうごんのからだ', new GoodAsGoldEffect());
       // 天候の効果をなくす特性（Issue #135 一部）
       this.registry.set('ノーてんき', new CloudNineEffect());
+      // 追加効果・天候・連続技・ランク無視の特性（Issue #135 一部）
+      this.registry.set('りんぷん', new ShieldDustEffect());
+      this.registry.set('てんのめぐみ', new SereneGraceEffect());
+      this.registry.set('エアロック', new AirLockEffect());
+      this.registry.set('スキルリンク', new SkillLinkEffect());
+      this.registry.set('てんねん', new UnawareEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
