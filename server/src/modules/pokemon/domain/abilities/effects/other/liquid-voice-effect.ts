@@ -7,6 +7,7 @@ import { BattleContext } from '../../battle-context.interface';
  * 音技（技フラグ sound）のタイプをみずにする。威力は変えない
  *
  * 注: 行動順のコンテキストの技タイプは技本来のタイプのまま（タイプ変更は反映しない）
+ * 注: 変化技（うたうなど）には modifyMoveType が呼ばれないため、タイプは変わらない（ちょすいなどによる変化技の吸収は未対応）
  */
 export class LiquidVoiceEffect implements IAbilityEffect {
   /**
