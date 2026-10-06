@@ -518,5 +518,19 @@ describe('MoveExecutorService - 技の流れでエンジンが書く状態（Mov
       expect(statuses.get(ATTACKER_ID).statusCondition).toBe(StatusCondition.Burn);
       expect(message).toContain('was burned by Beak Blast!');
     });
+
+    it('くちばしキャノンを撃ったら、加熱が終わる', async () => {
+      // Arrange
+      const { execute, statuses } = setupMoveExecutor({
+        move: createMove('くちばしキャノン', MoveCategory.Physical, 100, -3),
+        attacker: { volatileState: { beakBlast: true } },
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID).volatileState.beakBlast).toBeUndefined();
+    });
   });
 });

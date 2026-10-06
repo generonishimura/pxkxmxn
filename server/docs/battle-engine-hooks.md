@@ -796,7 +796,7 @@ export class ProtectEffect implements IMoveEffect {
 
 - シグネチャ: `onTurnStart?(user, opponent, ctx): Promise<string | null>`
 - 呼ばれる場所: `ExecuteTurnUseCase`。行動順を決めたあと、どちらの技よりも先に、技を選んだポケモンごとに行動順で呼ぶ（反動で動けないポケモンでは呼ばない）。メッセージは結果に `action: 'turnStart'` として入る
-- 使う技: くちばしキャノン（`beakBlast` を書く。ターン終了時に消える。接触技を受けたときのやけどはエンジンが行う）、きあいパンチ
+- 使う技: くちばしキャノン（`beakBlast` を書く。くちばしキャノンを撃ったとき、またはターン終了時に消える。接触技を受けたときのやけどはエンジンが行う）、きあいパンチ
 
 ```ts
 async onTurnStart(user: BattlePokemonStatus, _o: BattlePokemonStatus, ctx: BattleContext): Promise<string | null> {

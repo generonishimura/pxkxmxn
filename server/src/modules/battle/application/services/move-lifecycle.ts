@@ -44,6 +44,11 @@ const RAMPAGE_LOCKED_IN: LockedInMoveConfig = { turns: [2, 3], confusesAtEnd: tr
 export const CHARGE_MOVE_NAME = 'じゅうでん';
 
 /**
+ * くちばしキャノン（撃ったら加熱 beakBlast が終わる）
+ */
+const BEAK_BLAST_MOVE_NAME = 'くちばしキャノン';
+
+/**
  * さわぐで目を覚まさない特性（ぼうおん）
  */
 const SOUNDPROOF_ABILITY_NAME = 'ぼうおん';
@@ -217,6 +222,7 @@ export class MoveLifecycle {
    * - 出し続ける技（lockedIn / MoveBehaviors の lockedMove）: 残りターン数を書く。終わったらこんらんする技もある
    * - 続けて出した回数（consecutiveMoveCount）
    * - じゅうでん（charged）: でんき技を出したら消す（じゅうでんそのものは除く。外れても消す）
+   * - くちばしキャノン: 撃ったら加熱（beakBlast）を消す
    * - さわぐ: 始めたときに、場のねむっているポケモンを起こす（ぼうおんは起きない）
    * @param moveTypeName 出した技のタイプ（タイプ変更の反映後。ダメージ技でなければ技本来のタイプ）
    * @returns メッセージ（こんらんした、など）
@@ -249,6 +255,11 @@ export class MoveLifecycle {
 
     if (outcome === 'hit' && MoveBehaviors.has(move.name, 'recharge')) {
       patch.mustRecharge = true;
+    }
+
+    // くちばしキャノンを撃ったら加熱が終わる（本家の onAfterMove。このあとの接触技ではやけどにならない）
+    if (move.name === BEAK_BLAST_MOVE_NAME && attacker.volatileState.beakBlast !== undefined) {
+      patch.beakBlast = null;
     }
 
     if (outcome !== 'charged') {
