@@ -79,6 +79,9 @@ import { ScrappyEffect } from './effects/stat-change/scrappy-effect';
 import { DefiantEffect } from './effects/stat-change/defiant-effect';
 import { CompetitiveEffect } from './effects/stat-change/competitive-effect';
 import { BerserkEffect } from './effects/stat-change/berserk-effect';
+import { HyperCutterEffect } from './effects/stat-change/hyper-cutter-effect';
+import { KeenEyeEffect } from './effects/stat-change/keen-eye-effect';
+import { FurCoatEffect } from './effects/damage-modify/fur-coat-effect';
 
 /**
  * 特性レジストリ
@@ -220,6 +223,11 @@ export class AbilityRegistry {
       this.registry.set('まけんき', new DefiantEffect());
       this.registry.set('かちき', new CompetitiveEffect());
       this.registry.set('ぎゃくじょう', new BerserkEffect());
+      // 特定の能力ランクが下がらない特性（Issue #84 一部、はとむねと同パターン）
+      this.registry.set('かいりきバサミ', new HyperCutterEffect());
+      this.registry.set('するどいめ', new KeenEyeEffect());
+      // ファーコート: 物理ダメージ半減（Issue #84 一部、ふしぎなうろこと同パターン）
+      this.registry.set('ファーコート', new FurCoatEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
