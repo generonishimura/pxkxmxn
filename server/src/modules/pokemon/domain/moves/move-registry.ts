@@ -214,6 +214,8 @@ import { FloralHealingEffect } from './effects/floral-healing-effect';
 import { JungleHealingEffect } from './effects/jungle-healing-effect';
 import { LifeDewEffect } from './effects/life-dew-effect';
 import { LunarBlessingEffect } from './effects/lunar-blessing-effect';
+import { PurifyEffect } from './effects/purify-effect';
+import { StrengthSapEffect } from './effects/strength-sap-effect';
 
 /**
  * 技のレジストリ
@@ -492,6 +494,8 @@ export class MoveRegistry {
       this.registry.set('ジャングルヒール', new JungleHealingEffect());
       this.registry.set('いのちのしずく', new LifeDewEffect());
       this.registry.set('みかづきのいのり', new LunarBlessingEffect());
+      this.registry.set('じょうか', new PurifyEffect());
+      this.registry.set('ちからをすいとる', new StrengthSapEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
