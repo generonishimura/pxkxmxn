@@ -6,20 +6,32 @@
 - 特性のフック: `src/modules/pokemon/domain/abilities/ability-effect.interface.ts`（`IAbilityEffect`）
 - 技のフック: `src/modules/pokemon/domain/moves/move-effect.interface.ts`（`IMoveEffect`）
 - コンテキスト: `src/modules/pokemon/domain/abilities/battle-context.interface.ts`（`BattleContext`）
+- イベントの型と補助関数: `src/modules/pokemon/domain/battle-events/`（ヒットの情報・原因・能力ランク・状態異常・技以外のダメージ・吸収）
 
 ## 1. 技を使ったときの処理の順番
 
 `MoveExecutorService.executeMove`（`src/modules/battle/application/services/move-executor.service.ts`）は次の順で処理します。
 
-1. ヒット共通のコンテキストを作る（技名・技フラグ・効果のある天候・実数値・無視するランク）
-2. 防御側特性の `isImmuneToMove` で技そのものを無効にするか判定する（変化技も含む）。無効なら防御側特性の `onMoveBlocked` を呼んで終わり
-3. 命中判定（`AccuracyCalculator.checkHit`）
-4. 変化技なら `onUse` を呼んで終わり（威力が null で `modifyMovePower` もない攻撃技も、今までどおりここで終わる）
-5. 技の `beforeDamage`（連続技の回数決定）
-6. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType`）
-7. 技の威力を決める（技の `modifyMovePower`）
-8. ヒットごとにダメージを計算して当てる（連続技・おやこあいの追加ヒット）。ひんしかダメージ0で止まる
-9. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
+1. ヒット共通のコンテキストを作る（技名・技フラグ・効果のある天候・実数値・無視するランク・`effectivePriority`）
+2. 両者の特性の `preventsMove` で技を失敗させるか判定する（変化技も含む。防御側はかたやぶりで無視）。失敗ならPPだけ減って `Used <技> but it failed (<特性名>)`
+3. 防御側特性の `isImmuneToMove` で技そのものを無効にするか判定する（変化技も含む）。無効なら防御側特性の `onMoveBlocked` を呼んで終わり
+4. 技の `shouldFail` で技が失敗するか判定する。失敗ならPPだけ減って `Used <技> but it failed`
+5. 命中判定（`AccuracyCalculator.checkHit`）
+6. 変化技なら `onUse` を呼んで終わり（威力が null で `modifyMovePower` もない攻撃技も、今までどおりここで終わる）
+7. 技の `beforeDamage`（連続技の回数決定）。このあと攻撃側・防御側の状態を取り直す
+8. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType`）
+9. 技の威力を決める（技の `modifyMovePower`）
+10. ヒットごとにダメージを計算して当てる（連続技・おやこあいの追加ヒット）。1以上減らしたヒットごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼び、両者の状態を取り直す。ダメージ0・どちらかがひんしで止まる
+11. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
+12. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut`
+
+メッセージは `Used <技> and dealt <ダメージ> damage (hit N times) <接触時の特性> <10のメッセージ> <onHit・afterDamage> <12のメッセージ>` の順に並びます。
+
+ターン終了時（`StatusConditionProcessorService.processTurnEndAbilities`）は、場のポケモンごとに次の順で処理します。
+
+1. ねむり: `shouldClearSleep(count, sleepTurnMultiplier)` で目を覚ますか判定する
+2. どく・もうどく・やけど: ダメージを特性の `modifyStatusDamage` で変え、`applyIndirectDamage` で与える
+3. 特性の `onTurnEnd`（コンテキストに `trainedPokemonRepository` が入る）
 
 `DamageCalculator.calculate`（`src/modules/battle/domain/logic/damage-calculator.ts`）の中は次の順です。
 
@@ -114,6 +126,23 @@ async beforeDamage(_a: BattlePokemonStatus, _d: BattlePokemonStatus, _m: Move, c
   ctx.multiHitCount = 2;
 }
 ```
+
+- `beforeDamage` のあと、エンジンは攻撃側・防御側を取り直してからダメージを計算します。シャドースチールのように、ダメージの前に相手のランクを奪う効果はここに書きます（相手のランクは直接書き込み、自分の上昇は `applyStatChanges` で行う）。
+
+### shouldFail
+
+- シグネチャ: `shouldFail?(attacker, defender, battleContext): boolean | undefined`
+- 呼ばれる場所: `executeMove`。特性の `preventsMove`・`isImmuneToMove` のあと、命中判定の前に1回。変化技でも呼ばれる
+- 使う技: ゆめくい（相手がねむりでなければ失敗）
+- `true` を返すとPPだけ減り、`Used <技> but it failed` になります。
+
+```ts
+shouldFail(_attacker: BattlePokemonStatus, defender: BattlePokemonStatus): boolean {
+  return defender.statusCondition !== StatusCondition.Sleep;
+}
+```
+
+- ゆめくいの回復は `afterDamage` で `applyDrainHeal(attacker, defender, calculateDrainAmount(damage, 0.5), ctx)` を呼びます（5章）。
 
 ## 3. 特性のフック（IAbilityEffect）
 
@@ -225,6 +254,150 @@ async onMoveBlocked(pokemon: BattlePokemonStatus, ctx?: BattleContext): Promise<
 }
 ```
 
+### preventsMove（攻撃側・防御側）
+
+- シグネチャ: `preventsMove?(holder, role: 'attacker' | 'defender', battleContext): boolean | undefined`
+- 呼ばれる場所: `executeMove`。コンテキストを作った直後、`isImmuneToMove` と命中判定の前。攻撃側特性（`role = 'attacker'`）→ 防御側特性（`role = 'defender'`）の順。変化技・自分を対象にする技を含むすべての技で呼ばれる。防御側はかたやぶりで無視される
+- 使う特性: しめりけ（両方の役割で、だいばくはつ・じばく・ビックリヘッド・ミストバーストを止める）、じょおうのいげん・ビビッドボディ・テイルアーマー（防御側で、相手の優先度が1以上の技を止める）
+- 優先度は `battleContext.effectivePriority`（いたずらごころなどの `modifyPriority` を反映した値）を使います。自分を対象にする技（まもるなど）は止めないので、`MoveFlags.targetsOpponent(ctx.moveName)` も確かめます。
+
+```ts
+preventsMove(_h: BattlePokemonStatus, role: 'attacker' | 'defender', ctx?: BattleContext): boolean {
+  return role === 'defender' && (ctx?.effectivePriority ?? 0) > 0 && MoveFlags.targetsOpponent(ctx?.moveName ?? '');
+}
+```
+
+- おうごんのからだ（相手の変化技を無効）は `isImmuneToMove` で `ctx?.moveCategory === 'Status'` を返せば作れます（相手を対象にする技だけで呼ばれ、命中判定の前）。
+
+### onDamagingHit（防御側、ヒットごと）
+
+- シグネチャ: `onDamagingHit?(holder, attacker, hit: HitResult, battleContext): Promise<string | null>`
+- 呼ばれる場所: `executeMove`。1以上のダメージを受けたヒットのたびに、HPを減らした直後。ひんしになったヒットでも呼ばれる（`hit.targetFainted === true`）。かたやぶりでは無視されない
+- 使う特性: じきゅうりょく、せいぎのこころ、びびり、みずがため、じょうききかん、ねつこうかん（攻撃+1の部分）、わたげ、すなはき、こぼれダネ、てつのトゲ・さめはだ（新しく作る場合）、ゆうばく・とびだすなかみ（ひんしになったとき）
+- `holder` はダメージを反映した状態です。ここで変えたランクは次のヒットのダメージ計算に使われます。
+- 本家で「かたやぶりで止まる」特性（ねつこうかんなど）は、`AbilityRegistry.isIgnoredByMoldBreaker(ctx.attackerAbilityName, '<自分の特性名>')` で自分で判定します。
+
+```ts
+async onDamagingHit(holder: BattlePokemonStatus, _a: BattlePokemonStatus, hit: HitResult, ctx?: BattleContext) {
+  if (hit.moveTypeName !== 'あく' || !ctx) return null;
+  const result = await applyStatChanges(holder, [{ statType: 'attack', rankChange: 1 }], ctx, { source: { pokemon: holder, kind: 'ability', name: 'せいぎのこころ' } });
+  return joinStatChangeMessages(result);
+}
+```
+
+### onSourceDamagingHit（攻撃側、ヒットごと）
+
+- シグネチャ: `onSourceDamagingHit?(holder, target, hit: HitResult, battleContext): Promise<string | null>`
+- 呼ばれる場所: `executeMove`。防御側の `onDamagingHit` のすぐあと
+- 使う特性: どくしゅ（接触技で30%どく）、どくのくさり（30%もうどく）、あくしゅう（10%ひるみ）
+- 本家ではりんぷんで止まります。`rollSecondaryEffect(0.3, ctx)` を使えば `secondaryEffectsSuppressed` を見ます（てんのめぐみの倍率も掛かる点に注意。どくしゅ・どくのくさりは本家ではてんのめぐみの対象外なので、`ctx.secondaryEffectsSuppressed` を見て `Math.random()` で判定する）。
+
+```ts
+async onSourceDamagingHit(holder: BattlePokemonStatus, target: BattlePokemonStatus, hit: HitResult, ctx?: BattleContext) {
+  if (!ctx || !hit.isContact || ctx.secondaryEffectsSuppressed || Math.random() >= 0.3) return null;
+  const { inflicted } = await tryInflictStatus(target, StatusCondition.Poison, ctx, { source: { pokemon: holder, kind: 'ability', name: 'どくしゅ' } });
+  return inflicted ? 'was poisoned!' : null;
+}
+```
+
+### onAfterMoveHit（防御側、技全体で1回）
+
+- シグネチャ: `onAfterMoveHit?(holder, attacker, hit: HitResult, battleContext): Promise<string | null>`
+- 呼ばれる場所: `executeMove`。技の `afterDamage` のあと、合計ダメージが1以上のとき1回。`hit.damage` は合計、`hit.hpBefore` は技を受ける前のHP。かたやぶりでは無視されない
+- 使う特性: いかりのこうら、ぎゃくじょう（連続技でも、技のあとに1回だけ判定する。本家と同じ）
+
+```ts
+async onAfterMoveHit(holder: BattlePokemonStatus, _a: BattlePokemonStatus, hit: HitResult) {
+  const half = holder.maxHp / 2;
+  if (holder.currentHp <= 0 || !(hit.hpBefore > half && holder.currentHp <= half)) return null;
+  return 'Anger Shell activated!';
+}
+```
+
+### onKnockOut（攻撃側）
+
+- シグネチャ: `onKnockOut?(holder, fainted, battleContext): Promise<string | null>`
+- 呼ばれる場所: `executeMove`。技の処理がすべて終わったあと（`onAfterMoveHit` のあと）、相手がひんしで自分がひんしでないとき
+- 使う特性: じしんかじょう、しろのいななき、くろのいななき、ビーストブースト、ソウルハート（近似。7章）
+- ビーストブーストの「最も高い能力」は、ランク補正前の実数値 `ctx.attackerStats` から選びます（本家と同じ）。
+
+```ts
+async onKnockOut(holder: BattlePokemonStatus, _fainted: BattlePokemonStatus, ctx?: BattleContext) {
+  if (!ctx) return null;
+  return joinStatChangeMessages(await applyStatChanges(holder, [{ statType: 'attack', rankChange: 1 }], ctx, { source: { pokemon: holder, kind: 'ability', name: 'じしんかじょう' } }));
+}
+```
+
+### applyContactStatusCondition（防御側、技全体で1回）
+
+- シグネチャ: `applyContactStatusCondition?(defender, attacker, battleContext): Promise<boolean>`
+- 呼ばれる場所: `executeMove`。ヒットのループのあと、合計ダメージが1以上のとき1回（以前は duck typing だった。今はインターフェースに定義済み）。`true` を返すと `<特性名> activated!` が付く
+- 使う特性: 既存の基底クラス `BaseContactStatusConditionEffect`（せいでんきなど）、`BaseContactRecoilDamageEffect`（さめはだ・ゆうばく）、`BaseContactStatChangeEffect`（ぬめぬめなど）
+- てつのトゲは `BaseContactRecoilDamageEffect` を継承して `damageDivisor = 8` にするだけで作れます（ダメージは `applyIndirectDamage` で与えるので、攻撃側のマジックガードで防がれる）。
+
+```ts
+export class IronBarbsEffect extends BaseContactRecoilDamageEffect {
+  protected readonly damageDivisor = 8;
+}
+```
+
+### 状態異常のフック
+
+| フック | シグネチャ | 呼ばれる場所 | 使う特性 |
+| --- | --- | --- | --- |
+| `canReceiveStatusCondition`（既存） | `(pokemon, status, ctx?, source?: EffectSource) => boolean \| undefined` | `canInflictStatus`。技で付与するときはかたやぶりで無視 | めんえき、じゅうなん など。`source` が入るようになった |
+| `bypassesStatusTypeImmunity` | `(holder, status, ctx?) => boolean \| undefined` | `canInflictStatus`。対象がタイプで防ぐとき、付与元の特性として | ふしょく |
+| `onStatusInflicted` | `(holder, status, source: EffectSource \| undefined, ctx?) => Promise<string \| null>` | `inflictStatus`。書き込んだあと、付与された側の特性として | シンクロ |
+| `onInflictStatus` | `(holder, target, status, ctx?) => Promise<string \| null>` | `inflictStatus`。書き込んだあと、付与元の特性として（自分に付与したときは呼ばない） | どくくぐつ（7章: 今は作れない） |
+| `modifyStatusDamage` | `(holder, status, damage, ctx?) => number \| undefined \| Promise<number \| undefined>` | ターン終了時、どく・もうどく・やけどのダメージの前 | ポイズンヒール（回復して0を返す）、たいねつ（やけどを半分） |
+
+```ts
+bypassesStatusTypeImmunity(_h: BattlePokemonStatus, status: StatusCondition): boolean {
+  return status === StatusCondition.Poison || status === StatusCondition.BadPoison;
+}
+```
+
+```ts
+async onStatusInflicted(holder: BattlePokemonStatus, status: StatusCondition, source: EffectSource | undefined, ctx?: BattleContext) {
+  if (!ctx || !source?.pokemon || source.pokemon.id === holder.id || ![StatusCondition.Burn, StatusCondition.Paralysis, StatusCondition.Poison, StatusCondition.BadPoison].includes(status)) return null;
+  const { inflicted } = await tryInflictStatus(source.pokemon, status, ctx, { source: { pokemon: holder, kind: 'ability', name: 'シンクロ' } });
+  return inflicted ? 'Synchronize activated!' : null;
+}
+```
+
+```ts
+async modifyStatusDamage(holder: BattlePokemonStatus, status: StatusCondition, _damage: number, ctx?: BattleContext) {
+  if (status !== StatusCondition.Poison && status !== StatusCondition.BadPoison) return undefined;
+  await ctx?.battleRepository?.updateBattlePokemonStatus(holder.id, { currentHp: Math.min(holder.maxHp, holder.currentHp + Math.max(1, Math.floor(holder.maxHp / 8))) });
+  return 0;
+}
+```
+
+- シンクロの `source.pokemon` は付与したときの状態です。最新の状態が必要なら `ctx.battleRepository.findBattlePokemonStatusById(source.pokemon.id)` で取り直します。
+
+### 能力ランクのフック
+
+| フック | シグネチャ | 呼ばれる場所 | 使う特性 |
+| --- | --- | --- | --- |
+| `modifyIncomingStatChange` | `(holder, change: StatChange, source: EffectSource \| undefined, ctx?) => number \| undefined` | `applyStatChanges`。自分のランクが変わるたび（自分で起こした変化も含む）。相手の技による変化ではかたやぶりで無視 | たんじゅん（×2）、あまのじゃく（×-1）、ばんけん（いかくの攻撃-1を+1に） |
+| `canReceiveStatChange`（既存） | `(pokemon, statType, rankChange, ctx?, source?: EffectSource) => boolean \| undefined` | `applyStatChanges`。相手が起こした低下だけ。相手の技ではかたやぶりで無視 | クリアボディ など。`source` が入るようになった |
+| `onStatChanged` | `(holder, applied: readonly StatChange[], source, ctx?) => Promise<string \| null>` | `applyStatChanges`。自分のランクを書き込んだあと（実際に変わったときだけ） | びびり（`source?.name === 'いかく'` で素早さ+1）、まけんき・かちき（作り直す場合） |
+| `onOpponentStatChanged` | `(holder, opponent, applied, source, ctx?) => Promise<string \| null>` | `applyStatChanges`。相手のランクを書き込んだあと、相手の `onStatChanged` のあと | びんじょう |
+
+```ts
+modifyIncomingStatChange(_h: BattlePokemonStatus, change: StatChange, source?: EffectSource): number | undefined {
+  return source?.name === 'いかく' && change.statType === 'attack' && change.rankChange < 0 ? 1 : undefined;
+}
+```
+
+```ts
+async onOpponentStatChanged(holder: BattlePokemonStatus, _o: BattlePokemonStatus, applied: readonly StatChange[], source: EffectSource | undefined, ctx?: BattleContext) {
+  const ups = applied.filter(c => c.rankChange > 0);
+  if (!ctx || ups.length === 0 || source?.name === 'びんじょう') return null;
+  return joinStatChangeMessages(await applyStatChanges(holder, ups, ctx, { source: { pokemon: holder, kind: 'ability', name: 'びんじょう' } }));
+}
+```
+
 ### isImmuneToType（既存。コンテキストが増えた）
 
 - 呼ばれる場所: `DamageCalculator`。`battleContext.typeEffectiveness` と `moveFlags` が入るようになりました。混乱の自傷では呼ばれません
@@ -271,7 +444,11 @@ getAdditionalHitPowerRatios(_p: BattlePokemonStatus, ctx?: BattleContext): reado
 | `unaffectedByMoldBreaker` | `boolean` | `AbilityRegistry.isIgnoredByMoldBreaker` | プリズムアーマー |
 | `secondaryEffectChanceMultiplier` | `number` | `rollSecondaryEffect`（攻撃側） | てんのめぐみ（`2`） |
 | `blocksSecondaryEffects` | `boolean` | `rollSecondaryEffect`（防御側、かたやぶりで無視） | りんぷん |
-| `preventsRecoil` | `boolean` | `BaseRecoilEffect.afterDamage`（攻撃側） | いしあたま、マジックガード |
+| `preventsRecoil` | `boolean` | `BaseRecoilEffect.afterDamage`（攻撃側） | いしあたま、マジックガード（与えたダメージに応じた反動だけ。とびげりの自傷・わるあがきは防がない） |
+| `preventsIndirectDamage` | `boolean` | `applyIndirectDamage` / `isIndirectDamagePrevented`（かたやぶりで無視されない） | マジックガード（どく・やけど・反動・外したときの自傷・わるあがき・さめはだ・ナイトメア・ヘドロえきを防ぐ。混乱の自傷は防がない） |
+| `reversesDrainHeal` | `boolean` | `applyDrainHeal`（吸い取られた側。かたやぶりで無視されない） | ヘドロえき |
+| `reflectsStatDrops` | `boolean` | `applyStatChanges`（相手が起こした低下。相手の技ではかたやぶりで無視） | ミラーアーマー |
+| `sleepTurnMultiplier` | `number` | ターン終了時のねむりの解除判定（`shouldClearSleep` の `step`） | はやおき（`2`） |
 
 テラボルテージ・ターボブレイズは `MoldBreakerEffect` をそのまま登録します。
 
@@ -279,7 +456,10 @@ getAdditionalHitPowerRatios(_p: BattlePokemonStatus, ctx?: BattleContext): reado
 this.registry.set('テラボルテージ', new MoldBreakerEffect());
 export class CloudNineEffect implements IAbilityEffect { readonly suppressesWeather = true; }
 export class SereneGraceEffect implements IAbilityEffect { readonly secondaryEffectChanceMultiplier = 2; }
+export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMultiplier = 2; }
 ```
+
+- マジックガードは今の `MagicGuardEffect` に `readonly preventsIndirectDamage = true;` を足します（`preventsRecoil` は残してよい）。いしあたまは `preventsRecoil` だけで本家どおりです（とびげりの自傷とわるあがきの反動は受ける）。
 
 ## 4. コンテキストの項目（BattleContext）
 
@@ -291,6 +471,7 @@ export class SereneGraceEffect implements IAbilityEffect { readonly secondaryEff
 | `baseMoveTypeName` | 技本来のタイプ名（タイプ変更の前） | 技の実行・ダメージ計算 |
 | `movePower` | 技の威力（`modifyMovePower` の反映後、特性補正の前） | 技の実行・ダメージ計算 |
 | `movePriority` | 技の優先度（特性補正の前） | 技の実行・行動順 |
+| `effectivePriority` | 攻撃側特性の `modifyPriority`（いたずらごころなど）を反映した優先度 | 技の実行（`preventsMove` 以降） |
 | `attackerAbilityName` / `defenderAbilityName` | 攻撃側・防御側の特性名 | 技の実行・行動順・ダメージ計算 |
 | `attacker` / `defender` | 攻撃側・防御側の最新の状態（ランク・HP・状態異常） | 技の実行・ダメージ計算。行動順では `attacker` が行動するポケモン |
 | `attackerStats` / `defenderStats` | ランク補正前の実数値 | 技の実行・ダメージ計算。行動順では `attackerStats` が行動するポケモン |
@@ -301,6 +482,15 @@ export class SereneGraceEffect implements IAbilityEffect { readonly secondaryEff
 | `multiHitCount` / `hitIndex` | 総ヒット数 / 何回目のヒットか（0始まり） | 技の実行・ダメージ計算 |
 | `ignoredAttackerRanks` / `ignoredDefenderRanks` | 0として扱うランク | 技の実行・命中判定・ダメージ計算 |
 | `secondaryEffectChanceMultiplier` / `secondaryEffectsSuppressed` | 追加効果の確率倍率 / 相手への追加効果の無効化 | ダメージ技の `beforeDamage` 以降・`onHit` |
+
+### イベントの型（`pokemon/domain/battle-events/`）
+
+| 型 | 項目 | 渡す場所 |
+| --- | --- | --- |
+| `HitResult`（`hit-result.ts`） | `damage`（実際に減らしたHP）、`hpBefore`（受ける前のHP）、`hitIndex`、`hitCount`、`isContact`、`moveTypeName`、`moveCategory`、`targetFainted` | `onDamagingHit`・`onSourceDamagingHit`（ヒットごと）、`onAfterMoveHit`（技全体: `damage` は合計、`hpBefore` は技の前） |
+| `EffectSource`（`effect-source.ts`） | `pokemon`（起こしたポケモン。自分で起こしたら対象と同じ）、`abilityName`（そのポケモンの特性名）、`kind`（`'move'` / `'ability'` / `'other'`）、`name`（技名・特性名。例: `'いかく'`） | 状態異常と能力ランクのフックすべて。`kind === 'move'` で相手が起こしたときだけ、対象の特性がかたやぶりで無視される |
+| `StatChange`（`stat-change.ts`） | `statType`、`rankChange` | 能力ランクのフック |
+| `StatChangeResult`（`stat-change.ts`） | `applied`（実際に変わった量）、`reflected`（ミラーアーマーで返した量）、`messages`（反応した特性のメッセージ） | `applyStatChanges` の戻り値 |
 
 ## 5. 補助関数
 
@@ -322,6 +512,30 @@ const best = getHighestStat(ctx.attackerStats!, pokemon);
 const boosted = modifyByFixedPoint(power, 5325);
 ```
 
+### バトルイベントの補助関数（`pokemon/domain/battle-events/`）
+
+能力ランク・状態異常・技以外のダメージ・吸収の回復は、必ずこれらを使います。直接 `updateBattlePokemonStatus` で書くと、特性のフックが呼ばれません。どれも引数のポケモンは最新の状態を渡します（中で取り直しません）。
+
+| 関数 | 場所 | 用途 |
+| --- | --- | --- |
+| `applyStatChanges(target, changes, ctx, { source?, reflected? })` | `stat-change.ts` | 能力ランクを変える。`modifyIncomingStatChange` → `reflectsStatDrops` / `canReceiveStatChange`（相手が起こした低下） → ±6 に収めて書き込む → `onStatChanged` → 相手の `onOpponentStatChanged`。ランクが変わらなければ書き込まない |
+| `joinStatChangeMessages(result)` / `moveEffectSource(attacker, ctx)` | `moves/effects/base/base-stat-change-effect.ts` | `"Attack rose!"` 形式のメッセージを作る / 技が起こした変化の `EffectSource` を作る |
+| `canInflictStatus(target, status, ctx, { source?, immuneTypes? })` | `status-infliction.ts` | 状態異常を付与できるか（ひんし・状態異常済み・タイプ免疫（付与元の `bypassesStatusTypeImmunity` で無視）・対象の `canReceiveStatusCondition`）。書き込まない |
+| `inflictStatus(target, status, ctx, options)` | 同上 | 書き込み、`onStatusInflicted`（対象）と `onInflictStatus`（付与元）を呼ぶ。メッセージの配列を返す |
+| `tryInflictStatus(target, status, ctx, options)` | 同上 | 上の2つをまとめたもの。`{ inflicted, messages }` を返す。確率で付与する効果は `canInflictStatus` → 確率判定 → `inflictStatus` の順にする |
+| `STATUS_IMMUNE_TYPES` | 同上 | 状態異常ごとの免疫タイプ（どく・もうどく: どく/はがね、やけど: ほのお、まひ: でんき、こおり: こおり） |
+| `applyIndirectDamage(target, amount, ctx)` / `isIndirectDamagePrevented(target, ctx)` | `indirect-damage.ts` | 技以外のダメージを与える（マジックガードなら0）。実際に減らしたHPを返す |
+| `calculateDrainAmount(damage, ratio)` / `applyDrainHeal(healer, drainedFrom, amount, ctx)` | `drain-heal.ts` | 吸収の回復量（四捨五入、最低1）/ 回復する（ヘドロえきなら同じ量の技以外のダメージ）。`{ healed, damaged }` を返す |
+| `resolveAbilityName(pokemon, ctx)` / `getAbilityEffect(name)` | `ability-lookup.ts` | ポケモンの特性名・特性の効果を引く（特性のファイルから使っても循環参照にならない） |
+
+```ts
+const result = await applyStatChanges(target, [{ statType: 'speed', rankChange: -1 }], ctx, { source: { pokemon: holder, kind: 'ability', name: 'わたげ' } });
+const { inflicted } = await tryInflictStatus(target, StatusCondition.BadPoison, ctx, { source: moveEffectSource(attacker, ctx) });
+const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(damage, 0.5), ctx);
+```
+
+- 既存の基底クラスは乗せ換え済みです: 能力ランクは `BaseStatChangeEffect`・`BaseOpponentStatChangeMoveEffect`・`BaseSelfStatChangeMoveEffect`・`BaseSelfMultiStatChangeMoveEffect`・`BaseOpponentMultiStatChangeMoveEffect`・`BaseSelfAllStatsBoostEffect`・`BaseOpponentStatChangeEffect`（いかくなど）・`BaseStatBoostEffect`・`BaseContactStatChangeEffect`。状態異常は `BaseStatusConditionEffect`・`BaseMultipleStatusConditionEffect`・`BaseContactStatusConditionEffect`。技以外のダメージはターン終了時の状態異常・`BaseRecoilEffect`・`applyMaxHpSelfDamage`（とびげり・わるあがき）・`BaseContactRecoilDamageEffect`・ナイトメア。
+
 ## 6. 技フラグ表の追加方法
 
 - 表: `src/modules/pokemon/domain/moves/move-flag-table.ts`
@@ -338,6 +552,14 @@ const boosted = modifyByFixedPoint(power, 5325);
 - ほろびのうたは場全体の技なので、`isImmuneToMove` では止まりません。
 - 混乱の自傷ダメージでは、特性のフック（`isImmuneToType`・`modifyBasePower`・`modifyAnyBasePower`・`modifyDamageDealt`・`modifyDamage`）を呼びません。本家と同じく、能力値とランクだけで決まります。
 - ポケモンの重さのデータがないため、重さを使う効果（ヘヴィメタル、ライトメタル、けたぐり等）は実装できません。
+- `onDamagingHit` / `onSourceDamagingHit` はヒットごとですが、`applyContactStatusCondition` と技の `onHit` は今までどおり技全体で1回です。
+- 状態異常は1つの欄（`statusCondition`）に入るため、ひるみ・こんらんは状態異常と同時に持てません。あくしゅうのひるみも、相手が状態異常なら付与できません（ひるみ技と同じ）。
+- 次の効果は `applyStatChanges` を通らず、ランクを直接書きます。たんじゅん・あまのじゃく・ミラーアーマー・びんじょうなどは効きません: はらだいこ、はいすいのじん、ソウルビート、みをけずる、つぼをつく、ナインエボルブースト、ブレイブチャージ、ほおばる、じばそうさ・ギアアップ（`BasePlusMinusSelfStatBoostEffect`）、たがやす・フラワーガード（`BaseGrassTypeStatBoostEffect`）、いばる・おだてる（`BaseConfuseWithStatBoostEffect`）、おきみやげ、どくのいと、ひっくりかえす、くろいきり・クリアスモッグ、じこあんじ、ガードスワップなどの入れ替え技、かそく・ムラっけ・ぎゃくじょう・まけんき・かちき・そうしょく・でんきエンジンなどの既存の特性。必要になったら `applyStatChanges` に乗せ換えます。
+- `onOpponentStatChanged`（びんじょう）の「相手」は、相手が起こした変化ならその相手、技の実行中ならコンテキストの `attacker` / `defender` です。場に出たとき・ターン終了時に相手が自分で上げた変化（ふとうのつるぎなど）では呼ばれません。また本家は行動の終わりにまとめて写しますが、ここではすぐに写します。
+- `onKnockOut` は「自分の技で相手をひんしにした」ときだけです。ソウルハートは本家では誰がひんしになっても発動しますが、ここでは自分の技で倒したときだけになります（反動・状態異常・さめはだで相手が倒れたときは発動しない）。
+- 変化技（どくどく・でんじは・おにびなど）は、エンジンが `onUse` だけを呼び、`BaseStatusConditionEffect` は `onHit` しか持たないため、今は状態異常を付与しません。ふしょく（どくどく）・シンクロ（変化技の状態異常）は、追加効果と接触時の特性による付与でだけ確かめられます。
+- ちからをすいとるは回復を直接書いているため、ヘドロえきを効かせるには `applyDrainHeal` に乗せ換えます。
+- 場に出たときの特性のコンテキスト（バトル開始時・交代時）には `trainedPokemonRepository` が入ります。いかくに対するクリアボディ・ばんけん・ミラーアーマーなどはこれで判定します。
 
 ### まだ作れない効果
 
@@ -348,3 +570,35 @@ const boosted = modifyByFixedPoint(power, 5325);
 | かぜのりの「おいかぜで攻撃+1」 | おいかぜ（場の状態）がない。風技を無効にして攻撃+1にする部分は `isImmuneToMove` + `onMoveBlocked` で作れる |
 | メガランチャーの「いやしのはどう」の回復量1.5倍 | 回復量を変えるフックがない。はどう技の威力1.5倍は `modifyBasePower` で作れる |
 | こだいかっせい・クォークチャージの「ブーストエナジー」 | 持ち物の仕組みがない。晴れ・エレキフィールドで発動する部分は作れる |
+| どくくぐつ | どくにした相手をこんらんにするが、状態異常とこんらんが同じ欄にあるため、こんらんを書くとどくが消える。`onInflictStatus` は呼ばれる |
+| じんばいったい（ブリザポス） | きんちょうかん（相手がきのみを食べられない）に持ち物の仕組みがない。しろのいななきの部分は `onKnockOut` で作れる |
+| ばんけんの「ふきとばし・ほえるで交代させられない」 | 強制交代の仕組みがない。いかくで攻撃が上がる部分は `modifyIncomingStatChange` で作れる |
+
+## 8. 特性・技ごとに使うフック
+
+| 特性・技 | 使うもの |
+| --- | --- |
+| ゆめくい | 技の `shouldFail` + `afterDamage` で `applyDrainHeal(attacker, defender, calculateDrainAmount(damage, 0.5), ctx)` |
+| シャドースチール | 技の `beforeDamage`（相手のプラスのランクを0にし、自分は `applyStatChanges`）。このあとエンジンが状態を取り直す |
+| あくしゅう | `onSourceDamagingHit` + `rollSecondaryEffect(0.1, ctx)` + `tryInflictStatus(target, Flinch, ...)` |
+| どくしゅ・どくのくさり | `onSourceDamagingHit` + `tryInflictStatus`（どくしゅは `hit.isContact` のときだけ） |
+| しめりけ | `preventsMove`（両方の役割で、技名が だいばくはつ・じばく・ビックリヘッド・ミストバースト なら true） |
+| じょおうのいげん・ビビッドボディ・テイルアーマー | `preventsMove`（`role === 'defender'`、`effectivePriority > 0`、相手を対象にする技） |
+| おうごんのからだ | `isImmuneToMove`（`moveCategory === 'Status'`） |
+| シンクロ | `onStatusInflicted` + `tryInflictStatus(source.pokemon, ...)`（やけど・まひ・どく・もうどくだけ） |
+| ふしょく | `bypassesStatusTypeImmunity`（どく・もうどく） |
+| どくくぐつ | `onInflictStatus`（7章: 今は作れない） |
+| はやおき | `sleepTurnMultiplier = 2` |
+| ポイズンヒール | `modifyStatusDamage`（どく・もうどくなら最大HPの1/8回復して0を返す） |
+| マジックガード | `preventsIndirectDamage = true`（`preventsRecoil` も残す） |
+| いしあたま | `preventsRecoil = true`（作成済み） |
+| ヘドロえき | `reversesDrainHeal = true` |
+| てつのトゲ | `BaseContactRecoilDamageEffect` を継承して `damageDivisor = 8` |
+| たんじゅん・あまのじゃく | `modifyIncomingStatChange`（`change.rankChange * 2` / `-change.rankChange`） |
+| ばんけん | `modifyIncomingStatChange`（`source?.name === 'いかく'` で攻撃の低下を `+1` に） |
+| ミラーアーマー | `reflectsStatDrops = true` |
+| びんじょう | `onOpponentStatChanged`（上がった分を `applyStatChanges` で写す。`source?.name === 'びんじょう'` なら何もしない） |
+| びびり | `onDamagingHit`（むし・ゴースト・あくで素早さ+1）+ `onStatChanged`（`source?.name === 'いかく'` で素早さ+1） |
+| せいぎのこころ・じきゅうりょく・みずがため・じょうききかん・わたげ・すなはき・こぼれダネ・ねつこうかん | `onDamagingHit`（タイプは `hit.moveTypeName`。わたげは攻撃側に `applyStatChanges`、すなはき・こぼれダネは天候・フィールドを書き込む） |
+| いかりのこうら | `onAfterMoveHit`（`hit.hpBefore > maxHp / 2` かつ今のHPが半分以下） |
+| じしんかじょう・しろのいななき・くろのいななき・ビーストブースト・ソウルハート | `onKnockOut` |
