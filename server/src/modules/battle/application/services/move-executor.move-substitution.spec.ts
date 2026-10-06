@@ -3,8 +3,10 @@ import { Move, MoveCategory } from '@/modules/pokemon/domain/entities/move.entit
 import { MeFirstEffect } from '@/modules/pokemon/domain/moves/effects/me-first-effect';
 import { CopycatEffect } from '@/modules/pokemon/domain/moves/effects/copycat-effect';
 import { InstructEffect } from '@/modules/pokemon/domain/moves/effects/instruct-effect';
+import { SleepTalkEffect } from '@/modules/pokemon/domain/moves/effects/sleep-talk-effect';
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
+import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import {
   ATTACKER_ID,
   DEFENDER_ID,
@@ -120,5 +122,43 @@ describe('MoveExecutorService - 別の技を出す技・特性', () => {
     expect(message).toBe('Used さいはい Used たいあたり and dealt 10 damage');
     expect(statuses.get(ATTACKER_ID).currentHp).toBe(90);
     expect(battleRepository.updateBattlePokemonMove).toHaveBeenCalledWith(5, { currentPp: 9 });
+  });
+
+  it('ねごと: ねむっていても出せ、自分の技から選んだ技を出す', async () => {
+    // Arrange
+    const sleepTalk = moveOf(1, 'ねごと', MoveCategory.Status, null);
+    const { execute, statuses, battleRepository } = setupMoveExecutor({
+      move: sleepTalk,
+      moves: [sleepTalk, TACKLE],
+      moveEffects: { ねごと: new SleepTalkEffect() },
+      attacker: { statusCondition: StatusCondition.Sleep },
+    });
+    battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValue([
+      new BattlePokemonMove(1, ATTACKER_ID, sleepTalk.id, 10, 10),
+      new BattlePokemonMove(2, ATTACKER_ID, TACKLE.id, 35, 35),
+    ]);
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used ねごと Used たいあたり and dealt 10 damage');
+    expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
+  });
+
+  it('ねごと: ねむっていなければ失敗する', async () => {
+    // Arrange
+    const sleepTalk = moveOf(1, 'ねごと', MoveCategory.Status, null);
+    const { execute } = setupMoveExecutor({
+      move: sleepTalk,
+      moves: [sleepTalk, TACKLE],
+      moveEffects: { ねごと: new SleepTalkEffect() },
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used ねごと but it failed');
   });
 });
