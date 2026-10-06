@@ -119,6 +119,10 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// かたやぶり系・はやてのつばさ・おやこあい・ダークオーラ（Issue #135 一部）
+import { GaleWingsEffect } from './effects/other/gale-wings-effect';
+import { ParentalBondEffect } from './effects/other/parental-bond-effect';
+import { DarkAuraEffect } from './effects/damage-modify/dark-aura-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +336,12 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // かたやぶり系・はやてのつばさ・おやこあい・ダークオーラ（Issue #135 一部）
+      this.registry.set('ターボブレイズ', new MoldBreakerEffect());
+      this.registry.set('テラボルテージ', new MoldBreakerEffect());
+      this.registry.set('はやてのつばさ', new GaleWingsEffect());
+      this.registry.set('おやこあい', new ParentalBondEffect());
+      this.registry.set('ダークオーラ', new DarkAuraEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
