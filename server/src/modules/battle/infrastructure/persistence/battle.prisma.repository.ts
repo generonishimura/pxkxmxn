@@ -6,6 +6,12 @@ import { Battle, Weather, Field, BattleStatus } from '../../domain/entities/batt
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
+import {
+  VolatileState,
+  emptyVolatileState,
+  parseVolatileState,
+} from '../../domain/state/volatile-state';
+import { SideState, emptySideState, parseSideState } from '../../domain/state/side-state';
 
 /**
  * BattleのPrismaクエリ結果型
@@ -68,6 +74,7 @@ export class BattlePrismaRepository implements IBattleRepository {
         weather: 'None',
         field: 'None',
         status: 'Active',
+        sideState: this.toJsonObject(emptySideState()),
       },
     });
 
@@ -84,6 +91,7 @@ export class BattlePrismaRepository implements IBattleRepository {
     if (data.field !== undefined) updateData.field = data.field as Field;
     if (data.status !== undefined) updateData.status = data.status as BattleStatus;
     if (data.winnerTrainerId !== undefined) updateData.winnerTrainerId = data.winnerTrainerId;
+    if (data.sideState !== undefined) updateData.sideState = this.toJsonObject(data.sideState);
 
     const battleData = await this.prisma.battle.update({
       where: { id },
@@ -124,6 +132,7 @@ export class BattlePrismaRepository implements IBattleRepository {
         accuracyRank: 0,
         evasionRank: 0,
         statusCondition: 'None',
+        volatileState: this.toJsonObject(emptyVolatileState()),
       },
     });
 
@@ -151,6 +160,8 @@ export class BattlePrismaRepository implements IBattleRepository {
     // BattlePokemonStatusUpdateInputは $Enums.StatusCondition | null を許容する
     if (data.statusCondition !== undefined)
       updateData.statusCondition = data.statusCondition as StatusCondition;
+    if (data.volatileState !== undefined)
+      updateData.volatileState = this.toJsonObject(data.volatileState);
 
     const statusData = await this.prisma.battlePokemonStatus.update({
       where: { id },
@@ -206,6 +217,8 @@ export class BattlePrismaRepository implements IBattleRepository {
       this.mapField(battleData.field),
       this.mapBattleStatus(battleData.status),
       battleData.winnerTrainerId,
+      // JSON 列は古い行や壊れた値もありうるので、例外を投げない parse で読む
+      parseSideState(battleData.sideState),
     );
   }
 
@@ -229,7 +242,17 @@ export class BattlePrismaRepository implements IBattleRepository {
       statusData.accuracyRank,
       statusData.evasionRank,
       this.mapStatusCondition(statusData.statusCondition),
+      // JSON 列は古い行や壊れた値もありうるので、例外を投げない parse で読む
+      parseVolatileState(statusData.volatileState),
     );
+  }
+
+  /**
+   * Domain層の状態を Prisma の JSON 列に書ける形にする
+   * 状態の型はすべて JSON にできる値（数値・真偽値・文字列・配列・オブジェクト）だけで組んでいる
+   */
+  private toJsonObject(state: VolatileState | SideState): Prisma.InputJsonObject {
+    return state;
   }
 
   /**
