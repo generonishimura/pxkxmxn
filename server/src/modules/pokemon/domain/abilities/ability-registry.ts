@@ -119,6 +119,8 @@ import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 // 反動を受けない特性（Issue #135 一部）
 import { RockHeadEffect } from './effects/other/rock-head-effect';
 import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// 状態異常ダメージ・ヒット後の特性（Issue #135 一部）
+import { PoisonHealEffect } from './effects/other/poison-heal-effect';
 
 /**
  * 特性レジストリ
@@ -332,6 +334,8 @@ export class AbilityRegistry {
       // 反動を受けない特性（Issue #135 一部）
       this.registry.set('いしあたま', new RockHeadEffect());
       this.registry.set('マジックガード', new MagicGuardEffect());
+      // 状態異常ダメージ・ヒット後の特性（Issue #135 一部）
+      this.registry.set('ポイズンヒール', new PoisonHealEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
