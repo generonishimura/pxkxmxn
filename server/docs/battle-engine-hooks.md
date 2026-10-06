@@ -10,28 +10,38 @@
 
 ## 1. 技を使ったときの処理の順番
 
-`MoveExecutorService.executeMove`（`src/modules/battle/application/services/move-executor.service.ts`）は次の順で処理します。
+`MoveExecutorService.executeMove`（`src/modules/battle/application/services/move-executor.service.ts`）は、まず次の 3 段で技を出します（9 章）。
+
+- 技を出す前の判定（`BeforeMoveChecker`）: 反動・ねむり・こおり・なまけ（`onBeforeMove`）・ひるみ（`onFlinch`）・技の制限・こんらん・メロメロ・まひ。止まったら PP も減らない
+- 技を使う（`useMove`）: PP（プレッシャーの `modifyOpponentPpDeduction`）→ 技を出した記録（`lastMoveId` など）→ ふんじん → みらいよちの予約 → よこどり → ため技の 1 ターン目（`chargeTurn`）→ 技の本体（下の 1〜12）→ 反動・出し続ける技（`lockedIn`）・じゅうでんの消去
+- 相手の特性の `onOpponentMoveUsed`（おどりこ）
+
+技の本体は次の順で処理します。
 
 1. ヒット共通のコンテキストを作る（技名・技フラグ・効果のある天候・実数値・無視するランク・`effectivePriority`）
 2. 両者の特性の `preventsMove` で技を失敗させるか判定する（変化技も含む。防御側はかたやぶりで無視）。失敗ならPPだけ減って `Used <技> but it failed (<特性名>)`
 3. 防御側特性の `isImmuneToMove` で技そのものを無効にするか判定する（変化技も含む）。無効なら防御側特性の `onMoveBlocked` を呼んで終わり
 4. 技の `shouldFail` で技が失敗するか判定する。失敗ならPPだけ減って `Used <技> but it failed`
-5. 命中判定（`AccuracyCalculator.checkHit`）
+5. 隠れている相手（そらをとぶなど）に届くかの判定と、命中判定（`AccuracyCalculator.checkHit`）。相手のみがわりで、相手を対象にする変化技は失敗する
 6. 変化技なら `onUse` を呼んで終わり（威力が null で `modifyMovePower` もない攻撃技も、今までどおりここで終わる）
 7. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType`）。技全体のタイプ相性を `moveTypeEffectiveness` に入れる
 8. 技の `beforeDamage`（連続技の回数決定）。このあと攻撃側・防御側の状態を取り直す
 9. 技の威力を決める（技の `modifyMovePower`）
-10. ヒットごとにダメージを計算して当てる（連続技・おやこあいの追加ヒット）。1以上減らしたヒットごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
+10. ヒットごとにダメージを計算して当てる（連続技・おやこあいの追加ヒット。相手にみがわりがあればみがわりに当て、追加効果は起きない）。1以上減らしたヒットごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
 11. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
-12. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut`
+12. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut` → 倒した相手のみちづれ・おんねん
 
 メッセージは `Used <技> and dealt <ダメージ> damage (hit N times) <接触時の特性> <10のメッセージ> <onHit・afterDamage> <12のメッセージ>` の順に並びます。
 
-ターン終了時（`StatusConditionProcessorService.processTurnEndAbilities`）は、場のポケモンごとに次の順で処理します。
+ターン終了時（`StatusConditionProcessorService.processTurnEndAbilities`）は、すなあらし・ねがいごとのあと、場のポケモンごとに次の順で処理します（くわしくは `docs/battle-state.md` の 10 章）。
 
-1. ねむり: `shouldClearSleep(count, sleepTurnMultiplier)` で目を覚ますか判定する
-2. どく・もうどく・やけど: ダメージを特性の `modifyStatusDamage` で変え、`applyIndirectDamage` で与える
-3. 特性の `onTurnEnd`（コンテキストに `trainedPokemonRepository` が入る）
+1. アクアリング・ねをはる・やどりぎのタネ（`VolatileResidualProcessor`）
+2. ねむり: `shouldClearSleep(count, sleepTurnMultiplier)` で目を覚ますか判定する
+3. どく・もうどく・やけど: ダメージを特性の `modifyStatusDamage` で変え、`applyIndirectDamage` で与える
+4. あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた（`VolatileResidualProcessor`）
+5. 特性の `onTurnEnd`（コンテキストに `trainedPokemonRepository` が入る）
+
+その前に、`ExecuteTurnUseCase` がみらいよち（`executeFutureAttacks`）を当てます。
 
 `DamageCalculator.calculate`（`src/modules/battle/domain/logic/damage-calculator.ts`）の中は次の順です。
 
@@ -59,7 +69,7 @@ modifyMovePower(_attacker: BattlePokemonStatus, defender: BattlePokemonStatus): 
 }
 ```
 
-- `StatusCondition` にはひるみ（`Flinch`）・こんらん（`Confusion`）も入っています。たたりめ・からげんきのように「状態異常なら」と判定するときは、`statusCondition !== None` ではなく `isMajorStatus(status)` を使います。
+- `StatusCondition` にはひるみ（`Flinch`）・こんらん（`Confusion`）も入っています（付与するときの名前としてだけ使い、`statusCondition` には入りません）。たたりめ・からげんきのように「状態異常なら」と判定するときは、`statusCondition !== None` ではなく `isMajorStatus(status)` を使います。ぜったいねむりも「ねむり」として扱う技（たたりめ・ゆめくい・ねごと・いびき・めざましビンタ）は、`getEffectiveStatusCondition(pokemon, ctx)` を使います（9 章）。
 
 ### modifyMoveType
 
@@ -358,7 +368,7 @@ export class IronBarbsEffect extends BaseContactRecoilDamageEffect {
 | `canReceiveStatusCondition`（既存） | `(pokemon, status, ctx?, source?: EffectSource) => boolean \| undefined` | `canInflictStatus`。技で付与するときはかたやぶりで無視 | めんえき、じゅうなん など。`source` が入るようになった |
 | `bypassesStatusTypeImmunity` | `(holder, status, ctx?) => boolean \| undefined` | `canInflictStatus`。対象がタイプで防ぐとき、付与元の特性として | ふしょく |
 | `onStatusInflicted` | `(holder, status, source: EffectSource \| undefined, ctx?) => Promise<string \| null>` | `inflictStatus`。書き込んだあと、付与された側の特性として | シンクロ |
-| `onInflictStatus` | `(holder, target, status, ctx?) => Promise<string \| null>` | `inflictStatus`。書き込んだあと、付与元の特性として（自分に付与したときは呼ばない） | どくくぐつ（7章: 今は作れない） |
+| `onInflictStatus` | `(holder, target, status, ctx?) => Promise<string \| null>` | `inflictStatus`。書き込んだあと、付与元の特性として（自分に付与したときは呼ばない） | どくくぐつ |
 | `modifyStatusDamage` | `(holder, status, damage, ctx?) => number \| undefined \| Promise<number \| undefined>` | ターン終了時、どく・もうどく・やけどのダメージの前 | ポイズンヒール（回復して0を返す）、たいねつ（やけどを半分） |
 
 ```ts
@@ -494,6 +504,12 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `multiHitCount` / `hitIndex` | 総ヒット数 / 何回目のヒットか（0始まり） | 技の実行・ダメージ計算 |
 | `ignoredAttackerRanks` / `ignoredDefenderRanks` | 0として扱うランク | 技の実行・命中判定・ダメージ計算 |
 | `secondaryEffectChanceMultiplier` / `secondaryEffectsSuppressed` | 追加効果の確率倍率 / 相手への追加効果の無効化 | ダメージ技の `beforeDamage` 以降・`onHit` |
+| `moveId` | 技の ID（Move の ID） | 技の実行・ダメージ計算 |
+| `defenderPendingMoveId` | 相手がこのターンにまだ技を出していなければ、出す予定の技の ID（9.4） | 技の実行 |
+| `callMove` / `calledBy` | 別の技を出す関数 / 呼ばれた技のときの、呼んだ技・特性の名前（9.4） | 技の実行・`onOpponentMoveUsed` |
+| `attackerEffectiveStatus` / `defenderEffectiveStatus` | 状態異常として扱う状態（ぜったいねむりならねむり。9.1） | 技の実行 |
+| `hitSubstitute` | 技がみがわりに当たった（`afterDamage` の `damage` はみがわりに与えた量） | 技の実行の `afterDamage` |
+| `moveRepository` | 技のリポジトリ（9.4） | 技の実行 |
 
 ### イベントの型（`pokemon/domain/battle-events/`）
 
@@ -569,7 +585,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - `onDamagingHit` / `onSourceDamagingHit` は、技の `onHit`（追加効果）より先に呼ばれます。本家（Showdown の `spreadMoveHit`）は追加効果のあとに `DamagingHit` を呼びます。そのため、どくしゅの使い手が状態異常の追加効果を持つ接触技（ほっぺすりすりなど）を使うと、ここでは先にどくしゅが判定され、技自身の状態異常が失敗することがあります（本家は技の状態異常が先）。
 - 特性や技が書き換えた天候・フィールド（すなはき・こぼれダネ・あまごいなど）は、その技の残りのヒット・同じターンの相手の技・ターン終了時の処理には反映されません。`execute-turn` がターンの初めに読んだ `battle` を使い続けるためです。次のターンから反映されます。
 - 場に出たときの特性（`onEntry`）はメッセージを返せません。いかくで発動したびびりの「Speed rose!」や、ノーてんき・エアロックの登場時のメッセージは出ません。
-- 状態異常は1つの欄（`statusCondition`）に入るため、ひるみ・こんらんは状態異常と同時に持てません。あくしゅうのひるみも、相手が状態異常なら付与できません（ひるみ技と同じ）。
+- ひるみ・こんらんは volatileState に入るので、状態異常と同時に持てます（`docs/battle-state.md` の 8 章）。
 - 次の効果は `applyStatChanges` を通らず、ランクを直接書きます。たんじゅん・あまのじゃく・ミラーアーマー・びんじょうなどは効きません: はらだいこ、はいすいのじん、ソウルビート、みをけずる、つぼをつく、ナインエボルブースト、ブレイブチャージ、ほおばる、じばそうさ・ギアアップ（`BasePlusMinusSelfStatBoostEffect`）、たがやす・フラワーガード（`BaseGrassTypeStatBoostEffect`）、いばる・おだてる（`BaseConfuseWithStatBoostEffect`）、おきみやげ、どくのいと、ひっくりかえす、くろいきり・クリアスモッグ、じこあんじ、ガードスワップなどの入れ替え技、かそく・ムラっけ・まけんき・かちき・そうしょく・でんきエンジン・ひらいしん・よびみず・こんがりボディ（`BaseTypeImmunityWithStatBoostEffect`）・こんじょう（`kongyou-effect.ts` の `GutsHpThresholdEffect`）などの既存の特性。必要になったら `applyStatChanges` に乗せ換えます。
 - トライアタック（`TriAttackEffect`）・どくのいと（`ToxicThreadEffect`）・サイコシフト（`PsychoShiftEffect`）は `canInflictStatus` / `inflictStatus` に乗せ換え済みです（シンクロ・ふしょく・`onInflictStatus` などが効く）。サイコシフトは相手に移してから使用者を治すので、相手がシンクロでもうつし返されません（本家と同じ）。
 - 接触時の特性（せいでんき・ほのおのからだ・どくのトゲなど、`BaseContactStatusConditionEffect`）で状態異常にされたときもシンクロは発動しますが、`applyContactStatusCondition` は `boolean` しか返せないため、`inflictStatus` のメッセージは捨てています。バトルログには `<特性名> activated!` だけが出て、シンクロで相手も状態異常になったことは表示されません。
@@ -581,11 +597,9 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 
 | 効果 | 足りないもの |
 | --- | --- |
-| ふうりょくでんき | 「次のでんき技の威力2倍」を覚えておく状態（じゅうでん状態）がない。じゅうでん（`ChargeEffect`）は特防+1だけ |
 | ヘヴィメタル、ライトメタル | ポケモンの重さのデータがない |
 | かぜのりの「おいかぜで攻撃+1」 | おいかぜ（場の状態）がない。風技を無効にして攻撃+1にする部分は `isImmuneToMove` + `onMoveBlocked` で作れる |
 | こだいかっせい・クォークチャージの「ブーストエナジー」 | 持ち物の仕組みがない。晴れ・エレキフィールドで発動する部分は作れる |
-| どくくぐつ | どくにした相手をこんらんにするが、状態異常とこんらんが同じ欄にあるため、こんらんを書くとどくが消える。`onInflictStatus` は呼ばれる |
 | じんばいったい（ブリザポス） | きんちょうかん（相手がきのみを食べられない）に持ち物の仕組みがない。しろのいななきの部分は `onKnockOut` で作れる |
 | ばんけんの「ふきとばし・ほえるで交代させられない」 | 強制交代の仕組みがない。いかくで攻撃が上がる部分は `modifyIncomingStatChange` で作れる |
 
@@ -602,7 +616,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | おうごんのからだ | `isImmuneToMove`（`moveCategory === 'Status'`） |
 | シンクロ | `onStatusInflicted` + `tryInflictStatus(source.pokemon, ...)`（やけど・まひ・どく・もうどくだけ） |
 | ふしょく | `bypassesStatusTypeImmunity`（どく・もうどく） |
-| どくくぐつ | `onInflictStatus`（7章: 今は作れない） |
+| どくくぐつ | `onInflictStatus` で、どく・もうどくにした相手に `tryInflictStatus(target, StatusCondition.Confusion, ...)`（こんらんは状態異常と同時に持てる） |
 | はやおき | `sleepTurnMultiplier = 2` |
 | ポイズンヒール | `modifyStatusDamage`（どく・もうどくなら最大HPの1/8回復して0を返す） |
 | マジックガード | `preventsIndirectDamage = true`（`preventsRecoil` も残す） |
@@ -617,3 +631,398 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | せいぎのこころ・じきゅうりょく・みずがため・じょうききかん・わたげ・すなはき・こぼれダネ・ねつこうかん | `onDamagingHit`（タイプは `hit.moveTypeName`。わたげは攻撃側に `applyStatChanges`、すなはき・こぼれダネは天候・フィールドを書き込む） |
 | いかりのこうら・ぎゃくじょう（作成済み） | `onAfterMoveHit`（`hit.hpBefore > maxHp / 2` かつ今のHPが半分以下。ぎゃくじょうは特攻+1を `applyStatChanges` で行う） |
 | じしんかじょう・しろのいななき・くろのいななき・ビーストブースト・ソウルハート | `onKnockOut` |
+
+## 9. 一時的な状態（volatile）の仕組み
+
+ちょうはつ・アンコール・ため技・みがわり・やどりぎのタネなどの一時的な状態は、`BattlePokemonStatus.volatileState` に置きます（キーの一覧と片付けは `docs/battle-state.md`）。技・特性の実装では、キーを書く・読むだけにします。技を出す前の判定・技の選択の制限・ため技の流れ・ターン終了時のダメージなどは、エンジンが行います（`docs/battle-state.md` の 10 章）。
+
+- キーを書くときは、必ず `battleContext.battleRepository.patchVolatileState`（または 9.1 の `applyVolatile`）を使う。丸ごと書かない
+- 効果を書いたあとに続けて読むときは、`findBattlePokemonStatusById` で読み直す
+- 残りターン数はエンジンがターン終了時に減らす。使ったターンの終わりにも 1 減るので、本家（Showdown）の condition の `duration` と同じ値を書く。本家が「相手がまだ行動していない / もう行動した」で `duration` を 1 変える技（ちょうはつ・かなしばりなど）は、`battleContext.defenderPendingMoveId` があるか（相手がまだ行動していない）で決める
+
+### 9.1 付与と判定
+
+#### canApplyVolatile / applyVolatile / tryApplyVolatile
+
+- シグネチャ: `canApplyVolatile(target, kind, ctx, { source? }): Promise<boolean>`、`applyVolatile(target, patch, ctx): Promise<BattlePokemonStatus | undefined>`、`tryApplyVolatile(target, kind, patch, ctx, { source? }): Promise<boolean>`
+- 場所: `src/modules/pokemon/domain/battle-events/volatile-infliction.ts`。`kind` と VolatileState のキーの対応は `VOLATILE_KIND_KEYS`
+- 判定: ひんし・すでにその状態なら付与できない。やどりぎのタネはくさタイプに、メロメロは性別が違わないと（性別不明も）付与できない。あくびは状態異常があるか、ねむりを防ぐ特性なら付与できない。最後に対象の特性の `canReceiveVolatile`（相手の技ではかたやぶりで無視）
+- 使う技・特性: ちょうはつ・アンコール・かなしばり・いちゃもん・かいふくふうじ・メロメロ・あくび・やどりぎのタネ・ほろびのうた・あくむ・のろい・テレキネシス・でんじふゆう・タールショット・たこがため・みやぶる・ミラクルアイ・こころのめ・ロックオン・ねをはる・アクアリング・ふういん・よこどり・みちづれ・おんねん・ふんじん・じゅうでん・でんきにかえる・ふうりょくでんき・メロメロボディ・のろわれボディ
+- 注: みがわりで防ぐかはエンジンが判定する（相手を対象にする変化技は、`bypassSubstitute` の技でなければ失敗する）
+
+```ts
+const applied = await tryApplyVolatile(defender, 'taunt', { tauntTurns: ctx.defenderPendingMoveId ? 3 : 4 }, ctx, { source: moveEffectSource(attacker, ctx) });
+return applied ? 'fell for the taunt!' : 'But it failed';
+```
+
+#### canReceiveVolatile（特性、対象側）
+
+- シグネチャ: `canReceiveVolatile?(holder, kind: VolatileKind, ctx?, source?: EffectSource): boolean | undefined`
+- 呼ばれる場所: `canApplyVolatile`。相手の技で付与されるときは、かたやぶりで無視される
+- 使う特性: アロマベール（ちょうはつ・アンコール・かなしばり・いちゃもん・かいふくふうじ・メロメロ）、どんかん（メロメロ・ちょうはつ。作成済み）
+- こんらん・ひるみは `canReceiveStatusCondition`（`StatusCondition.Confusion` / `Flinch`）で防ぐ（マイペース・せいしんりょく）
+
+```ts
+canReceiveVolatile(_h: BattlePokemonStatus, kind: VolatileKind): boolean | undefined {
+  return ['taunt', 'encore', 'disable', 'torment', 'healBlock', 'attract'].includes(kind) ? false : undefined;
+}
+```
+
+#### こんらん・ひるみ（canInflictStatus / inflictStatus）
+
+- `tryInflictStatus(target, StatusCondition.Confusion, ctx, options)` は `confusionTurns`（2〜5）を、`Flinch` は `flinched` を書く。状態異常があっても付与できる
+- 使う技・特性: こんらんにする技（あやしいひかり・ちょうおんぱ・いばる など作成済み）、どくくぐつ、ひるませる技・あくしゅう
+- こんらんの自傷・ひるみの行動不能は `BeforeMoveChecker` が行う
+
+```ts
+const { inflicted } = await tryInflictStatus(target, StatusCondition.Confusion, ctx, { source: { pokemon: holder, kind: 'ability', name: 'どくくぐつ' } });
+return inflicted ? 'became confused!' : null;
+```
+
+#### treatedAsStatusCondition（特性）/ getEffectiveStatusCondition
+
+- 型: `readonly treatedAsStatusCondition?: StatusCondition`
+- 読む関数: `getEffectiveStatusCondition(pokemon, ctx?)`（同期。技の実行中はコンテキストの `attackerEffectiveStatus` / `defenderEffectiveStatus` を見る）、`resolveEffectiveStatusCondition(pokemon, ctx)`（非同期。特性を引く）、`isEffectivelyAsleep(pokemon, ctx?)`。場所: `pokemon/domain/battle-events/effective-status.ts`
+- 状態異常があればその状態異常、なければ特性の `treatedAsStatusCondition` を返す。`statusCondition` には書かない
+- 使う特性・技: ぜったいねむり（`StatusCondition.Sleep`）。たたりめ・ゆめくい・ねごと・いびき・めざましビンタ・あくむ（エンジンのあくむのダメージも、これで判定する）
+
+```ts
+export class ComatoseEffect extends BaseStatusConditionImmunityEffect {
+  protected readonly immuneStatusConditions = [StatusCondition.Sleep, StatusCondition.Burn, StatusCondition.Paralysis, StatusCondition.Poison, StatusCondition.BadPoison, StatusCondition.Freeze] as const;
+  readonly treatedAsStatusCondition = StatusCondition.Sleep;
+}
+```
+
+### 9.2 技を出す前
+
+#### onBeforeMove（特性、使用者）
+
+- シグネチャ: `onBeforeMove?(holder, ctx?): Promise<string | null> | string | null`
+- 呼ばれる場所: `BeforeMoveChecker.check`。ねむり・こおりの判定のあと、ひるみの判定の前（本家の優先度 9）。呼ばれた技（ゆびをふるで出た技など）では呼ばない
+- 使う特性: なまけ（`volatileState.loafing` を交互に書く）
+- メッセージを返すと技を出さない（PP も減らない）
+
+```ts
+async onBeforeMove(holder: BattlePokemonStatus, ctx?: BattleContext): Promise<string | null> {
+  const loafing = holder.volatileState.loafing === true;
+  await ctx?.battleRepository?.patchVolatileState(holder.id, { loafing: loafing ? null : true });
+  return loafing ? 'is loafing around!' : null;
+}
+```
+
+#### onFlinch（特性、使用者）
+
+- シグネチャ: `onFlinch?(holder, ctx?): Promise<string | null>`
+- 呼ばれる場所: `BeforeMoveChecker.check`。ひるみで技を出せなかったときに 1 回。メッセージは `Pokemon flinched and couldn't move` のあとに付く
+- 使う特性: ふくつのこころ（素早さ +1）
+
+```ts
+async onFlinch(holder: BattlePokemonStatus, ctx?: BattleContext): Promise<string | null> {
+  if (!ctx) return null;
+  return joinStatChangeMessages(await applyStatChanges(holder, [{ statType: 'speed', rankChange: 1 }], ctx, { source: { pokemon: holder, kind: 'ability', name: 'ふくつのこころ' } }));
+}
+```
+
+#### findMoveRestriction / moveRestrictionMessage
+
+- シグネチャ: `findMoveRestriction(state: VolatileState, move: { moveId, moveName, category }, { imprisonedMoveIds? }): MoveRestrictionReason | undefined`
+- 場所: `battle/domain/logic/move-selection.ts`。エンジンが技を出す前（`BeforeMoveChecker`）と、わるあがきを出すかの判定（`ExecuteTurnUseCase`）で使う
+- 判定する状態: `disable` → `healBlockTurns`（回復技）→ `throatChopTurns`（音技）→ `tauntTurns`（変化技）→ 相手の `imprison` → `encore` → `torment`（直前の技）→ `choiceLockedMoveId` → 続けて出せない技（デカハンマー・ブラッドムーン）。わるあがきは制限を受けない
+- 使う技・特性: かなしばり・かいふくふうじ・じごくづき・ちょうはつ・ふういん・アンコール・いちゃもん・ごりむちゅう・のろわれボディ。技の実装は、キーを書くだけでよい
+
+```ts
+// かなしばり: 本家と同じく、相手がまだ行動していなければ 4、もう行動していれば 5 を書く
+const moveId = defender.volatileState.lastMoveId;
+if (!moveId || !(await tryApplyVolatile(defender, 'disable', { disable: { moveId, turns: ctx.defenderPendingMoveId ? 4 : 5 } }, ctx, { source: moveEffectSource(attacker, ctx) }))) return 'But it failed';
+```
+
+### 9.3 技の流れ
+
+#### chargeTurn（技のプロパティ）と MoveBehaviors の charge
+
+- 型: `readonly chargeTurn?: { skipCharge?(attacker, ctx): boolean; onCharge?(attacker, defender, ctx): Promise<string | null> }`
+- 呼ばれる場所: `MoveLifecycle.handleChargeTurn`。`MoveBehaviors` の `charge` を持つ技か `chargeTurn` を持つ技は、1 ターン目に `chargingMoveId`（隠れる技は `semiInvulnerable` も）を書いて `Used <技> and began charging` で終わる。2 ターン目は選んだ行動にかかわらずその技を出し（PP は減らない）、ためた状態を消してから技の本体に進む
+- 使う技: ソーラービーム・ソーラーブレード（晴れなら `skipCharge`）・メテオビーム（`onCharge` で特攻 +1）・ロケットずつき（`onCharge` で防御 +1）・ジオコントロール（2 ターン目の `onUse` で能力を上げる）・そらをとぶ・あなをほる・ダイビング・シャドーダイブ・ゴーストダイブ・とびはねる・ゴッドバード・かまいたち
+- 隠れている相手に当たる技とダメージ 2 倍の技は `MoveBehaviors.hitsSemiInvulnerable` / `doublesAgainstSemiInvulnerable` の表にある（かぜおこし・かみなり・じしん・なみのりなど）。エンジンが判定する
+
+```ts
+readonly chargeTurn: ChargeTurnConfig = {
+  skipCharge: (_attacker, ctx) => getContextWeather(ctx) === Weather.Sun,
+};
+```
+
+#### lockedIn（技のプロパティ）と MoveBehaviors の lockedMove
+
+- 型: `readonly lockedIn?: { turns: number | [min, max]; confusesAtEnd?: boolean; preventsSleep?: boolean; endsOnMiss?: boolean }`
+- 呼ばれる場所: `MoveLifecycle.afterMove`。1 ターン目に当たったら `lockedInMove`（使ったターンのあとの残りターン数）を書き、次からは選んだ行動にかかわらずその技を出す（PP は減らない）。失敗・技を出せなかった・`endsOnMiss` で外れたら止まる。最後まで出したら `confusesAtEnd` でこんらんする。`preventsSleep` なら `uproar` を書き、場のねむっているポケモンを起こす
+- `MoveBehaviors` の `lockedMove`（あばれる・げきりん・はなびらのまいなど、Showdown で lockedmove になる技）は、`lockedIn` がなくても `{ turns: [2, 3], confusesAtEnd: true }` で動く
+- 使う技: さわぐ（`{ turns: 3, preventsSleep: true }`）、ころがる・アイスボール（`{ turns: 5, endsOnMiss: true }`）
+- ころがるの威力は、`lockedInMove` から何ターン目かを求める（1 ターン目は `lockedInMove` がない）
+
+```ts
+readonly lockedIn: LockedInMoveConfig = { turns: 5, endsOnMiss: true };
+modifyMovePower(attacker: BattlePokemonStatus, _d: BattlePokemonStatus, ctx: BattleContext): number {
+  const locked = attacker.volatileState.lockedInMove;
+  return 30 * 2 ** (locked?.moveId === ctx.moveId ? 5 - locked.turns : 0);
+}
+```
+
+#### lastMoveId・consecutiveMoveCount（読むだけ）
+
+- エンジンが書く（`docs/battle-state.md` の 4 章）。技の処理の中では、使用者の `lastMoveId` はもう今の技になっている。`consecutiveMoveCount` は「この技を直前まで続けて成功させた回数」（初めてなら、ない）
+- 使う技: れんぞくぎり（威力 40・80・160）、みちづれ（続けて使うと失敗）、ものまね・オウムがえし・アンコール・かなしばり・いちゃもん・うらみ・さいはい（相手の `lastMoveId` を読む）、まねっこ（`getGlobalFieldState(battle.sideState).lastMoveId`）
+
+```ts
+shouldFail(attacker: BattlePokemonStatus): boolean {
+  return (attacker.volatileState.consecutiveMoveCount ?? 0) > 0; // みちづれ
+}
+```
+
+#### isProtectionMove（技のプロパティ）
+
+- 型: `readonly isProtectionMove?: boolean`
+- 参照する場所: `MoveLifecycle.recordMoveUse`。`true` でない技を出すと、エンジンが `protectCount` を消す
+- 使う技: まもる・みきり・キングシールド・ニードルガード・トーチカ・ブロッキング・スレッドトラップ・かえんのまもり・こらえる
+
+```ts
+export class ProtectEffect implements IMoveEffect {
+  readonly isProtectionMove = true;
+}
+```
+
+#### onTurnStart（技）
+
+- シグネチャ: `onTurnStart?(user, opponent, ctx): Promise<string | null>`
+- 呼ばれる場所: `ExecuteTurnUseCase`。行動順を決めたあと、どちらの技よりも先に、技を選んだポケモンごとに行動順で呼ぶ（反動で動けないポケモンでは呼ばない）。メッセージは結果に `action: 'turnStart'` として入る
+- 使う技: くちばしキャノン（`beakBlast` を書く。ターン終了時に消える。接触技を受けたときのやけどはエンジンが行う）、きあいパンチ
+
+```ts
+async onTurnStart(user: BattlePokemonStatus, _o: BattlePokemonStatus, ctx: BattleContext): Promise<string | null> {
+  await ctx.battleRepository?.patchVolatileState(user.id, { beakBlast: true });
+  return 'started heating up its beak!';
+}
+```
+
+#### MoveBehaviors（技の性質の表）
+
+- シグネチャ: `MoveBehaviors.has(moveName, behavior)`、`MoveBehaviors.get(moveName)`、`MoveBehaviors.namesWith(behavior)`、`MoveBehaviors.semiInvulnerableKind(moveName)`
+- 場所: `pokemon/domain/moves/move-behaviors.ts`（表は `move-behavior-table.ts`。Showdown の flags から作った）
+- 性質: `snatch`・`dance`・`bypassSubstitute`・`charge`・`recharge`・`lockedMove`・`futureMove`・`failCopycat`・`failEncore`・`failInstruct`・`failMeFirst`・`failMimic`・`noAssist`・`noSleepTalk`・`noSketch`・`metronome`・`mirror`・`cantUseTwice`・`mustPressure`・`reflectable`・`gravity`・`defrost`・`sleepUsable`
+- 使う技・特性: ゆびをふる（`metronome`）・ねごと（`noSleepTalk`）・ねこのて（`noAssist`）・まねっこ（`failCopycat`）・オウムがえし（`mirror`）・ものまね（`failMimic`）・スケッチ（`noSketch`）・さきどり（`failMeFirst`）・さいはい（`failInstruct`）・アンコール（`failEncore`）・おどりこ（`dance`）
+- エンジンが読む性質: `charge`・`recharge`・`lockedMove`・`futureMove`・`snatch`・`bypassSubstitute`・`mustPressure`・`defrost`・`sleepUsable`・`cantUseTwice`
+
+```ts
+const candidates = MoveBehaviors.namesWith('metronome');
+const moveName = candidates[Math.floor(Math.random() * candidates.length)];
+```
+
+#### みらいよち・はめつのねがい（MoveBehaviors の futureMove）
+
+- 技の効果は要らない。エンジンが、使ったときに相手の陣営に `futureAttack` を置き（すでにあれば失敗）、2 ターン後のターン終了時に、その陣営の場のポケモンへ技の流れに乗せて当てる（`MoveExecutorService.executeFutureAttacks`）。PP は減らず、みちづれ・おんねんは発動しない
+- 注: 本家は使ったポケモンが場にいないとき特性・持ち物の補正を受けないが、ここでは特性の補正も受ける
+
+#### locksMoveChoice / infiltrates / modifyOpponentPpDeduction（特性）
+
+| フック | 型・シグネチャ | 呼ばれる場所 | 使う特性 |
+| --- | --- | --- | --- |
+| `locksMoveChoice` | `readonly locksMoveChoice?: boolean` | `MoveLifecycle.recordMoveUse`。最初に出した技を `choiceLockedMoveId` に書く（わるあがきを除く。交代で消える） | ごりむちゅう |
+| `infiltrates` | `readonly infiltrates?: boolean` | 技の本体。相手のみがわりを無視する | すりぬけ（壁を無視する部分はまだない） |
+| `modifyOpponentPpDeduction` | `(holder, user, ctx?) => number \| undefined` | `MoveLifecycle.consumePp`。相手を対象にする技と `mustPressure` の技で、余分に減らす PP。かたやぶりでは無視されない | プレッシャー |
+
+```ts
+export class GorillaTacticsEffect implements IAbilityEffect { readonly locksMoveChoice = true; }
+export class InfiltratorEffect implements IAbilityEffect { readonly infiltrates = true; }
+export class PressureEffect implements IAbilityEffect { modifyOpponentPpDeduction(): number { return 1; } }
+```
+
+### 9.4 別の技を出す（callMove）
+
+#### battleContext.callMove
+
+- シグネチャ: `callMove(request: { moveId?; moveName?; user?; target?; calledBy; powerMultiplier? }): Promise<string>`（`pokemon/domain/battle-events/called-move.ts`）
+- 入る場所: 技の実行のコンテキスト（`onUse`・`onHit`・`afterDamage` など）と、`onOpponentMoveUsed` のコンテキスト
+- 呼んだ技は、特性の無効化・命中判定・ダメージ・追加効果のすべてを通る。PP は減らず、技を出す前の判定もしない。使用者の `lastMoveId` は呼んだ技のまま、`GlobalFieldState.lastMoveId` は呼ばれた技になる。呼ばれた技の中では `ctx.calledBy` に呼んだ技の名前が入る。3 段より深く呼ぶと `But it failed`
+- `user` を渡すと、そのポケモンが技を出す（さいはい・おどりこ）。`target` を省くと、`user` の相手
+- `powerMultiplier` は威力に 4096 分率で掛ける（さきどり = 1.5）
+- 技を名前で呼ぶには、技のリポジトリの `findByName` を使う（Prisma のリポジトリは実装済み）
+- 使う技・特性: ゆびをふる・ねごと・まねっこ・オウムがえし・さきどり・ねこのて・しぜんのちから・さいはい・おどりこ。よこどりはエンジンが行う（相手が `snatch` を持っていれば、`MoveBehaviors` の `snatch` の技を相手が代わりに出す）
+
+```ts
+async onUse(_a: BattlePokemonStatus, defender: BattlePokemonStatus, ctx: BattleContext): Promise<string | null> {
+  const moveId = defender.volatileState.lastMoveId;
+  return moveId ? ctx.callMove!({ moveId, calledBy: 'オウムがえし' }) : 'But it failed';
+}
+```
+
+#### 技を選ぶ情報（moveRepository・defenderPendingMoveId）
+
+| 項目 | 内容 | 使う技 |
+| --- | --- | --- |
+| `ctx.moveRepository` | 技のリポジトリ（技名・分類・PP を引く） | ねごと・ねこのて・ものまね・スケッチ（候補の技の名前を調べる） |
+| `ctx.defenderPendingMoveId` | 相手がこのターンにまだ技を出していなければ、出す予定の技の ID | さきどり（ダメージ技なら 1.5 倍で出す）・ふいうち・残りターン数の調整（9 章の初め） |
+| `ctx.moveId` | 今の技の ID | のろわれボディ（受けた技をかなしばり）・ころがる |
+
+```ts
+const pending = ctx.defenderPendingMoveId;
+const move = pending ? await ctx.moveRepository?.findById(pending) : null;
+return move && move.category !== 'Status' ? ctx.callMove!({ moveId: move.id, calledBy: 'さきどり', powerMultiplier: 1.5 }) : 'But it failed';
+```
+
+#### onOpponentMoveUsed（特性）
+
+- シグネチャ: `onOpponentMoveUsed?(holder, user, ctx?): Promise<string | null>`
+- 呼ばれる場所: `executeMove` の最後。相手の技の処理がすべて終わったあと（技を出す前の判定で止まったとき・呼ばれた技のあとでは呼ばない）。`ctx.moveName` / `ctx.moveId` は相手が出した技。`ctx.callMove` は `holder` が技を出す
+- 使う特性: おどりこ（`MoveBehaviors` の `dance` の技を出し直す）
+
+```ts
+async onOpponentMoveUsed(_h: BattlePokemonStatus, _u: BattlePokemonStatus, ctx?: BattleContext): Promise<string | null> {
+  return ctx?.moveName && ctx.moveId && MoveBehaviors.has(ctx.moveName, 'dance') ? ctx.callMove!({ moveId: ctx.moveId, calledBy: 'おどりこ' }) : null;
+}
+```
+
+### 9.5 PP・技の欄・回復
+
+#### reducePp
+
+- シグネチャ: `reducePp(pokemon, moveId, amount, ctx): Promise<number>`（`pokemon/domain/battle-events/pp.ts`）。実際に減らした PP を返す
+- `moveSlotOverrides` の技ならその PP を減らす。0 未満にはしない
+- 使う技: うらみ（4）。おんねん・プレッシャーはエンジンが行う
+
+```ts
+const lastMoveId = defender.volatileState.lastMoveId;
+const reduced = lastMoveId ? await reducePp(defender, lastMoveId, 4, ctx) : 0;
+return reduced > 0 ? `reduced its PP by ${reduced}!` : 'But it failed';
+```
+
+#### resolveMoveSlots / findMoveSlot（moveSlotOverrides）と updateBattlePokemonMove
+
+- シグネチャ: `resolveMoveSlots(moves: BattlePokemonMove[], state): MoveSlot[]`、`findMoveSlot(slots, moveId)`（`battle/domain/logic/move-selection.ts`）。`MoveSlot` は `{ battlePokemonMoveId, moveId, currentPp, maxPp, isOverride }`
+- 交代で戻る入れ替え（ものまね・へんしん）は `moveSlotOverrides` に書く。技を選ぶ処理と PP を減らす処理がこれを先に見る
+- ずっと残る書き換え（スケッチ）は `battleRepository.updateBattlePokemonMove(id, { moveId, currentPp, maxPp })`
+- 使う技: ものまね・スケッチ・へんしん・ねごと（自分の技の候補）・ねこのて（味方の技は `findBattlePokemonStatusByBattleId` で同じトレーナーのポケモンを引き、`findBattlePokemonMovesByBattlePokemonStatusId` で技を引く）
+
+```ts
+const slots = resolveMoveSlots(await repo.findBattlePokemonMovesByBattlePokemonStatusId(attacker.id), attacker.volatileState);
+const own = findMoveSlot(slots, ctx.moveId!);
+await repo.patchVolatileState(attacker.id, { moveSlotOverrides: [...(attacker.volatileState.moveSlotOverrides ?? []), { battlePokemonMoveId: own!.battlePokemonMoveId, moveId: copied.id, currentPp: copied.pp, maxPp: copied.pp }] });
+```
+
+#### applyHeal / isHealBlocked / fractionOfMaxHp
+
+- シグネチャ: `applyHeal(target, amount, ctx): Promise<number>`、`isHealBlocked(pokemon): boolean`、`fractionOfMaxHp(pokemon, divisor): number`（`pokemon/domain/battle-events/heal.ts`）
+- `applyHeal` はかいふくふうじ中（`healBlockTurns`）・ひんしなら回復しない。最大 HP を超えない。`fractionOfMaxHp` は本家と同じく切り捨て・最低 1
+- `applyDrainHeal` もかいふくふうじ中は回復しない（ヘドロえきのダメージは受ける）
+- 使う技・特性: 回復する技・特性はすべてこれを使う（ポイズンヒールは乗せ換え済み）。のみこむ・ねがいごと（`healAmount` を決める）
+
+```ts
+const healed = await applyHeal(attacker, fractionOfMaxHp(attacker, 4), ctx); // のみこむ（1 回）
+return healed > 0 ? `restored ${healed} HP!` : 'But it failed';
+```
+
+### 9.6 エンジンが読む補正（volatile-modifiers.ts）
+
+技・特性からは呼びません。キーを書けば、エンジンが次の関数で補正します（`battle/domain/logic/volatile-modifiers.ts`）。
+
+| 関数 | 補正 | キー |
+| --- | --- | --- |
+| `applyStatOverrides(stats, state)` | ランク補正の前の実数値を置き換える（ダメージ計算・行動順） | `statOverrides`（パワートリック・パワーシフト・ガードシェア・パワーシェア・スピードスワップ） |
+| `ignoresTypeImmunityByVolatile` | 相性 0 を等倍にする | `foresight`・`miracleEye`・`ingrain` |
+| `typeEffectivenessMultiplierByVolatile` | ほのお 2 倍 / じめん 0 倍 | `tarShot` / `magnetRiseTurns`・`telekinesisTurns` |
+| `basePowerModifierByVolatile` | でんき技の威力 2 倍 | `charged` |
+| `semiInvulnerableDamageMultiplier` | 隠れている相手へのダメージ 2 倍 | `semiInvulnerable` |
+| `ignoresPositiveEvasionByVolatile` | 上がった回避ランクを 0 として扱う | `foresight`・`miracleEye` |
+| `alwaysHitsByVolatile` | 必ず当たる | 使用者の `lockOnTurns`、相手の `telekinesisTurns` |
+
+```ts
+// パワートリック: 攻撃と防御の実数値を入れ替える（ctx.attackerStats は上書きを反映した値）
+const { attack, defense } = ctx.attackerStats!;
+await ctx.battleRepository?.patchVolatileState(attacker.id, { statOverrides: { ...attacker.volatileState.statOverrides, attack: defense, defense: attack } });
+```
+
+- 注: 一撃必殺技は、本家ではテレキネシスでも必ずは当たらないが、ここでは必ず当たる
+- 注: ねをはるで地面にいても、ふゆうの特性は無視しない（防御側特性の `isImmuneToType` がそのまま効く）
+
+### 9.7 みがわり・交代
+
+#### みがわり（substituteHp）
+
+- 技はみがわりの HP（最大 HP の 1/4 の切り捨て）を `substituteHp` に書き、自分の HP を減らす。ダメージを受ける・消えるのはエンジンが行う
+- みがわりに当たったときは `onHit`・接触時の特性・`onDamagingHit` を呼ばず、`afterDamage` だけ呼ぶ（`ctx.hitSubstitute === true`。`damage` はみがわりに与えた量）
+
+```ts
+const cost = Math.floor(attacker.maxHp / 4);
+await ctx.battleRepository?.updateBattlePokemonStatus(attacker.id, { currentHp: attacker.currentHp - cost });
+await ctx.battleRepository?.patchVolatileState(attacker.id, { substituteHp: cost });
+```
+
+#### findSwitchBlocker / executeSwitch の transfer
+
+- シグネチャ: `findSwitchBlocker(state, typeNames): 'ingrain' | 'trapped' | 'partialTrap' | undefined`（`battle/domain/logic/switch-restriction.ts`）、`PokemonSwitcherService.executeSwitch(battle, trainerId, trainedPokemonId, { transfer?: 'batonPass' | 'shedTail' })`
+- 呼ばれる場所: `ExecuteTurnUseCase`（交代を選んだとき。できなければ `Cannot switch out because it is trapped`）
+- 使う技: くろいまなざし・とおせんぼう・クモのす・たこがため（`trappedByStatusId` を書く）、ねをはる（`ingrain`）、しめつける系（`partialTrap`）、バトンタッチ・しっぽきり（`transfer`。交代先を選ぶ `pendingChoice` の仕組みと一緒に使う）
+
+```ts
+await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx, { source: moveEffectSource(attacker, ctx) });
+```
+
+## 10. 一時的な状態の項目ごとに使うもの
+
+| 技・特性 | 使うもの |
+| --- | --- |
+| さわぐ | `lockedIn = { turns: 3, preventsSleep: true }`。ねむりの防止と、始めたときに起こすのはエンジン |
+| ものまね | 相手の `lastMoveId`（`failMimic` でない）を `moveSlotOverrides` に書く（9.5） |
+| ゆびをふる | `MoveBehaviors.namesWith('metronome')` から選び `callMove({ moveName })` |
+| オウムがえし | 相手の `lastMoveId`（`mirror` の技）を `callMove` |
+| こころのめ・ロックオン | `tryApplyVolatile(attacker, 'lockOn', { lockOnTurns: 2 })`。必中と隠れた相手への命中はエンジン |
+| うらみ | 相手の `lastMoveId` に `reducePp(defender, id, 4, ctx)` |
+| みやぶる・かぎわける | `tryApplyVolatile(defender, 'foresight', { foresight: true })` |
+| ミラクルアイ | `tryApplyVolatile(defender, 'miracleEye', { miracleEye: true })` |
+| スケッチ | 相手の `lastMoveId`（`noSketch` でない）で `updateBattlePokemonMove(slot.battlePokemonMoveId, { moveId, currentPp, maxPp })` |
+| メロメロ | `tryApplyVolatile(defender, 'attract', { infatuatedWithStatusId: attacker.id }, ctx, { source })`（性別の判定は中で行う）。50% で動けないのはエンジン |
+| いちゃもん | `tryApplyVolatile(defender, 'torment', { torment: true })` |
+| ねこのて | 味方の技（`noAssist` でない）から選び `callMove` |
+| ふういん | `tryApplyVolatile(attacker, 'imprison', { imprison: true })` |
+| よこどり | `tryApplyVolatile(attacker, 'snatch', { snatch: true })`。奪うのはエンジン |
+| たくわえる・のみこむ | `stockpileCount`・`stockpileBoosts` を書く。のみこむの回復は `applyHeal` |
+| パワートリック・パワーシフト・ガードシェア・パワーシェア・スピードスワップ | `statOverrides` を書く（9.6）。シェアは両者の実数値の平均（切り捨て） |
+| さきどり | `ctx.defenderPendingMoveId` の技（`failMeFirst` でないダメージ技）を `callMove({ powerMultiplier: 1.5 })` |
+| まねっこ | `getGlobalFieldState(battle.sideState).lastMoveId`（`failCopycat` でない）を `callMove` |
+| さいはい | 相手の `lastMoveId`（`failInstruct` でない）を `callMove({ user: defender })` |
+| タールショット | 素早さ -1 と `tryApplyVolatile(defender, 'tarShot', { tarShot: true })` |
+| たこがため | `trappedByStatusId` と `octolock` を書く。毎ターンの低下・交代の制限はエンジン |
+| あくむ | 相手がねむり（`isEffectivelyAsleep`）なら `tryApplyVolatile(defender, 'nightmare', { nightmare: true })` |
+| ねごと | 自分の技（`noSleepTalk`・ため技でない）から選び `callMove`。ねむっていても出せるのはエンジン（`sleepUsable`） |
+| あくび | `tryApplyVolatile(defender, 'yawn', { yawnTurns: 2 })`。眠らせるのはエンジン |
+| やどりぎのタネ | `tryApplyVolatile(defender, 'leechSeed', { leechSeed: true })`。吸うのはエンジン |
+| のろい | ゴーストなら HP を最大 HP の 1/2 払って `tryApplyVolatile(defender, 'curse', { cursed: true })` |
+| みちづれ | `shouldFail`（`consecutiveMoveCount > 0`）と `destinyBond: true`。発動はエンジン |
+| ほろびのうた | 両者に `perishCount: 3`（すでにあるポケモン・ぼうおんは除く）。ひんしにするのはエンジン |
+| かなしばり | 相手の `lastMoveId` で `disable: { moveId, turns }`（9.2） |
+| アンコール | 相手の `lastMoveId`（`failEncore` でない）で `encore: { moveId, turns: 3 }`。技の強制はエンジン |
+| ちょうはつ | `tauntTurns: 3`（相手がもう行動していれば 4。9.1） |
+| ねをはる | `ingrain: true`。回復・交代の制限・じめん技はエンジン |
+| おんねん | `grudge: true`。発動はエンジン |
+| かいふくふうじ | `healBlockTurns: 5`。回復技の制限・回復の防止はエンジン（`applyHeal`） |
+| アクアリング | `aquaRing: true`。回復はエンジン |
+| でんじふゆう | `magnetRiseTurns: 5`。じめん技の無効はエンジン |
+| テレキネシス | `telekinesisTurns: 3`。必中・じめん技の無効はエンジン |
+| ふんじん | `powder: true`。爆発はエンジン |
+| ジオコントロール | `MoveBehaviors` の `charge`（ため技）。2 ターン目の `onUse` で特攻・特防・素早さ +2 |
+| ねがいごと | `patchSideConditions(battle.id, attacker.trainerId, { wish: { turns: 2, healAmount: Math.floor(attacker.maxHp / 2) } })`。回復はエンジン |
+| しぜんのちから | `battle.field` から技名を決めて `callMove({ moveName })` |
+| くちばしキャノン | `onTurnStart` で `beakBlast: true`（9.3）。やけどはエンジン |
+| プレッシャー | `modifyOpponentPpDeduction` で 1 |
+| なまけ | `onBeforeMove` で `loafing` を交互に書く（9.2） |
+| メロメロボディ | 接触技を受けたとき 30% で `tryApplyVolatile(attacker, 'attract', ..., { source: { pokemon: holder, kind: 'ability' } })` |
+| ふくつのこころ | `onFlinch`（9.2） |
+| スロースタート | `switchedInTurn`（`battle.turn - switchedInTurn <= 5`）で攻撃・素早さ半分 |
+| のろわれボディ | `onDamagingHit` で 30% `tryApplyVolatile(attacker, 'disable', { disable: { moveId: ctx.moveId, turns: 4 } })` |
+| アロマベール | `canReceiveVolatile`（9.1） |
+| ぜったいねむり | `treatedAsStatusCondition = StatusCondition.Sleep` と状態異常の無効化（9.1） |
+| おどりこ | `onOpponentMoveUsed`（9.4） |
+| ほろびのボディ | 接触技を受けたとき、両者に `perishCount: 3`（すでにあるポケモンは除く） |
+| ごりむちゅう | `locksMoveChoice = true` と物理技の攻撃 1.5 倍 |
+| でんきにかえる | `onDamagingHit` で `charged: true`。威力 2 倍・消去はエンジン |
+| ふうりょくでんき | `onDamagingHit` で `hit` の技が `wind` なら `charged: true`（おいかぜの部分は `tailwindTurns` を見る） |
+| どくくぐつ | `onInflictStatus` でこんらん（9.1） |
+| じゅうでん | 特防 +1 と `charged: true` |

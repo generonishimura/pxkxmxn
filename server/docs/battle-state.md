@@ -13,7 +13,7 @@
 - `src/modules/battle/domain/state/side-state.ts`（`SideState` / `SideConditions` / `GlobalFieldState`）
 - `src/modules/battle/domain/state/state-field-parser.ts`（JSON を読む部品と、更新の共通処理）
 
-今はまだ、どの技・特性もこの状態を読み書きしていません。片付け（交代時の消去・ターン終了時の減算など）だけはエンジンに入っています（4 章）。この文書は、これから技や特性を実装するときの置き場所と決まりを書いたものです。
+エンジンは、片付け（交代時の消去・ターン終了時の減算など）と、一時的な状態の決まった効果（技を出す前の判定・技の制限・ため技・ターン終了時のダメージなど）を受け持ちます（4 章・10 章）。個々の技・特性は、まだほとんどこの状態を書いていません。この文書は、これから技や特性を実装するときの置き場所と決まりを書いたものです。技・特性から使う関数とフックは `docs/battle-engine-hooks.md` の 9 章にあります。
 
 ## 1. 保存のしかた
 
@@ -112,8 +112,11 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | バトル開始で先発が場に出たとき | `StartBattleUseCase.execute` | `switchedInTurn` に `0` を書く |
 | 交代で引っ込むとき | `PokemonSwitcherService.executeSwitch` | 引っ込むポケモンの `volatileState` をすべて消す（`clearVolatileOnSwitchOut`）。`persistentState` は残す |
 | 交代で引っ込んだあと | `PokemonSwitcherService.executeSwitch` | ほかのポケモンの、引っ込んだポケモンによる `trappedByStatusId`・`octolock`・`infatuatedWithStatusId` を消す（`releaseVolatileReferencesTo`） |
-| 交代で場に出たとき | `PokemonSwitcherService.executeSwitch` | `switchedInTurn` に今の `Battle.turn` を書く |
-| 技を出そうとしたとき | `MoveExecutorService.executeMove`（こんらんの判定のあと） | 使用者の `destinyBond`・`grudge` を消す（`clearVolatileOnBeforeMove`） |
+| 交代で場に出たとき | `PokemonSwitcherService.executeSwitch` | `switchedInTurn` に今の `Battle.turn` を書く。`transfer` を渡したときは、引っ込む前の状態から引き継ぐキーも書く（10 章） |
+| 技を出そうとしたとき | `BeforeMoveChecker.check` | 反動のターンは `mustRecharge` を消す。こんらんの `confusionTurns` を 1 減らす。技を出せなかったら `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` を消す |
+| 技を出す前の判定を通ったとき | `MoveLifecycle.recordMoveUse` | 使用者の `destinyBond`・`grudge` を消す（`clearVolatileOnBeforeMove`）。`lastMoveId`・`GlobalFieldState.lastMoveId`・`choiceLockedMoveId` を書き、`protectCount` を消す |
+| 技を出したあと | `MoveLifecycle.afterMove` | `mustRecharge`・`lockedInMove`・`uproar`・`consecutiveMoveCount` を書き直し、でんき技なら `charged` を消す |
+| ターン終了時（特性の前） | `StatusConditionProcessorService.processTurnEndAbilities` → `VolatileResidualProcessor` | すなあらし・ねがいごと・アクアリング・ねをはる・やどりぎのタネ・あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた（10 章） |
 | ターン終了時 | `ExecuteTurnUseCase.execute`（特性・状態異常のターン終了時の処理のあと） | 場のポケモンの `volatileState` を `tickVolatileStateAtTurnEnd` で、`sideState` を `tickSideStateAtTurnEnd` で進める |
 | ターン終了時に場のポケモンがひんしのとき | `ExecuteTurnUseCase.execute` | その `volatileState` をすべて消す（ほろびのカウント・みがわりを、さいきのいのりで持ち越さない） |
 
@@ -123,41 +126,52 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 
 | 一覧 | 場所 | ターン終了時の動き |
 | --- | --- | --- |
-| `VOLATILE_TURN_COUNTER_KEYS` | `volatile-state.ts` | 1 減らし、0 になったら消す（ちょうはつ・かいふくふうじ・ロックオン・テレキネシス・でんじふゆう・あくび・とぎすます） |
+| `VOLATILE_TURN_COUNTER_KEYS` | `volatile-state.ts` | 1 減らし、0 になったら消す（ちょうはつ・かいふくふうじ・ロックオン・テレキネシス・でんじふゆう・あくび・とぎすます・じごくづき） |
 | `VOLATILE_MOVE_TURNS_COUNTER_KEYS` | `volatile-state.ts` | `turns` を 1 減らし、0 になったら消す（アンコール・かなしばり） |
-| `VOLATILE_TURN_SCOPED_FLAGS` | `volatile-state.ts` | 消す（まもる系・ひるみ・マジックコート・よこどり・ふんじん・そうでん・はねやすめ） |
+| `VOLATILE_TURN_SCOPED_FLAGS` | `volatile-state.ts` | 消す（まもる系・ひるみ・マジックコート・よこどり・ふんじん・そうでん・はねやすめ・くちばしキャノンの加熱） |
 | `VOLATILE_UNTIL_NEXT_MOVE_FLAGS` | `volatile-state.ts` | 消さない。技を出そうとしたときに消す（みちづれ・おんねん） |
 | `SIDE_TURN_COUNTER_KEYS` | `side-state.ts` | 1 減らし、0 になったら消す（壁・おいかぜ・しんぴのまもり・しろいきり・おまじない） |
 | `SIDE_TURN_SCOPED_FLAGS` | `side-state.ts` | 消す（ワイドガード・ファストガード・トリックガード・たたみがえし） |
 | `GLOBAL_TURN_COUNTER_KEYS` | `side-state.ts` | 1 減らし、0 になったら消す（天候・フィールド・各ルーム・じゅうりょく・どろあそび・みずあそび・フェアリーロック） |
 | `GLOBAL_TURN_SCOPED_FLAGS` | `side-state.ts` | 消す（プラズマシャワー） |
 
-ねがいごと（`wish`）も、ターン終了時に `turns` を 1 減らし、0 になったら消します。
+ねがいごと（`wish`）とみらいよち（`futureAttack`）も、ターン終了時に `turns` を 1 減らし、0 になったら消します。
 
-どの一覧にも入らないキーは、ターン終了時には触りません。たとえば次のものです。
+どの一覧にも入らないキーは、`tickVolatileStateAtTurnEnd` では触りません。たとえば次のものです。
 
-- `confusionTurns`: 技を出そうとするたびに減らす（8 章）
+- `confusionTurns`: 技を出そうとするたびに `BeforeMoveChecker` が減らす
 - `toxicCounter`: もうどくのダメージのたびに増やす
-- `perishCount`: ほろびのうたの処理が減らす
-- `lockedInMove`: 技を出すたびに減らす
+- `perishCount`・`partialTrap`: ターン終了時に `VolatileResidualProcessor` が減らす（10 章）
+- `lockedInMove`: 技を出すたびに `MoveLifecycle.afterMove` が減らす
+- `chargingMoveId`・`semiInvulnerable`・`mustRecharge`・`consecutiveMoveCount`・`uproar`: 技の流れの中で `MoveLifecycle` / `BeforeMoveChecker` が書き、消す
 
 ### 切れたときに効果があるもの
 
-あくびで眠る、ねがいごとで回復する、天候やフィールドが終わる、などの効果は、ターン終了時の特性・状態異常の処理の中で行います。この処理は減らす前に走るので、値が `1` なら「このターンの終わりで切れる」と判定できます。
+あくびで眠る、ねがいごとで回復する、みらいよちが当たる、天候やフィールドが終わる、などの効果は、ターン終了時の特性・状態異常の処理の中で行います。この処理は減らす前に走るので、値が `1` なら「このターンの終わりで切れる」と判定できます。あくび・ねがいごと・みらいよちは、エンジンがもう行っています（10 章）。
 
-1. ターン終了時の処理が `yawnTurns === 1` を見て、眠らせる
+1. ターン終了時の処理（`VolatileResidualProcessor.applyAfterStatusDamage`）が `yawnTurns === 1` を見て、眠らせる
 2. そのあとで `tickVolatileStateAtTurnEnd` が `yawnTurns` を消す
 
 天候とフィールドも同じです。`weatherTurns === 1` / `terrainTurns === 1` のとき、ターン終了時の処理で `Battle.weather` / `Battle.field` を元に戻します。
 
 ### エンジンが書くキー
 
-次のキーは、技の処理の中心である `MoveExecutorService` の 1 か所だけで書くことにします。個々の技や特性の実装では書きません。まだどこも書いていないので、最初に使う項目を実装するときに `MoveExecutorService` に入れてください。
+次のキーは、技の処理の中心である `MoveExecutorService`（`BeforeMoveChecker` / `MoveLifecycle`）だけが書きます。個々の技や特性の実装では書きません（読むのはかまいません）。
 
-- `lastMoveId`（使用者が最後に使った技）
-- `lastHitByMoveId`（最後に受けた技）
-- `GlobalFieldState.lastMoveId`（バトル全体で最後に使われた技）
-- `protectCount` を 0 に戻す処理（まもる系以外の技を使ったとき）
+| キー | 書く場所 | 書く内容 |
+| --- | --- | --- |
+| `lastMoveId` | `MoveLifecycle.recordMoveUse` | 技を出す前の判定を通った技（失敗・外れでも書く）。ゆびをふるなどで呼ばれた技では書かない（呼んだ技のまま） |
+| `consecutiveMoveCount` | `recordMoveUse` / `afterMove` | 同じ技を続けて成功させた回数。技の処理の中では「この技を直前まで続けて成功させた回数」（別の技なら、ない） |
+| `lastHitByMoveId` | 技の本体 | 1 以上のダメージを受けた技 |
+| `GlobalFieldState.lastMoveId` | `recordMoveUse` | バトル全体で最後に出た技（呼ばれた技も書く。まねっこが読む） |
+| `protectCount` | `recordMoveUse` | まもる系（技の `isProtectionMove`）以外の技を出したら消す |
+| `choiceLockedMoveId` | `recordMoveUse` | 特性の `locksMoveChoice`（ごりむちゅう）なら、最初に出した技（わるあがきを除く） |
+| `chargingMoveId`・`semiInvulnerable` | `MoveLifecycle.handleChargeTurn` | ため技の 1 ターン目に書き、2 ターン目・技を出せなかったときに消す |
+| `mustRecharge` | `afterMove` / `BeforeMoveChecker` | 反動技（`MoveBehaviors` の `recharge`）が当たったら書き、次の行動で消す |
+| `lockedInMove`・`uproar` | `afterMove` | 出し続ける技の残りターン数（使ったターンを含まない）。終わり・失敗・技を出せなかったときに消す |
+| `charged` | `afterMove` | でんき技を出したら消す（じゅうでんそのものは除く）。書くのは技・特性 |
+| `confusionTurns` | `BeforeMoveChecker` | 技を出そうとするたびに 1 減らす。書くのは `inflictStatus`（こんらん） |
+| `SideConditions.futureAttack` | `MoveLifecycle.scheduleFutureAttack` | みらいよち・はめつのねがい（`MoveBehaviors` の `futureMove`）を使ったら相手の陣営に書く |
 
 ## 5. VolatileState のキー
 
@@ -167,7 +181,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 
 | キー | 型 | 意味 | 使う技・特性 |
 | --- | --- | --- | --- |
-| `confusionTurns` | 0 以上の整数 | こんらんの残りターン数。こんらんかどうかは、このキーがあるかで決める | こんらん（今はメモリ上で数えている。8 章） |
+| `confusionTurns` | 0 以上の整数 | こんらんの残り回数（2〜5）。こんらんかどうかは、このキーがあるかで決める。技を出そうとするたびに 1 減らし、0 で解けてそのまま技を出す | こんらんにする技・特性（`inflictStatus(StatusCondition.Confusion)` が書く）・マイペース・どくくぐつ |
 | `toxicCounter` | 0 以上の整数 | もうどくの経過ターン数 | もうどく（今はメモリ上で数えている。8 章） |
 
 ### ターン終了時に HP が増減する状態
@@ -179,6 +193,8 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `nightmare` | 真偽値 | あくむを見ている | あくむ |
 | `ingrain` | 真偽値 | 根を張っている（交代もできない） | ねをはる |
 | `aquaRing` | 真偽値 | アクアリングをまとっている | アクアリング |
+| `partialTrap` | `{ sourceStatusId, moveId, turns }` | バインド状態。`turns` は残りターン数（技は 5 か 6 を書く）。ターン終了時に 1 減らし、残っていれば 1/8 のダメージ、0 なら解ける。しめつけたポケモンが場を離れると解ける | しめつける・まきつく・ほのおのうず・うずしお・すなじごく・まとわりつく・マグマストーム・トラバサミ・サンダープリズン |
+| `saltCure` | 真偽値 | しおづけ（ターン終了時に 1/8、みず・はがねは 1/4） | しおづけ |
 | `substituteHp` | 1 以上の整数 | みがわりの残り HP | みがわり・しっぽきり・すりぬけ |
 
 ### 技の選択の制限
@@ -191,14 +207,24 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `torment` | 真偽値 | いちゃもんをつけられている | いちゃもん |
 | `healBlockTurns` | 0 以上の整数 | かいふくふうじの残りターン数 | かいふくふうじ |
 | `imprison` | 真偽値 | ふういんを使った | ふういん |
-| `choiceLockedMoveId` | 技 ID | こだわり系で固定された技 | ごりむちゅう |
-| `lockedInMove` | `{ moveId, turns }` | 出し続ける技と残りターン数 | さわぐ |
-| `chargingMoveId` | 技 ID | ためている技 | ジオコントロール・くちばしキャノン |
+| `choiceLockedMoveId` | 技 ID | こだわり系で固定された技（エンジンが書く） | ごりむちゅう |
+| `lockedInMove` | `{ moveId, turns }` | 出し続ける技と、使ったターンのあとの残りターン数（エンジンが書く） | さわぐ・あばれる・げきりん・はなびらのまい・ころがる・アイスボール |
+| `chargingMoveId` | 技 ID | ためている技（エンジンが書く） | ソーラービーム・そらをとぶ・ジオコントロールなどのため技 |
+| `throatChopTurns` | 0 以上の整数 | じごくづきの残りターン数（音技を出せない） | じごくづき |
 | `lastMoveId` | 技 ID | このポケモンが最後に使った技（エンジンが書く。4 章） | ものまね・オウムがえし・スケッチ・うらみ・いちゃもん・かなしばり・アンコール・さいはい |
 | `lastHitByMoveId` | 技 ID | このポケモンが最後に受けた技（エンジンが書く。4 章） | テクスチャー２ |
 | `moveSlotOverrides` | `{ battlePokemonMoveId, moveId, currentPp, maxPp }[]` | 一時的に入れ替わった技 | ものまね・へんしん・かわりもの |
 
-さわぐの「場の誰も眠れない」は、場のポケモンの `lockedInMove` がさわぐかどうかで判定します。別のキーは持ちません。
+さわぐの「場の誰も眠れない」は、`uproar` で判定します（`canInflictStatus` がねむりを断る）。
+
+### 技の流れ（エンジンが書く）
+
+| キー | 型 | 意味 | 使う技・特性 |
+| --- | --- | --- | --- |
+| `semiInvulnerable` | `'air' \| 'underground' \| 'underwater' \| 'vanished'` | ため技の 1 ターン目に隠れている（そらをとぶ・あなをほる・ダイビング・シャドーダイブなど）。当たる技は `MoveBehaviors.hitsSemiInvulnerable` | ため技・かぜおこし・じしん・なみのり・うちおとす |
+| `mustRecharge` | 真偽値 | 次の行動は反動で動けない | はかいこうせんなどの反動技 |
+| `consecutiveMoveCount` | 1 以上の整数 | `lastMoveId` の技を続けて成功させた回数 | れんぞくぎり・みちづれ（続けて使うと失敗する判定） |
+| `uproar` | 真偽値 | さわいでいる（場の誰もねむれない） | さわぐ |
 
 ### まもる系
 
@@ -221,6 +247,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `powder` | ふんじんをかけられている | ふんじん |
 | `electrified` | このターンに出す技がでんきタイプになる | そうでん |
 | `roosting` | このターンはひこうタイプを失っている | はねやすめ |
+| `beakBlast` | くちばしキャノンを加熱している（このターンに接触技を受けると、相手をやけどにする） | くちばしキャノン |
 
 ### 使用者が次に技を出そうとするまで続くフラグ
 
@@ -264,13 +291,13 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 
 | キー | 型 | 意味 | 使う技・特性 |
 | --- | --- | --- | --- |
-| `yawnTurns` | 0 以上の整数 | 眠るまでの残りターン数 | あくび |
-| `perishCount` | 0〜3 | ほろびのうたのカウント（0 でひんし） | ほろびのうた・ほろびのボディ |
+| `yawnTurns` | 0 以上の整数 | 眠るまでの残りターン数。使ったターンに `2` を書くと、次のターンの終わりに眠る | あくび |
+| `perishCount` | 0〜3 | ほろびのうたのカウント。使ったターンに `3` を書く。ターン終了時に 0 ならひんし、それ以外は 1 減らす（4 回目のターン終了時にひんし） | ほろびのうた・ほろびのボディ |
 | `stockpileCount` | 1〜3 | たくわえるの回数 | たくわえる・はきだす・のみこむ |
 | `stockpileBoosts` | `{ defense, specialDefense }`（各 0〜6） | たくわえるで実際に上がったランク | たくわえる・はきだす・のみこむ |
 | `critStageBoost` | 0 以上の整数 | 急所ランクの上昇 | きあいだめ |
 | `laserFocusTurns` | 0 以上の整数 | 次の技が必ず急所になる残りターン数 | とぎすます |
-| `charged` | 真偽値 | 次のでんき技の威力が 2 倍 | でんきにかえる |
+| `charged` | 真偽値 | 次のでんき技の威力が 2 倍。でんき技を出すとエンジンが消す（第 9 世代は、でんき技を出すまで続く） | じゅうでん・でんきにかえる・ふうりょくでんき |
 | `loafing` | 真偽値 | 次のターンは動かない | なまけ |
 
 `stockpileBoosts` は、ランクが +6 で上がらなかった分を数えません。のみこむ・はきだすでは、この値の分だけ防御・特防を下げます。
@@ -298,9 +325,9 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 ものまね・へんしん・かわりものの技は、引っ込むと元に戻ります。そのため `BattlePokemonMove.moveId` は書き換えず、`moveSlotOverrides` に置きます。
 
 - 1 つの要素が、技の欄 1 つ分の入れ替えです。`battlePokemonMoveId` が入れ替える前の欄、`moveId` / `currentPp` / `maxPp` が代わりの技です（へんしんは各 5 PP）。
-- 技を選ぶ処理（`ExecuteTurnUseCase` の `battlePokemonMoves.find(...)`）と、PP を減らす処理（`MoveExecutorService`）は、`moveSlotOverrides` を先に見ます。まだ見ていないので、ものまね・へんしんを実装するときに直してください。今のままでは、覚えた技を選ぶと「Move not found」になります。
+- 技を選ぶ処理（`ExecuteTurnUseCase.planAction`）と、PP を減らす処理（`MoveLifecycle.consumePp`・`reducePp`）は、`moveSlotOverrides` を先に見ます（`resolveMoveSlots`）。ものまねで覚えた技を選ぶと、入れ替える前の欄の ID で技を出し、PP は `moveSlotOverrides` の `currentPp` から減ります。
 - 交代で `volatileState` ごと消えるので、元に戻す処理は要りません。
-- スケッチはずっと残るので、今までどおり `BattlePokemonMove.moveId` を書き換えます。
+- スケッチはずっと残るので、`updateBattlePokemonMove(id, { moveId, currentPp, maxPp })` で `BattlePokemonMove` の技そのものを書き換えます。
 
 ### 場に出たタイミング
 
@@ -360,7 +387,8 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | `quickGuard` | 真偽値 | このターンのファストガード | ファストガード |
 | `craftyShield` | 真偽値 | このターンのトリックガード | トリックガード |
 | `matBlock` | 真偽値 | このターンのたたみがえし | たたみがえし |
-| `wish` | `{ turns, healAmount }` | ねがいごと。`turns` ターン後に場のポケモンを回復する | ねがいごと |
+| `wish` | `{ turns, healAmount }` | ねがいごと。使ったターンに `turns: 2` を書くと、次のターンの終わりに、その陣営の場のポケモンを `healAmount` だけ回復する（エンジンが行う。かいふくふうじ中は回復しない） | ねがいごと |
+| `futureAttack` | `{ turns, moveId, sourceStatusId }` | みらいよち・はめつのねがい。使ったターンにエンジンが `turns: 3` で書き、`turns` が 1 のターン終了時に、その陣営の場のポケモンに当てる | みらいよち・はめつのねがい |
 | `healingWish` | `'healingWish' \| 'lunarDance'` | 次に出てきたポケモンを回復する技 | いやしのねがい（HP と状態異常）・みかづきのまい（PP も） |
 | `pendingChoice` | `{ reason }` | 交代先（復活させるポケモン）の選択を待っている | とんぼがえり・すてゼリフ・テレポート・バトンタッチ・しっぽきり・ききかいひ・にげごし・さいきのいのり |
 
@@ -418,29 +446,16 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 ### メモリ上だけで数えている状態
 
-`StatusConditionProcessorService`（`src/modules/battle/application/services/status-condition-processor.service.ts`）は、もうどく・ねむり・こんらんのターン数を `Map` に持っています。サーバーを再起動すると、この数は 0 に戻ります。移すときは次のようにします。
+`StatusConditionProcessorService`（`src/modules/battle/application/services/status-condition-processor.service.ts`）は、もうどく・ねむりのターン数を `Map` に持っています。サーバーを再起動すると、この数は 0 に戻ります。移すときは次のようにします。
 
 1. もうどく: `volatileState.toxicCounter` を使う。交代で消えるのは今と同じ
 2. ねむり: `persistentState.sleepTurns` を使う。今の `Map` は経過ターン数を数えているので、眠らせるときに残りターン数を決めて書き、減らしていく形に変える
-3. こんらん: 次の 3 点を守る
 
-こんらんの移し方の 3 点です。
+こんらん（`confusionTurns`）とひるみ（`flinched`）は、volatileState に移し終えています。どちらも状態異常と同時に持てます。
 
-1. こんらんかどうかは `volatileState.confusionTurns` があるかで決め、`StatusCondition.Confusion` は使わなくする。直す箇所は次のとおり
-   - `src/modules/battle/application/services/move-executor.service.ts`（技を出す前のこんらんの判定）
-   - `src/modules/battle/application/services/status-condition-processor.service.ts`（こんらんの解除）
-   - `src/modules/battle/domain/logic/status-condition-handler.ts`
-   - `src/modules/pokemon/domain/abilities/effects/stat-change/tangled-feet-effect.ts`（ちどりあし）
-   - `src/modules/pokemon/domain/abilities/effects/other/inner-focus-effect.ts`
-   - こんらんにする技（`confuse-ray-effect.ts`・`supersonic-effect.ts`・`sweet-kiss-effect.ts`・`teeter-dance-effect.ts`・`base-confuse-with-stat-boost-effect.ts` など）
-2. こんらんの付与は、`src/modules/pokemon/domain/battle-events/status-infliction.ts` の `canInflictStatus` を通さない。55 行目は「すでに状態異常がある」と付与を断るので、今はやけど中のポケモンがこんらんしない
-3. `confusionTurns` は残りターン数。今の `Map` は経過ターン数を数えている（`shouldClearConfusion(count)`）ので、付与するときに残りターン数を決めて書き、技を出そうとするたびに 1 減らす形に変える
-
-ひるみも同じです。`StatusCondition.Flinch` をやめ、`volatileState.flinched` を使います。`flinched` はターン終了時に自動で消えます（4 章）。直す箇所は、ひるませる技（`bite-effect.ts`・`fake-out-effect.ts`・`headbutt-effect.ts` など）、`status-condition-processor.service.ts` のひるみの解除、`status-infliction.ts`、`inner-focus-effect.ts`（せいしんりょく）です。ひるみも、状態異常のチェックを通さずに付与します。
-
-### バトンタッチ・しっぽきりの引き継ぎ
-
-交代で引っ込むと `volatileState` はすべて消えます。バトンタッチは `substituteHp`・`confusionTurns`・`leechSeed`・`cursed`・`ingrain`・`aquaRing`・`perishCount`・`trappedByStatusId` などを、しっぽきりは `substituteHp` を次のポケモンに引き継ぎます。引き継ぐ処理は、引っ込む前の状態を読んでおき、場に出たあとで次のポケモンに部分更新で書いてください。
+- 付与: `canInflictStatus` / `inflictStatus` に `StatusCondition.Confusion` / `Flinch` を渡す。状態異常の欄ではなく volatileState に書く（こんらんは残り 2〜5 回）。マイペース・せいしんりょくは `canReceiveStatusCondition` で防ぐ
+- 判定: `BeforeMoveChecker`（ひるみで動けない・こんらんの自傷）
+- 古い行: `statusCondition` に `Confusion` / `Flinch` が入っている行は、リポジトリが読むときに `confusionTurns: 2` / なしに読み替え、書くときに `None` に直す
 
 ### API で状態をそのまま返している
 
@@ -471,3 +486,80 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 6. マイグレーションは要らない（JSON 列の中身が増えるだけ）
 
 型は JSON にできる値（数値・真偽値・文字列・配列・オブジェクト）だけで組んでください。`Date`・`Map`・`Set`・`undefined` を値に使うと、保存したときに消えたり形が変わったりします。型は `interface` ではなく `type` で書きます。`interface` にすると、リポジトリで Prisma の JSON 型に渡せなくなります。
+
+## 10. エンジンが行う一時的な状態の効果
+
+次の効果は、キーがあればエンジンが行います。技・特性の実装では、キーを書くだけです（書き方は `docs/battle-engine-hooks.md` の 9 章）。
+
+### 技を出す前（`BeforeMoveChecker`）
+
+本家の onBeforeMove の順に判定し、止まったら技を出しません（PP も減りません）。
+
+1. `mustRecharge`: 動けない（キーを消す）
+2. ねむり: 動けない（`MoveBehaviors` の `sleepUsable` の技は出せる）
+3. こおり: 20% で溶ける（`defrost` の技は必ず溶ける）
+4. 特性の `onBeforeMove`（なまけ）
+5. `flinched`: 動けない。特性の `onFlinch`（ふくつのこころ）を呼ぶ
+6. 技の制限（`findMoveRestriction`）: `disable`・`healBlockTurns`・`throatChopTurns`・`tauntTurns`・相手の `imprison`・`encore`・`torment`・`choiceLockedMoveId`・続けて出せない技
+7. `confusionTurns`: 1 減らす。0 なら解けて技を出す。残っていれば 33% で自分を攻撃する
+8. `infatuatedWithStatusId`: 相手がそのポケモンなら 50% で動けない
+9. まひ: 25% で動けない
+
+2〜9 で止まったときは、`chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` を消します。
+
+### 行動を決めるとき（`ExecuteTurnUseCase.planAction`）
+
+- `mustRecharge`・`chargingMoveId`・`lockedInMove` があれば、選んだ行動（交代も）にかかわらず、その技を出す
+- `encore` があれば、選んだ技にかかわらずアンコールされた技を出す（交代はできる）。その技の PP が 0 ならアンコールを消す
+- 技の欄は `moveSlotOverrides` を先に見る
+- PP がない・技の制限で出せない技を選び、ほかに出せる技もなければ、わるあがきを出す
+- `ingrain`・`trappedByStatusId`・`partialTrap` があれば交代できない（ゴーストタイプは `ingrain` 以外では交代できる。`findSwitchBlocker`）
+
+### 技の処理の中
+
+| キー | 効果 | 場所 |
+| --- | --- | --- |
+| `powder`（使用者） | ほのお技を出そうとすると失敗し、最大 HP の 1/4（四捨五入）のダメージ | `MoveExecutorService.useMove` |
+| `snatch`（相手） | `MoveBehaviors` の `snatch` の技を、相手が代わりに出す | `useMove` |
+| `semiInvulnerable`（相手） | `MoveBehaviors.hitsSemiInvulnerable` の技しか当たらない（使用者の `lockOnTurns` があれば当たる）。当たる技の一部はダメージ 2 倍 | 技の本体・`DamageCalculator` |
+| `substituteHp`（相手） | ダメージをみがわりが受ける。相手を対象にする変化技は失敗する（`bypassSubstitute` の技と、特性の `infiltrates` は通る） | 技の本体 |
+| `beakBlast`（相手） | 接触技を当てると、使用者がやけどになる | 技の本体 |
+| `destinyBond`・`grudge`（相手） | 技で倒されたら、使用者もひんし・その技の PP が 0 | `MoveLifecycle.applyFaintReactions` |
+| `statOverrides` | ランク補正の前の実数値を置き換える（行動順の素早さも） | `createHitContext`・`DamageCalculator`・行動順 |
+| `foresight`・`miracleEye`・`ingrain`（相手） | タイプ相性 0 を等倍にする（ゴーストにノーマル・かくとう、あくにエスパー、ひこうにじめん）。みやぶる・ミラクルアイは、上がった回避ランクを 0 として扱う | `DamageCalculator`・`AccuracyCalculator` |
+| `tarShot`・`magnetRiseTurns`・`telekinesisTurns`（相手） | ほのお技の相性 2 倍 / じめん技が当たらない | `DamageCalculator` |
+| `charged`（使用者） | でんき技の威力 2 倍 | `DamageCalculator` |
+| `lockOnTurns`（使用者）・`telekinesisTurns`（相手） | 必ず当たる | `AccuracyCalculator` |
+| `uproar`（場の誰か） | ねむりにできない | `canInflictStatus` |
+
+### ターン終了時（`VolatileResidualProcessor`）
+
+`processTurnEndAbilities` の中で、次の順に行います。ダメージは `applyIndirectDamage`（マジックガードは受けない）、回復は `applyHeal`（かいふくふうじ中は回復しない）です。
+
+1. すなあらし: 最大 HP の 1/16（いわ・じめん・はがねタイプ、すながくれ・すなかき・すなのちから・ぼうじんは受けない）
+2. `wish.turns === 1`: その陣営の場のポケモンを `healAmount` 回復
+3. ポケモンごとに:
+   1. `aquaRing`・`ingrain`: 1/16 回復
+   2. `leechSeed`: 1/8 を吸い、相手の場のポケモンが同じ量を回復（`applyDrainHeal`。ヘドロえきなら相手がダメージ）
+   3. 状態異常（ねむりの解除・どく・もうどく・やけど）
+   4. `nightmare`: ねむっていれば（ぜったいねむりを含む）1/4。目を覚ましていればキーを消す
+   5. `cursed`: 1/4
+   6. `partialTrap`: `turns` を 1 減らし、残っていれば 1/8、0 なら解ける
+   7. `saltCure`: 1/8（みず・はがねタイプは 1/4）
+   8. `octolock`: 防御・特防 -1（たこがためを使ったポケモンが起こした、技による変化）
+   9. `yawnTurns === 1`: ねむりにする
+   10. `perishCount`: 0 ならひんし（マジックガードでも防げない）、それ以外は 1 減らす
+   11. 特性の `onTurnEnd`
+
+みらいよち（`futureAttack.turns === 1`）は、このすぐ前に `ExecuteTurnUseCase` が `MoveExecutorService.executeFutureAttacks` で当てます。そのあと `tickVolatileStateAtTurnEnd` / `tickSideStateAtTurnEnd` で残りターン数を減らします。
+
+注: 本家は効果ごとに場の全員を素早さ順に処理しますが、ここではポケモンごとに 3 の順で処理します。みらいよちも、本家ではすなあらしのあと・ねがいごとの前ですが、ここではすなあらしより前です。
+
+### バトンタッチ・しっぽきり（`PokemonSwitcherService.executeSwitch`）
+
+`executeSwitch(battle, trainerId, trainedPokemonId, { transfer })` に `transfer` を渡すと、引っ込む前の状態から次のポケモンに書きます。
+
+- `'batonPass'`: `BATON_PASS_KEYS` のキー（`substituteHp`・`confusionTurns`・`leechSeed`・`cursed`・`ingrain`・`aquaRing`・`tauntTurns`・`healBlockTurns`・`perishCount`・`telekinesisTurns`・`magnetRiseTurns`・`tarShot`・`critStageBoost`・`laserFocusTurns`・`charged`・`abilitySuppressed`・`throatChopTurns`）と能力ランク
+- `'shedTail'`: `substituteHp` だけ（`shedTailPatch`）
+
+注: 交代先をプレイヤーが選ぶ仕組み（7 章の `pendingChoice`）はまだないので、技から `executeSwitch` を呼ぶ流れは、その仕組みと一緒に作ってください。
