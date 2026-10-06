@@ -82,14 +82,16 @@ export class MoveExecutorService {
    * 技を実行
    *
    * ダメージ技の流れ:
-   * 1. ヒットのコンテキストを作る（技名・技フラグ・効果のある天候・実数値・ランク無視）
-   * 2. 防御側特性の isImmuneToMove（ぼうおんなど）で技そのものが無効かを判定する（無効なら onMoveBlocked）
-   * 3. 命中判定
-   * 4. 技の beforeDamage（連続技の回数決定）
-   * 5. 技タイプの決定（技の modifyMoveType → 攻撃側特性の modifyMoveType）
-   * 6. 技の威力の決定（技の modifyMovePower）
-   * 7. ヒットごとにダメージを計算して適用（連続技・おやこあいの追加ヒット）
-   * 8. 接触時の特性 → onHit → afterDamage（合計ダメージ）
+   * 1. ヒットのコンテキストを作る（技名・技フラグ・効果のある天候・実数値・ランク無視・優先度）
+   * 2. 両者の特性の preventsMove（しめりけなど）で技が失敗するかを判定する
+   * 3. 防御側特性の isImmuneToMove（ぼうおんなど）で技そのものが無効かを判定する（無効なら onMoveBlocked）
+   * 4. 技の shouldFail（ゆめくいなど）で技が失敗するかを判定する
+   * 5. 命中判定
+   * 6. 技の beforeDamage（連続技の回数決定）。このあと両者の状態を取り直す
+   * 7. 技タイプの決定（技の modifyMoveType → 攻撃側特性の modifyMoveType）
+   * 8. 技の威力の決定（技の modifyMovePower）
+   * 9. ヒットごとにダメージを計算して適用（連続技・おやこあいの追加ヒット）
+   * 10. 接触時の特性 → onHit → afterDamage（合計ダメージ）
    */
   async executeMove(
     battle: Battle,
@@ -172,6 +174,26 @@ export class MoveExecutorService {
       move.category !== 'Status' &&
       (move.power !== null || moveEffect?.modifyMovePower !== undefined);
 
+    // 攻撃側特性の modifyPriority を反映した優先度（じょおうのいげんなどの判定用）
+    battleContext.effectivePriority =
+      attackerAbilityEffect?.modifyPriority?.(attacker, move.priority, battleContext) ??
+      move.priority;
+
+    // 特性による技の失敗（しめりけ・じょおうのいげんなど）。両者の特性で、命中判定の前に判定する
+    const preventingAbilityName = this.findMovePreventingAbility({
+      attacker,
+      defender,
+      attackerAbilityName,
+      defenderAbilityName,
+      attackerAbilityEffect,
+      defenderAbilityEffect,
+      battleContext,
+    });
+    if (preventingAbilityName) {
+      await this.consumePp(battlePokemonMoveId);
+      return `Used ${move.name} but it failed (${preventingAbilityName})`;
+    }
+
     // 技そのものの無効化（ぼうおん・ぼうだんなど）。変化技も含め、命中判定の前に判定する
     if (
       MoveFlags.targetsOpponent(move.name) &&
@@ -183,6 +205,12 @@ export class MoveExecutorService {
       return blockedMessage
         ? `Used ${move.name} but it had no effect ${blockedMessage}`
         : `Used ${move.name} but it had no effect`;
+    }
+
+    // 技の条件による失敗（ゆめくいは相手がねむりでなければ失敗）。命中判定の前に判定する
+    if (moveEffect?.shouldFail?.(attacker, defender, battleContext) === true) {
+      await this.consumePp(battlePokemonMoveId);
+      return `Used ${move.name} but it failed`;
     }
 
     // 命中率判定（変化技の場合は常に命中とみなす）
@@ -231,24 +259,34 @@ export class MoveExecutorService {
     battleContext.secondaryEffectsSuppressed =
       defenderAbilityEffect?.blocksSecondaryEffects === true;
 
-    // ダメージ計算前の技の効果（連続技の回数決定など）
+    // ダメージ計算前の技の効果（連続技の回数決定、シャドースチールのランクを奪う効果など）
+    let currentAttacker = attacker;
+    let updatedDefender = defender;
     if (moveEffect?.beforeDamage) {
       await moveEffect.beforeDamage(attacker, defender, move, battleContext);
+      // beforeDamage でランクなどが変わることがあるため、最新の状態を取り直す
+      currentAttacker =
+        (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? attacker;
+      updatedDefender =
+        (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? defender;
+      battleContext.attacker = currentAttacker;
+      battleContext.defender = updatedDefender;
     }
 
     // 技のタイプを決定（技の効果 → 攻撃側特性の順）
     const moveType = await this.resolveMoveType(
       move,
       moveEffect,
-      attacker,
-      defender,
+      currentAttacker,
+      updatedDefender,
       attackerAbilityEffect,
       battleContext,
     );
     battleContext.moveTypeName = moveType.name;
 
     // 技の威力を決定
-    const power = moveEffect?.modifyMovePower?.(attacker, defender, battleContext) ?? move.power;
+    const power =
+      moveEffect?.modifyMovePower?.(currentAttacker, updatedDefender, battleContext) ?? move.power;
     // 威力が決まらなかった場合はダメージを与えない（PPは消費される）
     if (power === null) {
       await this.consumePp(battlePokemonMoveId);
@@ -257,7 +295,12 @@ export class MoveExecutorService {
     battleContext.movePower = power;
 
     // ヒットごとの威力（連続技・おやこあいの追加ヒット）
-    const hitPowers = this.resolveHitPowers(power, attacker, attackerAbilityEffect, battleContext);
+    const hitPowers = this.resolveHitPowers(
+      power,
+      currentAttacker,
+      attackerAbilityEffect,
+      battleContext,
+    );
     if (hitPowers.length > 1) {
       battleContext.multiHitCount = hitPowers.length;
     }
@@ -269,7 +312,6 @@ export class MoveExecutorService {
     // damage は実際に減らしたHPの合計（残りHPを超えた分は含めない。反動などはこの値を使う）
     let damage = 0;
     let hitCount = 0;
-    let updatedDefender = defender;
     for (const [hitIndex, hitPower] of hitPowers.entries()) {
       battleContext.hitIndex = hitIndex;
       const moveInfo: MoveInfo = {
@@ -280,7 +322,7 @@ export class MoveExecutorService {
       };
 
       const hitDamage = await DamageCalculator.calculate({
-        attacker,
+        attacker: currentAttacker,
         defender: updatedDefender,
         move: moveInfo,
         moveType,
@@ -341,14 +383,14 @@ export class MoveExecutorService {
     // 接触技による状態異常付与（防御側の特性）
     let contactEffectMessage = '';
     // 技の追加効果に渡すポケモンの状態（接触時の特性で変わった場合は取得し直す）
-    let attackerForMoveEffect = attacker;
+    let attackerForMoveEffect = currentAttacker;
     let defenderForMoveEffect = updatedDefender;
     if (damage > 0 && defenderTrainedPokemon?.ability) {
       const defenderAbilityEffect = AbilityRegistry.get(defenderTrainedPokemon.ability.name);
       if (defenderAbilityEffect && 'applyContactStatusCondition' in defenderAbilityEffect) {
         const applied = await (defenderAbilityEffect as any).applyContactStatusCondition(
           updatedDefender,
-          attacker,
+          currentAttacker,
           battleContext,
         );
         if (applied) {
@@ -356,7 +398,8 @@ export class MoveExecutorService {
           // くだけるよろい（防御側）やぬめぬめ（攻撃側）などで能力ランク・状態異常が変わるため、
           // 追加効果が古い状態で上書きしないよう最新の状態を取得し直す
           attackerForMoveEffect =
-            (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? attacker;
+            (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ??
+            currentAttacker;
           defenderForMoveEffect =
             (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ??
             updatedDefender;
@@ -451,6 +494,29 @@ export class MoveExecutorService {
     );
 
     return context;
+  }
+
+  /**
+   * 技を失敗させる特性（preventsMove）を探し、その特性名を返す
+   * 攻撃側 → 防御側の順に判定する。防御側の特性効果は、かたやぶりで無視されたものなら渡さない
+   */
+  private findMovePreventingAbility(params: {
+    attacker: BattlePokemonStatus;
+    defender: BattlePokemonStatus;
+    attackerAbilityName: string | undefined;
+    defenderAbilityName: string | undefined;
+    attackerAbilityEffect: IAbilityEffect | undefined;
+    defenderAbilityEffect: IAbilityEffect | undefined;
+    battleContext: BattleContext;
+  }): string | undefined {
+    const { battleContext } = params;
+    if (params.attackerAbilityEffect?.preventsMove?.(params.attacker, 'attacker', battleContext)) {
+      return params.attackerAbilityName;
+    }
+    if (params.defenderAbilityEffect?.preventsMove?.(params.defender, 'defender', battleContext)) {
+      return params.defenderAbilityName;
+    }
+    return undefined;
   }
 
   /**

@@ -126,6 +126,12 @@ export interface BattleContext {
   movePriority?: number;
 
   /**
+   * 攻撃側特性の modifyPriority を反映した技の優先度（いたずらごころなど）
+   * 技の実行時に入る。じょおうのいげんなどの preventsMove で使う
+   */
+  effectivePriority?: number;
+
+  /**
    * 防御側の特性名（日本語名）
    * オーラ系とオーラブレイクの相互作用などで使用
    */

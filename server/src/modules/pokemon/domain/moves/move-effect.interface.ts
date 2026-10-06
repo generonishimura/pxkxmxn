@@ -95,6 +95,17 @@ export interface IMoveEffect {
   ): Promise<string | null>;
 
   /**
+   * 技を出す前に、技が失敗するかを判定する効果（例: ゆめくいは相手がねむりでなければ失敗）
+   * 特性の preventsMove・isImmuneToMove のあと、命中判定の前に呼ばれる。変化技でも呼ばれる
+   * @returns 失敗する場合はtrue
+   */
+  shouldFail?(
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): boolean | undefined;
+
+  /**
    * ダメージ計算前に技のタイプを変更する効果（例: ウェザーボール）
    * beforeDamage のあと、攻撃側特性の modifyMoveType の前に呼ばれる
    * @returns 変更後のタイプ名（日本語名、例: "ほのお"）、変更しない場合はundefined

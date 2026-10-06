@@ -272,6 +272,20 @@ export interface IAbilityEffect {
   ): boolean | undefined;
 
   /**
+   * 技を出す前に、技そのものを失敗させる効果（例: しめりけ、じょおうのいげん、テイルアーマー）
+   * 攻撃側（role = 'attacker'）と防御側（role = 'defender'）の両方の特性で、isImmuneToMove と命中判定の前に呼ばれる。
+   * 変化技・自分を対象にする技を含むすべての技で呼ばれる。防御側はかたやぶりで無視される
+   * @param holder この特性を持つポケモン
+   * @param role この特性を持つポケモンが攻撃側か防御側か
+   * @returns 技を失敗させる場合はtrue
+   */
+  preventsMove?(
+    _holder: BattlePokemonStatus,
+    _role: 'attacker' | 'defender',
+    _battleContext?: BattleContext,
+  ): boolean | undefined;
+
+  /**
    * 防御側: isImmuneToMove で技を無効にしたあとの効果（例: かぜのりの攻撃ランク+1）
    * isImmuneToMove が true を返したときだけ、PP を消費したあとに呼ばれる
    * @param pokemon 防御側のポケモン
