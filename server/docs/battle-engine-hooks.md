@@ -562,7 +562,8 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - `onDamagingHit` / `onSourceDamagingHit` はヒットごとですが、`applyContactStatusCondition` と技の `onHit` は今までどおり技全体で1回です。
 - 状態異常は1つの欄（`statusCondition`）に入るため、ひるみ・こんらんは状態異常と同時に持てません。あくしゅうのひるみも、相手が状態異常なら付与できません（ひるみ技と同じ）。
 - 次の効果は `applyStatChanges` を通らず、ランクを直接書きます。たんじゅん・あまのじゃく・ミラーアーマー・びんじょうなどは効きません: はらだいこ、はいすいのじん、ソウルビート、みをけずる、つぼをつく、ナインエボルブースト、ブレイブチャージ、ほおばる、じばそうさ・ギアアップ（`BasePlusMinusSelfStatBoostEffect`）、たがやす・フラワーガード（`BaseGrassTypeStatBoostEffect`）、いばる・おだてる（`BaseConfuseWithStatBoostEffect`）、おきみやげ、どくのいと、ひっくりかえす、くろいきり・クリアスモッグ、じこあんじ、ガードスワップなどの入れ替え技、かそく・ムラっけ・まけんき・かちき・そうしょく・でんきエンジン・ひらいしん・よびみず・こんがりボディ（`BaseTypeImmunityWithStatBoostEffect`）・こんじょう（`kongyou-effect.ts` の `GutsHpThresholdEffect`）などの既存の特性。必要になったら `applyStatChanges` に乗せ換えます。
-- 次の効果は `inflictStatus` を通らず、状態異常を直接書きます。シンクロ・ふしょく・`onInflictStatus` などは効きません: どくのいと（`ToxicThreadEffect`）、サイコシフト（`PsychoShiftEffect`）。必要になったら `canInflictStatus` / `inflictStatus` に乗せ換えます。トライアタック（`TriAttackEffect`）は乗せ換え済みです。
+- トライアタック（`TriAttackEffect`）・どくのいと（`ToxicThreadEffect`）・サイコシフト（`PsychoShiftEffect`）は `canInflictStatus` / `inflictStatus` に乗せ換え済みです（シンクロ・ふしょく・`onInflictStatus` などが効く）。サイコシフトは相手に移してから使用者を治すので、相手がシンクロでもうつし返されません（本家と同じ）。
+- 接触時の特性（せいでんき・ほのおのからだ・どくのトゲなど、`BaseContactStatusConditionEffect`）で状態異常にされたときもシンクロは発動しますが、`applyContactStatusCondition` は `boolean` しか返せないため、`inflictStatus` のメッセージは捨てています。バトルログには `<特性名> activated!` だけが出て、シンクロで相手も状態異常になったことは表示されません。
 - `onOpponentStatChanged`（びんじょう）の「相手」は、相手が起こした変化ならその相手、技の実行中ならコンテキストの `attacker` / `defender` です。場に出たとき・ターン終了時に相手が自分で上げた変化（ふとうのつるぎなど）では呼ばれません。また本家は行動の終わりにまとめて写しますが、ここではすぐに写します。
 - `onKnockOut` は「自分の技で相手をひんしにした」ときだけです。ソウルハートは本家では誰がひんしになっても発動しますが、ここでは自分の技で倒したときだけになります（反動・状態異常・さめはだで相手が倒れたときは発動しない）。
 - 場に出たときの特性のコンテキスト（バトル開始時・交代時）には `trainedPokemonRepository` が入ります。いかくに対するクリアボディ・ばんけん・ミラーアーマーなどはこれで判定します。

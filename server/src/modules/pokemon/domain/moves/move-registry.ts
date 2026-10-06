@@ -257,6 +257,8 @@ import { DreamEaterEffect } from './effects/dream-eater-effect';
 // 能力の参照先を変える技・相手のランクを無視する技（Issue #129 一部）
 import { FoulPlayEffect } from './effects/foul-play-effect';
 import { ChipAwayEffect } from './effects/chip-away-effect';
+// 相手のランクを奪う技（Issue #129 一部）
+import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 
 /**
  * 技のレジストリ
@@ -623,6 +625,8 @@ export class MoveRegistry {
       this.registry.set('なしくずし', chipAwayEffect);
       this.registry.set('せいなるつるぎ', chipAwayEffect);
       this.registry.set('ＤＤラリアット', chipAwayEffect);
+      // 相手のランクを奪う技（Issue #129 一部）
+      this.registry.set('シャドースチール', new SpectralThiefEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,

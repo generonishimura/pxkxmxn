@@ -145,6 +145,11 @@ import { AuraBreakEffect } from './effects/damage-modify/aura-break-effect';
 import { ProtosynthesisEffect } from './effects/stat-change/protosynthesis-effect';
 import { QuarkDriveEffect } from './effects/stat-change/quark-drive-effect';
 import { MindsEyeEffect } from './effects/stat-change/minds-eye-effect';
+// ひるみ・状態異常・ねむり・吸収に反応する特性（Issue #135 一部）
+import { StenchEffect } from './effects/other/stench-effect';
+import { SynchronizeEffect } from './effects/other/synchronize-effect';
+import { EarlyBirdEffect } from './effects/other/early-bird-effect';
+import { LiquidOozeEffect } from './effects/other/liquid-ooze-effect';
 
 /**
  * 特性レジストリ
@@ -386,6 +391,11 @@ export class AbilityRegistry {
       this.registry.set('こだいかっせい', new ProtosynthesisEffect());
       this.registry.set('クォークチャージ', new QuarkDriveEffect());
       this.registry.set('しんがん', new MindsEyeEffect());
+      // ひるみ・状態異常・ねむり・吸収に反応する特性（Issue #135 一部）
+      this.registry.set('あくしゅう', new StenchEffect());
+      this.registry.set('シンクロ', new SynchronizeEffect());
+      this.registry.set('はやおき', new EarlyBirdEffect());
+      this.registry.set('ヘドロえき', new LiquidOozeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
