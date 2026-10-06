@@ -389,6 +389,39 @@ describe('MoveExecutorService - 技の流れでエンジンが書く状態（Mov
   });
 
   describe('ふんじん', () => {
+    it('タイプが変わってほのお技になった技でも爆発する（晴れのウェザーボールなど）', async () => {
+      // Arrange
+      const { execute, statuses, typeEffectivenessRepository } = setupMoveExecutor({
+        move: createMove('ウェザーボール', MoveCategory.Special, 50),
+        moveEffect: { modifyMoveType: () => 'ほのお' },
+        attacker: { volatileState: { powder: true } },
+      });
+      typeEffectivenessRepository.findTypeByName.mockResolvedValue(FIRE);
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(message).toBe('Used ウェザーボール but the powder exploded! (25 damage)');
+      expect(statuses.get(DEFENDER_ID).currentHp).toBe(100);
+    });
+
+    it('タイプが変わってほのお技でなくなった技では爆発しない（ノーマルスキンなど）', async () => {
+      // Arrange
+      const { execute, statuses } = setupMoveExecutor({
+        move: new Move(1, 'かえんほうしゃ', 'x', FIRE, MoveCategory.Special, 90, 100, 15, 0, null),
+        moveEffect: { modifyMoveType: () => 'ノーマル' },
+        attacker: { volatileState: { powder: true } },
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID).currentHp).toBe(100);
+      expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
+    });
+
     it('ふんじんをかけられていると、ほのお技は失敗して最大 HP の 1/4 のダメージを受ける', async () => {
       // Arrange
       const { execute, statuses } = setupMoveExecutor({

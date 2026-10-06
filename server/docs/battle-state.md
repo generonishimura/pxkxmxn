@@ -522,7 +522,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 | キー | 効果 | 場所 |
 | --- | --- | --- |
-| `powder`（使用者） | ほのお技を出そうとすると失敗し、最大 HP の 1/4（四捨五入）のダメージ | `MoveExecutorService.useMove` |
+| `powder`（使用者） | ほのお技を出そうとすると失敗し、最大 HP の 1/4（四捨五入）のダメージ。タイプは技・特性の `modifyMoveType` を反映して判定する（晴れのウェザーボールも爆発する） | `MoveExecutorService.useMove` |
 | `snatch`（相手） | `MoveBehaviors` の `snatch` の技を、相手が代わりに出す | `useMove` |
 | `semiInvulnerable`（相手） | `MoveBehaviors.hitsSemiInvulnerable` の技しか当たらない（使用者の `lockOnTurns` があれば当たる）。当たる技の一部はダメージ 2 倍 | 技の本体・`DamageCalculator` |
 | `substituteHp`（相手） | ダメージをみがわりが受ける。相手を対象にする変化技は失敗する（`bypassSubstitute` の技と、特性の `infiltrates` は通る） | 技の本体 |

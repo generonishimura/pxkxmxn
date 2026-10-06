@@ -508,7 +508,19 @@ export class MoveExecutorService {
     }
 
     // ふんじん: ほのお技を出そうとすると爆発し、技は失敗する（PP は減る。マジックガードならダメージなし）
-    if (attacker.volatileState.powder === true && move.type.name === 'ほのお') {
+    // 技のタイプは、タイプを変える効果（技の modifyMoveType → 攻撃側特性の modifyMoveType）を反映して判定する（本家の onTryMove）
+    if (
+      attacker.volatileState.powder === true &&
+      moveEffect?.typeless !== true &&
+      this.resolveMoveTypeName(
+        move,
+        moveEffect,
+        attacker,
+        defender,
+        attackerAbilityEffect,
+        contextFor(attacker),
+      ) === 'ほのお'
+    ) {
       const powderDamage = await applyIndirectDamage(
         attacker,
         Math.max(1, Math.round(attacker.maxHp / MoveExecutorService.POWDER_DAMAGE_DIVISOR)),
@@ -517,7 +529,7 @@ export class MoveExecutorService {
       return {
         message: `Used ${move.name} but the powder exploded! (${powderDamage} damage)`,
         outcome: 'failed',
-        moveTypeName: move.type.name,
+        moveTypeName: 'ほのお',
       };
     }
 
@@ -1373,16 +1385,37 @@ export class MoveExecutorService {
     if (moveEffect?.typeless === true) {
       return MoveExecutorService.createTypelessType();
     }
-    let typeName =
-      moveEffect?.modifyMoveType?.(attacker, defender, battleContext) ?? move.type.name;
-    battleContext.moveTypeName = typeName;
-    typeName =
-      attackerAbilityEffect?.modifyMoveType?.(attacker, typeName, battleContext) ?? typeName;
+    const typeName = this.resolveMoveTypeName(
+      move,
+      moveEffect,
+      attacker,
+      defender,
+      attackerAbilityEffect,
+      battleContext,
+    );
 
     if (typeName === move.type.name) {
       return move.type;
     }
     return (await this.typeEffectivenessRepository.findTypeByName(typeName)) ?? move.type;
+  }
+
+  /**
+   * 技のタイプ名を決定する（技の modifyMoveType → 攻撃側特性の modifyMoveType）
+   * 攻撃側特性には、技の効果で変わったあとのタイプを battleContext.moveTypeName で渡す
+   */
+  private resolveMoveTypeName(
+    move: Move,
+    moveEffect: IMoveEffect | undefined,
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    attackerAbilityEffect: IAbilityEffect | undefined,
+    battleContext: BattleContext,
+  ): string {
+    const typeName =
+      moveEffect?.modifyMoveType?.(attacker, defender, battleContext) ?? move.type.name;
+    battleContext.moveTypeName = typeName;
+    return attackerAbilityEffect?.modifyMoveType?.(attacker, typeName, battleContext) ?? typeName;
   }
 
   /**
