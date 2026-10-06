@@ -86,6 +86,8 @@ import { DragonsMawEffect } from './effects/damage-modify/dragons-maw-effect';
 import { RockyPayloadEffect } from './effects/damage-modify/rocky-payload-effect';
 import { GrassPeltEffect } from './effects/damage-modify/grass-pelt-effect';
 import { IceScalesEffect } from './effects/damage-modify/ice-scales-effect';
+import { SolarPowerEffect } from './effects/damage-modify/solar-power-effect';
+import { DefeatistEffect } from './effects/damage-modify/defeatist-effect';
 
 /**
  * 特性レジストリ
@@ -237,6 +239,8 @@ export class AbilityRegistry {
       this.registry.set('いわはこび', new RockyPayloadEffect());
       this.registry.set('くさのけがわ', new GrassPeltEffect());
       this.registry.set('こおりのりんぷん', new IceScalesEffect());
+      this.registry.set('サンパワー', new SolarPowerEffect());
+      this.registry.set('よわき', new DefeatistEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

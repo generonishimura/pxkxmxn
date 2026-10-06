@@ -4,6 +4,8 @@ import { DragonsMawEffect } from './effects/damage-modify/dragons-maw-effect';
 import { RockyPayloadEffect } from './effects/damage-modify/rocky-payload-effect';
 import { GrassPeltEffect } from './effects/damage-modify/grass-pelt-effect';
 import { IceScalesEffect } from './effects/damage-modify/ice-scales-effect';
+import { SolarPowerEffect } from './effects/damage-modify/solar-power-effect';
+import { DefeatistEffect } from './effects/damage-modify/defeatist-effect';
 
 describe('AbilityRegistry（ダメージ補正特性: タイプ・天候・HP）', () => {
   beforeEach(() => {
@@ -17,6 +19,8 @@ describe('AbilityRegistry（ダメージ補正特性: タイプ・天候・HP）
     ['いわはこび', RockyPayloadEffect],
     ['くさのけがわ', GrassPeltEffect],
     ['こおりのりんぷん', IceScalesEffect],
+    ['サンパワー', SolarPowerEffect],
+    ['よわき', DefeatistEffect],
   ])('%s が DB の特性名で登録されている', (name, effectClass) => {
     // Act
     const effect = AbilityRegistry.get(name);
