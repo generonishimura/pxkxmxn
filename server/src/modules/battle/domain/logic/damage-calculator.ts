@@ -4,6 +4,8 @@ import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { Weather, Field, Battle } from '../entities/battle.entity';
 import { StatusConditionHandler } from './status-condition-handler';
 import { ValidationException } from '@/shared/domain/exceptions';
+import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
+import { AttackStatOverride } from '@/modules/pokemon/domain/moves/move-effect.interface';
 
 /**
  * Moveの情報
@@ -45,6 +47,19 @@ export interface DamageCalculationParams {
     speed: number;
   }; // 防御側の実際のステータス値（ランク補正前）
   battle?: Battle; // バトルエンティティ（特性効果で使用）
+  /**
+   * ヒット共通のコンテキスト（技名・技フラグ・ランク無視・追加効果など）
+   * 特性フックに渡すコンテキストの土台になる。ignoredAttackerRanks / ignoredDefenderRanks はランク補正にも使う
+   */
+  battleContext?: BattleContext;
+  /**
+   * 攻撃に使う能力の参照先（イカサマなど）。省略時は攻撃側の攻撃/特攻
+   */
+  attackStatOverride?: AttackStatOverride;
+  /**
+   * やけどによる物理技の半減を受けないかどうか（からげんきなど）
+   */
+  ignoresBurnPenalty?: boolean;
 }
 
 /**
@@ -151,68 +166,78 @@ export class DamageCalculator {
     // レベルは標準バトルレベルを使用
     const level = DamageCalculator.STANDARD_BATTLE_LEVEL;
 
-    // 攻撃側のステータス（物理/特殊で分岐）
-    const attackStat =
-      move.category === 'Physical'
-        ? this.getEffectiveStat(attacker, 'attack', params.attackerStats)
-        : this.getEffectiveStat(attacker, 'specialAttack', params.attackerStats);
-
-    // やけどによる物理攻撃補正
-    const burnMultiplier = StatusConditionHandler.getPhysicalAttackMultiplier(attacker);
-    const finalAttackStat = move.category === 'Physical' ? attackStat * burnMultiplier : attackStat;
-
-    // 防御側のステータス（物理/特殊で分岐）
-    const defenseStat =
-      move.category === 'Physical'
-        ? this.getEffectiveStat(defender, 'defense', params.defenderStats)
-        : this.getEffectiveStat(defender, 'specialDefense', params.defenderStats);
-
-    // 基本ダメージ計算: floor((floor((2 * level / 5 + 2) * power * A / D) / 50) + 2)
-    const baseDamage = Math.floor(
-      Math.floor(
-        (((DamageCalculator.LEVEL_MULTIPLIER * level) / DamageCalculator.LEVEL_DIVISOR +
-          DamageCalculator.BASE_DAMAGE_OFFSET) *
-          move.power *
-          finalAttackStat) /
-          defenseStat,
-      ) /
-        DamageCalculator.ATTACK_DEFENSE_DIVISOR +
-        DamageCalculator.BASE_DAMAGE_OFFSET,
-    );
-
     // タイプ一致補正（1.5倍または1.0倍）
     const stab = this.calculateStab(params.move.typeId, params.attackerTypes);
 
-    // タイプ相性補正
+    // タイプ相性補正（攻撃側特性の ignoresTypeImmunity で相性0を等倍にできる）
     const typeEffectiveness = this.calculateTypeEffectiveness(
       params.move.typeId,
       params.defenderTypes,
       params.typeEffectiveness,
+      defenderType => this.ignoresTypeImmunity(params, defenderType),
     );
+
+    // 特性フックに渡すコンテキスト
+    const hookContext = this.createHookContext(params, typeEffectiveness);
 
     // 防御側の特性によるタイプ無効化チェック
     // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
     if (params.defenderAbilityName && !AbilityRegistry.hasMoldBreaker(params.attackerAbilityName)) {
       const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
       if (abilityEffect?.isImmuneToType) {
-        const battleContext = params.battle
-          ? {
-              battle: params.battle,
-              weather: params.weather,
-              field: params.field,
-            }
-          : undefined;
-        const isImmune = abilityEffect.isImmuneToType(
-          defender,
-          params.moveType.name,
-          battleContext,
-        );
+        const isImmune = abilityEffect.isImmuneToType(defender, params.moveType.name, hookContext);
         // 無効化されている場合はダメージ0を返す
         if (isImmune === true) {
           return 0;
         }
       }
     }
+
+    // 特性による威力補正
+    const power = this.resolveBasePower(move.power, params, hookContext);
+
+    const ignoredAttackerRanks = params.battleContext?.ignoredAttackerRanks;
+    const ignoredDefenderRanks = params.battleContext?.ignoredDefenderRanks;
+
+    // 攻撃側のステータス（物理/特殊で分岐、イカサマなどは参照先を変更）
+    const attackStatType =
+      params.attackStatOverride?.stat ??
+      (move.category === 'Physical' ? 'attack' : 'specialAttack');
+    const attackSourceIsDefender = params.attackStatOverride?.source === 'defender';
+    const attackStat = this.getEffectiveStat(
+      attackSourceIsDefender ? defender : attacker,
+      attackStatType,
+      attackSourceIsDefender ? params.defenderStats : params.attackerStats,
+      ignoredAttackerRanks?.has(attackStatType) ?? false,
+    );
+
+    // やけどによる物理攻撃補正
+    const burnMultiplier = params.ignoresBurnPenalty
+      ? 1
+      : StatusConditionHandler.getPhysicalAttackMultiplier(attacker);
+    const finalAttackStat = move.category === 'Physical' ? attackStat * burnMultiplier : attackStat;
+
+    // 防御側のステータス（物理/特殊で分岐）
+    const defenseStatType = move.category === 'Physical' ? 'defense' : 'specialDefense';
+    const defenseStat = this.getEffectiveStat(
+      defender,
+      defenseStatType,
+      params.defenderStats,
+      ignoredDefenderRanks?.has(defenseStatType) ?? false,
+    );
+
+    // 基本ダメージ計算: floor((floor((2 * level / 5 + 2) * power * A / D) / 50) + 2)
+    const baseDamage = Math.floor(
+      Math.floor(
+        (((DamageCalculator.LEVEL_MULTIPLIER * level) / DamageCalculator.LEVEL_DIVISOR +
+          DamageCalculator.BASE_DAMAGE_OFFSET) *
+          power *
+          finalAttackStat) /
+          defenseStat,
+      ) /
+        DamageCalculator.ATTACK_DEFENSE_DIVISOR +
+        DamageCalculator.BASE_DAMAGE_OFFSET,
+    );
 
     // ダメージ修正（特性、天候、フィールドなど）
     let damageMultiplier = stab * typeEffectiveness;
@@ -222,17 +247,8 @@ export class DamageCalculator {
       const abilityEffect = AbilityRegistry.get(params.attackerAbilityName);
       if (abilityEffect?.modifyDamageDealt) {
         const currentDamage = baseDamage * damageMultiplier;
-        const battleContext = params.battle
-          ? {
-              battle: params.battle,
-              weather: params.weather,
-              field: params.field,
-              moveTypeName: params.moveType.name,
-              moveCategory: params.move.category,
-            }
-          : undefined;
         const modifiedDamage = await Promise.resolve(
-          abilityEffect.modifyDamageDealt(attacker, currentDamage, battleContext),
+          abilityEffect.modifyDamageDealt(attacker, currentDamage, hookContext),
         );
         if (modifiedDamage !== undefined) {
           damageMultiplier = modifiedDamage / baseDamage;
@@ -246,16 +262,7 @@ export class DamageCalculator {
       const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
       if (abilityEffect?.modifyDamage) {
         const currentDamage = baseDamage * damageMultiplier;
-        const battleContext = params.battle
-          ? {
-              battle: params.battle,
-              weather: params.weather,
-              field: params.field,
-              moveTypeName: params.moveType.name,
-              moveCategory: params.move.category,
-            }
-          : undefined;
-        const modifiedDamage = abilityEffect.modifyDamage(defender, currentDamage, battleContext);
+        const modifiedDamage = abilityEffect.modifyDamage(defender, currentDamage, hookContext);
         if (modifiedDamage !== undefined) {
           damageMultiplier = modifiedDamage / baseDamage;
         }
@@ -282,10 +289,106 @@ export class DamageCalculator {
   }
 
   /**
+   * 特性フックに渡すコンテキストを作成
+   * params.battleContext を土台に、このヒットで決まった値（タイプ・威力・相性など）を上書きする
+   * バトル情報がない場合はundefined
+   */
+  private static createHookContext(
+    params: DamageCalculationParams,
+    typeEffectiveness: number,
+  ): BattleContext | undefined {
+    const battle = params.battleContext?.battle ?? params.battle;
+    if (!battle) {
+      return undefined;
+    }
+    return {
+      ...params.battleContext,
+      battle,
+      weather: params.weather,
+      field: params.field,
+      moveTypeName: params.moveType.name,
+      moveCategory: params.move.category,
+      movePower: params.move.power,
+      typeEffectiveness,
+      attacker: params.attacker,
+      defender: params.defender,
+      attackerStats: params.attackerStats,
+      defenderStats: params.defenderStats,
+      attackerAbilityName: params.attackerAbilityName,
+      defenderAbilityName: params.defenderAbilityName,
+    };
+  }
+
+  /**
+   * 特性による威力補正を適用した威力を返す
+   * 1. 攻撃側特性の modifyBasePower
+   * 2. 場の特性（攻撃側・防御側）の modifyAnyBasePower（同じ特性は1回だけ）
+   */
+  private static resolveBasePower(
+    basePower: number,
+    params: DamageCalculationParams,
+    hookContext: BattleContext | undefined,
+  ): number {
+    let power = basePower;
+
+    if (params.attackerAbilityName) {
+      const modified = AbilityRegistry.get(params.attackerAbilityName)?.modifyBasePower?.(
+        params.attacker,
+        power,
+        hookContext,
+      );
+      if (modified !== undefined) {
+        power = modified;
+      }
+    }
+
+    const holders: Array<{ abilityName: string; holder: BattlePokemonStatus }> = [];
+    if (params.attackerAbilityName) {
+      holders.push({ abilityName: params.attackerAbilityName, holder: params.attacker });
+    }
+    if (params.defenderAbilityName && params.defenderAbilityName !== params.attackerAbilityName) {
+      holders.push({ abilityName: params.defenderAbilityName, holder: params.defender });
+    }
+    for (const { abilityName, holder } of holders) {
+      const modified = AbilityRegistry.get(abilityName)?.modifyAnyBasePower?.(
+        holder,
+        power,
+        hookContext,
+      );
+      if (modified !== undefined) {
+        power = modified;
+      }
+    }
+
+    return power;
+  }
+
+  /**
+   * 攻撃側特性の ignoresTypeImmunity で、相性0のタイプを等倍として扱うかどうか
+   */
+  private static ignoresTypeImmunity(params: DamageCalculationParams, defenderType: Type): boolean {
+    if (!params.attackerAbilityName) {
+      return false;
+    }
+    const abilityEffect = AbilityRegistry.get(params.attackerAbilityName);
+    const battle = params.battleContext?.battle ?? params.battle;
+    const context = battle ? { ...params.battleContext, battle } : undefined;
+    return (
+      abilityEffect?.ignoresTypeImmunity?.(
+        params.attacker,
+        params.moveType.name,
+        defenderType.name,
+        context,
+      ) === true
+    );
+  }
+
+  /**
    * ランク補正を考慮した実効ステータスを取得
    * @param status バトル中のポケモンステータス
    * @param statType 取得するステータスの種類
    * @param baseStats 計算済みのステータス値（種族値・個体値・努力値・性格補正を考慮済み）
+   * @param ignoreRank trueの場合はランク補正を掛けない（てんねん、なしくずしなど）
    * @returns ランク補正を考慮した実効ステータス値
    * @throws Error baseStatsが提供されていない場合
    */
@@ -299,6 +402,7 @@ export class DamageCalculator {
       specialDefense: number;
       speed: number;
     },
+    ignoreRank: boolean = false,
   ): number {
     // baseStatsは必須（正確なダメージ計算のため）
     if (!baseStats) {
@@ -330,7 +434,7 @@ export class DamageCalculator {
         throw new ValidationException(`Unknown statType: ${statType}`, 'statType');
     }
 
-    const multiplier = status.getStatMultiplier(statType);
+    const multiplier = ignoreRank ? 1 : status.getStatMultiplier(statType);
     return Math.floor(baseStat * multiplier);
   }
 
@@ -359,23 +463,23 @@ export class DamageCalculator {
     moveTypeId: number,
     defenderTypes: { primary: Type; secondary: Type | null },
     typeEffectiveness: Map<string, number>,
+    ignoresImmunity: (defenderType: Type) => boolean = () => false,
   ): number {
     let effectiveness = DamageCalculator.DEFAULT_TYPE_EFFECTIVENESS;
 
-    // メインタイプとの相性
-    const primaryKey = `${moveTypeId}-${defenderTypes.primary.id}`;
-    const primaryEffectiveness = typeEffectiveness.get(primaryKey);
-    if (primaryEffectiveness !== undefined) {
-      effectiveness *= primaryEffectiveness;
-    }
-
-    // サブタイプがある場合の相性
-    if (defenderTypes.secondary) {
-      const secondaryKey = `${moveTypeId}-${defenderTypes.secondary.id}`;
-      const secondaryEffectiveness = typeEffectiveness.get(secondaryKey);
-      if (secondaryEffectiveness !== undefined) {
-        effectiveness *= secondaryEffectiveness;
+    const defenderTypeList = defenderTypes.secondary
+      ? [defenderTypes.primary, defenderTypes.secondary]
+      : [defenderTypes.primary];
+    for (const defenderType of defenderTypeList) {
+      const typeMultiplier = typeEffectiveness.get(`${moveTypeId}-${defenderType.id}`);
+      if (typeMultiplier === undefined) {
+        continue;
       }
+      // 相性0でも、攻撃側特性が許す場合は等倍として扱う
+      if (typeMultiplier === 0 && ignoresImmunity(defenderType)) {
+        continue;
+      }
+      effectiveness *= typeMultiplier;
     }
 
     return effectiveness;
