@@ -206,6 +206,7 @@ import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 // 性別・相手の能力・交代・ひんしで発動する特性（Issue #135 一部）
 import { StakeoutEffect } from './effects/damage-modify/stakeout-effect';
 import { InnardsOutEffect } from './effects/other/innards-out-effect';
+import { RivalryEffect } from './effects/damage-modify/rivalry-effect';
 
 /**
  * 特性レジストリ
@@ -511,6 +512,7 @@ export class AbilityRegistry {
       // 性別・相手の能力・交代・ひんしで発動する特性（Issue #135 一部）
       this.registry.set('はりこみ', new StakeoutEffect());
       this.registry.set('とびだすなかみ', new InnardsOutEffect());
+      this.registry.set('とうそうしん', new RivalryEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
