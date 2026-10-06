@@ -47,3 +47,40 @@ describe('AbilityRegistry.hasMoldBreaker', () => {
     expect(result).toBe(false);
   });
 });
+
+describe('AbilityRegistry.isIgnoredByMoldBreaker', () => {
+  beforeEach(() => {
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+    AbilityRegistry.register('テストよろい', { unaffectedByMoldBreaker: true });
+  });
+
+  afterEach(() => {
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+  });
+
+  it('攻撃側がかたやぶりなら、防御側の特性は無視される', () => {
+    // Arrange & Act
+    const result = AbilityRegistry.isIgnoredByMoldBreaker('かたやぶり', 'マルチスケイル');
+
+    // Assert
+    expect(result).toBe(true);
+  });
+
+  it('unaffectedByMoldBreaker の特性は、かたやぶりでも無視されない', () => {
+    // Arrange & Act
+    const result = AbilityRegistry.isIgnoredByMoldBreaker('かたやぶり', 'テストよろい');
+
+    // Assert
+    expect(result).toBe(false);
+  });
+
+  it('攻撃側がかたやぶりでなければ無視されない', () => {
+    // Arrange & Act
+    const result = AbilityRegistry.isIgnoredByMoldBreaker('いかく', 'マルチスケイル');
+
+    // Assert
+    expect(result).toBe(false);
+  });
+});

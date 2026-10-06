@@ -322,4 +322,23 @@ describe('DamageCalculator - ダメージ前フック', () => {
       expect(damage).toBe(expected);
     });
   });
+
+  describe('unaffectedByMoldBreaker（かたやぶりで無視されない特性）', () => {
+    it('攻撃側がかたやぶりでも、防御側の modifyDamage が適用される', async () => {
+      // Arrange
+      AbilityRegistry.register('テストよろい', {
+        unaffectedByMoldBreaker: true,
+        modifyDamage: (_p, damage) => Math.floor(damage / 2),
+      });
+      const normal = await DamageCalculator.calculate(createParams());
+
+      // Act
+      const damage = await DamageCalculator.calculate(
+        createParams({ attackerAbilityName: 'かたやぶり', defenderAbilityName: 'テストよろい' }),
+      );
+
+      // Assert
+      expect(damage).toBeLessThan(normal);
+    });
+  });
 });

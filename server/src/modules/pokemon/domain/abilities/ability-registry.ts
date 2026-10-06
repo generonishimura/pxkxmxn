@@ -381,4 +381,24 @@ export class AbilityRegistry {
     }
     return this.registry.get(attackerAbilityName)?.breaksMold === true;
   }
+
+  /**
+   * 防御側の特性が、攻撃側のかたやぶり系の特性で無視されるかチェック
+   * unaffectedByMoldBreaker が true の特性（プリズムアーマーなど）は無視されない
+   * @param attackerAbilityName 攻撃側の特性名
+   * @param defenderAbilityName 防御側の特性名
+   * @returns 防御側の特性を無視する場合はtrue
+   */
+  static isIgnoredByMoldBreaker(
+    attackerAbilityName?: string,
+    defenderAbilityName?: string,
+  ): boolean {
+    if (!this.hasMoldBreaker(attackerAbilityName)) {
+      return false;
+    }
+    if (!defenderAbilityName) {
+      return true;
+    }
+    return this.registry.get(defenderAbilityName)?.unaffectedByMoldBreaker !== true;
+  }
 }

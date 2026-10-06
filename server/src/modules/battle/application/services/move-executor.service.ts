@@ -148,7 +148,8 @@ export class MoveExecutorService {
       : undefined;
     // かたやぶり系の特性を持つ場合、防御側の特性効果は無視する
     const defenderAbilityEffect =
-      defenderAbilityName && !AbilityRegistry.hasMoldBreaker(attackerAbilityName)
+      defenderAbilityName &&
+      !AbilityRegistry.isIgnoredByMoldBreaker(attackerAbilityName, defenderAbilityName)
         ? AbilityRegistry.get(defenderAbilityName)
         : undefined;
 

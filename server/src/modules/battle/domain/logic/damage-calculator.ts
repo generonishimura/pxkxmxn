@@ -182,7 +182,13 @@ export class DamageCalculator {
 
     // 防御側の特性によるタイプ無効化チェック
     // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
-    if (params.defenderAbilityName && !AbilityRegistry.hasMoldBreaker(params.attackerAbilityName)) {
+    if (
+      params.defenderAbilityName &&
+      !AbilityRegistry.isIgnoredByMoldBreaker(
+        params.attackerAbilityName,
+        params.defenderAbilityName,
+      )
+    ) {
       const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
       if (abilityEffect?.isImmuneToType) {
         const isImmune = abilityEffect.isImmuneToType(defender, params.moveType.name, hookContext);
@@ -258,7 +264,13 @@ export class DamageCalculator {
 
     // 防御側の特性効果によるダメージ修正
     // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
-    if (params.defenderAbilityName && !AbilityRegistry.hasMoldBreaker(params.attackerAbilityName)) {
+    if (
+      params.defenderAbilityName &&
+      !AbilityRegistry.isIgnoredByMoldBreaker(
+        params.attackerAbilityName,
+        params.defenderAbilityName,
+      )
+    ) {
       const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
       if (abilityEffect?.modifyDamage) {
         const currentDamage = baseDamage * damageMultiplier;

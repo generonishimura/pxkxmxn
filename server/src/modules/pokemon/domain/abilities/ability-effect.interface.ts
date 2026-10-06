@@ -284,6 +284,12 @@ export interface IAbilityEffect {
   readonly breaksMold?: boolean;
 
   /**
+   * 防御側: かたやぶり系の特性でも無視されない特性かどうか（例: プリズムアーマー）
+   * ダメージ計算・命中判定・技の無効化で参照される（AbilityRegistry.isIgnoredByMoldBreaker）
+   */
+  readonly unaffectedByMoldBreaker?: boolean;
+
+  /**
    * 攻撃側: 追加効果の発動確率に掛ける倍率（例: てんのめぐみ = 2）
    */
   readonly secondaryEffectChanceMultiplier?: number;
