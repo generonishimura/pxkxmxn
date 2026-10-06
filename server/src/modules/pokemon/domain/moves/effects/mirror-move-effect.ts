@@ -8,7 +8,8 @@ import { MoveBehaviors } from '../move-behaviors';
  *
  * 相手が最後に使った技（lastMoveId）を、相手に向けて callMove で出す。
  * 相手がまだ技を使っていない、またはまねできない技（MoveBehaviors の mirror でない）なら失敗する
- * 注: 相手がみがわり中だと、エンジンが相手を対象にする変化技として失敗させる（本家は、みがわりの判定の前に技を出す）
+ * 相手がみがわり中でも失敗しない。まねした技が、自分でみがわりの判定を受ける（ダメージ技ならみがわりに当たる）
+ * 注: 本家は onTryHit がみがわりの判定より前に動く。ここでは MoveBehaviors に bypassSubstitute を付けて同じ結果にしている
  */
 export class MirrorMoveEffect implements IMoveEffect {
   async onUse(

@@ -153,9 +153,19 @@ export const MOVE_BEHAVIOR_TABLE: ReadonlyArray<readonly [string, readonly MoveB
     'ゆびをふる',
     ['failCopycat', 'failEncore', 'failInstruct', 'failMimic', 'noAssist', 'noSleepTalk'],
   ], // Metronome
+  // bypassSubstitute は Showdown の flags にはない。本家はみがわりの判定（onTryPrimaryHit）より前に
+  // onTryHit でまねした技を出すので、その代わりに付けている。まねした技は callMove で自分のみがわりの判定を受ける
   [
     'オウムがえし',
-    ['failCopycat', 'failEncore', 'failInstruct', 'failMimic', 'noAssist', 'noSleepTalk'],
+    [
+      'bypassSubstitute',
+      'failCopycat',
+      'failEncore',
+      'failInstruct',
+      'failMimic',
+      'noAssist',
+      'noSleepTalk',
+    ],
   ], // Mirror Move
   ['じばく', ['mirror', 'metronome']], // Self-Destruct
   ['タマゴばくだん', ['mirror']], // Egg Bomb

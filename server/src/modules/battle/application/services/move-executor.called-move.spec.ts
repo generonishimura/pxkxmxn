@@ -1,6 +1,7 @@
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { Move, MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
+import { MirrorMoveEffect } from '@/modules/pokemon/domain/moves/effects/mirror-move-effect';
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
@@ -343,6 +344,26 @@ describe('MoveExecutorService - 別の技を出す（callMove）', () => {
 
     // Assert
     expect(message).toContain('But it failed');
+  });
+
+  it('相手がみがわり中でも、オウムがえしはまねした技を出し、その技がみがわりに当たる', async () => {
+    // Arrange
+    const mirrorMove = moveOf(1, 'オウムがえし', MoveCategory.Status, null);
+    const pound = moveOf(2, 'はたく', MoveCategory.Physical, 40);
+    const { execute, statuses } = setupMoveExecutor({
+      move: mirrorMove,
+      moves: [mirrorMove, pound],
+      moveEffects: { [mirrorMove.name]: new MirrorMoveEffect() },
+      defender: { volatileState: { lastMoveId: pound.id, substituteHp: 25 } },
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used オウムがえし Used はたく and hit the substitute (10 damage)');
+    expect(statuses.get(DEFENDER_ID).currentHp).toBe(100);
+    expect(statuses.get(DEFENDER_ID).volatileState.substituteHp).toBe(15);
   });
 
   it('相手がよこどりを使っていると、奪われる変化技は相手が出す', async () => {
