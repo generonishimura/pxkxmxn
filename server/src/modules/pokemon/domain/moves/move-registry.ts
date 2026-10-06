@@ -265,6 +265,7 @@ import { NightmareEffect } from './effects/nightmare-effect';
 import { CurseEffect } from './effects/curse-effect';
 import { DestinyBondEffect } from './effects/destiny-bond-effect';
 import { DisableEffect } from './effects/disable-effect';
+import { PowerShiftEffect } from './effects/power-shift-effect';
 
 /**
  * 技のレジストリ
@@ -638,6 +639,7 @@ export class MoveRegistry {
       this.registry.set('のろい', new CurseEffect());
       this.registry.set('みちづれ', new DestinyBondEffect());
       this.registry.set('かなしばり', new DisableEffect());
+      this.registry.set('パワーシフト', new PowerShiftEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
