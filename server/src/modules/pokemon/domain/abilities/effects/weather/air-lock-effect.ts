@@ -8,6 +8,8 @@ import { IAbilityEffect } from '../../ability-effect.interface';
  * かたやぶりでは無視されない（本家と同じ）
  *
  * 注: 場に出たときの「天候の効果がなくなった」というメッセージは出さない
+ * 注: そのターンにひんしになっても、交代するまではターン終了時の天候を消し続ける
+ *     （本家では、ひんしのポケモンは天候を消さない）
  */
 export class AirLockEffect implements IAbilityEffect {
   readonly suppressesWeather = true;
