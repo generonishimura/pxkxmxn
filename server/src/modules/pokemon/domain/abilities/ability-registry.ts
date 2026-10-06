@@ -203,6 +203,8 @@ import { ContraryEffect } from './effects/stat-change/contrary-effect';
 import { MirrorArmorEffect } from './effects/stat-change/mirror-armor-effect';
 import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
+// 相手の技の PP を余分に減らす特性（Issue #135 一部）
+import { PressureEffect } from './effects/other/pressure-effect';
 
 /**
  * 特性レジストリ
@@ -505,6 +507,8 @@ export class AbilityRegistry {
       this.registry.set('ミラーアーマー', new MirrorArmorEffect());
       this.registry.set('ばんけん', new GuardDogEffect());
       this.registry.set('びんじょう', new OpportunistEffect());
+      // 相手の技の PP を余分に減らす特性（Issue #135 一部）
+      this.registry.set('プレッシャー', new PressureEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
