@@ -122,6 +122,7 @@ import { MagicGuardEffect } from './effects/other/magic-guard-effect';
 // 技フラグで判定する特性（Issue #135 一部）
 import { SoundproofEffect } from './effects/immunity/soundproof-effect';
 import { BulletproofEffect } from './effects/immunity/bulletproof-effect';
+import { OvercoatEffect } from './effects/immunity/overcoat-effect';
 
 /**
  * 特性レジストリ
@@ -338,6 +339,7 @@ export class AbilityRegistry {
       // 技フラグで判定する特性（Issue #135 一部）
       this.registry.set('ぼうおん', new SoundproofEffect());
       this.registry.set('ぼうだん', new BulletproofEffect());
+      this.registry.set('ぼうじん', new OvercoatEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
