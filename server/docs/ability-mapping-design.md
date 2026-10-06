@@ -44,7 +44,7 @@ const abilityMetadataMap: Record<string, AbilityMetadata> = {
   - いかく: 相手の攻撃ランクを1段階下げる
   - あめふらし: 雨を降らせる
   - ひでり: 晴れにする
-  - すなあらし: 砂嵐を起こす
+  - すなおこし: 砂嵐を起こす
 
 #### OnTakingDamage（ダメージを受けるとき）
 - **定義**: ダメージを受けるタイミングで発動する特性
@@ -67,7 +67,7 @@ const abilityMetadataMap: Record<string, AbilityMetadata> = {
 #### OnSwitchOut（場から下がるとき）
 - **定義**: ポケモンが場から下がるときに発動する特性
 - **例**:
-  - いとあみ: 場から下がるとき、相手の素早さを下げる
+  - さいせいりょく: 場から下がるとき、HPを1/3回復する
 
 #### Passive（常時発動）
 - **定義**: 常時発動する特性（無効化されない限り）
@@ -111,7 +111,7 @@ const abilityMetadataMap: Record<string, AbilityMetadata> = {
 - **例**:
   - あめふらし: 雨を降らせる
   - ひでり: 晴れにする
-  - すなあらし: 砂嵐を起こす
+  - すなおこし: 砂嵐を起こす
   - ゆきふらし: あられを降らせる
 
 #### DamageModify（ダメージ修正）
@@ -124,7 +124,7 @@ const abilityMetadataMap: Record<string, AbilityMetadata> = {
 #### StatusCondition（状態異常）
 - **定義**: 状態異常を付与する特性
 - **例**:
-  - どくどく: 攻撃した相手をどくにする
+  - どくのトゲ: 接触技を受けたとき、相手をどくにする
 
 #### Other（その他）
 - **定義**: 上記のいずれにも該当しない特性
@@ -137,7 +137,7 @@ const abilityMetadataMap: Record<string, AbilityMetadata> = {
 | triggerEvent | effectCategory | 特性例 |
 |-------------|---------------|--------|
 | OnEntry | StatChange | いかく |
-| OnEntry | Weather | あめふらし、ひでり、すなあらし、ゆきふらし |
+| OnEntry | Weather | あめふらし、ひでり、すなおこし、ゆきふらし |
 | OnTakingDamage | DamageModify | マルチスケイル、あついしぼう |
 | OnTakingDamage | Immunity | ちくでん、もらいび、ちょすい |
 | OnDealingDamage | DamageModify | はがねつかい |
@@ -235,7 +235,7 @@ const abilityMetadataMap: Record<string, AbilityMetadata> = {
 
 #### 優先度: 低
 
-7. **天候系特性（あめふらし、ひでり、すなあらし、ゆきふらし）**
+7. **天候系特性（あめふらし、ひでり、すなおこし、ゆきふらし）**
    - 理由: 天候変更の実装が必要
    - 実装: 天候変更のロジックを実装する必要がある
 
@@ -253,7 +253,7 @@ const abilityMetadataMap: Record<string, AbilityMetadata> = {
 - **タイプ無効化系**: ふゆう、ちくでん、もらいび、ちょすい
 - **ダメージ修正系**: あついしぼう、はがねつかい
 - **ステータス変化系**: すいすい、ようりょくそ、すなかき
-- **天候系**: あめふらし、ひでり、すなあらし、ゆきふらし
+- **天候系**: あめふらし、ひでり、すなおこし、ゆきふらし
 
 ### 6.2 フェーズ2: 特性ロジックの実装
 

@@ -5,7 +5,7 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 
 /**
  * 接触技を受けたときに状態異常を付与する基底クラス
- * どくどく（Poison Point）、せいでんき（Static）、もうふう（Flame Body）などで使用
+ * どくのトゲ（Poison Point）、せいでんき（Static）、ほのおのからだ（Flame Body）などで使用
  *
  * 各特性は、このクラスを継承してパラメータを設定するだけで実装できる
  */
