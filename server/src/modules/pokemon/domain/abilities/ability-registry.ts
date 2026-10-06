@@ -85,6 +85,8 @@ import { VesselOfRuinEffect } from './effects/damage-modify/vessel-of-ruin-effec
 import { SwordOfRuinEffect } from './effects/damage-modify/sword-of-ruin-effect';
 import { TabletsOfRuinEffect } from './effects/damage-modify/tablets-of-ruin-effect';
 import { BeadsOfRuinEffect } from './effects/damage-modify/beads-of-ruin-effect';
+import { FlowerGiftEffect } from './effects/damage-modify/flower-gift-effect';
+import { PurifyingSaltEffect } from './effects/immunity/purifying-salt-effect';
 
 /**
  * 特性レジストリ
@@ -235,6 +237,8 @@ export class AbilityRegistry {
       this.registry.set('わざわいのつるぎ', new SwordOfRuinEffect());
       this.registry.set('わざわいのおふだ', new TabletsOfRuinEffect());
       this.registry.set('わざわいのたま', new BeadsOfRuinEffect());
+      this.registry.set('フラワーギフト', new FlowerGiftEffect());
+      this.registry.set('きよめのしお', new PurifyingSaltEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
