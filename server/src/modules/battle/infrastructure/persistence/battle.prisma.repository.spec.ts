@@ -130,6 +130,21 @@ describe('BattlePrismaRepository - 状態の JSON 列', () => {
       });
     });
 
+    it('更新で sideState に null を渡したときは、空の状態を書き込む', async () => {
+      // Arrange
+      const { prisma, repository } = setup();
+      prisma.battle.update.mockResolvedValue(battleRow());
+
+      // Act
+      await repository.update(1, { sideState: null });
+
+      // Assert
+      expect(prisma.battle.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { sideState: {} },
+      });
+    });
+
     it('更新で sideState を渡さないときは書き込まない', async () => {
       // Arrange
       const { prisma, repository } = setup();
@@ -221,6 +236,21 @@ describe('BattlePrismaRepository - 状態の JSON 列', () => {
       });
     });
 
+    it('更新で volatileState に null を渡したときは、空の状態を書き込む', async () => {
+      // Arrange
+      const { prisma, repository } = setup();
+      prisma.battlePokemonStatus.update.mockResolvedValue(statusRow());
+
+      // Act
+      await repository.updateBattlePokemonStatus(10, { volatileState: null });
+
+      // Assert
+      expect(prisma.battlePokemonStatus.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: { volatileState: {} },
+      });
+    });
+
     it('更新で volatileState を渡さないときは書き込まない', async () => {
       // Arrange
       const { prisma, repository } = setup();
@@ -298,6 +328,21 @@ describe('BattlePrismaRepository - 状態の JSON 列', () => {
       expect(prisma.battlePokemonStatus.update).toHaveBeenCalledWith({
         where: { id: 10 },
         data: { persistentState: { iceFaceBroken: true } },
+      });
+    });
+
+    it('更新で persistentState に null を渡したときは、空の状態を書き込む', async () => {
+      // Arrange
+      const { prisma, repository } = setup();
+      prisma.battlePokemonStatus.update.mockResolvedValue(statusRow());
+
+      // Act
+      await repository.updateBattlePokemonStatus(10, { persistentState: null });
+
+      // Assert
+      expect(prisma.battlePokemonStatus.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: { persistentState: {} },
       });
     });
   });

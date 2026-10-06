@@ -96,7 +96,10 @@ export class BattlePrismaRepository implements IBattleRepository {
     if (data.field !== undefined) updateData.field = data.field as Field;
     if (data.status !== undefined) updateData.status = data.status as BattleStatus;
     if (data.winnerTrainerId !== undefined) updateData.winnerTrainerId = data.winnerTrainerId;
-    if (data.sideState !== undefined) updateData.sideState = this.toJsonObject(data.sideState);
+    // 状態の列は NOT NULL の JSON なので、null を渡されたときは空の状態を書く
+    // （strictNullChecks が無効なので、型では null を防げない）
+    if (data.sideState !== undefined)
+      updateData.sideState = this.toJsonObject(data.sideState ?? emptySideState());
 
     const battleData = await this.prisma.battle.update({
       where: { id },
@@ -166,10 +169,13 @@ export class BattlePrismaRepository implements IBattleRepository {
     // BattlePokemonStatusUpdateInputは $Enums.StatusCondition | null を許容する
     if (data.statusCondition !== undefined)
       updateData.statusCondition = data.statusCondition as StatusCondition;
+    // 状態の列は NOT NULL の JSON なので、null を渡されたときは空の状態を書く
     if (data.volatileState !== undefined)
-      updateData.volatileState = this.toJsonObject(data.volatileState);
+      updateData.volatileState = this.toJsonObject(data.volatileState ?? emptyVolatileState());
     if (data.persistentState !== undefined)
-      updateData.persistentState = this.toJsonObject(data.persistentState);
+      updateData.persistentState = this.toJsonObject(
+        data.persistentState ?? emptyPersistentPokemonState(),
+      );
 
     const statusData = await this.prisma.battlePokemonStatus.update({
       where: { id },
