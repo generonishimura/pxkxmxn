@@ -23,10 +23,7 @@
 | `persistent_state` | `battle_pokemon_status` | `JSONB NOT NULL` | `'{}'` |
 | `side_state` | `battles` | `JSONB NOT NULL` | `'{}'` |
 
-マイグレーションは次の 2 つです。既定値が `{}` なので、前からある行もそのまま読めます。
-
-- `prisma/migrations/20261006170653_add_battle_state_columns/`（`volatile_state` と `side_state`）
-- `prisma/migrations/20261006190000_add_persistent_state_column/`（`persistent_state`）
+マイグレーションは `prisma/migrations/20261006170653_add_battle_state_columns/` の 1 つで、3 つの列をまとめて足します。既定値が `{}` なので、前からある行もそのまま読めます。
 
 読み書きは `BattlePrismaRepository` がします。
 
