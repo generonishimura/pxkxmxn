@@ -5,6 +5,7 @@ import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interfac
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { AccuracyCalculator } from '../../domain/logic/accuracy-calculator';
+import { Battle, BattleStatus, Weather } from '../../domain/entities/battle.entity';
 import {
   ATTACKER_ID,
   DEFENDER_ID,
@@ -183,6 +184,56 @@ describe('MoveExecutorService - 技の流れでエンジンが書く状態（Mov
       // Assert
       expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
       expect(statuses.get(ATTACKER_ID).volatileState.chargingMoveId).toBeUndefined();
+    });
+
+    it.each([
+      ['ソーラービーム', Weather.Sun],
+      ['ソーラーブレード', Weather.Sun],
+      ['エレクトロビーム', Weather.Rain],
+    ])(
+      '%s は、%s ならためずに出す（技の効果がなくてもエンジンが判定する）',
+      async (name, weather) => {
+        // Arrange
+        const { service, statuses } = setupMoveExecutor({
+          move: createMove(name, MoveCategory.Special, 120),
+        });
+        const battle = new Battle(1, 1, 2, 1, 2, 1, weather, null, BattleStatus.Active, null);
+
+        // Act
+        await service.executeMove(
+          battle,
+          ATTACKER_ID,
+          1,
+          statuses.get(ATTACKER_ID),
+          statuses.get(DEFENDER_ID),
+          1,
+        );
+
+        // Assert
+        expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
+        expect(statuses.get(ATTACKER_ID).volatileState.chargingMoveId).toBeUndefined();
+      },
+    );
+
+    it('ソーラービームは、晴れでなければ 1 ターンためる', async () => {
+      // Arrange
+      const { service, statuses } = setupMoveExecutor({
+        move: createMove('ソーラービーム', MoveCategory.Special, 120),
+      });
+      const battle = new Battle(1, 1, 2, 1, 2, 1, Weather.Rain, null, BattleStatus.Active, null);
+
+      // Act
+      const message = await service.executeMove(
+        battle,
+        ATTACKER_ID,
+        1,
+        statuses.get(ATTACKER_ID),
+        statuses.get(DEFENDER_ID),
+        1,
+      );
+
+      // Assert
+      expect(message).toBe('Used ソーラービーム and began charging');
     });
 
     it('あなをほるで隠れている相手には、じしん以外は当たらない', async () => {

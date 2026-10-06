@@ -744,7 +744,8 @@ if (!moveId || !(await tryApplyVolatile(defender, 'disable', { disable: { moveId
 
 - 型: `readonly chargeTurn?: { skipCharge?(attacker, ctx): boolean; onCharge?(attacker, defender, ctx): Promise<string | null> }`
 - 呼ばれる場所: `MoveLifecycle.handleChargeTurn`。`MoveBehaviors` の `charge` を持つ技か `chargeTurn` を持つ技は、1 ターン目に `chargingMoveId`（隠れる技は `semiInvulnerable` も）を書いて `Used <技> and began charging` で終わる。2 ターン目は選んだ行動にかかわらずその技を出し（PP は減らない）、ためた状態を消してから技の本体に進む
-- 使う技: ソーラービーム・ソーラーブレード（晴れなら `skipCharge`）・メテオビーム（`onCharge` で特攻 +1）・ロケットずつき（`onCharge` で防御 +1）・ジオコントロール（2 ターン目の `onUse` で能力を上げる）・そらをとぶ・あなをほる・ダイビング・シャドーダイブ・ゴーストダイブ・とびはねる・ゴッドバード・かまいたち
+- 晴れのソーラービーム・ソーラーブレードと、雨のエレクトロビームは、技の効果がなくてもエンジンがためずに出す（`MoveLifecycle` の `WEATHER_SKIP_CHARGE`）。下の例は、ほかの条件でためない技を作るときの書き方
+- 使う技: ソーラービーム・ソーラーブレード（晴れならためない。エンジンが判定する）・エレクトロビーム（雨ならためない。エンジンが判定する）・メテオビーム（`onCharge` で特攻 +1）・ロケットずつき（`onCharge` で防御 +1）・ジオコントロール（2 ターン目の `onUse` で能力を上げる）・そらをとぶ・あなをほる・ダイビング・シャドーダイブ・ゴーストダイブ・とびはねる・ゴッドバード・かまいたち
 - 隠れている相手に当たる技とダメージ 2 倍の技は `MoveBehaviors.hitsSemiInvulnerable` / `doublesAgainstSemiInvulnerable` の表にある（かぜおこし・かみなり・じしん・なみのりなど）。エンジンが判定する
 
 ```ts

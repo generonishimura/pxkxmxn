@@ -1,4 +1,4 @@
-import { Battle } from '../../domain/entities/battle.entity';
+import { Battle, Weather } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { IBattleRepository } from '../../domain/battle.repository.interface';
@@ -23,6 +23,7 @@ import { MoveFlags } from '@/modules/pokemon/domain/moves/move-flags';
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { reducePp } from '@/modules/pokemon/domain/battle-events/pp';
 import { resolveAbilityName } from '@/modules/pokemon/domain/battle-events/ability-lookup';
+import { getContextWeather } from '@/modules/pokemon/domain/abilities/context-weather';
 
 /**
  * 技を出した結果（技を出したあとの片付けに使う）
@@ -42,6 +43,19 @@ const RAMPAGE_LOCKED_IN: LockedInMoveConfig = { turns: [2, 3], confusesAtEnd: tr
  * じゅうでん（使ったときは charged を消さない）
  */
 export const CHARGE_MOVE_NAME = 'じゅうでん';
+
+/**
+ * 効果のある天候がこれなら、ためずにすぐ出すため技（本家の onTryMove の effectiveWeather の判定）
+ * - ソーラービーム・ソーラーブレード: 晴れ
+ * - エレクトロビーム: 雨
+ * 技の効果の chargeTurn.skipCharge がなくても、エンジンが判定する
+ * 注: 晴れ・雨以外での威力半減（ソーラービーム）と、ためるときの特攻 +1（エレクトロビーム）は技の効果で行う
+ */
+const WEATHER_SKIP_CHARGE: Readonly<Record<string, Weather>> = {
+  ソーラービーム: Weather.Sun,
+  ソーラーブレード: Weather.Sun,
+  エレクトロビーム: Weather.Rain,
+};
 
 /**
  * くちばしキャノン（撃ったら加熱 beakBlast が終わる）
@@ -169,6 +183,7 @@ export class MoveLifecycle {
 
   /**
    * ため技の 1 ターン目なら、ためる（chargingMoveId と、隠れる技なら semiInvulnerable を書く）
+   * 技の chargeTurn.skipCharge が true のとき、晴れのソーラービームなど（WEATHER_SKIP_CHARGE）は、ためずに出す
    * 2 ターン目なら、ためていた状態を消して技を出す
    * @returns ためたときは { charged: true, message }。技を出すときは { charged: false, attacker }
    */
@@ -194,7 +209,11 @@ export class MoveLifecycle {
       });
       return { charged: false, attacker: await this.refresh(attacker) };
     }
-    if (moveEffect?.chargeTurn?.skipCharge?.(attacker, battleContext) === true) {
+    if (
+      moveEffect?.chargeTurn?.skipCharge?.(attacker, battleContext) === true ||
+      (WEATHER_SKIP_CHARGE[move.name] !== undefined &&
+        getContextWeather(battleContext) === WEATHER_SKIP_CHARGE[move.name])
+    ) {
       return { charged: false, attacker };
     }
 
