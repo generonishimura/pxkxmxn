@@ -6,8 +6,7 @@ import { modifyByFixedPoint } from '@/modules/battle/domain/logic/fixed-point-mo
 /**
  * メガランチャー（Mega Launcher）特性の効果
  * はどう技（技フラグ pulse。はどうだん・りゅうのはどう・あくのはどう など）の威力を1.5倍（6144/4096）にする
- *
- * 注: いやしのはどうの回復量を3/4にする効果は、回復量を変えるフックがないため実装していない
+ * いやしのはどうの回復量を3/4にする効果は、いやしのはどう（HealPulseEffect）の側で判定する
  */
 export class MegaLauncherEffect implements IAbilityEffect {
   /**

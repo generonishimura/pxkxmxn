@@ -26,7 +26,7 @@ describe('HealPulseEffect', () => {
       overrides?.statusCondition ?? null,
     );
 
-  const createBattleContext = (): BattleContext => {
+  const createBattleContext = (overrides?: Partial<BattleContext>): BattleContext => {
     const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
     const mockBattleRepository = {
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(undefined),
@@ -34,6 +34,7 @@ describe('HealPulseEffect', () => {
     return {
       battle,
       battleRepository: mockBattleRepository as unknown as BattleContext['battleRepository'],
+      ...overrides,
     };
   };
 
@@ -61,6 +62,55 @@ describe('HealPulseEffect', () => {
     const attacker = createBattlePokemonStatus({ currentHp: 10 });
     const defender = createBattlePokemonStatus({ id: 2, currentHp: 20, maxHp: 101 });
     const ctx = createBattleContext();
+
+    // Act
+    await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
+      currentHp: 71,
+    });
+  });
+
+  it('使ったポケモンの特性がメガランチャーなら最大 HP の 3/4 を回復する（最大 HP 101 なら 76 回復）', async () => {
+    // Arrange
+    const effect = new HealPulseEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 10 });
+    const defender = createBattlePokemonStatus({ id: 2, currentHp: 20, maxHp: 101 });
+    const ctx = createBattleContext({ attackerAbilityName: 'メガランチャー' });
+
+    // Act
+    const result = await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(result).toBe("The target's HP was restored!");
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
+      currentHp: 96,
+    });
+  });
+
+  it('メガランチャーでも回復後の HP は最大 HP を超えない', async () => {
+    // Arrange
+    const effect = new HealPulseEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 10 });
+    const defender = createBattlePokemonStatus({ id: 2, currentHp: 50, maxHp: 100 });
+    const ctx = createBattleContext({ attackerAbilityName: 'メガランチャー' });
+
+    // Act
+    await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
+      currentHp: 100,
+    });
+  });
+
+  it('メガランチャー以外の特性なら最大 HP の 1/2 回復のまま', async () => {
+    // Arrange
+    const effect = new HealPulseEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 10 });
+    const defender = createBattlePokemonStatus({ id: 2, currentHp: 20, maxHp: 101 });
+    const ctx = createBattleContext({ attackerAbilityName: 'てつのこぶし' });
 
     // Act
     await effect.onUse(attacker, defender, ctx);
