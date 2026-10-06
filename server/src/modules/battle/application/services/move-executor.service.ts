@@ -362,11 +362,13 @@ export class MoveExecutorService {
    * SideConditions.futureAttack の turns が 1 の陣営の、場のポケモンに当てる（tickSideStateAtTurnEnd の前に呼ぶ）
    * 技を使ったポケモンが場を離れていても、そのポケモンの能力で当たる。PP は減らさず、技を出す前の判定もしない
    * 注: 本家は技を使ったポケモンが場にいないとき、特性・持ち物の補正を受けない。ここでは特性の補正も受ける
-   * @returns 当てた技のメッセージ
+   * @returns 当てた技のメッセージと、技を使ったポケモンのトレーナー ID
    */
-  async executeFutureAttacks(battle: Battle): Promise<string[]> {
+  async executeFutureAttacks(
+    battle: Battle,
+  ): Promise<Array<{ readonly trainerId: number; readonly message: string }>> {
     const latestBattle = (await this.battleRepository.findById(battle.id)) ?? battle;
-    const messages: string[] = [];
+    const messages: Array<{ readonly trainerId: number; readonly message: string }> = [];
     for (const trainerId of [latestBattle.trainer1Id, latestBattle.trainer2Id]) {
       const pending = getSideConditions(latestBattle.sideState, trainerId).futureAttack;
       if (pending?.turns !== 1) {
@@ -403,7 +405,7 @@ export class MoveExecutorService {
         defenderTrainedPokemon: targetTrainedPokemon,
         called: { calledBy: move.name, depth: 1, isFutureAttack: true },
       });
-      messages.push(result.message);
+      messages.push({ trainerId: source.trainerId, message: result.message });
     }
     return messages;
   }

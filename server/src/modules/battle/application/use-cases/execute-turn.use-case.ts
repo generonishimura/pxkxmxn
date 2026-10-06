@@ -56,7 +56,9 @@ export interface ExecuteTurnResult {
   battle: Battle;
   actions: Array<{
     trainerId: number;
-    action: string; // 'move' | 'switch' | 'turnStart'（ターンの初めの効果。くちばしキャノンの加熱など）
+    // 'move' | 'switch' | 'turnStart'（ターンの初めの効果。くちばしキャノンの加熱など）|
+    // 'futureAttack'（みらいよち・はめつのねがいが当たった。trainerId は技を使ったポケモンのトレーナー）
+    action: string;
     result: string; // 行動結果の説明
   }>;
   winnerTrainerId?: number; // 勝者が決まった場合
@@ -267,7 +269,12 @@ export class ExecuteTurnUseCase {
     }
 
     // みらいよち・はめつのねがいを当てる（残りターン数が 1 の陣営。このあとの tickSideStateAtTurnEnd で消える）
-    await this.moveExecutor.executeFutureAttacks(await this.findBattle(battle.id));
+    const futureAttacks = await this.moveExecutor.executeFutureAttacks(
+      await this.findBattle(battle.id),
+    );
+    for (const { trainerId, message } of futureAttacks) {
+      actionResults.push({ trainerId, action: 'futureAttack', result: message });
+    }
     const completedByFutureAttack = await this.completeIfDecided(battle.id, actionResults);
     if (completedByFutureAttack) {
       return completedByFutureAttack;

@@ -657,5 +657,23 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
       // Assert
       expect(executeFutureAttacks).toHaveBeenCalledTimes(1);
     });
+
+    it('みらいよちが当たったメッセージを、技を使ったトレーナーの結果として入れる', async () => {
+      // Arrange
+      const { useCase, executeFutureAttacks } = setup();
+      executeFutureAttacks.mockResolvedValue([
+        { trainerId: 2, message: 'Used みらいよち and dealt 30 damage' },
+      ]);
+
+      // Act
+      const result = await useCase.execute(params({ trainerId: 1, moveId: TACKLE.id }));
+
+      // Assert
+      expect(result.actions).toContainEqual({
+        trainerId: 2,
+        action: 'futureAttack',
+        result: 'Used みらいよち and dealt 30 damage',
+      });
+    });
   });
 });

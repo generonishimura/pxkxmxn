@@ -820,7 +820,7 @@ const moveName = candidates[Math.floor(Math.random() * candidates.length)];
 
 #### みらいよち・はめつのねがい（MoveBehaviors の futureMove）
 
-- 技の効果は要らない。エンジンが、使ったときに相手の陣営に `futureAttack` を置き（すでにあれば失敗）、2 ターン後のターン終了時に、その陣営の場のポケモンへ技の流れに乗せて当てる（`MoveExecutorService.executeFutureAttacks`）。PP は減らず、みちづれ・おんねんは発動しない
+- 技の効果は要らない。エンジンが、使ったときに相手の陣営に `futureAttack` を置き（すでにあれば失敗）、2 ターン後のターン終了時に、その陣営の場のポケモンへ技の流れに乗せて当てる（`MoveExecutorService.executeFutureAttacks`）。PP は減らず、みちづれ・おんねんは発動しない。当たったメッセージは、ターンの結果に `action: 'futureAttack'`（`trainerId` は技を使ったポケモンのトレーナー）として入る
 - 注: 本家は使ったポケモンが場にいないとき特性・持ち物の補正を受けないが、ここでは特性の補正も受ける
 
 #### locksMoveChoice / infiltrates / modifyOpponentPpDeduction（特性）

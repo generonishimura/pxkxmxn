@@ -214,7 +214,7 @@ describe('MoveExecutorService - みらいよちが当たる（executeFutureAttac
     const messages = await service.executeFutureAttacks(battle);
 
     // Assert
-    expect(messages).toEqual(['Used みらいよち and dealt 10 damage']);
+    expect(messages).toEqual([{ trainerId: 1, message: 'Used みらいよち and dealt 10 damage' }]);
     expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
     expect(battleRepository.patchSideConditions).not.toHaveBeenCalled();
     expect(battleRepository.updateBattlePokemonMove).not.toHaveBeenCalled();
