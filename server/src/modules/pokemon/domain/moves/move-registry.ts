@@ -264,6 +264,7 @@ import { LeechSeedEffect } from './effects/leech-seed-effect';
 import { NightmareEffect } from './effects/nightmare-effect';
 import { CurseEffect } from './effects/curse-effect';
 import { DestinyBondEffect } from './effects/destiny-bond-effect';
+import { DisableEffect } from './effects/disable-effect';
 
 /**
  * 技のレジストリ
@@ -636,6 +637,7 @@ export class MoveRegistry {
       this.registry.set('あくむ', new NightmareEffect());
       this.registry.set('のろい', new CurseEffect());
       this.registry.set('みちづれ', new DestinyBondEffect());
+      this.registry.set('かなしばり', new DisableEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
