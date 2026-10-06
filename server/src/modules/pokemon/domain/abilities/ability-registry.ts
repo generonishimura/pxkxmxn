@@ -122,13 +122,13 @@ export class AbilityRegistry {
       // たいねつ / かそく（Issue #84 一部）
       this.registry.set('たいねつ', new HeatproofEffect());
       this.registry.set('かそく', new SpeedBoostEffect());
-      // ふしぎなウロコ: 状態異常時に物理ダメージ軽減（Issue #84 一部）
-      this.registry.set('ふしぎなウロコ', new MarvelScaleEffect());
+      // ふしぎなうろこ: 状態異常時に物理ダメージ軽減（Issue #84 一部）
+      this.registry.set('ふしぎなうろこ', new MarvelScaleEffect());
       this.registry.set('ちくでん', new VoltAbsorbEffect());
       this.registry.set('もらいび', new FlashFireEffect());
       this.registry.set('あめふらし', new DrizzleEffect());
       this.registry.set('ひでり', new DroughtEffect());
-      this.registry.set('すなあらし', new SandStreamEffect());
+      this.registry.set('すなおこし', new SandStreamEffect());
       this.registry.set('ゆきふらし', new SnowWarningEffect());
       // 天候依存の HP 回復特性（Issue #84 一部）
       this.registry.set('あめうけざら', new RainDishEffect());
@@ -150,7 +150,7 @@ export class AbilityRegistry {
       this.registry.set('ようりょくそ', new ChlorophyllEffect());
       this.registry.set('すなかき', new SandRushEffect());
       // 天候/フィールド依存 SPE2倍特性（Issue #84 一部、ようりょくそ・すいすい・すなかきと同パターン）
-      this.registry.set('ゆきがき', new SlushRushEffect());
+      this.registry.set('ゆきかき', new SlushRushEffect());
       this.registry.set('サーフテール', new SurgeSurferEffect());
       // 天候依存の回避率ブースト（Issue #84 一部）
       this.registry.set('すながくれ', new SandVeilEffect());
@@ -165,9 +165,9 @@ export class AbilityRegistry {
       this.registry.set('どくぼうそう', new ToxicBoostEffect());
       this.registry.set('ねつぼうそう', new FlareBoostEffect());
       this.registry.set('いとあみ', new StickyWebEffect());
-      this.registry.set('どくどく', new PoisonPointEffect());
+      this.registry.set('どくのトゲ', new PoisonPointEffect());
       this.registry.set('せいでんき', new StaticEffect());
-      this.registry.set('もうふう', new FlameBodyEffect());
+      this.registry.set('ほのおのからだ', new FlameBodyEffect());
       this.registry.set(this.MOLD_BREAKER_ABILITY_NAME, new MoldBreakerEffect());
       // 無効化カテゴリの特性
       this.registry.set('めんえき', new ImmunityEffect());
@@ -193,7 +193,7 @@ export class AbilityRegistry {
       const noBattleEffect = new NoBattleEffectAbility();
       this.registry.set('にげあし', noBattleEffect);
       this.registry.set('はっこう', noBattleEffect);
-      this.registry.set('ハッピータイム', noBattleEffect);
+      this.registry.set('みつあつめ', noBattleEffect);
       this.registry.set('せいしんりょく', new InnerFocusEffect());
       this.registry.set('じゅうなん', new LimberEffect());
       this.registry.set('マグマのよろい', new MagmaArmorEffect());
@@ -212,10 +212,10 @@ export class AbilityRegistry {
       this.registry.set('ヨガパワー', new HugePowerEffect());
       this.registry.set('はやあし', new QuickFeetEffect());
       this.registry.set('はとむね', new BigPecksEffect());
-      // クリアボディ / ホワイトスモーク: 能力ランク低下無効化マーカー（Issue #84 一部、BigPecks と同パターン）
+      // クリアボディ / しろいけむり: 能力ランク低下無効化マーカー（Issue #84 一部、BigPecks と同パターン）
       const clearBody = new ClearBodyEffect();
       this.registry.set('クリアボディ', clearBody);
-      this.registry.set('ホワイトスモーク', clearBody);
+      this.registry.set('しろいけむり', clearBody);
       this.registry.set('きもったま', new ScrappyEffect());
       this.registry.set('まけんき', new DefiantEffect());
       this.registry.set('かちき', new CompetitiveEffect());
