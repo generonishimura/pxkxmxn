@@ -10,6 +10,7 @@ import {
 import { Pokemon } from '../../domain/entities/pokemon.entity';
 import { Ability } from '../../domain/entities/ability.entity';
 import { Move } from '../../domain/entities/move.entity';
+import { Type } from '../../domain/entities/type.entity';
 import { PokemonMapper, AbilityMapper, MoveMapper } from '@/shared/infrastructure/mappers';
 
 /**
@@ -169,5 +170,13 @@ export class TypeEffectivenessPrismaRepository implements ITypeEffectivenessRepo
     }
 
     return map;
+  }
+
+  async findTypeByName(name: string): Promise<Type | null> {
+    const typeData = await this.prisma.type.findUnique({
+      where: { name },
+    });
+
+    return typeData ? new Type(typeData.id, typeData.name, typeData.nameEn) : null;
   }
 }

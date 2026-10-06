@@ -1,6 +1,7 @@
 import { Pokemon } from './entities/pokemon.entity';
 import { Ability } from './entities/ability.entity';
 import { Move } from './entities/move.entity';
+import { Type } from './entities/type.entity';
 
 /**
  * Pokemonリポジトリのインターフェース
@@ -71,6 +72,12 @@ export interface ITypeEffectivenessRepository {
    * タイプ相性マップを取得
    */
   getTypeEffectivenessMap(): Promise<TypeEffectivenessMap>;
+
+  /**
+   * タイプ名（日本語名、例: "ほのお"）でタイプを取得
+   * 技のタイプを変更する効果（ウェザーボール、うるおいボイスなど）で使用
+   */
+  findTypeByName(name: string): Promise<Type | null>;
 }
 
 /**

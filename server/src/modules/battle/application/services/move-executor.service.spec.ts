@@ -177,6 +177,7 @@ describe('MoveExecutorService', () => {
     };
     const typeEffectivenessRepository: jest.Mocked<ITypeEffectivenessRepository> = {
       getTypeEffectivenessMap: jest.fn().mockResolvedValue(new Map()),
+      findTypeByName: jest.fn().mockResolvedValue(null),
     };
 
     AbilityRegistry.clear();
