@@ -197,12 +197,14 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
         return Promise.resolve(actions);
       });
     const winnerChecker = new WinnerCheckerService(battleRepository);
-    jest.spyOn(winnerChecker, 'checkWinner').mockResolvedValue(null);
+    const checkWinner = jest.spyOn(winnerChecker, 'checkWinner').mockResolvedValue(null);
     const statusConditionProcessor = new StatusConditionProcessorService(
       battleRepository,
       trainedPokemonRepository,
     );
-    jest.spyOn(statusConditionProcessor, 'processTurnEndAbilities').mockResolvedValue();
+    const processTurnEndAbilities = jest
+      .spyOn(statusConditionProcessor, 'processTurnEndAbilities')
+      .mockResolvedValue();
     const pokemonSwitcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository);
     const executeSwitch = jest.spyOn(pokemonSwitcher, 'executeSwitch').mockResolvedValue();
     const moveExecutor = new MoveExecutorService(
@@ -238,6 +240,9 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
       moveExecutor,
       statuses,
       calls,
+      checkWinner,
+      processTurnEndAbilities,
+      battleRepository,
     };
   };
 
@@ -518,27 +523,27 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
     });
   });
 
-  describe('ひんしになったポケモンを指す状態', () => {
-    const faint = (status: BattlePokemonStatus): BattlePokemonStatus =>
-      new BattlePokemonStatus(
-        status.id,
-        status.battleId,
-        status.trainedPokemonId,
-        status.trainerId,
-        status.isActive,
-        0,
-        status.maxHp,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        status.statusCondition,
-        status.volatileState,
-      );
+  const faint = (status: BattlePokemonStatus): BattlePokemonStatus =>
+    new BattlePokemonStatus(
+      status.id,
+      status.battleId,
+      status.trainedPokemonId,
+      status.trainerId,
+      status.isActive,
+      0,
+      status.maxHp,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      status.statusCondition,
+      status.volatileState,
+    );
 
+  describe('ひんしになったポケモンを指す状態', () => {
     it('相手を技で倒すと、その相手による逃げられない状態・バインド・メロメロが消える', async () => {
       // Arrange
       const { useCase, executeMove, statuses } = setup({
@@ -578,6 +583,66 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
 
       // Assert
       expect(executeSwitch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('ひんしと勝敗', () => {
+    it('先に行動した相手に倒されたポケモンは、技を出さない', async () => {
+      // Arrange
+      const { useCase, executeMove, statuses, calls } = setup();
+      executeMove.mockImplementation((_battle, trainerId) => {
+        if (trainerId === 1) {
+          statuses.set(2, faint(statuses.get(2)));
+        }
+        return Promise.resolve('ok');
+      });
+
+      // Act
+      const result = await useCase.execute(params({ trainerId: 1, moveId: TACKLE.id }));
+
+      // Assert
+      expect(calls()).toHaveLength(1);
+      expect(result.actions.filter(a => a.action === 'move')).toHaveLength(1);
+    });
+
+    it('ターン終了時の処理（ほろびのうたなど）で最後のポケモンが倒れたら、そのターンで勝敗が決まる', async () => {
+      // Arrange
+      const { useCase, statuses, checkWinner, processTurnEndAbilities, battleRepository } = setup();
+      checkWinner.mockRestore();
+      processTurnEndAbilities.mockImplementation(() => {
+        statuses.set(2, faint(statuses.get(2)));
+        return Promise.resolve();
+      });
+
+      // Act
+      const result = await useCase.execute(params({ trainerId: 1, moveId: TACKLE.id }));
+
+      // Assert
+      expect(result.winnerTrainerId).toBe(1);
+      expect(battleRepository.update).toHaveBeenCalledWith(1, {
+        status: BattleStatus.Completed,
+        winnerTrainerId: 1,
+      });
+      expect(battleRepository.update).not.toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ turn: expect.any(Number) }),
+      );
+    });
+
+    it('みらいよちで最後のポケモンが倒れたら、そのターンで勝敗が決まる', async () => {
+      // Arrange
+      const { useCase, statuses, checkWinner, executeFutureAttacks } = setup();
+      checkWinner.mockRestore();
+      executeFutureAttacks.mockImplementation(() => {
+        statuses.set(2, faint(statuses.get(2)));
+        return Promise.resolve([]);
+      });
+
+      // Act
+      const result = await useCase.execute(params({ trainerId: 1, moveId: TACKLE.id }));
+
+      // Assert
+      expect(result.winnerTrainerId).toBe(1);
     });
   });
 

@@ -86,10 +86,10 @@ interface PlannedAction {
  * 0. 一時的な状態から行動を決める（planAction: 反動・ため技・出し続ける技・アンコール・ものまねの技・
  *    わるあがき・交代の制限）
  * 1. 行動順の決定（速度と優先度を考慮）。そのあとターンの初めの効果（技の onTurnStart）
- * 2. 行動の実行（技の実行またはポケモン交代）
+ * 2. 行動の実行（技の実行またはポケモン交代）。ひんしのポケモンは行動しない
  * 3. ダメージ計算
  * 4. 特性効果の処理
- * 5. 勝敗判定
+ * 5. 勝敗判定（技を出すたびと、みらいよち・ターン終了時の処理のあと）
  */
 @Injectable()
 export class ExecuteTurnUseCase {
@@ -167,6 +167,9 @@ export class ExecuteTurnUseCase {
         action.trainerId === trainer1Active.trainerId
           ? [trainer1Active, trainer2Active]
           : [trainer2Active, trainer1Active];
+      if (user.isFainted()) {
+        continue;
+      }
       const message = await this.moveExecutor.runTurnStartHook(
         battle,
         action.moveId,
@@ -195,6 +198,10 @@ export class ExecuteTurnUseCase {
             : params.trainer1Action.trainerId;
         const attacker = await this.findActivePokemon(battle.id, action.trainerId);
         const defender = await this.findActivePokemon(battle.id, opponentTrainerId);
+        // 先に行動した相手に倒されたポケモン（交代するまで場に残る）は行動しない
+        if (attacker.isFainted()) {
+          continue;
+        }
 
         // 技が見つからない・PP がないときは、計画のときに決めた結果を入れる
         const plan = planOf(action.trainerId);
@@ -232,17 +239,9 @@ export class ExecuteTurnUseCase {
         await this.releaseReferencesToFainted(battle.id);
 
         // 勝敗判定
-        const winner = await this.winnerChecker.checkWinner(battle.id);
-        if (winner) {
-          await this.battleRepository.update(battle.id, {
-            status: BattleStatus.Completed,
-            winnerTrainerId: winner,
-          });
-          return {
-            battle: (await this.battleRepository.findById(battle.id)) as Battle,
-            actions: actionResults,
-            winnerTrainerId: winner,
-          };
+        const completed = await this.completeIfDecided(battle.id, actionResults);
+        if (completed) {
+          return completed;
         }
       } else if (action.action === 'switch' && action.switchPokemonId) {
         const plan = planOf(action.trainerId);
@@ -269,10 +268,19 @@ export class ExecuteTurnUseCase {
 
     // みらいよち・はめつのねがいを当てる（残りターン数が 1 の陣営。このあとの tickSideStateAtTurnEnd で消える）
     await this.moveExecutor.executeFutureAttacks(await this.findBattle(battle.id));
+    const completedByFutureAttack = await this.completeIfDecided(battle.id, actionResults);
+    if (completedByFutureAttack) {
+      return completedByFutureAttack;
+    }
 
     // ターン終了時の特性効果を処理（行動で変わった天候なども見えるよう、読み直したバトルを渡す）
     const battleAtTurnEnd = await this.findBattle(battle.id);
     await this.statusConditionProcessor.processTurnEndAbilities(battleAtTurnEnd);
+    // ほろびのうた・やどりぎのタネ・のろい・バインドなどで最後のポケモンが倒れたら、ここで勝敗が決まる
+    const completedAtTurnEnd = await this.completeIfDecided(battle.id, actionResults);
+    if (completedAtTurnEnd) {
+      return completedAtTurnEnd;
+    }
 
     // 状態の残りターン数を減らし、このターンだけの状態を消す。
     // 切れる直前の値（1）を読む効果は上のターン終了時の処理で済んでいるので、そのあとで行う
@@ -456,6 +464,29 @@ export class ExecuteTurnUseCase {
         });
       }
     }
+  }
+
+  /**
+   * 勝敗が決まっていれば、バトルを終わらせて結果を返す（決まっていなければ undefined）
+   * 技を出したあとと、みらいよち・ターン終了時の処理のあとに呼ぶ（本家はひんしが出るたびに checkWin する）
+   */
+  private async completeIfDecided(
+    battleId: number,
+    actionResults: ExecuteTurnResult['actions'],
+  ): Promise<ExecuteTurnResult | undefined> {
+    const winner = await this.winnerChecker.checkWinner(battleId);
+    if (!winner) {
+      return undefined;
+    }
+    await this.battleRepository.update(battleId, {
+      status: BattleStatus.Completed,
+      winnerTrainerId: winner,
+    });
+    return {
+      battle: (await this.battleRepository.findById(battleId)) as Battle,
+      actions: actionResults,
+      winnerTrainerId: winner,
+    };
   }
 
   /**
