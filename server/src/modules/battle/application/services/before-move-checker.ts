@@ -10,7 +10,7 @@ import {
   resolveMoveSlots,
 } from '../../domain/logic/move-selection';
 import { MutableStatePatch, isEmptyObject } from '../../domain/state/state-field-parser';
-import { VolatileState } from '../../domain/state/volatile-state';
+import { VOLATILE_UNTIL_NEXT_MOVE_FLAGS, VolatileState } from '../../domain/state/volatile-state';
 import { Move } from '@/modules/pokemon/domain/entities/move.entity';
 import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
@@ -59,7 +59,9 @@ const INFATUATION_IMMOBILIZE_CHANCE = 0.5;
  * 8. メロメロ: 50% で動けない
  * 9. まひ: 25% で動けない
  *
- * 2〜9 で技を出せなかったときは、ため技・出し続ける技の状態を消す（ころがる・あばれるなどが止まる）
+ * 判定の前に、おんねん（grudge）を消す（本家の onBeforeMove 優先度 100）
+ * 1〜9 で技を出せなかったときは、みちづれ（destinyBond）を消す（本家の onMoveAborted）
+ * 2〜9 で技を出せなかったときは、ため技・出し続ける技の状態も消す（ころがる・あばれるなどが止まる）
  */
 export class BeforeMoveChecker {
   constructor(private readonly battleRepository: IBattleRepository) {}
@@ -70,9 +72,17 @@ export class BeforeMoveChecker {
     const prevented = (message: string): Promise<BeforeMoveResult> =>
       this.prevent(attacker, message);
 
+    // 0. おんねんは、技を出そうとしたら必ず消える（本家の onBeforeMove 優先度 100）
+    if (attacker.volatileState.grudge !== undefined) {
+      attacker = await this.patchAndRefresh(attacker, { grudge: null });
+    }
+
     // 1. 反動で動けない（このターンの行動として扱い、ため・出し続けの状態は変えない）
     if (attacker.volatileState.mustRecharge === true) {
-      await this.battleRepository.patchVolatileState(attacker.id, { mustRecharge: null });
+      await this.battleRepository.patchVolatileState(attacker.id, {
+        mustRecharge: null,
+        ...this.untilNextMovePatch(attacker.volatileState),
+      });
       return { cancelled: true, message: 'Pokemon must recharge' };
     }
 
@@ -162,11 +172,11 @@ export class BeforeMoveChecker {
   }
 
   /**
-   * 技を出せなかったときの片付け（ため技・出し続ける技・連続で出した回数を消す）
+   * 技を出せなかったときの片付け（ため技・出し続ける技・連続で出した回数・みちづれとおんねんを消す）
    */
   private async prevent(attacker: BattlePokemonStatus, message: string): Promise<BeforeMoveResult> {
     const state = attacker.volatileState;
-    const patch: MutableStatePatch<VolatileState> = {};
+    const patch: MutableStatePatch<VolatileState> = this.untilNextMovePatch(state);
     if (state.chargingMoveId !== undefined) {
       patch.chargingMoveId = null;
     }
@@ -186,6 +196,20 @@ export class BeforeMoveChecker {
       await this.battleRepository.patchVolatileState(attacker.id, patch);
     }
     return { cancelled: true, message };
+  }
+
+  /**
+   * 技を出せなかったときに消す、次に技を出そうとするまで続くキー（みちづれ・おんねん）の patch
+   * 本家はみちづれを onMoveAborted で、おんねんを onBeforeMove で消す。技を出せたときは MoveLifecycle.recordMoveUse が消す
+   */
+  private untilNextMovePatch(state: VolatileState): MutableStatePatch<VolatileState> {
+    const patch: MutableStatePatch<VolatileState> = {};
+    for (const key of VOLATILE_UNTIL_NEXT_MOVE_FLAGS) {
+      if (state[key] !== undefined) {
+        patch[key] = null;
+      }
+    }
+    return patch;
   }
 
   /**

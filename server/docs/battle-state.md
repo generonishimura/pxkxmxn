@@ -113,8 +113,8 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | 交代で引っ込むとき | `PokemonSwitcherService.executeSwitch` | 引っ込むポケモンの `volatileState` をすべて消す（`clearVolatileOnSwitchOut`）。`persistentState` は残す |
 | 交代で引っ込んだあと | `PokemonSwitcherService.executeSwitch` | ほかのポケモンの、引っ込んだポケモンによる `trappedByStatusId`・`octolock`・`infatuatedWithStatusId` を消す（`releaseVolatileReferencesTo`） |
 | 交代で場に出たとき | `PokemonSwitcherService.executeSwitch` | `switchedInTurn` に今の `Battle.turn` を書く。`transfer` を渡したときは、引っ込む前の状態から引き継ぐキーも書く（10 章） |
-| 技を出そうとしたとき | `BeforeMoveChecker.check` | 反動のターンは `mustRecharge` を消す。こんらんの `confusionTurns` を 1 減らす。技を出せなかったら `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` を消す |
-| 技を出す前の判定を通ったとき | `MoveLifecycle.recordMoveUse` | 使用者の `destinyBond`・`grudge` を消す（`clearVolatileOnBeforeMove`）。`lastMoveId`・`GlobalFieldState.lastMoveId`・`choiceLockedMoveId` を書き、`protectCount` を消す |
+| 技を出そうとしたとき | `BeforeMoveChecker.check` | 最初に `grudge` を消す。反動のターンは `mustRecharge` を消す。こんらんの `confusionTurns` を 1 減らす。技を出せなかったら（反動のターンも）`destinyBond` を消し、反動以外で止まったら `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` も消す |
+| 技を出す前の判定を通ったとき | `MoveLifecycle.recordMoveUse` | 使用者の `destinyBond`・`grudge` を消す（`clearVolatileOnBeforeMove`。技を出せなかったときは `BeforeMoveChecker` が消す）。`lastMoveId`・`GlobalFieldState.lastMoveId`・`choiceLockedMoveId` を書き、`protectCount` を消す |
 | 技を出したあと | `MoveLifecycle.afterMove` | `mustRecharge`・`lockedInMove`・`uproar`・`consecutiveMoveCount` を書き直し、でんき技なら `charged` を消す |
 | ターン終了時（特性の前） | `StatusConditionProcessorService.processTurnEndAbilities` → `VolatileResidualProcessor` | すなあらし・ねがいごと・アクアリング・ねをはる・やどりぎのタネ・あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた（10 章） |
 | ターン終了時 | `ExecuteTurnUseCase.execute`（特性・状態異常のターン終了時の処理のあと） | 場のポケモンの `volatileState` を `tickVolatileStateAtTurnEnd` で、`sideState` を `tickSideStateAtTurnEnd` で進める |
@@ -251,7 +251,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 
 ### 使用者が次に技を出そうとするまで続くフラグ
 
-ターン終了時には消えません。使用者が次に技を出そうとしたときに消えます（`VOLATILE_UNTIL_NEXT_MOVE_FLAGS`）。
+ターン終了時には消えません。使用者が次に技を出そうとしたときに消えます（`VOLATILE_UNTIL_NEXT_MOVE_FLAGS`）。まひ・ねむり・ひるみ・こんらんの自傷・反動などで技を出せなかったときも消えます（本家はみちづれを onMoveAborted で、おんねんを onBeforeMove で消す）。
 
 | キー | 意味 | 使う技・特性 |
 | --- | --- | --- |
@@ -264,7 +264,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 2. ターン N + 1 に、速い相手が使用者を倒す
 3. みちづれはまだ効いているので、相手も倒れる
 
-みちづれを続けて使ったときの失敗判定を入れるときは、`MoveExecutorService.executeMove` の消去より前で `attacker.volatileState.destinyBond` を読んでください。
+みちづれを続けて使ったときの失敗判定は、技の `shouldFail` で `consecutiveMoveCount > 0` を見てください（`docs/battle-engine-hooks.md` の 9.3）。技の処理の中では `destinyBond` はもう消えているので、読んでも判定できません。
 
 ### 命中・相性
 
@@ -507,7 +507,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 8. `infatuatedWithStatusId`: 相手がそのポケモンなら 50% で動けない
 9. まひ: 25% で動けない
 
-2〜9 で止まったときは、`chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` を消します。
+判定の前に `grudge` を消します。1〜9 で止まったときは `destinyBond` を消し、2〜9 で止まったときは `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` も消します。
 
 ### 行動を決めるとき（`ExecuteTurnUseCase.planAction`）
 

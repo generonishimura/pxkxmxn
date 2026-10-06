@@ -299,6 +299,39 @@ describe('MoveExecutorService - 技を出す前の判定（BeforeMoveChecker）'
     expect(statuses.get(ATTACKER_ID).volatileState.encore).toBeUndefined();
   });
 
+  it('まひで動けなかったときも、みちづれ・おんねんを消す', async () => {
+    // Arrange
+    jest.spyOn(StatusConditionHandler, 'canAct').mockReturnValue(false);
+    const { execute, statuses } = setupMoveExecutor({
+      attacker: {
+        statusCondition: StatusCondition.Paralysis,
+        volatileState: { destinyBond: true, grudge: true },
+      },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(ATTACKER_ID).volatileState.destinyBond).toBeUndefined();
+    expect(statuses.get(ATTACKER_ID).volatileState.grudge).toBeUndefined();
+  });
+
+  it('反動で動けないターンも、みちづれ・おんねんを消す', async () => {
+    // Arrange
+    const { execute, statuses } = setupMoveExecutor({
+      attacker: {
+        volatileState: { mustRecharge: true, lastMoveId: 1, destinyBond: true, grudge: true },
+      },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(ATTACKER_ID).volatileState).toEqual({ lastMoveId: 1 });
+  });
+
   it('技を出せなかったときは、ため技と出し続ける技の状態を消す', async () => {
     // Arrange
     const { execute, statuses } = setupMoveExecutor({
