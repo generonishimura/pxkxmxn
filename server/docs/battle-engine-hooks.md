@@ -1787,7 +1787,7 @@ if (target) await ctx.battleRepository!.patchVolatileState(holder.id, { illusion
 - 呼ばれる場所: `MoveExecutorService.runMoveBody`。特性の `preventsMove` を通ったあと、サイコフィールド・まもる系・命中判定の前に 1 回（本家の onPrepareHit。変化技・外れる技でも呼ぶ）。`ctx.moveTypeName` はタイプを変える効果のあとのタイプ。はね返した技・みらいよちが当たるとき・よこどりで奪った技・技を呼ぶ技（ゆびをふる・ねごと・ねこのて・まねっこ・オウムがえし・さきどり・しぜんのちから）では呼ばない（呼ばれた技では呼ぶ）
 - 呼んだあと、エンジンは使用者を読み直し、タイプ・実数値・特性を求め直してから技を続ける。返したメッセージは技のメッセージの前に付く
 - 使う特性: へんげんじざい・リベロ（`typeChangeAbilityUsed` がなく、タイプなしの技でなく、今のタイプが技のタイプだけでなければ `setTypes` と `typeChangeAbilityUsed: true`）、バトルスイッチ（攻撃技で `'blade'`、キングシールドで `'shield'`。へんしん中は何もしない）
-- うのミサイルは onPrepareHit を使わない（本家は技が当たる直前・ため技の 1 ターン目に変わる）。なみのりは攻撃側の `onSourceDamagingHit`（ヒットのあと）で、ダイビングは技の効果の `chargeTurn.onCharge`（ため技の 1 ターン目。本家の Dive の onTryMove）で、使用者の実効の特性（`ctx.attackerAbilityName`）がうのミサイル・ウッウ（845）・へんしん中でなければ、HP が半分より上なら `'gulping'`、以下なら `'gorging'` にする。注: 本家のなみのりは onSourceTryPrimaryHit（命中・まもる系のあと、ダメージの前）で変わる。ダメージを与えなかったヒットでは、ここでは変わらない
+- うのミサイルは onPrepareHit を使わない（本家は技が当たる直前・ため技の 1 ターン目に変わる）。なみのりは攻撃側の `onSourceDamagingHit`（ヒットのあと）で、ダイビングは技の効果の `chargeTurn.onCharge`（ため技の 1 ターン目。本家の Dive の onTryMove）で、使用者の実効の特性（`ctx.attackerAbilityName`）がうのミサイル・ウッウ（845）・へんしん中でなければ、HP が半分より上なら `'gulping'`、以下なら `'gorging'` にする。注: 本家のなみのりは onSourceTryPrimaryHit（命中・まもる系のあと、ダメージの前）で変わる。ここではヒットのあとなので、みがわりに当たったヒットでは変わらない（ばけのかわなどで防がれたヒットでは変わる）
 - onPrepareHit は、技の `failsOnTryMove`（もえつきる・でんこうそうげき。本家の onTryMove）で失敗した技・ため技の 1 ターン目では呼ばない
 
 ```ts
