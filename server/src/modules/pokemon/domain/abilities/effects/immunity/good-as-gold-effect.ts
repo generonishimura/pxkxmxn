@@ -8,6 +8,7 @@ import { BattleContext } from '../../battle-context.interface';
  *
  * - isImmuneToMove は相手を対象にする技だけで呼ばれるため、自分や場を対象にする変化技
  *   （つるぎのまい、まきびし、あまごいなど）は無効にしない（本家と同じ）
+ * - 例外として、ほろびのうたは防ぐ。ほろびのうたの効果が、相手の isImmuneToMove を自分で呼ぶため（本家と同じ）
  * - 命中判定の前に無効にする。相手のかたやぶりでは無視される
  */
 export class GoodAsGoldEffect implements IAbilityEffect {
