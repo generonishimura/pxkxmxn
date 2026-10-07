@@ -184,12 +184,21 @@ export interface MoveSlot {
 
 /**
  * 覚えている技に、volatileState.moveSlotOverrides の入れ替えを反映した技の欄を返す
+ * へんしん中（transformedIntoStatusId がある）は、覚えている技を使わず、moveSlotOverrides の欄だけを返す
+ * （本家の transformInto は技の欄を写した相手の技で置き換える。欄の数も相手と同じ。同じ欄の入れ替えは後ろを使う）
  */
 export const resolveMoveSlots = (
   moves: readonly BattlePokemonMove[],
   state: VolatileState,
-): MoveSlot[] =>
-  moves.map(move => {
+): MoveSlot[] => {
+  if (state.transformedIntoStatusId !== undefined) {
+    const slots = new Map<number, MoveSlot>();
+    for (const override of state.moveSlotOverrides ?? []) {
+      slots.set(override.battlePokemonMoveId, { ...override, isOverride: true });
+    }
+    return [...slots.values()];
+  }
+  return moves.map(move => {
     const override = state.moveSlotOverrides?.find(o => o.battlePokemonMoveId === move.id);
     return override
       ? {
@@ -207,6 +216,7 @@ export const resolveMoveSlots = (
           isOverride: false,
         };
   });
+};
 
 /**
  * 技 ID から技の欄を探す（入れ替わる前の技は見つからない）

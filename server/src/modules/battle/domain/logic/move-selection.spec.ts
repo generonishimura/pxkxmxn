@@ -335,5 +335,40 @@ describe('move-selection', () => {
       expect(found?.battlePokemonMoveId).toBe(2);
       expect(replaced).toBeUndefined();
     });
+
+    it('へんしん中は、覚えている技ではなく moveSlotOverrides の欄だけを返す（欄の数は写した相手と同じ）', () => {
+      // Act
+      const slots = resolveMoveSlots(moves, {
+        transformedIntoStatusId: 7,
+        moveSlotOverrides: [
+          { battlePokemonMoveId: 71, moveId: 30, currentPp: 5, maxPp: 5 },
+          { battlePokemonMoveId: 72, moveId: 31, currentPp: 5, maxPp: 5 },
+          { battlePokemonMoveId: 73, moveId: 32, currentPp: 1, maxPp: 1 },
+        ],
+      });
+
+      // Assert
+      expect(slots.map(slot => [slot.battlePokemonMoveId, slot.moveId, slot.isOverride])).toEqual([
+        [71, 30, true],
+        [72, 31, true],
+        [73, 32, true],
+      ]);
+    });
+
+    it('へんしん中に同じ欄を入れ替えたら（ものまね）、後ろの入れ替えを使う', () => {
+      // Act
+      const slots = resolveMoveSlots(moves, {
+        transformedIntoStatusId: 7,
+        moveSlotOverrides: [
+          { battlePokemonMoveId: 71, moveId: 30, currentPp: 5, maxPp: 5 },
+          { battlePokemonMoveId: 71, moveId: 99, currentPp: 5, maxPp: 5 },
+        ],
+      });
+
+      // Assert
+      expect(slots).toEqual([
+        { battlePokemonMoveId: 71, moveId: 99, currentPp: 5, maxPp: 5, isOverride: true },
+      ]);
+    });
   });
 });

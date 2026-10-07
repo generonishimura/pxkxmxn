@@ -1,0 +1,249 @@
+import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
+import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
+import { changeForm } from '@/modules/pokemon/domain/battle-events/form-change';
+import { transformInto } from '@/modules/pokemon/domain/battle-events/transform';
+import { createBattleEngine, createTestMove } from '../__tests__/battle-engine-harness';
+
+/**
+ * フォルムチェンジ（changeForm）とへんしん（transformInto）を、技・特性の効果から呼んだとき（エンジン全体）
+ */
+describe('ExecuteTurnUseCase - フォルムチェンジとへんしん', () => {
+  const SPLASH = createTestMove(1, 'はねる', { category: MoveCategory.Status });
+  const TACKLE = createTestMove(2, 'たいあたり');
+  const TRANSFORM = createTestMove(3, 'へんしん', { category: MoveCategory.Status });
+  const EMBER = createTestMove(4, 'ひのこ', { type: 'ほのお' });
+  const SUBSTITUTE = createTestMove(5, 'みがわり', { category: MoveCategory.Status });
+  const MOVES = [SPLASH, TACKLE, TRANSFORM, EMBER, SUBSTITUTE];
+
+  beforeEach(() => {
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+    MoveRegistry.clear();
+    MoveRegistry.initialize();
+  });
+
+  describe('changeForm', () => {
+    it('ターン終了時の特性で、交代で戻るフォルムに変わる（ダルマモード）', async () => {
+      // Arrange
+      AbilityRegistry.register('テストのダルマモード', {
+        onTurnEnd: async (holder, ctx) => {
+          if (ctx && holder.currentHp <= holder.maxHp / 2) {
+            await changeForm(holder, 'zen', ctx);
+          }
+        },
+      });
+      const engine = createBattleEngine({
+        moves: MOVES,
+        pokemon: [
+          {
+            id: 1,
+            trainerId: 1,
+            active: true,
+            moveIds: [1],
+            nationalDex: 555,
+            types: ['ほのお'],
+            ability: 'テストのダルマモード',
+            currentHp: 80,
+            volatileState: { typeOverride: ['みず'], statOverrides: { attack: 1 } },
+          },
+          { id: 2, trainerId: 2, active: true, moveIds: [1] },
+        ],
+      });
+
+      // Act
+      await engine.runTurn({ moveId: SPLASH.id }, { moveId: SPLASH.id });
+
+      // Assert: フォルムを書き、タイプ・実数値の上書きを消す（本家の setSpecies）
+      expect(engine.status(1).volatileState.form).toBe('zen');
+      expect(engine.status(1).volatileState.typeOverride).toBeUndefined();
+      expect(engine.status(1).volatileState.statOverrides).toBeUndefined();
+    });
+
+    it('交代しても残るフォルムで最大 HP が変わると、減った HP を保ったまま最大 HP を変える（スワームチェンジ）', async () => {
+      // Arrange
+      AbilityRegistry.register('テストのスワームチェンジ', {
+        onTurnEnd: async (holder, ctx) => {
+          if (ctx) {
+            await changeForm(holder, 'complete', ctx, { persistent: true });
+          }
+        },
+      });
+      const engine = createBattleEngine({
+        moves: MOVES,
+        pokemon: [
+          {
+            id: 1,
+            trainerId: 1,
+            active: true,
+            moveIds: [1],
+            nationalDex: 718,
+            types: ['ドラゴン', 'じめん'],
+            baseStats: [108, 100, 121, 81, 95, 95],
+            ability: 'テストのスワームチェンジ',
+            currentHp: 80,
+          },
+          { id: 2, trainerId: 2, active: true, moveIds: [1] },
+        ],
+      });
+
+      // Act
+      await engine.runTurn({ moveId: SPLASH.id }, { moveId: SPLASH.id });
+
+      // Assert: パーフェクトフォルムの最大 HP は 291。減った 80 を保つので 211
+      expect(engine.status(1).persistentState.form).toBe('complete');
+      expect(engine.status(1).maxHp).toBe(291);
+      expect(engine.status(1).currentHp).toBe(211);
+    });
+
+    it('へんしん中はフォルムを変えない', async () => {
+      // Arrange
+      let changed: boolean | undefined;
+      AbilityRegistry.register('テストのダルマモード', {
+        onTurnEnd: async (holder, ctx) => {
+          if (ctx) {
+            changed = await changeForm(holder, 'zen', ctx);
+          }
+        },
+      });
+      const engine = createBattleEngine({
+        moves: MOVES,
+        pokemon: [
+          {
+            id: 1,
+            trainerId: 1,
+            active: true,
+            moveIds: [1],
+            nationalDex: 555,
+            ability: 'テストのダルマモード',
+            volatileState: { transformedIntoStatusId: 2, abilityOverride: 'テストのダルマモード' },
+          },
+          { id: 2, trainerId: 2, active: true, moveIds: [1] },
+        ],
+      });
+
+      // Act
+      await engine.runTurn({ moveId: SPLASH.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(changed).toBe(false);
+      expect(engine.status(1).volatileState.form).toBeUndefined();
+    });
+  });
+
+  describe('transformInto', () => {
+    const setup = (options: { substitute?: boolean } = {}) => {
+      MoveRegistry.register('へんしん', {
+        onUse: async (attacker, defender, ctx) =>
+          (await transformInto(attacker, defender, ctx)) ? 'transformed!' : 'But it failed',
+      });
+      return createBattleEngine({
+        moves: MOVES,
+        pokemon: [
+          { id: 1, trainerId: 1, active: true, moveIds: [3], baseSpeed: 200 },
+          {
+            id: 2,
+            trainerId: 2,
+            active: true,
+            moveIds: [2, 4],
+            types: ['ほのお', 'ひこう'],
+            ability: 'テストのもうか',
+            baseStats: [100, 150, 100, 100, 100, 100],
+            volatileState: {
+              addedType: 'くさ',
+              critStageBoost: 2,
+              ...(options.substitute ? { substituteHp: 40 } : {}),
+            },
+          },
+        ],
+      });
+    };
+
+    it('相手のタイプ・実数値（HP を除く）・特性・能力ランク・技（PP 5）を写す', async () => {
+      // Arrange
+      const engine = setup();
+      await engine.battleRepository.updateBattlePokemonStatus(2, { attackRank: 2 });
+
+      // Act
+      const result = await engine.runTurn({ moveId: TRANSFORM.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(result.actions[0].result).toBe('Used へんしん transformed!');
+      const state = engine.status(1).volatileState;
+      expect(state.transformedIntoStatusId).toBe(2);
+      expect(state.typeOverride).toEqual(['ほのお', 'ひこう']);
+      expect(state.addedType).toBe('くさ');
+      expect(state.abilityOverride).toBe('テストのもうか');
+      expect(state.statOverrides).toEqual({
+        attack: 170,
+        defense: 120,
+        specialAttack: 120,
+        specialDefense: 120,
+        speed: 120,
+      });
+      expect(state.critStageBoost).toBe(2);
+      expect(state.moveSlotOverrides).toEqual([
+        { battlePokemonMoveId: 20, moveId: 2, currentPp: 5, maxPp: 5 },
+        { battlePokemonMoveId: 21, moveId: 4, currentPp: 5, maxPp: 5 },
+      ]);
+      expect(engine.status(1).attackRank).toBe(2);
+      expect(engine.status(1).maxHp).toBe(160);
+    });
+
+    it('へんしんしたあとは、写した技を選んで出せて、PP は写した欄から減る', async () => {
+      // Arrange
+      const engine = setup();
+      await engine.runTurn({ moveId: TRANSFORM.id }, { moveId: SPLASH.id });
+
+      // Act
+      const result = await engine.runTurn({ moveId: EMBER.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(result.actions[0].result).toMatch(/^Used ひのこ and dealt/);
+      expect(engine.status(1).volatileState.moveSlotOverrides?.[1].currentPp).toBe(4);
+    });
+
+    it('みがわりの相手には、へんしんできない', async () => {
+      // Arrange
+      const engine = setup({ substitute: true });
+
+      // Act
+      const result = await engine.runTurn({ moveId: TRANSFORM.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(result.actions[0].result).toMatch(/failed/i);
+      expect(engine.status(1).volatileState.transformedIntoStatusId).toBeUndefined();
+    });
+
+    it('交代で場に出たときの特性（かわりもの）から、相手にへんしんできる', async () => {
+      // Arrange
+      AbilityRegistry.register('テストのかわりもの', {
+        onEntry: async (pokemon, ctx) => {
+          const latest = await ctx?.battleRepository?.findBattlePokemonStatusById(pokemon.id);
+          const opponent = await ctx?.battleRepository?.findActivePokemonByBattleIdAndTrainerId(
+            pokemon.battleId,
+            2,
+          );
+          if (ctx && latest && opponent) {
+            await transformInto(latest, opponent, ctx);
+          }
+        },
+      });
+      const engine = createBattleEngine({
+        moves: MOVES,
+        pokemon: [
+          { id: 1, trainerId: 1, active: true, moveIds: [1] },
+          { id: 3, trainerId: 1, moveIds: [1], ability: 'テストのかわりもの' },
+          { id: 2, trainerId: 2, active: true, moveIds: [2], types: ['でんき'] },
+        ],
+      });
+
+      // Act
+      await engine.runTurn({ switchPokemonId: 3 }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(3).volatileState.transformedIntoStatusId).toBe(2);
+      expect(engine.status(3).volatileState.typeOverride).toEqual(['でんき']);
+    });
+  });
+});
