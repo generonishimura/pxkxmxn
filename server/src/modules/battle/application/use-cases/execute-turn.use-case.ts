@@ -337,25 +337,30 @@ export class ExecuteTurnUseCase {
     if (completedAtTurnEnd) {
       return completedAtTurnEnd;
     }
-    // ターン終了時のダメージで HP が半分以下になったききかいひ・にげごしの交代
+    // 状態の残りターン数を減らし、このターンだけの状態を消す。
+    // 切れる直前の値（1）を読む効果は上のターン終了時の処理で済んでいるので、そのあとで行う
+    await this.settleVolatileStatesAtTurnEnd(battle.id);
+
+    // ターン終了時の処理が書いた sideState も残すよう、読み直してから減らす（変わったときだけ書く）
+    const battleAtTick = await this.findBattle(battle.id);
+    const tickedSideState = tickSideStateAtTurnEnd(battleAtTick.sideState);
+    if (tickedSideState !== battleAtTick.sideState) {
+      await this.battleRepository.update(battle.id, { sideState: tickedSideState });
+    }
+
+    // ターン終了時のダメージで HP が半分以下になったききかいひ・にげごしの交代。
+    // 残りターン数を減らしたあとに行うので、出てきたポケモンが出した天候・フィールドは
+    // 次のターンの終わりから減る（本家も残りの処理のあとの交代は次のターンから数える）
     await this.pokemonSwitcher.scheduleEmergencyExits(battle.id, hpBeforeTurnEnd);
     const completedByTurnEndSwitch = await this.resolvePendingSwitches(battle.id, actionResults);
     if (completedByTurnEndSwitch) {
       return completedByTurnEndSwitch;
     }
 
-    // 状態の残りターン数を減らし、このターンだけの状態を消す。
-    // 切れる直前の値（1）を読む効果は上のターン終了時の処理で済んでいるので、そのあとで行う
-    await this.settleVolatileStatesAtTurnEnd(battle.id);
-
-    // ターン終了時の処理が書いた sideState も残すよう、読み直してから減らす
+    // ターン数を増やす（交代で書かれた sideState を消さないよう、読み直してから書く）
     const battleBeforeNextTurn = await this.findBattle(battle.id);
-    const tickedSideState = tickSideStateAtTurnEnd(battleBeforeNextTurn.sideState);
-
-    // ターン数を増やす（sideState が変わったときだけ一緒に書く）
     const updatedBattle = await this.battleRepository.update(battle.id, {
       turn: battleBeforeNextTurn.turn + 1,
-      ...(tickedSideState !== battleBeforeNextTurn.sideState ? { sideState: tickedSideState } : {}),
     });
 
     return {

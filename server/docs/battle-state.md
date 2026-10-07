@@ -124,7 +124,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | ターン終了時（いちばん初め） | `FieldResidualProcessor.endExpiringWeather` | `weatherTurns` が 1 なら `Battle.weather` を `None` にし、`weatherTurns` を消す（ゲンシ天候は除く） |
 | ターン終了時（特性の前） | `StatusConditionProcessorService.processTurnEndAbilities` → `VolatileResidualProcessor` | すなあらし・ねがいごと・グラスフィールドの回復・アクアリング・ねをはる・やどりぎのタネ・あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた（10 章） |
 | ターン終了時（特性のあと） | `FieldResidualProcessor.endExpiringTerrain` | `terrainTurns` が 1 なら `Battle.field` を `None` にし、`terrainTurns` を消す |
-| ターン終了時 | `ExecuteTurnUseCase.execute`（特性・状態異常のターン終了時の処理のあと） | 場のポケモンの `volatileState` を `tickVolatileStateAtTurnEnd` で、`sideState` を `tickSideStateAtTurnEnd` で進める |
+| ターン終了時 | `ExecuteTurnUseCase.execute`（特性・状態異常のターン終了時の処理のあと。ききかいひ・にげごしの交代の前） | 場のポケモンの `volatileState` を `tickVolatileStateAtTurnEnd` で、`sideState` を `tickSideStateAtTurnEnd` で進める |
 | ターン終了時に場のポケモンがひんしのとき | `ExecuteTurnUseCase.execute` | その `volatileState` をすべて消す（ほろびのカウント・みがわりを、さいきのいのりで持ち越さない） |
 
 ### ターン終了時に進めるキー
@@ -624,7 +624,8 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 1. `weatherTurns === 1` の天候を終わらせる（`FieldResidualProcessor`）
 2. すなあらし → ねがいごと → グラスフィールド（地面にいて隠れていないポケモンを最大 HP の 1/16 回復。`applyHeal`）→ ポケモンごとの処理（10 章）
 3. `terrainTurns === 1` のフィールドを終わらせる
-4. ターン終了時のダメージで HP が半分以下になった、ききかいひ・にげごしの交代
+4. `volatileState` と `sideState` の残りターン数を減らす（`tickVolatileStateAtTurnEnd`・`tickSideStateAtTurnEnd`）
+5. ターン終了時のダメージで HP が半分以下になった、ききかいひ・にげごしの交代。残りターン数を減らしたあとなので、出てきたポケモンが出した天候・フィールドは、次のターンの終わりから減る（5 ターン続く。本家と同じ）
 
 ### 交代で場に出たとき（`EntryEffectProcessor`）
 

@@ -1,3 +1,4 @@
+import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { Field, Weather } from '../../domain/entities/battle.entity';
 import { getGlobalFieldState } from '../../domain/state/side-state';
 import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
@@ -215,5 +216,35 @@ describe('ExecuteTurnUseCase - 天候とフィールドのターン', () => {
     expect(engine.status(1).currentHp).toBe(110);
     expect(engine.battle().field).toBe(Field.None);
     expect(getGlobalFieldState(engine.battle().sideState).terrainTurns).toBeUndefined();
+  });
+
+  it('ターンの終わりにききかいひで出てきたポケモンが降らせた雨は、そのターンには減らず 5 ターン残る', async () => {
+    // Arrange
+    AbilityRegistry.register('テストのききかいひ', { switchesOutBelowHalfHp: true });
+    const engine = createBattleEngine({
+      moves,
+      pokemon: [
+        { id: 1, trainerId: 1, active: true, moveIds: [1] },
+        {
+          id: 2,
+          trainerId: 2,
+          active: true,
+          moveIds: [1],
+          ability: 'テストのききかいひ',
+          statusCondition: StatusCondition.Poison,
+          currentHp: 90,
+        },
+        { id: 4, trainerId: 2, moveIds: [1], ability: 'あめふらし' },
+      ],
+    });
+
+    // Act
+    await engine.runTurn({ moveId: SPLASH.id }, { moveId: SPLASH.id });
+
+    // Assert
+    expect(engine.active(2)?.id).toBe(4);
+    expect(engine.battle().weather).toBe(Weather.Rain);
+    expect(getGlobalFieldState(engine.battle().sideState).weatherTurns).toBe(5);
+    expect(engine.battle().turn).toBe(2);
   });
 });
