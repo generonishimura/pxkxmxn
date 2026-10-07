@@ -340,6 +340,13 @@ import { CourtChangeEffect } from './effects/court-change-effect';
 import { TailwindEffect } from './effects/tailwind-effect';
 import { AuroraVeilEffect } from './effects/aurora-veil-effect';
 import { LuckyChantEffect } from './effects/lucky-chant-effect';
+// 交代にかかわる技（Issue #102, #103 一部）
+import { WhirlwindEffect } from './effects/whirlwind-effect';
+import { RoarEffect } from './effects/roar-effect';
+import { BatonPassEffect } from './effects/baton-pass-effect';
+import { PartingShotEffect } from './effects/parting-shot-effect';
+import { FairyLockEffect } from './effects/fairy-lock-effect';
+import { TeleportEffect } from './effects/teleport-effect';
 
 /**
  * 技のレジストリ
@@ -790,6 +797,13 @@ export class MoveRegistry {
       this.registry.set('おいかぜ', new TailwindEffect());
       this.registry.set('オーロラベール', new AuroraVeilEffect());
       this.registry.set('おまじない', new LuckyChantEffect());
+      // 交代にかかわる技（Issue #102, #103 一部）
+      this.registry.set('ふきとばし', new WhirlwindEffect());
+      this.registry.set('ほえる', new RoarEffect());
+      this.registry.set('バトンタッチ', new BatonPassEffect());
+      this.registry.set('すてゼリフ', new PartingShotEffect());
+      this.registry.set('フェアリーロック', new FairyLockEffect());
+      this.registry.set('テレポート', new TeleportEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
