@@ -217,6 +217,8 @@ import { PerishBodyEffect } from './effects/other/perish-body-effect';
 // ひるみ・ねむりとして扱う特性（Issue #135 一部）
 import { SteadfastEffect } from './effects/stat-change/steadfast-effect';
 import { ComatoseEffect } from './effects/immunity/comatose-effect';
+// 相手の技をまねて出す特性（Issue #135 一部）
+import { DancerEffect } from './effects/other/dancer-effect';
 
 /**
  * 特性レジストリ
@@ -532,6 +534,8 @@ export class AbilityRegistry {
       // ひるみ・ねむりとして扱う特性（Issue #135 一部）
       this.registry.set('ふくつのこころ', new SteadfastEffect());
       this.registry.set('ぜったいねむり', new ComatoseEffect());
+      // 相手の技をまねて出す特性（Issue #135 一部）
+      this.registry.set('おどりこ', new DancerEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

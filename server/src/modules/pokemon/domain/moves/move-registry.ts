@@ -274,6 +274,12 @@ import { MetronomeEffect } from './effects/metronome-effect';
 import { MirrorMoveEffect } from './effects/mirror-move-effect';
 import { AssistEffect } from './effects/assist-effect';
 import { SnatchEffect } from './effects/snatch-effect';
+// 別の技を出す技（Issue #103, #104, #117 一部）
+import { MeFirstEffect } from './effects/me-first-effect';
+import { CopycatEffect } from './effects/copycat-effect';
+import { InstructEffect } from './effects/instruct-effect';
+import { SleepTalkEffect } from './effects/sleep-talk-effect';
+import { NaturePowerEffect } from './effects/nature-power-effect';
 
 /**
  * 技のレジストリ
@@ -656,6 +662,12 @@ export class MoveRegistry {
       this.registry.set('オウムがえし', new MirrorMoveEffect());
       this.registry.set('ねこのて', new AssistEffect());
       this.registry.set('よこどり', new SnatchEffect());
+      // 別の技を出す技（Issue #103, #104, #117 一部）
+      this.registry.set('さきどり', new MeFirstEffect());
+      this.registry.set('まねっこ', new CopycatEffect());
+      this.registry.set('さいはい', new InstructEffect());
+      this.registry.set('ねごと', new SleepTalkEffect());
+      this.registry.set('しぜんのちから', new NaturePowerEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
