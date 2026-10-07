@@ -267,6 +267,13 @@ import { WishEffect } from './effects/wish-effect';
 import { GuardSplitEffect } from './effects/guard-split-effect';
 import { PowerSplitEffect } from './effects/power-split-effect';
 import { SpeedSwapEffect } from './effects/speed-swap-effect';
+// ほかの技をまねる・呼ぶ技（Issue #103 一部）
+import { MimicEffect } from './effects/mimic-effect';
+import { SketchEffect } from './effects/sketch-effect';
+import { MetronomeEffect } from './effects/metronome-effect';
+import { MirrorMoveEffect } from './effects/mirror-move-effect';
+import { AssistEffect } from './effects/assist-effect';
+import { SnatchEffect } from './effects/snatch-effect';
 
 /**
  * 技のレジストリ
@@ -642,6 +649,13 @@ export class MoveRegistry {
       this.registry.set('ガードシェア', new GuardSplitEffect());
       this.registry.set('パワーシェア', new PowerSplitEffect());
       this.registry.set('スピードスワップ', new SpeedSwapEffect());
+      // ほかの技をまねる・呼ぶ技（Issue #103 一部）
+      this.registry.set('ものまね', new MimicEffect());
+      this.registry.set('スケッチ', new SketchEffect());
+      this.registry.set('ゆびをふる', new MetronomeEffect());
+      this.registry.set('オウムがえし', new MirrorMoveEffect());
+      this.registry.set('ねこのて', new AssistEffect());
+      this.registry.set('よこどり', new SnatchEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
