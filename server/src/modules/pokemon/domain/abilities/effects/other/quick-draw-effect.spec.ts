@@ -21,65 +21,58 @@ describe('QuickDrawEffect（クイックドロウ）', () => {
     jest.restoreAllMocks();
   });
 
-  describe('modifySpeed', () => {
+  describe('modifyFractionalPriority', () => {
     it.each([['Physical' as const], ['Special' as const]])(
-      '%s の技で30%%の判定に当たると、どんな素早さよりも速くする',
+      '%s の技で30%%の判定に当たると、優先度に +0.1 を足す',
       category => {
         // Arrange
         jest.spyOn(Math, 'random').mockReturnValue(0.29);
 
         // Act
-        const result = effect.modifySpeed(pokemon, 50, createCtx(category));
+        const result = effect.modifyFractionalPriority(pokemon, createCtx(category));
 
         // Assert
-        expect(result).toBeGreaterThan(100000);
+        expect(result).toBe(0.1);
       },
     );
 
-    it('30%の判定に外れると素早さを変えない', () => {
+    it('30%の判定に外れると優先度を変えない', () => {
       // Arrange
       jest.spyOn(Math, 'random').mockReturnValue(0.3);
 
       // Act
-      const result = effect.modifySpeed(pokemon, 50, createCtx('Physical'));
+      const result = effect.modifyFractionalPriority(pokemon, createCtx('Physical'));
 
       // Assert
       expect(result).toBeUndefined();
     });
 
-    it('変化技では判定をせず、素早さを変えない', () => {
+    it('変化技では判定をせず、優先度を変えない', () => {
       // Arrange
       const random = jest.spyOn(Math, 'random').mockReturnValue(0);
 
       // Act
-      const result = effect.modifySpeed(pokemon, 50, createCtx('Status'));
+      const result = effect.modifyFractionalPriority(pokemon, createCtx('Status'));
 
       // Assert
       expect(result).toBeUndefined();
       expect(random).not.toHaveBeenCalled();
     });
 
-    it('技の分類が分からないときは素早さを変えない', () => {
+    it('技の分類が分からないときは優先度を変えない', () => {
       // Arrange
       jest.spyOn(Math, 'random').mockReturnValue(0);
 
       // Act
-      const result = effect.modifySpeed(pokemon, 50, createCtx(undefined));
+      const result = effect.modifyFractionalPriority(pokemon, createCtx(undefined));
 
       // Assert
       expect(result).toBeUndefined();
     });
+  });
 
-    it('両方が発動したときは、もとの素早さの順番を保つ', () => {
-      // Arrange
-      jest.spyOn(Math, 'random').mockReturnValue(0);
-
-      // Act
-      const faster = effect.modifySpeed(pokemon, 120, createCtx('Physical'));
-      const slower = effect.modifySpeed(pokemon, 80, createCtx('Physical'));
-
-      // Assert
-      expect(faster).toBeGreaterThan(slower ?? 0);
-    });
+  it('素早さは変えない（トリックルームで順番が逆にならない）', () => {
+    // Assert
+    expect('modifySpeed' in effect).toBe(false);
   });
 });

@@ -1469,7 +1469,7 @@ export class NoGuardEffect implements IAbilityEffect {
 
 - シグネチャ: `modifyFractionalPriority?(holder, battleContext?): number | undefined`
 - 呼ばれる場所: `ActionOrderDeterminerService`（と `ActionOrderDeterminer`）。`modifyPriority` のあとの優先度に足す。-1 より大きく 1 より小さい値を返すので、優先度の違いは越えない（本家の onFractionalPriority）。`battleContext.moveCategory` などは行動するポケモンが選んだ技。技の実行中の `effectivePriority` には入らない
-- 使う特性: きんしのちから（変化技なら -0.1）、あとだし（-0.1。`StallEffect` は乗せ換え済み）、クイックドロウ（攻撃技で 30% なら +0.1）
+- 使う特性: きんしのちから（変化技なら -0.1）、あとだし（-0.1。`StallEffect` は乗せ換え済み）、クイックドロウ（攻撃技で 30% なら +0.1。`QuickDrawEffect` は乗せ換え済み）
 - 素早さを変えないので、トリックルームの間も順番は逆にならない（本家と同じ）。同じ優先度の中で先・後に動かす特性は、`modifySpeed` ではなくこのフックで作る
 
 ```ts
