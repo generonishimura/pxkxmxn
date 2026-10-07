@@ -77,19 +77,36 @@ describe('Conversion2Effect（テクスチャー２）', () => {
   });
 
   it('半減以下にするタイプをすべて持っていれば失敗する', async () => {
-    // Arrange
+    // Arrange: でんきを半減以下にするのは、でんき・くさ・じめん・ドラゴン
     const battle = createInMemoryBattle(
-      { types: ['でんき', 'くさ'], status: { volatileState: { addedType: 'じめん' } } },
+      {
+        types: ['ノーマル'],
+        status: {
+          volatileState: { typeOverride: ['でんき', 'くさ', 'じめん'], addedType: 'ドラゴン' },
+        },
+      },
       { status: { volatileState: { lastMoveTypeName: 'でんき' } } },
     );
-    const repository = typeEffectivenessRepository();
-    const context = battle.context({
-      typeEffectivenessRepository: {
-        ...repository,
-        findTypeByName: name =>
-          name === 'ドラゴン' ? Promise.resolve(null) : repository.findTypeByName(name),
-      },
-    });
+    const context = battle.context({ typeEffectivenessRepository: typeEffectivenessRepository() });
+
+    // Act
+    const message = await new Conversion2Effect().onUse(battle.get(1), battle.get(2), context);
+
+    // Assert
+    expect(message).toBe('But it failed');
+    expect(battle.get(1).volatileState.typeOverride).toEqual(['でんき', 'くさ', 'じめん']);
+  });
+
+  it.each([
+    ['アルセウス', 493],
+    ['シルヴァディ', 773],
+  ])('%s のタイプは変えられず失敗する', async (_name, nationalDex) => {
+    // Arrange
+    const battle = createInMemoryBattle(
+      { types: ['ノーマル'], nationalDex },
+      { status: { volatileState: { lastMoveTypeName: 'でんき' } } },
+    );
+    const context = battle.context({ typeEffectivenessRepository: typeEffectivenessRepository() });
 
     // Act
     const message = await new Conversion2Effect().onUse(battle.get(1), battle.get(2), context);

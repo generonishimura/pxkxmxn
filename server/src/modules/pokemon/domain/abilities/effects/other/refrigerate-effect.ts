@@ -24,7 +24,8 @@ const UNCHANGED_MOVE_NAMES: ReadonlySet<string> = new Set([
  * - ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・
  *   だいちのはどうは、ノーマルタイプでも変えず、1.2 倍にもならない
  * - プラズマシャワー・そうでんでさらにでんきになっても 1.2 倍のまま（エンジンの moveTypeChangedByAbility）
- * 注: エンジンは変化技に特性の modifyMoveType を呼ばないので、変化技のタイプは変わらない
+ * - ノーマルの変化技のタイプもこおりになる（エンジンは変化技にも modifyMoveType を呼ぶ。lastMoveTypeName・ふんじん・onPrepareHit に使う）
+ * 注: 技の効果に書いた変化技の免疫は、変わったタイプを見ない
  */
 export class RefrigerateEffect implements IAbilityEffect {
   modifyMoveType(

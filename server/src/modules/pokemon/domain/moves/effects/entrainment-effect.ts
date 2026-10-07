@@ -18,6 +18,7 @@ const TRUANT_ABILITY_NAME = 'なまけ';
  * - 相手が受け取った特性の onEntry は setAbility が呼ぶ（受け取ったいかくが発動する）
  * - みがわり・まもる系・マジックコートはエンジンが判定する
  * 注: 書き換える前の相手の特性の終わり（本家の End）は呼ばない（setAbility の近似）
+ * 注: とくせいガードで防ぐ効果は扱わない（持ち物の仕組みがない）
  */
 export class EntrainmentEffect implements IMoveEffect {
   async onUse(

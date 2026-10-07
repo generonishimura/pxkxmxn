@@ -14,9 +14,9 @@ import { findIllusionTarget } from '../../../battle-events/illusion';
  * - 化けている間は、へんしん・かわりものが失敗する（transformInto が判定する）
  * - 特性を書き換える・消すと、化けている状態も消える（setAbility・suppressAbility が消す）
  * - みがわりが受けたヒットでは解けない。かたやぶりでも解ける（本家と同じ）
+ * - バトル開始時は、どの先発よりも先に化ける（StartBattleUseCase。本家は先発全員の BeforeSwitchIn が先）
  * 注: API はポケモンの名前・見た目を返さないので、化けた先を相手に見せることはできない。
  * 化けている先（illusionStatusId）は応答から外している（docs/battle-state.md の 8 章）
- * 注: 先発どうしでは onEntry が素早さの順なので、かわりものの方が速いと、化ける前にへんしんされる（本家は先発全員の BeforeSwitchIn が先）
  */
 export class IllusionEffect implements IAbilityEffect {
   async onEntry(holder: BattlePokemonStatus, battleContext?: BattleContext): Promise<void> {

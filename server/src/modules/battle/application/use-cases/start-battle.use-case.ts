@@ -28,13 +28,24 @@ import { NEUTRALIZING_GAS_ABILITY_NAME } from '../../domain/logic/effective-trai
 import { PrimalWeatherReleaser } from '../services/primal-weather-releaser';
 
 /**
+ * 先発の onEntry を先に呼ぶ特性（大きいほど先。ほかの特性は 0）
+ * - イリュージョン: 本家の BeforeSwitchIn。先発全員の BeforeSwitchIn が、どの SwitchIn よりも先に済む
+ * - かがくへんかガス・テラスチェンジ: 本家の onSwitchInPriority 2
+ */
+const LEAD_ENTRY_PRIORITY: Readonly<Record<string, number>> = {
+  イリュージョン: 3,
+  [NEUTRALIZING_GAS_ABILITY_NAME]: 2,
+  テラスチェンジ: 2,
+};
+
+/**
  * StartBattleUseCase
  * バトル開始時の処理を実行するユースケース
  *
  * 処理内容:
  * 1. Battleエンティティの作成
  * 2. 両チームのポケモン状態（BattlePokemonStatus）を初期化し、最初のポケモンを場に出す（position=1のポケモン）
- * 3. 両方の先発が場に出てから、先発の特性のOnEntry効果を、かがくへんかガス → 素早さの高い順に発動
+ * 3. 両方の先発が場に出てから、先発の特性のOnEntry効果を、イリュージョン → かがくへんかガス・テラスチェンジ → 素早さの高い順に発動
  * 4. 効かなくなった特性のゲンシ天候を終わらせる
  */
 @Injectable()
@@ -105,8 +116,9 @@ export class StartBattleUseCase {
       }
     }
 
-    // 4. 先発の特性の onEntry を、かがくへんかガス → 素早さの高い順に呼ぶ（本家の SwitchIn の順。
-    // かがくへんかガスは onSwitchInPriority 2 で先に出るので、相手のゲンシ天候などは始まらない）
+    // 4. 先発の特性の onEntry を、イリュージョン → かがくへんかガス・テラスチェンジ → 素早さの高い順に呼ぶ（本家の順。
+    // イリュージョンは BeforeSwitchIn なので、どの SwitchIn よりも先。かがくへんかガス・テラスチェンジは
+    // onSwitchInPriority 2 で先に出るので、相手のゲンシ天候などは始まらず、かわりものはテラスタルフォルムを写す）
     for (const statusId of await this.orderLeadsForEntry(
       battle.id,
       leadStatusIds,
@@ -164,7 +176,7 @@ export class StartBattleUseCase {
   }
 
   /**
-   * 先発の onEntry を呼ぶ順（実効の特性がかがくへんかガスのポケモン → 素早さの高い順。同じならトレーナー 1 から）
+   * 先発の onEntry を呼ぶ順（実効の特性の LEAD_ENTRY_PRIORITY の大きい順 → 素早さの高い順。同じならトレーナー 1 から）
    * 注: 素早さは実数値だけで比べる（ランク・特性・持ち物の補正と、同じ素早さの乱数は見ない）
    */
   private async orderLeadsForEntry(
@@ -183,12 +195,11 @@ export class StartBattleUseCase {
     const keyOf = (statusId: number) => {
       const ref = refs.find(other => other.status.id === statusId);
       if (!ref) {
-        return { neutralizingGas: false, speed: 0 };
+        return { priority: 0, speed: 0 };
       }
+      const abilityName = battleAbilityNameOf(ref.trainedPokemon, ref.status, refs);
       return {
-        neutralizingGas:
-          battleAbilityNameOf(ref.trainedPokemon, ref.status, refs) ===
-          NEUTRALIZING_GAS_ABILITY_NAME,
+        priority: abilityName ? (LEAD_ENTRY_PRIORITY[abilityName] ?? 0) : 0,
         speed: battleStatsOf(ref.trainedPokemon, ref.status).speed,
       };
     };
@@ -196,10 +207,7 @@ export class StartBattleUseCase {
     return [...leadStatusIds].sort((a, b) => {
       const keyA = keys.get(a)!;
       const keyB = keys.get(b)!;
-      if (keyA.neutralizingGas !== keyB.neutralizingGas) {
-        return keyA.neutralizingGas ? -1 : 1;
-      }
-      return keyB.speed - keyA.speed;
+      return keyB.priority - keyA.priority || keyB.speed - keyA.speed;
     });
   }
 

@@ -420,6 +420,63 @@ describe('StartBattleUseCase - 先発の場に出たときの処理', () => {
     expect(order).toEqual([2, 1]);
   });
 
+  it('テラスチェンジの先発は、素早い相手の先発より先にフォルムを変える（かわりものはテラスタルフォルムにへんしんする）', async () => {
+    // Arrange
+    const engine = createStartBattle([
+      {
+        id: 1,
+        trainerId: 1,
+        position: 1,
+        ability: 'かわりもの',
+        baseStats: [48, 48, 48, 48, 48, 150],
+      },
+      {
+        id: 2,
+        trainerId: 2,
+        position: 1,
+        ability: 'テラスチェンジ',
+        nationalDex: 1024,
+        baseStats: [90, 65, 85, 65, 85, 60],
+      },
+    ]);
+
+    // Act
+    await engine.start();
+
+    // Assert: 本家の onSwitchInPriority 2。テラスタルフォルムの特性（テラスシェル）を写す
+    expect(engine.statusOf(2).persistentState.form).toBe('terastal');
+    expect(engine.statusOf(1).volatileState.transformedIntoStatusId).toBe(engine.statusOf(2).id);
+    expect(engine.statusOf(1).volatileState.abilityOverride).toBe('テラスシェル');
+  });
+
+  it('イリュージョンの先発は、素早い相手の先発より先に化ける（かわりものはへんしんに失敗する）', async () => {
+    // Arrange
+    const engine = createStartBattle([
+      {
+        id: 1,
+        trainerId: 1,
+        position: 1,
+        ability: 'かわりもの',
+        baseStats: [48, 48, 48, 48, 48, 150],
+      },
+      {
+        id: 2,
+        trainerId: 2,
+        position: 1,
+        ability: 'イリュージョン',
+        baseStats: [60, 105, 60, 120, 60, 50],
+      },
+      { id: 3, trainerId: 2, position: 2 },
+    ]);
+
+    // Act
+    await engine.start();
+
+    // Assert: 本家は先発全員の BeforeSwitchIn（イリュージョン）が、どの SwitchIn（かわりもの）よりも先
+    expect(engine.statusOf(2).volatileState.illusionStatusId).toBe(engine.statusOf(3).id);
+    expect(engine.statusOf(1).volatileState.transformedIntoStatusId).toBeUndefined();
+  });
+
   it('相手の先発がかがくへんかガスなら、素早い先発のゲンシ天候は始まらない', async () => {
     // Arrange
     AbilityRegistry.register('テストのはじまりのうみ', {

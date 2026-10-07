@@ -11,6 +11,7 @@ import { resolveCurrentAbilityName, setAbility } from '../../../battle-events/ab
  * 次のときは失敗する
  * - 相手に特性がない・相手の特性が写せない特性（failRolePlay。トレース・ふしぎなまもり・マルチタイプなど）
  * - 使用者が相手と同じ特性・使用者の特性が消せない特性（cantSuppress）
+ * 注: とくせいガードで防ぐ効果は扱わない（持ち物の仕組みがない）
  */
 export abstract class BaseCopyTargetAbilityEffect implements IMoveEffect {
   async onUse(

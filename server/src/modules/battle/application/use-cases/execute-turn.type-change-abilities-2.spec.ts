@@ -22,7 +22,8 @@ describe('ExecuteTurnUseCase - タイプを変える特性', () => {
     type: 'でんき',
   });
   const DEFOG = createTestMove(5, 'きりばらい', { category: MoveCategory.Status, type: 'ひこう' });
-  const MOVES = [SPLASH, TACKLE, EMBER, TERRAIN, DEFOG];
+  const SOLAR_BEAM = createTestMove(6, 'ソーラービーム', { type: 'くさ', power: 120 });
+  const MOVES = [SPLASH, TACKLE, EMBER, TERRAIN, DEFOG, SOLAR_BEAM];
   const ALL_MOVES = MOVES.map(move => move.id);
 
   const setup = (
@@ -156,6 +157,24 @@ describe('ExecuteTurnUseCase - タイプを変える特性', () => {
 
       // Assert
       expect(engine.status(1).volatileState.typeOverride).toEqual(['ノーマル']);
+    });
+
+    it('ため技では、ためる 1 ターン目にタイプが変わる（本家と同じ）', async () => {
+      // Arrange
+      const engine = setup({
+        ability: 'リベロ',
+        types: ['みず'],
+        moveIds: [SPLASH.id, SOLAR_BEAM.id],
+      });
+
+      // Act
+      const result = await engine.runTurn({ moveId: SOLAR_BEAM.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(1).volatileState.chargingMoveId).toBe(SOLAR_BEAM.id);
+      expect(engine.status(1).volatileState.typeOverride).toEqual(['くさ']);
+      expect(engine.status(1).volatileState.typeChangeAbilityUsed).toBe(true);
+      expect(result.actions[0].result.startsWith('became the くさ type! ')).toBe(true);
     });
 
     it('引っ込めて出し直すと、また発動する', async () => {

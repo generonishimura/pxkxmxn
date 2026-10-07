@@ -711,7 +711,7 @@ export class MoveExecutorService {
       };
     }
 
-    // ため技の 1 ターン目（ためたら、ここで終わる）
+    // ため技の 1 ターン目（ためたら、特性の onPrepareHit を呼んで、ここで終わる）
     const charge = await this.moveLifecycle.handleChargeTurn({
       attacker,
       defender,
@@ -720,7 +720,19 @@ export class MoveExecutorService {
       battleContext: contextFor(attacker),
     });
     if (charge.charged === true) {
-      return { message: charge.message, outcome: 'charged' };
+      const prepareMessage = await this.prepareHitOnChargeTurn({
+        attacker,
+        defender,
+        move,
+        called,
+        attackerAbilityEffect,
+        moveTypeName: triedTypeName,
+        contextFor,
+      });
+      return {
+        message: prepareMessage ? `${prepareMessage} ${charge.message}` : charge.message,
+        outcome: 'charged',
+      };
     }
     attacker = charge.attacker;
 
@@ -1673,6 +1685,33 @@ export class MoveExecutorService {
       outcome: landed ? 'hit' : 'failed',
       moveTypeName: moveType.name,
     };
+  }
+
+  /**
+   * ため技の 1 ターン目に、使用者の特性の onPrepareHit を呼ぶ（本家の twoturnmove の onStart の PrepareHit。
+   * へんげんじざい・リベロは、ためるターンにタイプが変わる）。2 ターン目は、技の本体でまた呼ぶ
+   * @returns 特性のメッセージ（なければ null）
+   */
+  private async prepareHitOnChargeTurn(params: {
+    attacker: BattlePokemonStatus;
+    defender: BattlePokemonStatus;
+    move: Move;
+    called: CalledMoveInfo | undefined;
+    attackerAbilityEffect: IAbilityEffect | undefined;
+    moveTypeName: string | undefined;
+    contextFor: (current: BattlePokemonStatus) => BattleContext;
+  }): Promise<string | null> {
+    const { attackerAbilityEffect, move, called } = params;
+    if (!attackerAbilityEffect?.onPrepareHit || !this.runsPrepareHit(move, called)) {
+      return null;
+    }
+    // ためた状態（chargingMoveId）を書いたあとの使用者
+    const charging =
+      (await this.battleRepository.findBattlePokemonStatusById(params.attacker.id)) ??
+      params.attacker;
+    const context = params.contextFor(charging);
+    context.moveTypeName = params.moveTypeName;
+    return attackerAbilityEffect.onPrepareHit(charging, params.defender, context);
   }
 
   /**

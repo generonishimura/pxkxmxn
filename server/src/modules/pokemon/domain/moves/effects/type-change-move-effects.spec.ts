@@ -147,7 +147,7 @@ describe('タイプを書き換える技', () => {
       );
 
       // Assert
-      expect(result).toBe('The target transformed into the Psychic type!');
+      expect(result).toBe('The target transformed into the エスパー type!');
       expect(battle.get(2).volatileState).toEqual({ typeOverride: ['エスパー'] });
     });
 
@@ -182,7 +182,7 @@ describe('タイプを書き換える技', () => {
       );
 
       // Assert
-      expect(result).toBe('The target transformed into the Psychic type!');
+      expect(result).toBe('The target transformed into the エスパー type!');
       expect(battle.get(2).volatileState).toEqual({ typeOverride: ['エスパー'] });
     });
 

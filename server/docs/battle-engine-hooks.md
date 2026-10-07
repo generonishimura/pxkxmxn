@@ -13,7 +13,7 @@
 `MoveExecutorService.executeMove`（`src/modules/battle/application/services/move-executor.service.ts`）は、まず次の 3 段で技を出します（9 章）。
 
 - 技を出す前の判定（`BeforeMoveChecker`）: 反動・ねむり・こおり・なまけ（`onBeforeMove`）・ひるみ（`onFlinch`）・技の制限・こんらん・メロメロ・まひ。止まったら PP も減らない
-- 技を使う（`useMove`）: PP（プレッシャーの `modifyOpponentPpDeduction`）→ 技を出した記録（`lastMoveId` など）→ 技の `failsOnTryMove`（もえつきるなど）→ ゲンシ天候 → ふんじん（おおあめで消えたほのお技では爆発しない）→ みらいよちの予約 → よこどり → ため技の 1 ターン目（`chargeTurn`）→ 技の本体（下の 1〜13）→ 反動・出し続ける技（`lockedIn`）・じゅうでんの消去
+- 技を使う（`useMove`）: PP（プレッシャーの `modifyOpponentPpDeduction`）→ 技を出した記録（`lastMoveId` など）→ 技の `failsOnTryMove`（もえつきるなど）→ ゲンシ天候 → ふんじん（おおあめで消えたほのお技では爆発しない）→ みらいよちの予約 → よこどり → ため技の 1 ターン目（`chargeTurn`。ためたら特性の `onPrepareHit` を呼んで終わる）→ 技の本体（下の 1〜13）→ 反動・出し続ける技（`lockedIn`）・じゅうでんの消去
 - 相手の特性の `onOpponentMoveUsed`（おどりこ）
 
 技の本体は次の順で処理します。
@@ -1693,7 +1693,7 @@ const name = await resolveAbilityName(target, ctx);                 // いえき
 ```ts
 const types = await resolveTypeNames(defender, ctx);
 if (types.join() === 'みず' || !(await setTypes(defender, ['みず'], ctx))) return 'But it failed';
-return 'transformed into the Water type!'; // みずびたし
+return 'transformed into the みず type!'; // みずびたし
 ```
 
 ### 14.3 技のタイプを変える（modifyMoveType の順・プラズマシャワー・そうでん・lastMoveTypeName）
@@ -1737,7 +1737,7 @@ return (await setAbility(attacker, name, ctx)).changed ? `copied ${name}!` : 'Bu
 
 - 特性名が `'かがくへんかガス'`（`NEUTRALIZING_GAS_ABILITY_NAME`）のポケモンが場にいて（控えは数えない。引っ込んだかがくへんかガスのみらいよちが当たるときも、相手の特性は消えない）、ひんし・いえき・へんしん中でなければ、ほかの場のポケモンの特性は効かない（実効の特性が undefined になる。消せない特性とかがくへんかガス自身は残る）。エンジンが実効の特性を求めるときに判定するので、特性の効果は要らない（`AbilityRegistry` に登録しなくても効く）
 - 場に出たときのメッセージを出したいときだけ、`onEntry` を持つ効果を登録する
-- バトル開始時は、かがくへんかガスの先発の `onEntry` を先に呼ぶ（本家の onSwitchInPriority 2）。相手の先発の特性は消えているので、ゲンシ天候・いかくなどは始まらない
+- バトル開始時は、かがくへんかガス・テラスチェンジの先発の `onEntry` を、ほかの特性より先に呼ぶ（本家の onSwitchInPriority 2）。相手の先発の特性は消えているので、ゲンシ天候・いかくなどは始まらない。イリュージョンの先発は、それよりさらに先に呼ぶ（14.8）
 - ゲンシ天候を出したポケモンの特性が消えたら、エンジンが行動のあとに天候を終わらせる（`PrimalWeatherReleaser.releaseIfAbilityLost`）
 - 注: かがくへんかガスが場を離れたとき、ほかのポケモンの特性の `onEntry` を呼び直さない（本家は呼び直すので、いかくが発動する）。場に出たときに、相手のイリュージョンを解かない
 
@@ -1755,7 +1755,7 @@ const name = await resolveAbilityName(opponent, ctx); // undefined
 - 表のフォルム名: ギルガルド 681（`'shield'`・`'blade'`）、ヒヒダルマ 555（`'standard'`・`'zen'`・`'galar-standard'`・`'galar-zen'`）、メテノ 774（`'core'`・`'meteor'`）、ヨワシ 746（`'solo'`・`'school'`）、ミミッキュ 778（`'disguised'`・`'busted'`）、コオリッポ 875（`'ice'`・`'noice'`）、モルペコ 877（`'full-belly'`・`'hangry'`）、ジガルデ 718（`'50'`・`'10'`・`'complete'`）、ウッウ 845（`'gulping'`・`'gorging'`）、ポワルン 351（`'normal'`・`'sunny'`・`'rainy'`・`'snowy'`）、チェリム 421（`'overcast'`・`'sunshine'`）、イルカマン 964（`'zero'`・`'hero'`）、テラパゴス 1024（`'normal'`・`'terastal'`。テラスタルフォルムの特性はテラスシェル）
 - ポケモンの種類は `TrainedPokemon.pokemon.nationalDex` で判定する（DB は全国図鑑の番号ごとに 1 行。`docs/battle-state.md` の 12 章の注）
 - フォルムを書いていない（`null` で戻した）ポケモンは、表の既定のフォルム（`isDefault`: ギルガルド `'shield'`・ヒヒダルマ `'standard'`・メテノ `'meteor'`・ヨワシ `'solo'`・ミミッキュ `'disguised'`・コオリッポ `'ice'`・モルペコ `'full-belly'`・ジガルデ `'50'`・ポワルン `'normal'`・チェリム `'overcast'`・イルカマン `'zero'`）のタイプと種族値になる。バトル開始時の最大 HP も既定のフォルムで計算する
-- 使う特性: バトルスイッチ（`onPrepareHit`。14.9）・ダルマモード（`onTurnEnd` で HP が半分以下なら `'zen'`、半分より上なら `null`。ガラルのすがたは DB にない（全国図鑑の番号ごとに既定のすがただけ）ので、`'galar-zen'` は使わない）・リミットシールド（`onEntry`・`onTurnEnd` で HP が半分以下なら `'core'`、半分より上なら `'meteor'`。りゅうせいのすがた（`form` が `'meteor'`）の間だけ `canReceiveStatusCondition` と `canReceiveVolatile`（あくび）で防ぐ。交代で出て `onEntry` の前（設置技を受ける間）はフォルムがないので、本家と同じくコアのすがたとして防がない）・ぎょぐん（レベル 20 以上で、`onEntry`・`onTurnEnd` で HP が 1/4 より上なら `'school'`、以下なら `null`（既定のたんどくのすがた））・ばけのかわ（14.10）・アイスフェイス（14.10・14.11）・はらぺこスイッチ（`onTurnEnd` で `'hangry'` と `null` を交互に。オーラぐるまの `modifyMoveType` が `volatileState.form` を見る）・スワームチェンジ（`onTurnEnd` で半分以下なら `persistent` の `'complete'`）・うのミサイル（14.9）・てんきや・フラワーギフト（14.11）・マイティチェンジ（`onSwitchOut` で `persistent` の `'hero'`）・テラスチェンジ（`onEntry` で `persistent` の `'terastal'`。HP の種族値が 90 → 95 になり、特性がテラスシェルになる）
+- 使う特性: バトルスイッチ（`onPrepareHit`。14.9）・ダルマモード（`onTurnEnd` で HP が半分以下なら `'zen'`、半分より上なら `null`。ガラルのすがたは DB にない（全国図鑑の番号ごとに既定のすがただけ）ので、`'galar-zen'` は使わない）・リミットシールド（`onEntry`・`onTurnEnd` で HP が半分以下なら `'core'`、半分より上なら `'meteor'`。りゅうせいのすがた（`form` が `'meteor'`）の間だけ `canReceiveStatusCondition` と `canReceiveVolatile`（あくび）で防ぐ。交代で出て `onEntry` の前（設置技を受ける間）はフォルムがないので、本家と同じくコアのすがたとして防がない）・ぎょぐん（レベル 20 以上で、`onEntry`・`onTurnEnd` で HP が 1/4 より上なら `'school'`、以下なら `null`（既定のたんどくのすがた））・ばけのかわ（14.10）・アイスフェイス（14.10・14.11）・はらぺこスイッチ（`onTurnEnd` で `'hangry'` と `null` を交互に。注: オーラぐるまの効果はまだない。作るときは、その `modifyMoveType` で `volatileState.form` を見る）・スワームチェンジ（`onTurnEnd` で半分以下なら `persistent` の `'complete'`）・うのミサイル（14.9）・てんきや・フラワーギフト（14.11）・マイティチェンジ（`onSwitchOut` で `persistent` の `'hero'`）・テラスチェンジ（`onEntry` で `persistent` の `'terastal'`。HP の種族値が 90 → 95 になり、特性がテラスシェルになる）
 
 ```ts
 if (ctx && holder.currentHp > 0 && holder.currentHp <= holder.maxHp / 2) {
@@ -1783,7 +1783,7 @@ async onUse(attacker: BattlePokemonStatus, defender: BattlePokemonStatus, ctx: B
 - 化ける先: 同じトレーナーの手持ちを ID の大きい方から見て、自分以外の、ひんしでない最初のポケモン（本家の onBeforeSwitchIn。本家は場に出たポケモンを手持ちの先頭に入れ替えてから後ろを探すので、候補は自分以外の全員）。そのようなポケモンがいなければ化けない
 - 特性の `onEntry` で `illusionStatusId` を書き、`onDamagingHit` で消す（ダメージを受けたら解ける）。特性を書き換える・消すと補助関数が消す。へんしんはイリュージョンの相手・使用者に失敗する
 - 注: API はポケモンの名前・見た目を返さないので、化けた先を見せることはできない（`docs/battle-state.md` の 8 章）
-- 注: 先発どうしでは `onEntry` が素早さの順なので、かわりものの方が速いと、化ける前にへんしんされる（本家は先発全員の BeforeSwitchIn がどの SwitchIn よりも先）
+- バトル開始時は、イリュージョンの先発の `onEntry` をどの先発よりも先に呼ぶ（本家は先発全員の BeforeSwitchIn がどの SwitchIn よりも先）。そのため、相手の先発のかわりものは、素早さに関係なくへんしんに失敗する
 
 ```ts
 const statuses = await ctx.battleRepository!.findBattlePokemonStatusByBattleId(holder.battleId);
@@ -1797,8 +1797,9 @@ if (target) await ctx.battleRepository!.patchVolatileState(holder.id, { illusion
 - 呼ばれる場所: `MoveExecutorService.runMoveBody`。特性の `preventsMove` を通ったあと、サイコフィールド・まもる系・命中判定の前に 1 回（本家の onPrepareHit。変化技・外れる技でも呼ぶ）。`ctx.moveTypeName` はタイプを変える効果のあとのタイプ。はね返した技・みらいよちが当たるとき・よこどりで奪った技・技を呼ぶ技（ゆびをふる・ねごと・ねこのて・まねっこ・オウムがえし・さきどり・しぜんのちから）では呼ばない（呼ばれた技では呼ぶ）
 - 呼んだあと、エンジンは使用者を読み直し、タイプ・実数値・特性を求め直してから技を続ける。返したメッセージは技のメッセージの前に付く
 - 使う特性: へんげんじざい・リベロ（`typeChangeAbilityUsed` がなく、タイプなしの技でなく、今のタイプが技のタイプだけでなければ `setTypes` と `typeChangeAbilityUsed: true`）、バトルスイッチ（攻撃技で `'blade'`、キングシールドで `'shield'`。へんしん中は何もしない）
-- うのミサイルは onPrepareHit を使わない（本家は技が当たる直前・ため技の 1 ターン目に変わる）。なみのりは攻撃側の `onSourceDamagingHit`（ヒットのあと）で、ダイビングは技の効果の `chargeTurn.onCharge`（ため技の 1 ターン目。本家の Dive の onTryMove）で、使用者の実効の特性（`ctx.attackerAbilityName`）がうのミサイル・ウッウ（845）・へんしん中でなければ、HP が半分より上なら `'gulping'`、以下なら `'gorging'` にする。注: 本家のなみのりは onSourceTryPrimaryHit（命中・まもる系のあと、ダメージの前）で変わる。ダメージを与えなかったヒットでは、ここでは変わらない
-- onPrepareHit は、技の `failsOnTryMove`（もえつきる・でんこうそうげき。本家の onTryMove）で失敗した技・ため技の 1 ターン目では呼ばない
+- うのミサイルは onPrepareHit を使わない（本家は技が当たる直前・ため技の 1 ターン目に変わる）。なみのりは攻撃側の `onSourceDamagingHit`（ヒットのあと）で、ダイビングは技の効果の `chargeTurn.onCharge`（ため技の 1 ターン目。本家の Dive の onTryMove）で、使用者の実効の特性（`ctx.attackerAbilityName`）がうのミサイル・ウッウ（845）・へんしん中でなければ、HP が半分より上なら `'gulping'`、以下なら `'gorging'` にする。注: 本家のなみのりは onSourceTryPrimaryHit（命中・まもる系のあと、ダメージの前）で変わる。ここではヒットのあとなので、みがわりに当たったヒットでは変わらない（ばけのかわなどで防がれたヒットでは変わる）
+- onPrepareHit は、技の `failsOnTryMove`（もえつきる・でんこうそうげき。本家の onTryMove）で失敗した技では呼ばない
+- ため技は、ためる 1 ターン目にも `useMove` が 1 回呼ぶ（本家の twoturnmove の PrepareHit。へんげんじざい・リベロは、ためるターンにタイプが変わる）。返したメッセージは、ためたメッセージの前に付く。攻撃する 2 ターン目は、技の本体でまた呼ぶ
 
 ```ts
 const type = ctx?.moveTypeName;

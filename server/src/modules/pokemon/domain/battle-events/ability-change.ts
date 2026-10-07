@@ -61,6 +61,21 @@ const illusionPatch = (
     : {};
 
 /**
+ * 特性を書き換えたあとの片付け（本家の setAbility は特性ごとの状態 abilityState を作り直す）
+ * - 化けている状態（イリュージョン）を消す
+ * - へんげんじざい・リベロを使った記録（typeChangeAbilityUsed）を消す。一度失った特性を取り戻すと、また 1 回使える
+ */
+const abilityChangePatch = (
+  pokemon: BattlePokemonStatus,
+  previousAbilityName: string | undefined,
+): StatePatch<VolatileState> => ({
+  ...illusionPatch(pokemon, previousAbilityName),
+  ...(pokemon.volatileState.typeChangeAbilityUsed !== undefined
+    ? { typeChangeAbilityUsed: null }
+    : {}),
+});
+
+/**
  * 書き換えたあとに、新しい特性が効いていれば（いえき・かがくへんかガスで消されていなければ）onEntry を呼ぶ
  * 本家の setAbility は新しい特性の Start を呼ぶ（スキルスワップで受け取ったいかくが発動する）
  * 場に出たときだけ動く特性（SWITCH_IN_ONLY_ABILITY_NAMES）は呼ばない（本家の Start を持たない）
@@ -113,7 +128,7 @@ export const setAbility = async (
   }
   await battleContext.battleRepository.patchVolatileState(target.id, {
     abilityOverride: abilityName,
-    ...illusionPatch(target, previousAbilityName),
+    ...abilityChangePatch(target, previousAbilityName),
   });
   await startAbility(target.id, abilityName, battleContext);
   return { changed: true, previousAbilityName };
@@ -149,11 +164,11 @@ export const swapAbilities = async (
   }
   await repository.patchVolatileState(source.id, {
     abilityOverride: targetAbilityName,
-    ...illusionPatch(source, sourceAbilityName),
+    ...abilityChangePatch(source, sourceAbilityName),
   });
   await repository.patchVolatileState(target.id, {
     abilityOverride: sourceAbilityName,
-    ...illusionPatch(target, targetAbilityName),
+    ...abilityChangePatch(target, targetAbilityName),
   });
   // 本家と同じく、相手が受け取った特性 → 使用者が受け取った特性の順に始める
   await startAbility(target.id, sourceAbilityName, battleContext);
@@ -164,7 +179,8 @@ export const swapAbilities = async (
 /**
  * 特性を消す（いえき・コアパニッシャー。volatileState.abilitySuppressed を書く）
  * 次のときは消さずに false を返す: ひんし・消せない特性（cantSuppress）・すでに消されている
- * コアパニッシャーの「相手がもう行動したときだけ」は呼ぶ側で判定する（battleContext.defenderPendingMoveId がない）
+ * コアパニッシャーの「相手がもう行動していて、このターンに交代で出たのでもないときだけ」は呼ぶ側で判定する
+ * （battleContext.defenderPendingMoveId がなく、volatileState.switchedInTurn がこのターンでない。本家の newlySwitched）
  */
 export const suppressAbility = async (
   target: BattlePokemonStatus,

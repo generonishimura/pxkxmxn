@@ -87,6 +87,52 @@ describe('ConversionEffect（テクスチャー）', () => {
     expect(battle.get(1).volatileState.typeOverride).toEqual(['くさ']);
   });
 
+  it('へんしん中は、写した技の欄を ID の小さい順に見て、1 つめの欄の技のタイプに変わる', async () => {
+    // Arrange: 写した欄は、相手の技を読んだ順（ID の大きい順）に並んでいる
+    const battle = createInMemoryBattle({
+      types: ['ノーマル'],
+      status: {
+        volatileState: {
+          transformedIntoStatusId: 2,
+          moveSlotOverrides: [
+            { battlePokemonMoveId: 21, moveId: 201, currentPp: 5, maxPp: 5 },
+            { battlePokemonMoveId: 20, moveId: 202, currentPp: 5, maxPp: 5 },
+          ],
+        },
+      },
+    });
+    battle.battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValue([]);
+    const context = battle.context({
+      moveRepository: moveRepository({ 201: 'ほのお', 202: 'くさ' }),
+    });
+
+    // Act
+    const message = await new ConversionEffect().onUse(battle.get(1), battle.get(2), context);
+
+    // Assert
+    expect(message).toBe('transformed into the くさ type!');
+    expect(battle.get(1).volatileState.typeOverride).toEqual(['くさ']);
+  });
+
+  it.each([
+    ['アルセウス', 493],
+    ['シルヴァディ', 773],
+  ])('%s のタイプは変えられず失敗する', async (_name, nationalDex) => {
+    // Arrange
+    const battle = createInMemoryBattle({ types: ['ノーマル'], nationalDex });
+    battle.battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValue([
+      new BattlePokemonMove(11, 1, 201, 15, 15),
+    ]);
+    const context = battle.context({ moveRepository: moveRepository({ 201: 'ほのお' }) });
+
+    // Act
+    const message = await new ConversionEffect().onUse(battle.get(1), battle.get(2), context);
+
+    // Assert
+    expect(message).toBe('But it failed');
+    expect(battle.get(1).volatileState.typeOverride).toBeUndefined();
+  });
+
   it('技の欄がなければ失敗する', async () => {
     // Arrange
     const battle = createInMemoryBattle();

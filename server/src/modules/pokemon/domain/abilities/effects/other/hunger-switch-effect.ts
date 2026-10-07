@@ -7,8 +7,9 @@ import { changeForm } from '../../../battle-events/form-change';
  * はらぺこスイッチ（Hunger Switch）特性の効果
  * ターン終了時に、モルペコのフォルムを、まんぷくもようとはらぺこもようで交互に変える（本家の onResidual）。
  * はらぺこもようは交代で戻るフォルム（volatileState.form の 'hangry'）。まんぷくもようは既定のフォルム（null）。
- * オーラぐるまのタイプ（でんき・あく）は、オーラぐるまの効果が volatileState.form を見て決める。
  * モルペコ（全国図鑑 877）でないとき・へんしん中・ひんしは変えない（changeForm が false を返す）
+ * 注: オーラぐるまの効果はまだない（技の性質の表に flags があるだけ）。そのため、今はフォルムを読むコードがない。
+ *     作るときは、オーラぐるまの modifyMoveType で volatileState.form が 'hangry' ならあく、ほかはでんきにする
  * 注: テラスタルは扱わないので、テラスタルしたモルペコで止まる判定はない
  */
 export class HungerSwitchEffect implements IAbilityEffect {

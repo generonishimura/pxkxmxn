@@ -4,6 +4,7 @@ import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { resolveBattleAbilityName } from '@/modules/pokemon/domain/battle-events/battle-traits';
 import { createBattleEngine, createTestMove } from '../__tests__/battle-engine-harness';
+import { battleStatsOf } from '../../domain/logic/battle-pokemon-traits';
 
 /**
  * はらぺこスイッチ・マイティチェンジ・テラスチェンジ（登録した特性の効果を、エンジン全体で動かす）
@@ -100,6 +101,26 @@ describe('ExecuteTurnUseCase - はらぺこスイッチ・マイティチェン�
       const zeroDamage = zeroHp - zero.status(2).currentHp;
       const heroDamage = heroHp - hero.status(2).currentHp;
       expect(heroDamage).toBeGreaterThan(zeroDamage);
+    });
+
+    it('マイティフォルムの実数値は、表の種族値（攻撃 160・防御 97・特攻 106・特防 87・素早さ 100）で計算する', async () => {
+      // Arrange
+      const engine = setup();
+      await engine.runTurn({ switchPokemonId: 3 }, { moveId: SPLASH.id });
+      await engine.runTurn({ switchPokemonId: 1 }, { moveId: SPLASH.id });
+      const trainedPokemon = await engine.trainedPokemonRepository.findById(1);
+
+      // Act
+      const stats = battleStatsOf(trainedPokemon!, engine.status(1));
+
+      // Assert: Lv50・個体値 31・努力値 0・がんばりや。floor((2 * 種族値 + 31) * 50 / 100) + 5
+      expect(stats).toEqual({
+        attack: 180,
+        defense: 117,
+        specialAttack: 126,
+        specialDefense: 107,
+        speed: 120,
+      });
     });
   });
 

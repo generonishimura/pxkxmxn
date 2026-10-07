@@ -25,8 +25,9 @@ const UNCHANGED_MOVE_NAMES: ReadonlySet<string> = new Set([
  * - もとからノーマルの技も 1.2 倍になる（本家の typeChangerBoosted）
  * - ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・
  *   だいちのはどう・めざめるパワーのタイプは変えず、1.2 倍にもならない
- * 注: エンジンは変化技に特性の modifyMoveType を呼ばないので、変化技のタイプは変わらない
- *   （本家はでんじはなどもノーマルになり、じめんタイプにも効く）
+ * - 変化技のタイプもノーマルになる（エンジンは変化技にも modifyMoveType を呼ぶ。lastMoveTypeName・ふんじん・onPrepareHit に使う）
+ * 注: 技の効果に書いた変化技の免疫（でんじはのじめんなど）は、変わったタイプを見ない。
+ *   そのため、ノーマルスキンのでんじははじめんタイプに失敗する（本家はノーマルになるので効く）
  */
 export class NormalizeEffect implements IAbilityEffect {
   modifyMoveType(

@@ -11,7 +11,7 @@ import { setTypes } from '../../battle-events/type-change';
  * 効果: 自分のタイプを、1 つめの欄の技のタイプだけにする（第 6 世代から）
  * - 技のもとのタイプを使う（ものまね・へんしんで入れ替わった欄は、入れ替わった技のタイプ）
  * - そのタイプをもう持っていれば失敗する。アルセウス・シルヴァディは失敗する
- * 注: 欄の順は、バトル中の技（BattlePokemonMove）の ID の小さい順とみなす
+ * 注: 欄の順は、バトル中の技（BattlePokemonMove）の ID の小さい順とみなす（へんしん中は、写した相手の技の ID の順）
  */
 export class ConversionEffect implements IMoveEffect {
   async onUse(
@@ -25,8 +25,10 @@ export class ConversionEffect implements IMoveEffect {
     }
     const moves =
       (await repository.findBattlePokemonMovesByBattlePokemonStatusId(attacker.id)) ?? [];
-    const sorted = [...moves].sort((a, b) => a.id - b.id);
-    const firstSlot = resolveMoveSlots(sorted, attacker.volatileState)[0];
+    // へんしん中の欄は写した相手の技を読んだ順なので、入れ替えを反映した欄のほうを並べ替える
+    const firstSlot = resolveMoveSlots(moves, attacker.volatileState).sort(
+      (a, b) => a.battlePokemonMoveId - b.battlePokemonMoveId,
+    )[0];
     const move = firstSlot ? await battleContext.moveRepository.findById(firstSlot.moveId) : null;
     if (!move) {
       return 'But it failed';
