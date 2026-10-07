@@ -204,6 +204,10 @@ import { ContraryEffect } from './effects/stat-change/contrary-effect';
 import { MirrorArmorEffect } from './effects/stat-change/mirror-armor-effect';
 import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
+// タイプを変える特性: -スキン系・リベロ・ぎたい（Issue #135 一部）
+import { PixilateEffect } from './effects/other/pixilate-effect';
+import { AerilateEffect } from './effects/other/aerilate-effect';
+import { GalvanizeEffect } from './effects/other/galvanize-effect';
 
 /**
  * 特性レジストリ
@@ -506,6 +510,10 @@ export class AbilityRegistry {
       this.registry.set('ミラーアーマー', new MirrorArmorEffect());
       this.registry.set('ばんけん', new GuardDogEffect());
       this.registry.set('びんじょう', new OpportunistEffect());
+      // タイプを変える特性: -スキン系・リベロ・ぎたい（Issue #135 一部）
+      this.registry.set('フェアリースキン', new PixilateEffect());
+      this.registry.set('スカイスキン', new AerilateEffect());
+      this.registry.set('エレキスキン', new GalvanizeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
