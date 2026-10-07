@@ -37,7 +37,7 @@
 - すべてのキーは任意です。キーがないことは「その状態ではない」という意味です。
 - `〜Turns` は残りターン数です。どこで減らすかはキーごとに決まっています（4 章）。0 になったらキーを消します。
 - `〜Layers` は重ねた回数です（まきびしは 1〜3、どくびしは 1〜2）。
-- 技は `Move` の ID、タイプは `Type` の ID、特性は `AbilityRegistry` のキー（日本語名）で持ちます。
+- 技は `Move` の ID、タイプは `Type` の名前（DB の `Type.name`。例: `'みず'`）、特性は `AbilityRegistry` のキー（日本語名）で持ちます。タイプなし（もえつきるのあとのほのおの代わり）は `'???'`（`TYPELESS_TYPE_NAME`）です。
 - ポケモンを指すときは `BattlePokemonStatus` の ID を使います。例外はありません。
 - 状態は書き換えません。更新関数が新しいオブジェクトを返します。
 - バージョン番号は持ちません。キーの追加だけで型を広げます。
@@ -116,6 +116,8 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | 交代で場に出たとき | `PokemonSwitcherService.executeSwitch` | `switchedInTurn` に今の `Battle.turn` を書く。`transfer` を渡したときは、引っ込む前の状態から引き継ぐキーも書く（10 章） |
 | 交代で場に出たとき（`switchedInTurn` のあと） | `EntryEffectProcessor.apply` | 陣営の `healingWish` を使ったら消す。地面にいるどくタイプが出てきたら `toxicSpikesLayers` を消す（11 章） |
 | 交代で引っ込んだとき・場のポケモンがひんしになったとき | `PrimalWeatherReleaser.release` | そのポケモンが `weatherSourceStatusId` なら、ゲンシ天候（`primalWeather`・`weatherSourceStatusId`・`Battle.weather`）を消す。場に同じゲンシ天候の特性のポケモンがいれば `weatherSourceStatusId` を書き換える |
+| 行動のすぐあと（ひんしの片付けと同じとき） | `PrimalWeatherReleaser.releaseIfAbilityLost` | `weatherSourceStatusId` のポケモンの実効の特性が、そのゲンシ天候の特性でなくなっていたら（スキルスワップ・いえき・かがくへんかガス）、場を離れたときと同じに終わらせる |
+| 天候・フィールドが変わった・終わったとき | `notifyFieldChange`（`setWeather`・`setPrimalWeather`・`setTerrain`・`FieldResidualProcessor`・`PrimalWeatherReleaser` が呼ぶ） | 場のひんしでないポケモンの特性の `onWeatherChange` / `onTerrainChange` を呼ぶ（`docs/battle-engine-hooks.md` の 14 章） |
 | 行動のすぐあと・ターン終了時の処理のあと | `ExecuteTurnUseCase.resolvePendingSwitches` | `forcedSwitch`・`pendingChoice` を消し、交代・復活を行う。復活させたポケモンの `revivalCount` を 1 増やす（11 章） |
 | 技を出そうとしたとき | `BeforeMoveChecker.check` | 最初に `grudge` を消す。反動のターンは `mustRecharge` を消す。こんらんの `confusionTurns` を 1 減らす。技を出せなかったら（反動のターンも）`destinyBond`・`protectCount` を消し、反動以外で止まったら `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` も消す。でんき技（じゅうでんを除く）で止まったら `charged` も消す |
 | 技を出す前の判定を通ったとき | `MoveLifecycle.recordMoveUse` | 使用者の `destinyBond`・`grudge` を消す（`clearVolatileOnBeforeMove`。技を出せなかったときは `BeforeMoveChecker` が消す）。`lastMoveId`・`choiceLockedMoveId` を書き、`protectCount` を消す |
@@ -170,6 +172,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `lastMoveId` | `MoveLifecycle.recordMoveUse` | 技を出す前の判定を通った技（失敗・外れでも書く）。ゆびをふるなどで呼ばれた技では書かない（呼んだ技のまま） |
 | `consecutiveMoveCount` | `recordMoveUse` / `afterMove` | 同じ技を続けて成功させた回数。技の処理の中では「この技を直前まで続けて成功させた回数」（別の技なら、ない） |
 | `lastHitByMoveId` | 技の本体 | 1 以上のダメージを受けた技 |
+| `lastMoveTypeName` | `MoveLifecycle.recordMoveUse` | `lastMoveId` と同じときに書く。タイプを変える効果（技の `modifyMoveType` → 特性の `modifyMoveType` → プラズマシャワー → そうでん）を反映した技のタイプ。タイプなしの技（わるあがき）を出したら消す。呼ばれた技では書かない |
 | `GlobalFieldState.lastMoveId` | `executeMove` | バトル全体で最後に出た技（呼ばれた技も書く。まねっこが読む）。本家と同じく技を出し終えてから書くので、技の処理の中ではまだ前の技のまま |
 | `protectCount` | `recordMoveUse` / `BeforeMoveChecker` / `MoveExecutorService`（まもる系） | まもる系（技の `protection`。トリックガード・たたみがえしを除く。`isProtectionMove` の技も）以外の技を出したら消す。技を出せなかったとき（ひるみ・まひ・ねむり・反動など）も消す（本家の stall は、次のターンにまもる系を成功させなければ切れる）。まもる系が成功したら 1 増やし、失敗したら消す。フェイントなどで守りを解かれたときも消す（`docs/battle-engine-hooks.md` の 13.5） |
 | `protection` | `MoveExecutorService`（まもる系） | 技の `protection` の `kind` の技が成功したら書く。フェイントなどで解かれたら消す（こらえるは消さない）。ターン終了時に消える（`VOLATILE_TURN_SCOPED_FLAGS`） |
@@ -224,8 +227,9 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `chargingMoveId` | 技 ID | ためている技（エンジンが書く） | ソーラービーム・そらをとぶ・ジオコントロールなどのため技 |
 | `throatChopTurns` | 0 以上の整数 | じごくづきの残りターン数（音技を出せない） | じごくづき |
 | `lastMoveId` | 技 ID | このポケモンが最後に使った技（エンジンが書く。4 章） | ものまね・オウムがえし・スケッチ・うらみ・いちゃもん・かなしばり・アンコール・さいはい |
-| `lastHitByMoveId` | 技 ID | このポケモンが最後に受けた技（エンジンが書く。4 章） | テクスチャー２ |
-| `moveSlotOverrides` | `{ battlePokemonMoveId, moveId, currentPp, maxPp }[]` | 一時的に入れ替わった技 | ものまね・へんしん・かわりもの |
+| `lastHitByMoveId` | 技 ID | このポケモンが最後に受けた技（エンジンが書く。4 章） | （1 以上のダメージを受けた技を読む効果） |
+| `lastMoveTypeName` | タイプ名 | このポケモンが最後に使った技の、タイプを変える効果を反映したタイプ（エンジンが書く。4 章） | テクスチャー２（本家の lastMoveUsed.type） |
+| `moveSlotOverrides` | `{ battlePokemonMoveId, moveId, currentPp, maxPp }[]` | 一時的に入れ替わった技。へんしん中（`transformedIntoStatusId` がある）は、この欄だけが技になる | ものまね・へんしん・かわりもの |
 
 さわぐの「場の誰も眠れない」は、`uproar` で判定します（`canInflictStatus` がねむりを断る）。
 
@@ -323,27 +327,36 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 
 ### 上書き
 
-| キー | 型 | 意味 | 使う技・特性 |
-| --- | --- | --- | --- |
-| `abilitySuppressed` | 真偽値 | 特性が消されている | いえき |
-| `abilityOverride` | 特性名 | 特性の上書き | スキルスワップ・なりきり・なやみのタネ・シンプルビーム・なかまづくり・トレース・ミイラ・さまようたましい・とれないにおい・うつしえ |
-| `typeOverride` | タイプ ID の配列 | タイプの上書き（空配列はタイプなし） | ミラータイプ・まほうのこな・みずびたし・テクスチャー・テクスチャー２・ほごしょく・へんしょく・へんげんじざい・リベロ・ぎたい・てんきや |
-| `addedTypeId` | タイプ ID | 3 つめに加わったタイプ | ハロウィン・もりののろい |
-| `statOverrides` | `{ attack?, defense?, specialAttack?, specialDefense?, speed? }` | 実数値の上書き（ランク補正の前の値） | パワートリック・パワーシフト・ガードシェア・パワーシェア・スピードスワップ |
-| `transformedIntoStatusId` | ポケモン ID | へんしん・かわりもので姿を写した相手 | へんしん・かわりもの |
-| `form` | 文字列 | 交代で元に戻るフォルム（`'blade'`・`'zen'` など） | バトルスイッチ・ダルマモード・うのミサイル・はらぺこスイッチ |
-| `illusionStatusId` | ポケモン ID | イリュージョンで化けている先 | イリュージョン |
-| `typeChangeAbilityUsed` | 真偽値 | へんげんじざい・リベロを、場に出てから使った | へんげんじざい・リベロ（第 9 世代は場に出るたびに 1 回） |
+タイプ・特性・フォルムを変える技・特性は、ここのキーを書きます。書くときは `docs/battle-engine-hooks.md` の 14 章の補助関数（`setTypes`・`setAbility`・`changeForm`・`transformInto` など）を使ってください。補助関数が、本家と同じ失敗の条件（消せない特性・アルセウスのタイプなど）と、いっしょに消すキーを守ります。読むときも、キーを直接読まず、実効の値を求める関数（12 章）を使います。
+
+| キー | 型 | 意味 | 書く関数 | 使う技・特性 |
+| --- | --- | --- | --- | --- |
+| `abilitySuppressed` | 真偽値 | 特性が消されている（消せない特性は消えない。バトンタッチで引き継ぐ） | `suppressAbility` | いえき・コアパニッシャー |
+| `abilityOverride` | 特性名 | 特性の上書き（もとの特性の代わりに使う） | `setAbility`・`swapAbilities`・`transformInto` | スキルスワップ・なりきり・なやみのタネ・シンプルビーム・なかまづくり・うつしえ・トレース・ミイラ・さまようたましい・とれないにおい・へんしん・かわりもの |
+| `typeOverride` | タイプ名の配列 | タイプの上書き（フォルムともとのタイプの代わりに使う）。タイプなしは `'???'` | `setTypes`・`transformInto` | ミラータイプ・まほうのこな・みずびたし・テクスチャー・テクスチャー２・ほごしょく・もえつきる・でんこうそうげき・へんしょく・へんげんじざい・リベロ・ぎたい・へんしん・かわりもの |
+| `addedType` | タイプ名 | 3 つめに加わったタイプ（すでに持つタイプなら足さない）。`setTypes` で消える | `addType`・`transformInto` | ハロウィン・もりののろい |
+| `statOverrides` | `{ attack?, defense?, specialAttack?, specialDefense?, speed? }` | 実数値の上書き（ランク補正の前の値）。`changeForm` で消える | 技（9.6）・`transformInto`（5 つとも書く） | パワートリック・パワーシフト・ガードシェア・パワーシェア・スピードスワップ・へんしん・かわりもの |
+| `transformedIntoStatusId` | ポケモン ID | へんしん・かわりもので姿を写した相手。へんしん中は、自分のフォルムを見ない・技の欄は `moveSlotOverrides` だけ・`noTransform` の特性が効かない | `transformInto` | へんしん・かわりもの |
+| `form` | フォルム名 | 交代で元に戻るフォルム（`pokemon-forms.ts` の表の `form`。`'blade'`・`'zen'`・`'meteor'` など）。表のタイプと種族値になる | `changeForm` | バトルスイッチ・ダルマモード・リミットシールド・ぎょぐん・うのミサイル・はらぺこスイッチ・てんきや・フラワーギフト |
+| `illusionStatusId` | ポケモン ID | イリュージョンで化けている先（`findIllusionTarget` で求める）。特性を書き換える・消すと消える | 特性が `patchVolatileState` で書く | イリュージョン |
+| `typeChangeAbilityUsed` | 真偽値 | へんげんじざい・リベロを、場に出てから使った | 特性が `patchVolatileState` で書く | へんげんじざい・リベロ（第 9 世代は場に出るたびに 1 回） |
 
 交代しても戻らないフォルムは、`PersistentPokemonState.form` に置きます（6 章）。
 
-へんしん・かわりものは、`transformedIntoStatusId` で「へんしん中」を表し、`typeOverride`・`abilityOverride`・`statOverrides`・`moveSlotOverrides` を組み合わせます。スキルスワップとみずびたしを両方受けた状態とは、`transformedIntoStatusId` があるかで区別できます。
+上書きのキーは、どれも交代で消えます（`volatileState` ごと消えるので、元に戻す処理は要りません）。ほかに消える場面は次のとおりです。
+
+1. `setTypes`（みずびたしなど）: `addedType` を消す（本家の setType）
+2. `changeForm`（フォルムチェンジ）: `typeOverride`・`addedType`・`statOverrides` を消す（本家の setSpecies は、タイプと実数値をフォルムの値に戻す）
+3. `setAbility`・`swapAbilities`・`suppressAbility`: イリュージョンが変わる・消えると `illusionStatusId` を消す
+
+へんしん・かわりものは、`transformedIntoStatusId` で「へんしん中」を表し、`typeOverride`・`addedType`・`abilityOverride`・`statOverrides`・`moveSlotOverrides`・`critStageBoost`・`laserFocusTurns` と能力ランクを `transformInto` がまとめて書きます。スキルスワップとみずびたしを両方受けた状態とは、`transformedIntoStatusId` があるかで区別できます。
 
 ### 技の入れ替え（moveSlotOverrides）
 
 ものまね・へんしん・かわりものの技は、引っ込むと元に戻ります。そのため `BattlePokemonMove.moveId` は書き換えず、`moveSlotOverrides` に置きます。
 
 - 1 つの要素が、技の欄 1 つ分の入れ替えです。`battlePokemonMoveId` が入れ替える前の欄、`moveId` / `currentPp` / `maxPp` が代わりの技です（へんしんは各 5 PP）。
+- へんしん中（`transformedIntoStatusId` がある）は、覚えている技を使わず、`moveSlotOverrides` の欄だけを技の欄にします（欄の数も写した相手と同じ）。`transformInto` は、写した相手の欄の ID を `battlePokemonMoveId` に使います（その ID で `BattlePokemonMove` を書き換えることはない）。同じ欄の要素が 2 つあれば、後ろの要素を使います（へんしん中のものまね）
 - 技を選ぶ処理（`ExecuteTurnUseCase.planAction`）と、PP を減らす処理（`MoveLifecycle.consumePp`・`reducePp`）は、`moveSlotOverrides` を先に見ます（`resolveMoveSlots`）。ものまねで覚えた技を選ぶと、入れ替える前の欄の ID で技を出し、PP は `moveSlotOverrides` の `currentPp` から減ります。
 - 交代で `volatileState` ごと消えるので、元に戻す処理は要りません。
 - スケッチはずっと残るので、`updateBattlePokemonMove(id, { moveId, currentPp, maxPp })` で `BattlePokemonMove` の技そのものを書き換えます。
@@ -369,13 +382,15 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | キー | 型 | 意味 | 使う技・特性 |
 | --- | --- | --- | --- |
 | `sleepTurns` | 0 以上の整数 | ねむりの残りターン数（交代しても続く） | ねむり・ねむる・はやおき（今はメモリ上で数えている。8 章） |
-| `form` | 文字列 | 交代しても戻らないフォルム（`'hero'`・`'ash'`・`'complete'` など） | マイティチェンジ・きずなへんげ・スワームチェンジ |
+| `form` | フォルム名 | 交代しても戻らないフォルム（`pokemon-forms.ts` の表の `form`。`'hero'`・`'complete'`・`'busted'`・`'noice'` など）。表のタイプと種族値になる。書くのは `changeForm(holder, form, ctx, { persistent: true })` | マイティチェンジ・スワームチェンジ・ばけのかわ・アイスフェイス |
 | `disguiseBusted` | 真偽値 | ばけのかわが破れた | ばけのかわ |
 | `iceFaceBroken` | 真偽値 | アイスフェイスが壊れた（ゆきで戻る） | アイスフェイス |
 | `oncePerBattleAbilityUsed` | 真偽値 | 1 バトルに 1 回だけの特性を使った | ふとうのけん・ふくつのたて・きずなへんげ |
 | `revivalCount` | 1 以上の整数 | さいきのいのりで復活した回数（エンジンが書く）。ひんしになった延べ数を、今ひんしの数 + この回数で求める | さいきのいのり・そうだいしょう |
 
-マイティチェンジは、引っ込むことでフォルムが変わります。引っ込むときに `PersistentPokemonState.form` に `'hero'` を書いてください。
+マイティチェンジは、引っ込むことでフォルムが変わります。特性の `onSwitchOut` で `changeForm(holder, 'hero', ctx, { persistent: true })` を呼んでください。
+
+注: 第 9 世代のきずなへんげはフォルムを変えません（倒したときに攻撃・特攻・素早さ +1 を 1 回だけ。`oncePerBattleAbilityUsed` を使う）。
 
 ## 7. SideState のキー
 
@@ -489,6 +504,8 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 `battle.controller.ts` の `POST /battle/start`・`POST /battle/:id/turn`・`GET /battle/:id` は、entity をそのまま返しています。そのため `volatileState`・`persistentState`・`sideState` が、両方のプレイヤーにそのまま見えます。
 
 イリュージョンを実装する前に、controller で状態を response DTO に詰め替えてください。そのとき、相手に見せないキー（`illusionStatusId` など）を外します。
+
+注: API はポケモンの名前・見た目を返さず、`trainedPokemonId` だけを返します。そのため、イリュージョンで「化けた先として見せる」ことはまだできません。エンジンは `illusionStatusId` の書き込みと解除（特性を書き換える・消す・へんしんの失敗）だけを扱います。
 
 ## 9. キーの足し方
 
@@ -661,4 +678,30 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 - 技の `selfSwitch`・特性の `switchesOutBelowHalfHp` → `pendingChoice`、技の `forceSwitch` → `forcedSwitch` を、エンジンが書きます（7 章）
 - 交代できない状態（`findSwitchBlocker`）に、相手の特性の `trapsOpponent`（かげふみ・ありじごく・じりょく）と `fairyLockTurns` を足しました。ゴーストタイプはどれでも交代できます。技・特性による交代は止めません
+
+## 12. タイプ・特性・フォルムの上書きを読むところ（エンジン）
+
+タイプ・特性・実数値は、育成ポケモン（`TrainedPokemon`）の値をそのまま読まず、上書きを反映した「実効の値」を読みます。エンジンはすべての読み取りをこの関数に揃えています。技・特性の実装でも、同じ関数を使ってください（`docs/battle-engine-hooks.md` の 14 章）。
+
+| 求めるもの | 関数（ドメイン層・同期） | 関数（リポジトリから引く・非同期） | 決め方 |
+| --- | --- | --- | --- |
+| タイプ | `battleTypeNamesOf(trainedPokemon, status)`（`battle/domain/logic/battle-pokemon-traits.ts`） | `resolveTypeNames(pokemon, ctx)`・`hasType(pokemon, typeName, ctx)`（`pokemon/domain/battle-events/battle-traits.ts`） | `typeOverride` → フォルムのタイプ → もとのタイプ。はねやすめのターンはひこうを除く（なくなればノーマル）。最後に `addedType` を足す（`resolveEffectiveTypeNames`） |
+| 特性 | `battleAbilityNameOf(trainedPokemon, status, others)` | `resolveAbilityName(pokemon, ctx)`・`resolveBattleAbilityName(pokemon, deps)` | `abilityOverride` → もとの特性。へんしん中の `noTransform` の特性は効かない。消せない特性はいつも効く。`abilitySuppressed` と、場のほかのポケモンのかがくへんかガスで消える（`resolveEffectiveAbilityName`） |
+| 実数値（ランク補正の前） | `battleStatsOf(trainedPokemon, status)` | `resolveBattlePokemonTraits(pokemon, deps).stats` | フォルムの種族値（表になければ DB の値）で計算し、`statOverrides` で上書きする |
+| 最大 HP | `battleMaxHpOf(trainedPokemon, form)` | ― | フォルムの HP の種族値で計算する（`changeForm` が使う） |
+
+エンジンが実効の値を読むところは次のとおりです。
+
+| 場所 | 読むもの |
+| --- | --- |
+| `MoveExecutorService`（技の実行） | 両者の特性（技を出す前の判定・特性のフック・かたやぶり・天候）・タイプ（タイプ一致・相性・どくどくの必中・サイコフィールド）・実数値。`BattleContext` の `attackerAbilityName`・`defenderAbilityName`・`attackerTypeNames`・`defenderTypeNames`・`attackerStats`・`defenderStats` に入れる |
+| `DamageCalculator` | 渡されたタイプの一覧（3 つめのタイプ・タイプなしを含む）でタイプ一致・相性・地面にいるか |
+| `ActionOrderDeterminerService`（行動順） | 特性（`modifyPriority`・`modifyFractionalPriority`・`modifySpeed`）・素早さ |
+| `StatusConditionProcessorService`・`VolatileResidualProcessor`・`FieldResidualProcessor`（ターン終了時） | 特性（`onTurnEnd`・天候）・すなあらしとしおづけのタイプ・グラスフィールドの地面 |
+| `PokemonSwitcherService`・`EntryEffectProcessor`（交代・設置技） | 逃げられない状態のゴーストタイプ・相手の `trapsOpponent`・`onSwitchOut`・`onEntry`・ききかいひ・ステルスロックの相性・地面にいるか・どくびしのどくタイプ |
+| `StartBattleUseCase` | 先発の `onEntry`（先に出た相手のかがくへんかガスで消える） |
+| `PrimalWeatherReleaser` | ゲンシ天候を出したポケモンの特性（書き換えられた・消されたら、行動のあとに天候を終わらせる） |
+| `canInflictStatus`・`canApplyVolatile` | 対象のタイプの免疫・特性 |
+
+注: DB の `Pokemon` は全国図鑑の番号ごとに 1 行しかありません（シードが番号で upsert するので、最後に読んだフォルムの値が残ることもあります）。そのため、フォルムを書いたときのタイプと種族値は `pokemon-forms.ts` の表（Pokemon Showdown の値）から引きます。フォルムを書いていないポケモンは、今までどおり DB の値を使います。
 

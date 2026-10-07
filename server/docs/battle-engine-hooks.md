@@ -19,16 +19,16 @@
 技の本体は次の順で処理します。
 
 1. ヒット共通のコンテキストを作る（技名・技フラグ・効果のある天候・実数値・無視するランク・`effectivePriority`）
-2. 両者の特性の `preventsMove` で技を失敗させるか判定する（変化技も含む。防御側はかたやぶりで無視）。失敗ならPPだけ減って `Used <技> but it failed (<特性名>)`
+2. 両者の特性の `preventsMove` で技を失敗させるか判定する（変化技も含む。防御側はかたやぶりで無視）。失敗ならPPだけ減って `Used <技> but it failed (<特性名>)`。通ったら、使用者の特性の `onPrepareHit`（へんげんじざい・バトルスイッチなど。14.9）を呼び、使用者を読み直して技の本体をやり直す
 3. 相手のまもる系（13.5）で防ぐかを判定する（相手を対象にする技だけ）。防いだら技の `onMiss`（とびひざげりなどの自傷）を呼び、`Used <技> but it was blocked (<守りの技名>)` で終わる。続けて、マジックコート・マジックミラー（13.6）ではね返すかを判定する
 4. 防御側特性の `isImmuneToMove` で技そのものを無効にするか判定する（変化技も含む）。無効なら防御側特性の `onMoveBlocked` を呼んで終わり
 5. 技の `shouldFail` で技が失敗するか判定する。失敗ならPPだけ減って `Used <技> but it failed`
 6. 隠れている相手（そらをとぶなど）に届くかの判定と、命中判定（`AccuracyCalculator.checkHit`）。変化技も、相手を対象にする技なら命中判定をする（13.2）。当たったら、フェイントなど（`breaksProtect`）は相手の守りを解く（13.5）。相手のみがわりで、相手を対象にする変化技は失敗する
 7. 変化技なら、まもる系の技（技の `protection`）の成功判定をしてから `onUse` を呼んで終わり（威力が null で `modifyMovePower` もない攻撃技も、今までどおりここで終わる）
-8. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType`）。技全体のタイプ相性を `moveTypeEffectiveness` に入れる
+8. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType` → プラズマシャワー → そうでん。14.3）。技全体のタイプ相性を `moveTypeEffectiveness` に入れる。タイプ一致・相性には、両者の実効のタイプ（14.1）を使う
 9. 技の `beforeDamage`（連続技の回数決定）。このあと攻撃側・防御側の状態を取り直す
 10. 技の威力を決める（技の `modifyMovePower`）
-11. ヒットごとに急所を引き（13.1）、ダメージを計算して当てる（連続技・おやこあいの追加ヒット。相手にみがわりがあればみがわりに当て、追加効果は起きない。こらえるの相手は HP が 1 残る）。1以上減らしたヒットごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
+11. ヒットごとに急所を引き（13.1）、ダメージを計算して当てる（連続技・おやこあいの追加ヒット。相手にみがわりがあればみがわりに当て、追加効果は起きない。こらえるの相手は HP が 1 残る。防御側特性の `blockDamagingHit`（ばけのかわなど。14.10）が防いだヒットは 0 にする）。1以上減らしたヒット（と防いだヒット）ごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
 12. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
 13. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut` → 倒した相手のみちづれ・おんねん
 
@@ -196,7 +196,8 @@ modifyAnyBasePower(_h: BattlePokemonStatus, power: number, ctx?: BattleContext):
 
 - シグネチャ: `modifyMoveType?(pokemon, typeName, battleContext): string | undefined`
 - 呼ばれる場所: `executeMove`。技の `modifyMoveType` のあと
-- 使う特性: うるおいボイス、-スキン系（フェアリースキンなど）
+- 使う特性: うるおいボイス、-スキン系（フェアリースキンなど）、ノーマルスキン
+- 返したタイプが、タイプ一致・タイプ相性・天候補正・ふんじん・ゲンシ天候の判定に使われる（ダメージ計算は、決まったタイプの ID を使う）。このあとプラズマシャワー・そうでんがタイプを変える（14.3）
 - `battleContext.moveTypeName` は技の `modifyMoveType` のあとのタイプです。技本来のタイプは `battleContext.baseMoveTypeName` に入っています。-スキン系の1.2倍は、`modifyBasePower` で `baseMoveTypeName === 'ノーマル'` かつ `moveTypeName` が変わったかで判定します。
 
 ```ts
@@ -494,7 +495,9 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `movePower` | 技の威力（`modifyMovePower` の反映後、特性補正の前） | 技の実行・ダメージ計算 |
 | `movePriority` | 技の優先度（特性補正の前） | 技の実行・行動順 |
 | `effectivePriority` | 攻撃側特性の `modifyPriority`（いたずらごころなど）を反映した優先度 | 技の実行（`preventsMove` 以降） |
-| `attackerAbilityName` / `defenderAbilityName` | 攻撃側・防御側の特性名 | 技の実行・行動順・ダメージ計算 |
+| `attackerAbilityName` / `defenderAbilityName` | 攻撃側・防御側の実効の特性名（特性の上書き・いえき・かがくへんかガスを反映。14.1）。効いていなければ undefined | 技の実行・行動順・ダメージ計算 |
+| `attackerTypeNames` / `defenderTypeNames` | 攻撃側・防御側の実効のタイプ名（14.1） | 技の実行 |
+| `typeEffectivenessRepository` | タイプ相性表のリポジトリ（`findResistingTypeNames` が使う。14.2） | 技の実行 |
 | `attacker` / `defender` | 攻撃側・防御側の最新の状態（ランク・HP・状態異常） | 技の実行・ダメージ計算。行動順では `attacker` が行動するポケモン |
 | `attackerStats` / `defenderStats` | ランク補正前の実数値 | 技の実行・ダメージ計算。行動順では `attackerStats` が行動するポケモン |
 | `typeEffectiveness` | このヒットのタイプ相性（0〜4） | ダメージ計算中の特性フック |
@@ -558,7 +561,8 @@ const boosted = modifyByFixedPoint(power, 5325);
 | `STATUS_IMMUNE_TYPES` | 同上 | 状態異常ごとの免疫タイプ（どく・もうどく: どく/はがね、やけど: ほのお、まひ: でんき、こおり: こおり） |
 | `applyIndirectDamage(target, amount, ctx)` / `isIndirectDamagePrevented(target, ctx)` | `indirect-damage.ts` | 技以外のダメージを与える（マジックガードなら0）。実際に減らしたHPを返す |
 | `calculateDrainAmount(damage, ratio)` / `applyDrainHeal(healer, drainedFrom, amount, ctx)` | `drain-heal.ts` | 吸収の回復量（四捨五入、最低1）/ 回復する（ヘドロえきなら同じ量の技以外のダメージ）。`{ healed, damaged }` を返す |
-| `resolveAbilityName(pokemon, ctx)` / `getAbilityEffect(name)` | `ability-lookup.ts` | ポケモンの特性名・特性の効果を引く（特性のファイルから使っても循環参照にならない） |
+| `resolveAbilityName(pokemon, ctx)` / `getAbilityEffect(name)` | `ability-lookup.ts` | ポケモンの実効の特性名（14.1）・特性の効果を引く（特性のファイルから使っても循環参照にならない） |
+| `resolveTypeNames(pokemon, ctx)` / `hasType(pokemon, typeName, ctx)` | `battle-traits.ts` | ポケモンの実効のタイプ（14.1）。`TrainedPokemon` のタイプを直接読まない |
 
 ```ts
 const result = await applyStatChanges(target, [{ statType: 'speed', rankChange: -1 }], ctx, { source: { pokemon: holder, kind: 'ability', name: 'わたげ' } });
@@ -1587,15 +1591,15 @@ export class MagicBounceEffect implements IAbilityEffect {
 - 注: まもる系を続けて使ったときの成功の判定と、たたみがえし・まもる系の「最後に動くなら失敗」は、`Math.random` と `isLastToMove` で判定する（呼ばれた技でも同じ）
 - 注: 決まったダメージを与える技（ちきゅうなげなど）を作るときは、本家と同じく急所にならないようにする必要がある（今のエンジンは、ダメージ計算をする攻撃技すべてで急所を引く）
 - 注: ドラゴンエールは味方が要るので、シングルバトルでは失敗する（今は NoOpEffect）。`critStageBoost` を書く技は、今はきあいだめだけ
-- 注: バトルスイッチ（ギルガルドのフォルムチェンジ）の仕組みはまだない。技の本体の前に `VolatileState.form` を切り替え（攻撃技で `'blade'`、キングシールドでシールドフォルム）、`statOverrides` で実数値を計算し直すフックが要る。キングシールドの技は先に作れるが、バトルスイッチは別に作る
-- 注: どくどくの必中は使用者のタイプ（`TrainedPokemon` のタイプ）で判定する。みずびたしなどの `typeOverride` は見ない
+- バトルスイッチ（ギルガルドのフォルムチェンジ）は、特性の `onPrepareHit` で `changeForm` を呼んで作る（14.9）。攻撃技で `'blade'`、キングシールドで `'shield'`。実数値はエンジンが表の種族値で計算し直す
+- どくどくの必中は使用者の実効のタイプ（みずびたしなどを反映）で判定する
 
 ### 13.8 特性・技ごとに使うもの
 
 | 特性・技 | 使うもの |
 | --- | --- |
 | まもる・みきり | `protection = { kind: 'protect' }` |
-| キングシールド | `protection = { kind: 'kingsShield' }`（攻撃技だけ防ぎ、接触で攻撃 -1）。技は今の仕組みで作れる。ギルガルドのフォルムチェンジ（バトルスイッチ）は、まだ仕組みがない（13.7） |
+| キングシールド | `protection = { kind: 'kingsShield' }`（攻撃技だけ防ぎ、接触で攻撃 -1）。ギルガルドのフォルムチェンジはバトルスイッチの `onPrepareHit`（14.9） |
 | ニードルガード | `protection = { kind: 'spikyShield' }`（接触で 1/8） |
 | トーチカ | `protection = { kind: 'banefulBunker' }`（接触でどく） |
 | ブロッキング | `protection = { kind: 'obstruct' }`（接触で防御 -2） |
@@ -1619,3 +1623,223 @@ export class MagicBounceEffect implements IAbilityEffect {
 | ノーガード | `ensuresMoveHit = true`（乗せ換え済み。13.2） |
 | ふかしのこぶし | `bypassesProtection`（接触技なら `true`。13.5） |
 | きんしのちから | `breaksMoldFor`（変化技なら `true`。13.4）と `modifyFractionalPriority`（変化技なら -0.1。13.3） |
+
+## 14. タイプ変更・フォルムチェンジ・特性の書き換えの仕組み
+
+タイプ・特性・フォルム・へんしんの上書きは、`volatileState` / `persistentState` のキーに置きます（キーの一覧と消える場面は `docs/battle-state.md` の 5 章「上書き」と 6 章）。技・特性の実装では、次のことを守ります。
+
+- 書くときは、この章の補助関数を使う。本家と同じ失敗の条件（消せない特性・アルセウスのタイプなど）と、いっしょに消すキーを補助関数が守る
+- 読むときは、`TrainedPokemon` のタイプ・特性を直接読まず、実効の値を求める関数（14.1）を使う。エンジンは、タイプ一致・相性・タイプの免疫・設置技・天候のダメージ・特性のフックのすべてで実効の値を読む（`docs/battle-state.md` の 12 章）
+- 補助関数は `pokemon/domain/battle-events/` に、特性のフラグ表・フォルムの表・実効の値を求める同期の関数は `battle/domain/logic/` にある。どれも特性のファイルから使っても循環参照にならない
+
+### 14.1 実効の値を読む（resolveTypeNames / hasType / resolveAbilityName / resolveBattlePokemonTraits）
+
+- シグネチャ: `resolveTypeNames(pokemon, ctx): Promise<string[]>`、`hasType(pokemon, typeName, ctx): Promise<boolean>`、`resolveBattlePokemonTraits(pokemon, deps, { trainedPokemon?, others? }): Promise<{ trainedPokemon, abilityName, typeNames, stats } | undefined>`、`resolveBattleAbilityName(pokemon, deps)`（`battle-traits.ts`）、`resolveAbilityName(pokemon, ctx)`（`ability-lookup.ts`）
+- 同期の版（ドメイン層。エンジンが使う）: `battleTypeNamesOf(trainedPokemon, status)`・`battleAbilityNameOf(trainedPokemon, status, others)`・`battleStatsOf(trainedPokemon, status)`（`battle/domain/logic/battle-pokemon-traits.ts`）、`resolveEffectiveTypeNames`・`resolveEffectiveAbilityName`（`effective-traits.ts`）
+- タイプ: `typeOverride` → フォルムのタイプ（14.6）→ もとのタイプ。はねやすめのターン（`roosting`）はひこうを除き、なくなればノーマル。最後に `addedType` を足す。タイプなしは `'???'`（`TYPELESS_TYPE_NAME`）で、どのタイプとも一致しない
+- 特性: `abilityOverride` → もとの特性。へんしん中は `noTransform` の特性が効かない。消せない特性（`cantSuppress`）はいつも効く。`abilitySuppressed` と、場のほかのポケモンのかがくへんかガスで消える（undefined）
+- 技の実行のコンテキストには、実効の値がもう入っている: `ctx.attackerAbilityName`・`ctx.defenderAbilityName`・`ctx.attackerTypeNames`・`ctx.defenderTypeNames`・`ctx.attackerStats`・`ctx.defenderStats`。同じ技の中で書き換えた値は、コンテキストには反映されない（読み直すなら `resolveTypeNames` などを使う）
+- 使う技・特性: タイプを判定するすべての効果（もりののろい・ハロウィン・もえつきる・へんしょく・ミラータイプ など）、今の特性を判定するすべての効果
+
+```ts
+if (await hasType(defender, 'くさ', ctx)) return 'But it failed'; // もりののろい
+const types = await resolveTypeNames(defender, ctx);                // ミラータイプで写すタイプ
+const name = await resolveAbilityName(target, ctx);                 // いえきなら undefined
+```
+
+### 14.2 タイプを書き換える（setTypes / addType / findResistingTypeNames）
+
+- シグネチャ: `setTypes(target, typeNames, ctx): Promise<boolean>`、`addType(target, typeName, ctx): Promise<boolean>`、`findResistingTypeNames(attackTypeName, ctx): Promise<string[]>`、定数 `ALL_TYPE_NAMES`・`TYPELESS_TYPE_NAME`（`type-change.ts`・`effective-traits.ts`）
+- `setTypes`: `typeOverride` を書き、`addedType` を消す（本家の setType）。ひんし・アルセウス（493）・シルヴァディ（773）なら false。「すでにそのタイプなら失敗」は呼ぶ側で判定する
+- `addType`: `addedType` を書く（前に足したタイプは置き換える）。ひんしなら false。「すでにそのタイプなら失敗」は呼ぶ側で `hasType` を見る
+- `findResistingTypeNames`: 技のタイプを半減以下にする（相性 0 を含む）タイプを `ALL_TYPE_NAMES` の順に返す。使用者がすでに持つタイプを除くのは呼ぶ側
+- もとのタイプに戻す（ぎたいでフィールドがなくなったとき）は `patchVolatileState(id, { typeOverride: null })`
+- 使う技・特性: みずびたし（`['みず']`）・まほうのこな（`['エスパー']`）・テクスチャー（1 つめの欄の技のタイプ。`resolveMoveSlots` と `moveRepository`）・テクスチャー２（相手の `lastMoveTypeName` を `findResistingTypeNames` に渡し、ランダムに 1 つ）・ミラータイプ（相手の `resolveTypeNames` から `'???'` を除く。なければ相手に `addedType` があればノーマル、なければ失敗。相手の `addedType` も写す）・ほごしょく（`battle.field` で エレキ→でんき・グラス→くさ・ミスト→フェアリー・サイコ→エスパー・なし→ノーマル）・もえつきる・でんこうそうげき（自分のタイプのほのお・でんきを `TYPELESS_TYPE_NAME` に変える。`addedType` は除いて写す）・へんしょく・へんげんじざい・リベロ・ぎたい・ハロウィン（`addType(target, 'ゴースト')`）・もりののろい（`addType(target, 'くさ')`）
+
+```ts
+const types = await resolveTypeNames(defender, ctx);
+if (types.join() === 'みず' || !(await setTypes(defender, ['みず'], ctx))) return 'But it failed';
+return 'transformed into the Water type!'; // みずびたし
+```
+
+### 14.3 技のタイプを変える（modifyMoveType の順・プラズマシャワー・そうでん・lastMoveTypeName）
+
+- 技のタイプは、エンジンが次の順で決める（本家の onModifyType の順。`MoveExecutorService.resolveMoveTypeName`）
+  1. 技の `modifyMoveType`（ウェザーボール・オーラぐるまなど）
+  2. 攻撃側特性の `modifyMoveType`（-スキン・ノーマルスキン・うるおいボイス）
+  3. `GlobalFieldState.ionDeluge`（プラズマシャワー）: ノーマル技をでんき技にする（変化技も）
+  4. 使用者の `volatileState.electrified`（そうでん）: どのタイプの技もでんき技にする（わるあがきを除く）
+- 決まったタイプが、タイプ一致・タイプ相性・天候補正・ふんじん・ゲンシ天候の判定・`hit.moveTypeName`・`ctx.moveTypeName` に使われる。-スキン系の 1.2 倍は `modifyBasePower` で `ctx.baseMoveTypeName === 'ノーマル'` と `ctx.moveTypeName` が変わったかで判定する（そうでんでさらに変わっても 1.2 倍のまま。本家と同じ）
+- `lastMoveTypeName`: 技を出した記録（`recordMoveUse`）のとき、決まったタイプを書く（エンジンが書く。呼ばれた技では書かない。タイプなしの技なら消す）
+- 使う技・特性: プラズマシャワー（`patchGlobalFieldState(battle.id, { ionDeluge: true })`。ターン終了時に消える）、そうでん（相手がこのターンにまだ行動していない（`ctx.defenderPendingMoveId` がある）なら `patchVolatileState(defender.id, { electrified: true })`、もう行動していれば失敗）、ノーマルスキン（すべての技を `'ノーマル'` に。ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・だいちのはどう・めざめるパワーは変えない）、フェアリースキン・フリーズスキン・スカイスキン・エレキスキン（ノーマル技だけ変える）
+
+```ts
+modifyMoveType(_p: BattlePokemonStatus, typeName: string): string | undefined {
+  return typeName === 'ノーマル' ? 'こおり' : undefined; // フリーズスキン
+}
+```
+
+### 14.4 特性を書き換える（setAbility / swapAbilities / suppressAbility / resolveCurrentAbilityName / hasAbilityFlag）
+
+- シグネチャ: `setAbility(target, abilityName, ctx): Promise<{ changed, previousAbilityName? }>`、`swapAbilities(source, target, ctx): Promise<boolean>`、`suppressAbility(target, ctx): Promise<boolean>`、`resolveCurrentAbilityName(pokemon, ctx): Promise<string | undefined>`（`ability-change.ts`）、`hasAbilityFlag(abilityName, flag)`・`ABILITY_FLAGS`（`battle/domain/logic/ability-flags.ts`）
+- フラグ（Showdown の flags と同じ）: `cantSuppress`（消せない・書き換えられない）・`failRolePlay`（なりきり・うつしえで写せない）・`noReceiver`・`noEntrain`（なかまづくりで写せない）・`noTrace`・`failSkillSwap`（スキルスワップ・さまようたましいで入れ替えられない）・`noTransform`（へんしん中は効かない）
+- `setAbility`: `abilityOverride` を書き、新しい特性が効いていれば `onEntry` を呼ぶ（本家の Start。受け取ったいかくが発動する）。ひんし・新しい特性か今の特性が `cantSuppress` なら `{ changed: false }`
+- `swapAbilities`: 両方の今の特性を入れ替え、それぞれの `onEntry` を呼ぶ。ひんし・どちらかが `failSkillSwap` なら false。第 9 世代は同じ特性どうしでも入れ替えられる
+- `suppressAbility`: `abilitySuppressed` を書く。ひんし・`cantSuppress`・すでに消されているなら false
+- `resolveCurrentAbilityName`: 今の特性名（消されているかは見ない。本家の `pokemon.ability`）。なりきり・スキルスワップで写す特性や、ミイラで上書きできるかに使う
+- 技ごとの失敗（なりきりで同じ特性・`failRolePlay`、なかまづくりの `noEntrain`、なやみのタネのふみん・なまけ、シンプルビームのたんじゅん・なまけ）は呼ぶ側で判定する
+- 使う技・特性: スキルスワップ・さまようたましい（`swapAbilities`。さまようたましいは `onDamagingHit` で `hit.isContact` のとき）、なりきり（使用者に相手の特性）・なかまづくり（相手に使用者の特性）・なやみのタネ（ふみん。ねむっていれば起こす）・シンプルビーム（たんじゅん）・うつしえ（使用者に相手の特性）・トレース（`onEntry` で相手の特性。`noTrace` なら写さない）・ミイラ・とれないにおい（`onDamagingHit` で接触した相手に。相手が `cantSuppress` か同じ特性なら何もしない）、いえき（`suppressAbility`）・コアパニッシャー（相手がもう行動していれば `suppressAbility`）
+
+```ts
+const name = await resolveCurrentAbilityName(defender, ctx);
+if (!name || name === (await resolveCurrentAbilityName(attacker, ctx)) || hasAbilityFlag(name, 'failRolePlay')) return 'But it failed';
+return (await setAbility(attacker, name, ctx)).changed ? `copied ${name}!` : 'But it failed'; // なりきり
+```
+
+### 14.5 かがくへんかガス（エンジンが判定する）
+
+- 特性名が `'かがくへんかガス'`（`NEUTRALIZING_GAS_ABILITY_NAME`）のポケモンが場にいて、ひんし・いえき・へんしん中でなければ、ほかの場のポケモンの特性は効かない（実効の特性が undefined になる。消せない特性とかがくへんかガス自身は残る）。エンジンが実効の特性を求めるときに判定するので、特性の効果は要らない（`AbilityRegistry` に登録しなくても効く）
+- 場に出たときのメッセージを出したいときだけ、`onEntry` を持つ効果を登録する
+- ゲンシ天候を出したポケモンの特性が消えたら、エンジンが行動のあとに天候を終わらせる（`PrimalWeatherReleaser.releaseIfAbilityLost`）
+- 注: かがくへんかガスが場を離れたとき、ほかのポケモンの特性の `onEntry` を呼び直さない（本家は呼び直すので、いかくが発動する）。場に出たときに、相手のイリュージョンを解かない
+
+```ts
+// 特性の効果は要らない。場にいるだけで、相手の resolveAbilityName は undefined になる
+const name = await resolveAbilityName(opponent, ctx); // undefined
+```
+
+### 14.6 フォルムを変える（changeForm / POKEMON_FORMS）
+
+- シグネチャ: `changeForm(holder, form | null, ctx, { persistent? }): Promise<boolean>`（`form-change.ts`）、`findPokemonForm(nationalDex, form)`・`POKEMON_FORMS`（`battle/domain/logic/pokemon-forms.ts`）
+- `volatileState.form`（`persistent: true` なら `persistentState.form`）に書く。`null` で消す（もとのフォルムに戻す）。タイプと実数値は、エンジンが読むときに表のフォルムの値で求める。本家の setSpecies と同じく `typeOverride`・`addedType`・`statOverrides` を消す。HP の種族値が変わるフォルム（ジガルデのパーフェクトフォルム）は、最大 HP を変え、減った HP を保つ
+- ひんし・へんしん中・すでにそのフォルムなら false。特性は変えない
+- 表のフォルム名: ギルガルド 681（`'shield'`・`'blade'`）、ヒヒダルマ 555（`'standard'`・`'zen'`・`'galar-standard'`・`'galar-zen'`）、メテノ 774（`'core'`・`'meteor'`）、ヨワシ 746（`'solo'`・`'school'`）、ミミッキュ 778（`'disguised'`・`'busted'`）、コオリッポ 875（`'ice'`・`'noice'`）、モルペコ 877（`'full-belly'`・`'hangry'`）、ジガルデ 718（`'50'`・`'10'`・`'complete'`）、ウッウ 845（`'gulping'`・`'gorging'`）、ポワルン 351（`'normal'`・`'sunny'`・`'rainy'`・`'snowy'`）、チェリム 421（`'overcast'`・`'sunshine'`）、イルカマン 964（`'zero'`・`'hero'`）
+- ポケモンの種類は `TrainedPokemon.pokemon.nationalDex` で判定する（DB は全国図鑑の番号ごとに 1 行。`docs/battle-state.md` の 12 章の注）
+- 使う特性: バトルスイッチ（`onPrepareHit`。14.9）・ダルマモード（`onTurnEnd` で HP が半分以下なら `'zen'`、半分より上なら `null`。ガラルのすがたはタイプにこおりがあれば `'galar-zen'`）・リミットシールド（`onEntry`・`onTurnEnd` で半分より上なら `'meteor'`、以下なら `null`。りゅうせいのすがたの間は `canReceiveStatusCondition` と `canReceiveVolatile`（あくび）で防ぐ）・ぎょぐん（レベル 20 以上で、`onEntry`・`onTurnEnd` で HP が 1/4 より上なら `'school'`）・ばけのかわ（14.10）・アイスフェイス（14.10・14.11）・はらぺこスイッチ（`onTurnEnd` で `'hangry'` と `null` を交互に。オーラぐるまの `modifyMoveType` が `volatileState.form` を見る）・スワームチェンジ（`onTurnEnd` で半分以下なら `persistent` の `'complete'`）・うのミサイル（14.9）・てんきや・フラワーギフト（14.11）・マイティチェンジ（`onSwitchOut` で `persistent` の `'hero'`）
+
+```ts
+if (ctx && holder.currentHp > 0 && holder.currentHp <= holder.maxHp / 2) {
+  await changeForm(holder, 'complete', ctx, { persistent: true }); // スワームチェンジ（onTurnEnd の中）
+}
+```
+
+### 14.7 へんしん（transformInto）
+
+- シグネチャ: `transformInto(user, target, ctx): Promise<boolean>`（`transform.ts`）
+- 使用者に書くもの: `transformedIntoStatusId`、`typeOverride`（相手のタイプ。はねやすめで失ったひこうも写す）と `addedType`、`statOverrides`（相手の HP 以外の実数値）、`abilityOverride`（相手の今の特性）、`moveSlotOverrides`（相手の技。PP と最大 PP は 5、もとが 5 未満ならその値）、`critStageBoost`・`laserFocusTurns`、能力ランク 7 つ。写した特性が効いていれば `onEntry` を呼ぶ
+- へんしん中は、技の欄が `moveSlotOverrides` だけになり（欄の数も相手と同じ）、自分のフォルムを見ない。交代で元に戻る
+- どちらかがひんし・どちらかがへんしん中・相手がみがわり中・どちらかがイリュージョンで化けているなら false
+- 使う技・特性: へんしん（`onUse`）、かわりもの（`onEntry` で相手の場のポケモンに）
+
+```ts
+async onUse(attacker: BattlePokemonStatus, defender: BattlePokemonStatus, ctx: BattleContext) {
+  return (await transformInto(attacker, defender, ctx)) ? 'transformed!' : 'But it failed'; // へんしん
+}
+```
+
+### 14.8 イリュージョン（findIllusionTarget / illusionStatusId）
+
+- シグネチャ: `findIllusionTarget(statuses, holder): BattlePokemonStatus | undefined`（`illusion.ts`）
+- 化ける先: 同じトレーナーの手持ちを ID の大きい方から見て、自分より後ろにいる、ひんしでない最初のポケモン（本家の onBeforeSwitchIn）。自分が最後なら化けない
+- 特性の `onEntry` で `illusionStatusId` を書き、`onDamagingHit` で消す（ダメージを受けたら解ける）。特性を書き換える・消すと補助関数が消す。へんしんはイリュージョンの相手・使用者に失敗する
+- 注: API はポケモンの名前・見た目を返さないので、化けた先を見せることはできない（`docs/battle-state.md` の 8 章）
+
+```ts
+const statuses = await ctx.battleRepository!.findBattlePokemonStatusByBattleId(holder.battleId);
+const target = findIllusionTarget(statuses, holder);
+if (target) await ctx.battleRepository!.patchVolatileState(holder.id, { illusionStatusId: target.id });
+```
+
+### 14.9 onPrepareHit（特性、攻撃側）
+
+- シグネチャ: `onPrepareHit?(holder, target, ctx?): Promise<string | null>`
+- 呼ばれる場所: `MoveExecutorService.runMoveBody`。特性の `preventsMove` を通ったあと、サイコフィールド・まもる系・命中判定の前に 1 回（本家の onPrepareHit。変化技・外れる技でも呼ぶ）。`ctx.moveTypeName` はタイプを変える効果のあとのタイプ。はね返した技・みらいよちが当たるとき・よこどりで奪った技・技を呼ぶ技（ゆびをふる・ねごと・ねこのて・まねっこ・オウムがえし・さきどり・しぜんのちから）では呼ばない（呼ばれた技では呼ぶ）
+- 呼んだあと、エンジンは使用者を読み直し、タイプ・実数値・特性を求め直してから技を続ける。返したメッセージは技のメッセージの前に付く
+- 使う特性: へんげんじざい・リベロ（`typeChangeAbilityUsed` がなく、タイプなしの技でなく、今のタイプが技のタイプだけでなければ `setTypes` と `typeChangeAbilityUsed: true`）、バトルスイッチ（攻撃技で `'blade'`、キングシールドで `'shield'`。へんしん中は何もしない）、うのミサイル（なみのり・ダイビングで、HP が半分より上なら `'gulping'`、以下なら `'gorging'`）
+
+```ts
+const type = ctx?.moveTypeName;
+if (!ctx || !type || type === TYPELESS_TYPE_NAME || holder.volatileState.typeChangeAbilityUsed || (await resolveTypeNames(holder, ctx)).join() === type || !(await setTypes(holder, [type], ctx))) return null;
+await ctx.battleRepository?.patchVolatileState(holder.id, { typeChangeAbilityUsed: true });
+return `became the ${type} type!`; // へんげんじざい（onPrepareHit の中）
+```
+
+### 14.10 blockDamagingHit（特性、防御側）
+
+- シグネチャ: `blockDamagingHit?(holder, attacker, ctx?): Promise<string | null>`
+- 呼ばれる場所: `MoveExecutorService` のヒットのループ。ダメージ技のヒットごとに、ダメージを与える前（みがわりに当たるヒットでは呼ばない）。かたやぶりで無視される
+- メッセージを返すと、そのヒットのダメージを 0 にする（本家の onDamage が 0 を返す）。防いだヒットも当たったものとして、技の `onHit`（追加効果）・接触時の特性・`onDamagingHit`（`hit.damage` は 0）・とんぼがえりの交代が起きる。急所にはならない。連続技は次のヒットに進む
+- 防いだ状態・フォルム・自分へのダメージは、このフックの中で書く
+- 使う特性: ばけのかわ（`disguiseBusted` がなく、へんしん中でなければ防ぎ、`disguiseBusted: true`、`persistent` の `'busted'`、最大 HP の 1/8 の技以外のダメージ）、アイスフェイス（物理技だけ。`iceFaceBroken` がなければ防ぎ、`iceFaceBroken: true`、`persistent` の `'noice'`）
+
+```ts
+if (!ctx || holder.persistentState.disguiseBusted || holder.volatileState.transformedIntoStatusId) return null;
+await ctx.battleRepository?.patchPersistentState(holder.id, { disguiseBusted: true });
+await changeForm(holder, 'busted', ctx, { persistent: true });
+await applyIndirectDamage(holder, fractionOfMaxHp(holder, 8), ctx);
+return 'Its disguise served it as a decoy!'; // ばけのかわ（blockDamagingHit の中）
+```
+
+### 14.11 onWeatherChange / onTerrainChange（特性、場の全員）と notifyFieldChange
+
+- シグネチャ: `onWeatherChange?(holder, ctx?): Promise<void>`、`onTerrainChange?(holder, ctx?): Promise<void>`、`notifyFieldChange(ctx, 'weather' | 'terrain'): Promise<void>`（`field-change.ts`）
+- 呼ばれる場所: `setWeather`・`setPrimalWeather`・`setTerrain` で変えたあと、天候・フィールドがターン終了時に終わったあと（`FieldResidualProcessor`）、ゲンシ天候が終わったあと（`PrimalWeatherReleaser`）。場のひんしでないポケモンの実効の特性ごとに、ID の順に呼ぶ。`ctx.battle` は読み直した最新のもの、`ctx.weather` は効果のある天候（ノーてんき・エアロックが場にいれば None）、`ctx.field` は今のフィールド
+- 場に出たときは呼ばないので、`onEntry` でも同じ判定をする。メッセージは出せない
+- 使う特性: てんきや（晴れ→`'sunny'`、雨→`'rainy'`、あられ（ゆきの代わり）→`'snowy'`、ほか→`null`。へんしん中は何もしない）、フラワーギフト（晴れなら `'sunshine'`、ほか→`null`。攻撃・特防 1.5 倍は `modifyDamageDealt`・`modifyDamage` で近似する）、アイスフェイス（あられの間、`iceFaceBroken` なら消して `persistent` のフォルムを `null` に）、ぎたい（`onTerrainChange` でフィールドのタイプに `setTypes`、フィールドがなければ `typeOverride: null`）
+- 注: ノーてんき・エアロックが場に出入りしたときは呼ばない
+
+```ts
+const weather = ctx?.weather;
+const form = weather === Weather.Sun ? 'sunny' : weather === Weather.Rain ? 'rainy' : weather === Weather.Hail ? 'snowy' : null;
+if (ctx) await changeForm(holder, form, ctx); // てんきや（onWeatherChange と onEntry の中）
+```
+
+### 14.12 近似と注意
+
+- 注: `setAbility` は、書き換える前の特性の終わり（本家の End）を呼ばない。ゲンシ天候だけは、エンジンが行動のあとに終わらせる（`releaseIfAbilityLost`）
+- 注: かがくへんかガスが場を離れても、ほかの特性の `onEntry` を呼び直さない（14.5）
+- 注: ばけのかわは、本家ではこんらんの自傷も防ぐが、ここでは技のヒットだけを防ぐ（こんらんの自傷は特性のフックを呼ばない）
+- 注: ぎたいの状態でみずびたしを受け、そのあとフィールドが終わったとき、本家はもとのタイプに戻すが、`typeOverride: null` で戻すかは特性の実装しだい
+- 注: へんしんは重さ・性別を写さない。写した相手に特性がないときは、使用者のもとの特性が残る
+- 注: レシーバー・かがくのちから（味方がひんしになったとき）としれいとう（ダブルバトル）は、シングルバトルでは何もしない
+- 注: テラスタル（テラスチェンジ・テラスシェル・ゼロフォーミングのテラスタルの部分）は扱わない
+
+### 14.13 特性・技ごとに使うもの
+
+| 特性・技 | 使うもの |
+| --- | --- |
+| スキルスワップ | `swapAbilities(attacker, defender, ctx)`（14.4） |
+| なりきり | 相手の `resolveCurrentAbilityName`（同じ特性・`failRolePlay`・使用者が `cantSuppress` なら失敗）→ `setAbility(attacker, name, ctx)` |
+| なかまづくり | 使用者の今の特性（`noEntrain` なら失敗）を、相手に `setAbility`（相手が同じ特性・`cantSuppress`・なまけなら失敗） |
+| なやみのタネ | 相手がふみん・なまけなら失敗。`setAbility(defender, 'ふみん', ctx)`、ねむっていれば治す |
+| シンプルビーム | 相手がたんじゅん・なまけなら失敗。`setAbility(defender, 'たんじゅん', ctx)` |
+| いえき | `suppressAbility(defender, ctx)`（14.4） |
+| コアパニッシャー | ダメージのあと、`ctx.defenderPendingMoveId` がなければ（相手がもう行動した）`suppressAbility` |
+| うつしえ | 相手の今の特性（`failRolePlay` なら失敗）を `setAbility(attacker, ...)`。シングルバトルでは味方がいない |
+| トレース | `onEntry` で相手の今の特性（`noTrace` でなければ）を `setAbility` |
+| ミイラ・とれないにおい | `onDamagingHit` で `hit.isContact` なら、相手が `cantSuppress` か同じ特性でなければ `setAbility(attacker, '<自分の特性名>', ctx)` |
+| さまようたましい | `onDamagingHit` で `hit.isContact` なら `swapAbilities(holder, attacker, ctx)` |
+| かがくへんかガス | 要らない（エンジンが判定する。14.5） |
+| レシーバー・かがくのちから・しれいとう | シングルバトルでは何もしない（14.12） |
+| みずびたし・まほうのこな | `setTypes(defender, ['みず'] / ['エスパー'], ctx)`（すでにそのタイプだけなら失敗） |
+| テクスチャー | 1 つめの欄の技のタイプ（持っていれば失敗）を `setTypes(attacker, [type], ctx)` |
+| テクスチャー２ | 相手の `lastMoveTypeName`（なければ失敗）を `findResistingTypeNames` に渡し、使用者が持つタイプを除いてランダムに `setTypes` |
+| ミラータイプ | 相手の `resolveTypeNames`（`'???'` を除く）を `setTypes(attacker, ...)`、相手の `addedType` も書く |
+| ほごしょく | `battle.field` のタイプで `setTypes(attacker, ...)` |
+| もえつきる・でんこうそうげき | `shouldFail`（ほのお・でんきを持っていなければ）と `afterDamage` で、そのタイプを `TYPELESS_TYPE_NAME` に変えて `setTypes` |
+| はねやすめ | 回復と `patchVolatileState(attacker.id, { roosting: true })`。ひこうを失うのはエンジン |
+| ハロウィン・もりののろい | `hasType` で持っていれば失敗、`addType(defender, 'ゴースト' / 'くさ', ctx)` |
+| プラズマシャワー | `patchGlobalFieldState(battle.id, { ionDeluge: true })`（14.3） |
+| そうでん | 相手が行動していなければ `electrified: true`（14.3） |
+| へんしょく | `onAfterMoveHit` で、ひんしでなく、`hit.moveTypeName` を持っていなければ `setTypes(holder, [type], ctx)` |
+| へんげんじざい・リベロ | `onPrepareHit`（14.9） |
+| ぎたい | `onEntry`・`onTerrainChange`（14.11） |
+| ノーマルスキン・フェアリースキン・フリーズスキン・スカイスキン・エレキスキン | `modifyMoveType`（14.3）と `modifyBasePower`（1.2 倍） |
+| へんしん・かわりもの | `transformInto`（14.7） |
+| イリュージョン | `onEntry` で `findIllusionTarget`、`onDamagingHit` で `illusionStatusId: null`（14.8） |
+| バトルスイッチ・うのミサイル | `onPrepareHit` と `changeForm`（14.9）。うのミサイルの反撃は `onDamagingHit` |
+| ダルマモード・リミットシールド・ぎょぐん・はらぺこスイッチ・スワームチェンジ | `onTurnEnd`（と `onEntry`）で `changeForm`（14.6） |
+| ばけのかわ・アイスフェイス | `blockDamagingHit`（14.10）。アイスフェイスの復活は `onWeatherChange`・`onEntry`（14.11） |
+| てんきや・フラワーギフト | `onEntry`・`onWeatherChange` で `changeForm`（14.11） |
+| きずなへんげ | `onKnockOut` で `oncePerBattleAbilityUsed` がなければ、攻撃・特攻・素早さ +1（第 9 世代はフォルムを変えない） |
+| マイティチェンジ | `onSwitchOut` で `changeForm(holder, 'hero', ctx, { persistent: true })` |
