@@ -65,7 +65,8 @@ export const changeToGulpMissileForm = async (
  * - くわえているときに攻撃技のダメージを受けると（ひんしになったヒットでも）、相手に相手の最大HPの1/4
  *   （切り捨て、最低1）のダメージを与え、うのみなら防御を1段階下げ、まるのみならまひにする。そのあと、もとのすがたに戻る
  * - 吐き出すダメージは技以外のダメージなので、相手のマジックガードで防がれる（防御の低下・まひは起きる）
- * - 相手がひんしのとき、ダイビングで隠れているときは吐き出さない（本家と同じ）
+ * - 相手がひんしのとき、相手が場にいないとき（控えのポケモンのみらいよち・はめつのねがい）、
+ *   ダイビングで隠れているときは吐き出さず、フォルムもそのまま（本家と同じ）
  * - 消せない特性で、かたやぶりで無視されない。へんしん中は効かない（エンジンの noTransform の判定）
  * 注: 本家のなみのりは命中・まもる系のあと、ダメージの前（onSourceTryPrimaryHit）にくわえる。
  *     ここではダメージを与えたヒットのあとなので、ダメージを与えなかったヒット（みがわり・ばけのかわなど）ではくわえない
@@ -94,6 +95,7 @@ export class GulpMissileEffect implements IAbilityEffect {
       !battleContext?.battleRepository ||
       (form !== GULPING_FORM && form !== GORGING_FORM) ||
       attacker.currentHp <= 0 ||
+      !attacker.isActive ||
       holder.volatileState.semiInvulnerable !== undefined
     ) {
       return null;

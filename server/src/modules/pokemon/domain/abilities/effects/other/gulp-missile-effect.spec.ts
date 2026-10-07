@@ -204,6 +204,32 @@ describe('GulpMissileEffect（うのミサイル）', () => {
       expect(get(2).currentHp).toBe(200);
     });
 
+    it('攻撃側が場にいない（控えのポケモンのみらいよち）ときは、何もせずフォルムもそのまま', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(
+        {
+          ability: 'うのミサイル',
+          nationalDex: CRAMORANT,
+          status: { volatileState: { form: 'gulping' } },
+        },
+        { status: { isActive: false, currentHp: 200, maxHp: 200 } },
+      );
+
+      // Act
+      const message = await new GulpMissileEffect().onDamagingHit(
+        get(1),
+        get(2),
+        createHit(),
+        context(),
+      );
+
+      // Assert
+      expect(message).toBeNull();
+      expect(get(2).currentHp).toBe(200);
+      expect(get(2).defenseRank).toBe(0);
+      expect(get(1).volatileState.form).toBe('gulping');
+    });
+
     it('ダイビングで隠れているときに攻撃を受けても、何もしない', async () => {
       // Arrange
       const { context, get } = createInMemoryBattle(
