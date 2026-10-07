@@ -395,6 +395,12 @@ import { TrickOrTreatEffect } from './effects/trick-or-treat-effect';
 import { ForestsCurseEffect } from './effects/forests-curse-effect';
 // 技のタイプを変える場の状態（Issue #107 一部）
 import { IonDelugeEffect } from './effects/ion-deluge-effect';
+// タイプを変える技（Issue #107, #110, #114 一部）
+import { ElectrifyEffect } from './effects/electrify-effect';
+import { RoostEffect } from './effects/roost-effect';
+import { ConversionEffect } from './effects/conversion-effect';
+import { Conversion2Effect } from './effects/conversion2-effect';
+import { SoakEffect } from './effects/soak-effect';
 
 /**
  * 技のレジストリ
@@ -900,6 +906,12 @@ export class MoveRegistry {
       this.registry.set('もりののろい', new ForestsCurseEffect());
       // 技のタイプを変える場の状態（Issue #107 一部）
       this.registry.set('プラズマシャワー', new IonDelugeEffect());
+      // タイプを変える技（Issue #107, #110, #114 一部）
+      this.registry.set('そうでん', new ElectrifyEffect());
+      this.registry.set('はねやすめ', new RoostEffect());
+      this.registry.set('テクスチャー', new ConversionEffect());
+      this.registry.set('テクスチャー２', new Conversion2Effect());
+      this.registry.set('みずびたし', new SoakEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
