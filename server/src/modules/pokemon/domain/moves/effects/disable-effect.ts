@@ -17,6 +17,8 @@ const STRUGGLE_MOVE_NAME = 'わるあがき';
  *   - 相手が最後に使った技がわるあがき
  *   - 相手が最後に使った技の PP が 0
  *   - すでにかなしばり状態（tryApplyVolatile が判定する。アロマベールで防がれるのも同じ）
+ * - 相手が最後に使った技が技の欄にない（ものまねで欄が入れ替わったなど）ときは失敗しない。
+ *   本家の disable の onStart も、PP が 0 の欄があるときだけ失敗し、欄がないときは止めない
  * - 技を出せなくするのと、残りターン数を減らすのはエンジンが行う
  */
 export class DisableEffect implements IMoveEffect {
