@@ -384,6 +384,8 @@ import { WorrySeedEffect } from './effects/worry-seed-effect';
 import { SimpleBeamEffect } from './effects/simple-beam-effect';
 // 特性を書き換える技（Issue #119 一部）
 import { EntrainmentEffect } from './effects/entrainment-effect';
+// うのミサイルのフォルムチェンジを起こすための技（Issue #135 一部）
+import { DiveEffect } from './effects/dive-effect';
 
 /**
  * 技のレジストリ
@@ -878,6 +880,8 @@ export class MoveRegistry {
       this.registry.set('シンプルビーム', new SimpleBeamEffect());
       // 特性を書き換える技（Issue #119 一部）
       this.registry.set('なかまづくり', new EntrainmentEffect());
+      // うのミサイルのフォルムチェンジを起こすための技（Issue #135 一部）
+      this.registry.set('ダイビング', new DiveEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,

@@ -274,6 +274,12 @@ import { ZenModeEffect } from './effects/form-change/zen-mode-effect';
 import { StanceChangeEffect } from './effects/form-change/stance-change-effect';
 import { ShieldsDownEffect } from './effects/form-change/shields-down-effect';
 import { SchoolingEffect } from './effects/form-change/schooling-effect';
+// フォルムチェンジの特性（Issue #135 一部）
+import { DisguiseEffect } from './effects/other/disguise-effect';
+import { IceFaceEffect } from './effects/other/ice-face-effect';
+import { PowerConstructEffect } from './effects/other/power-construct-effect';
+import { BattleBondEffect } from './effects/stat-change/battle-bond-effect';
+import { GulpMissileEffect } from './effects/other/gulp-missile-effect';
 
 /**
  * 特性レジストリ
@@ -652,6 +658,12 @@ export class AbilityRegistry {
       this.registry.set('バトルスイッチ', new StanceChangeEffect());
       this.registry.set('リミットシールド', new ShieldsDownEffect());
       this.registry.set('ぎょぐん', new SchoolingEffect());
+      // フォルムチェンジの特性（Issue #135 一部）
+      this.registry.set('ばけのかわ', new DisguiseEffect());
+      this.registry.set('アイスフェイス', new IceFaceEffect());
+      this.registry.set('スワームチェンジ', new PowerConstructEffect());
+      this.registry.set('きずなへんげ', new BattleBondEffect());
+      this.registry.set('うのミサイル', new GulpMissileEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
