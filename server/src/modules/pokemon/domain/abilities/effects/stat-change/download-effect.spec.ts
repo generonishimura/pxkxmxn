@@ -140,6 +140,18 @@ describe('DownloadEffect（ダウンロード）', () => {
       expect(get(1).specialAttackRank).toBe(1);
     });
 
+    it('マイナスのランクを掛けた値は切り捨てて比べる（特防100に-1で66、防御66と同じなので特攻）', async () => {
+      // Arrange（防御66・特防100。200/3 = 66.67 を切り捨てて66。切り捨てないと防御のほうが低くなる）
+      const { context, get } = setUp(46, 80, { specialDefenseRank: -1 });
+
+      // Act
+      await new DownloadEffect().onEntry(get(1), context());
+
+      // Assert
+      expect(get(1).attackRank).toBe(0);
+      expect(get(1).specialAttackRank).toBe(1);
+    });
+
     it('相手の実数値が上書きされていれば、その値で比べる（パワーシェアなど）', async () => {
       // Arrange（防御120・特防100 を、防御90に上書き）
       const { context, get } = setUp(100, 80, {
