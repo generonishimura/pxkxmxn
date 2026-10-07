@@ -6,13 +6,13 @@ import { joinStatChangeMessages } from '../../../moves/effects/base/base-stat-ch
 
 /**
  * ソウルハート（Soul-Heart）特性の効果
- * ポケモンがひんしになるたびに、特攻を1段階上げる
+ * 場のポケモンがひんしになるたびに、特攻を1段階上げる（本家の onAnyFaint）
  *
- * 注: 本家は場のどのポケモンがひんしになっても発動するが、ここでは自分の技で相手をひんしにしたとき
- *     （onKnockOut）だけ発動する。反動・状態異常・さめはだなど、技以外で相手が倒れたときは発動しない
+ * ひんしの原因（自分の技・反動・どく・接触特性など）と陣営は問わない。
+ * エンジンが新しくひんしになったポケモンごとに onAnyFaint を呼ぶ（notifyFaint）
  */
 export class SoulHeartEffect implements IAbilityEffect {
-  async onKnockOut(
+  async onAnyFaint(
     holder: BattlePokemonStatus,
     _fainted: BattlePokemonStatus,
     battleContext?: BattleContext,
