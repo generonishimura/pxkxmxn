@@ -158,4 +158,76 @@ describe('ExecuteTurnUseCase - タイプを変える特性', () => {
       expect(engine.status(1).volatileState.typeOverride).toEqual(['ノーマル']);
     });
   });
+
+  describe('ぎたい', () => {
+    it('エレキフィールドになると、でんきタイプになる', async () => {
+      // Arrange
+      const engine = setup({ types: ['みず'] }, { ability: 'ぎたい', types: ['じめん', 'はがね'] });
+
+      // Act
+      await engine.runTurn({ moveId: TERRAIN.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(2).volatileState.typeOverride).toEqual(['でんき']);
+    });
+
+    it('フィールドが消えると、もとのタイプに戻る', async () => {
+      // Arrange
+      const engine = setup(
+        {},
+        {
+          ability: 'ぎたい',
+          types: ['じめん', 'はがね'],
+          volatileState: { typeOverride: ['でんき'] },
+        },
+        { field: Field.ElectricTerrain, terrainTurns: 3 },
+      );
+
+      // Act
+      await engine.runTurn({ moveId: DEFOG.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.battle().field).toBe(Field.None);
+      expect(engine.status(2).volatileState.typeOverride).toBeUndefined();
+    });
+
+    it('フィールドが消えると、足されたタイプ（ハロウィンなど）も消える', async () => {
+      // Arrange
+      const engine = setup(
+        {},
+        {
+          ability: 'ぎたい',
+          types: ['じめん', 'はがね'],
+          volatileState: { typeOverride: ['でんき'], addedType: 'ゴースト' },
+        },
+        { field: Field.ElectricTerrain, terrainTurns: 3 },
+      );
+
+      // Act
+      await engine.runTurn({ moveId: DEFOG.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(2).volatileState.addedType).toBeUndefined();
+    });
+
+    it.each([
+      [Field.GrassyTerrain, 'くさ'],
+      [Field.MistyTerrain, 'フェアリー'],
+      [Field.PsychicTerrain, 'エスパー'],
+      [Field.ElectricTerrain, 'でんき'],
+    ])('%s の場に交代で出ると、%s タイプになる', async (field, typeName) => {
+      // Arrange
+      const engine = setup(
+        {},
+        {},
+        { field, terrainTurns: 5, bench: { ability: 'ぎたい', types: ['じめん', 'はがね'] } },
+      );
+
+      // Act
+      await engine.runTurn({ switchPokemonId: 3 }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(3).volatileState.typeOverride).toEqual([typeName]);
+    });
+  });
 });
