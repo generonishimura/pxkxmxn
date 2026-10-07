@@ -87,6 +87,25 @@ describe('ConversionEffect（テクスチャー）', () => {
     expect(battle.get(1).volatileState.typeOverride).toEqual(['くさ']);
   });
 
+  it.each([
+    ['アルセウス', 493],
+    ['シルヴァディ', 773],
+  ])('%s のタイプは変えられず失敗する', async (_name, nationalDex) => {
+    // Arrange
+    const battle = createInMemoryBattle({ types: ['ノーマル'], nationalDex });
+    battle.battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValue([
+      new BattlePokemonMove(11, 1, 201, 15, 15),
+    ]);
+    const context = battle.context({ moveRepository: moveRepository({ 201: 'ほのお' }) });
+
+    // Act
+    const message = await new ConversionEffect().onUse(battle.get(1), battle.get(2), context);
+
+    // Assert
+    expect(message).toBe('But it failed');
+    expect(battle.get(1).volatileState.typeOverride).toBeUndefined();
+  });
+
   it('技の欄がなければ失敗する', async () => {
     // Arrange
     const battle = createInMemoryBattle();
