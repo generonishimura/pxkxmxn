@@ -201,4 +201,21 @@ describe('ExecuteTurnUseCase - 場に出たときの設置技', () => {
     expect(healed.currentPp).toBe(10);
     expect(engine.status(3).currentHp).toBe(160);
   });
+
+  it('場に出たときの特性（onEntry）には、設置技を受けたあとの、場に出た状態を渡す', async () => {
+    // Arrange
+    const seen: Array<{ currentHp: number; isActive: boolean }> = [];
+    AbilityRegistry.register('テストのぎょぐん', {
+      onEntry: holder => {
+        seen.push({ currentHp: holder.currentHp, isActive: holder.isActive });
+      },
+    });
+    const engine = setup({ stealthRock: true }, { types: ['ほのお'], ability: 'テストのぎょぐん' });
+
+    // Act
+    await switchIn(engine);
+
+    // Assert: いわはほのおに 2 倍 → 160 × 2 / 8 = 40 ダメージ
+    expect(seen).toEqual([{ currentHp: 120, isActive: true }]);
+  });
 });

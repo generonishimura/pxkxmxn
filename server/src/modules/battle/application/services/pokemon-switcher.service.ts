@@ -319,11 +319,12 @@ export class PokemonSwitcherService {
       await this.scheduleEmergencyExits(battle.id, new Map([[entered.id, targetStatus.currentHp]]));
     }
 
-    // 特性のOnEntry効果を発動（相手のかがくへんかガスで消えていれば発動しない）
+    // 特性のOnEntry効果を発動（相手のかがくへんかガスで消えていれば発動しない）。
+    // 設置技を受けたあとの、場に出た状態を渡す（ぎょぐん・リミットシールドが HP を見る）
     const abilityEffect = entered ? await this.abilityEffectOf(entered) : undefined;
-    if (abilityEffect?.onEntry) {
+    if (entered && abilityEffect?.onEntry) {
       // 相手の特性（クリアボディ・ばんけんなど）を調べられるよう、育成ポケモンリポジトリも渡す
-      await abilityEffect.onEntry(targetStatus, {
+      await abilityEffect.onEntry(entered, {
         battle,
         battleRepository: this.battleRepository,
         trainedPokemonRepository: this.trainedPokemonRepository,
