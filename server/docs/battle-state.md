@@ -533,7 +533,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 - `encore` があれば、選んだ技にかかわらずアンコールされた技を出す（交代はできる）。その技の PP が 0 ならアンコールを消す
 - 技の欄は `moveSlotOverrides` を先に見る
 - PP がない・技の制限で出せない技を選び、ほかに出せる技もなければ、わるあがきを出す
-- `ingrain`・`trappedByStatusId`・`partialTrap` があれば交代できない（ゴーストタイプはどれでも交代できる。本家の ingrain も tryTrap なので、trapped を受けないゴーストは逃げられる。`findSwitchBlocker`）。かけたポケモンがひんし・場にいない `trappedByStatusId`・`partialTrap` は見ない。相手の場のポケモンの特性の `trapsOpponent`（かげふみなど）と、`GlobalFieldState.fairyLockTurns` でも交代できない（ゴーストタイプは交代できる）
+- `ingrain`・`trappedByStatusId`・`partialTrap` があれば交代できない（ゴーストタイプはどれでも交代できる。本家の ingrain も tryTrap なので、trapped を受けないゴーストは逃げられる。`findSwitchBlocker`）。かけたポケモンがひんし・場にいない `trappedByStatusId`・`partialTrap` は見ない。相手の場のポケモンの特性の `trapsOpponent`（かげふみなど）と、`GlobalFieldState.fairyLockTurns` でも交代できない（ゴーストタイプは交代できる）。交代しようとするポケモンがひんしなら、どれがあっても控えと入れ替えられる（本家もひんしの後の入れ替えは逃げられなくしない）
 
 ### 技の処理の中
 
