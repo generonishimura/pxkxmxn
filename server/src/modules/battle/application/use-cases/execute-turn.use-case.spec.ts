@@ -56,6 +56,10 @@ describe('ExecuteTurnUseCase', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     };
 
     const mockTrainedPokemonRepository: jest.Mocked<ITrainedPokemonRepository> = {
@@ -113,6 +117,17 @@ describe('ExecuteTurnUseCase', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
+
+  /**
+   * 場のポケモンをトレーナー ID で返すようにする
+   * ExecuteTurnUseCase は行動のたびに場のポケモンを読み直すので、呼ばれた回数ではなく ID で返す
+   */
+  const mockActivePokemon = (...statuses: BattlePokemonStatus[]): void => {
+    battleRepository.findActivePokemonByBattleIdAndTrainerId.mockImplementation(
+      (_battleId: number, trainerId: number) =>
+        Promise.resolve(statuses.find(status => status.trainerId === trainerId) ?? null),
+    );
+  };
 
   it('should be defined', () => {
     expect(useCase).toBeDefined();
@@ -280,20 +295,15 @@ describe('ExecuteTurnUseCase', () => {
       typeEffectivenessMap.set('1-', 1.0); // Normal-なし
 
       battleRepository.findById.mockResolvedValue(battle);
-      battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(attackerStatus)
-        .mockResolvedValueOnce(defenderStatus);
+      mockActivePokemon(attackerStatus, defenderStatus);
       battleRepository.findBattlePokemonMovesByBattlePokemonStatusId
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用（trainer1）
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用（trainer2）
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用（trainer1、2回目の行動）
         .mockResolvedValueOnce([battlePokemonMove]); // PPチェック用（trainer2、2回目の行動）
       // determineActionOrderで両方の技を取得
-      moveRepository.findById
-        .mockResolvedValueOnce(move) // trainer1の技（determineActionOrder）
-        .mockResolvedValueOnce(move) // trainer2の技（determineActionOrder）
-        .mockResolvedValueOnce(move) // trainer1の技（executeMove）
-        .mockResolvedValueOnce(move); // trainer2の技（executeMove - 2回目の行動）
+      // 行動順・ターンの初めの効果・技の実行で、同じ技を何度も引く
+      moveRepository.findById.mockResolvedValue(move);
       // determineActionOrderで優先度補正のためにTrainedPokemonを取得
       // getEffectiveSpeedで速度計算のためにTrainedPokemonを取得
       // executeMoveで命中率判定の前にTrainedPokemonを取得するため、呼び出し回数が増える
@@ -394,9 +404,15 @@ describe('ExecuteTurnUseCase', () => {
       const battlePokemonMove = new BattlePokemonMove(1, trainer2ActiveStatus.id, move.id, 35, 35);
 
       battleRepository.findById.mockResolvedValue(battle);
+      // ターンの最初と交代では交代前のポケモン、交代のあとは交代で出てきたポケモンを返す
       battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(currentActiveStatus)
-        .mockResolvedValueOnce(trainer2ActiveStatus);
+        .mockResolvedValueOnce(currentActiveStatus) // ターンの最初（トレーナー1）
+        .mockResolvedValueOnce(trainer2ActiveStatus) // ターンの最初（トレーナー2）
+        .mockResolvedValueOnce(currentActiveStatus); // 交代で引っ込むポケモン
+      battleRepository.findActivePokemonByBattleIdAndTrainerId.mockImplementation(
+        (_battleId: number, trainerId: number) =>
+          Promise.resolve(trainerId === trainer1Id ? switchTargetStatus : trainer2ActiveStatus),
+      );
       battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValueOnce([
         battlePokemonMove,
       ]); // PPチェック用（trainer2）
@@ -409,11 +425,10 @@ describe('ExecuteTurnUseCase', () => {
       moveRepository.findById.mockResolvedValue(move);
       // getEffectiveSpeedで使用
       // executeMoveで命中率判定のためにTrainedPokemonを取得
-      trainedPokemonRepository.findById
-        .mockResolvedValueOnce(trainedPokemon1) // trainer1の速度計算
-        .mockResolvedValueOnce(trainedPokemon3) // trainer2の速度計算
-        .mockResolvedValueOnce(trainedPokemon3) // executeMoveでtrainer2取得（attacker）
-        .mockResolvedValueOnce(trainedPokemon1); // executeMoveでtrainer1取得（defender）
+      // trainer2 のポケモン（300）以外は trainedPokemon1 を返す（交代先・交代の制限の判定でも引く）
+      trainedPokemonRepository.findById.mockImplementation((id: number) =>
+        Promise.resolve(id === 300 ? trainedPokemon3 : trainedPokemon1),
+      );
       const typeEffectivenessMap = new Map<string, number>();
       typeEffectivenessMap.set('1-1', 1.0);
       typeEffectivenessMap.set('1-', 1.0);
@@ -638,20 +653,15 @@ describe('ExecuteTurnUseCase', () => {
       const battlePokemonMove = new BattlePokemonMove(1, attackerStatus.id, statusMove.id, 40, 40);
 
       battleRepository.findById.mockResolvedValue(battle);
-      battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(attackerStatus)
-        .mockResolvedValueOnce(defenderStatus);
+      mockActivePokemon(attackerStatus, defenderStatus);
       battleRepository.findBattlePokemonMovesByBattlePokemonStatusId
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用（trainer1）
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用（trainer2）
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用（trainer1、2回目の行動）
         .mockResolvedValueOnce([battlePokemonMove]); // PPチェック用（trainer2、2回目の行動）
       // determineActionOrderで両方の技を取得
-      moveRepository.findById
-        .mockResolvedValueOnce(statusMove) // trainer1の技（determineActionOrder）
-        .mockResolvedValueOnce(statusMove) // trainer2の技（determineActionOrder）
-        .mockResolvedValueOnce(statusMove) // trainer1の技（executeMove）
-        .mockResolvedValueOnce(statusMove); // trainer2の技（executeMove - 2回目の行動）
+      // 行動順・ターンの初めの効果・技の実行で、同じ技を何度も引く
+      moveRepository.findById.mockResolvedValue(statusMove);
       // determineActionOrderで優先度補正のためにTrainedPokemonを取得
       // getEffectiveSpeedで速度計算のためにTrainedPokemonを取得
       // executeMoveで命中率判定の前にTrainedPokemonを取得するため、呼び出し回数が増える
@@ -695,9 +705,9 @@ describe('ExecuteTurnUseCase', () => {
       expect(result.battle.turn).toBe(2);
       // 変化技「なきごえ」が使われ、ダメージ表現（dealt, damage）が含まれないこと
       expect(result.actions.some(a => a.result.includes('なきごえ'))).toBe(true);
-      expect(result.actions.some(a => a.result.includes('dealt') && a.result.includes('damage'))).toBe(
-        false,
-      );
+      expect(
+        result.actions.some(a => a.result.includes('dealt') && a.result.includes('damage')),
+      ).toBe(false);
       // 変化技はダメージを与えない
       expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalledWith(
         defenderStatus.id,
@@ -847,9 +857,7 @@ describe('ExecuteTurnUseCase', () => {
       );
 
       battleRepository.findById.mockResolvedValue(battle);
-      battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(attackerStatus)
-        .mockResolvedValueOnce(defenderStatus);
+      mockActivePokemon(attackerStatus, defenderStatus);
       // determineActionOrderで技の優先度を取得するため
       moveRepository.findById
         .mockResolvedValueOnce(move) // determineActionOrder用（trainer1）
@@ -1037,18 +1045,13 @@ describe('ExecuteTurnUseCase', () => {
       );
 
       battleRepository.findById.mockResolvedValue(battle);
-      battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(attackerStatus)
-        .mockResolvedValueOnce(defenderStatus);
+      mockActivePokemon(attackerStatus, defenderStatus);
       battleRepository.findBattlePokemonMovesByBattlePokemonStatusId
         .mockResolvedValueOnce([battlePokemonMove]) // PPチェック用
         .mockResolvedValueOnce([battlePokemonMove]); // PPチェック用（trainer2）
       // determineActionOrderで技の優先度を取得するため
-      moveRepository.findById
-        .mockResolvedValueOnce(move) // determineActionOrder用（trainer1）
-        .mockResolvedValueOnce(move) // determineActionOrder用（trainer2）
-        .mockResolvedValueOnce(move) // executeMove用（trainer1）
-        .mockResolvedValueOnce(move); // executeMove用（trainer2）
+      // 行動順・ターンの初めの効果・技の実行で、同じ技を何度も引く
+      moveRepository.findById.mockResolvedValue(move);
       // determineActionOrderで特性による優先度補正のためにTrainedPokemonを取得
       // getEffectiveSpeedで速度計算のためにTrainedPokemonを取得
       // executeMoveで命中率判定のためにTrainedPokemonを取得
@@ -1073,9 +1076,10 @@ describe('ExecuteTurnUseCase', () => {
       battleRepository.updateBattlePokemonStatus
         .mockResolvedValueOnce(defenderStatus) // trainer1の技でdefenderがダメージを受ける
         .mockResolvedValueOnce(attackerStatus); // trainer2の技でattackerがダメージを受ける
-      battleRepository.findBattlePokemonStatusById
-        .mockResolvedValueOnce(defenderStatus) // trainer1の技でdefenderを取得
-        .mockResolvedValueOnce(attackerStatus); // trainer2の技でattackerを取得
+      // 技の処理は何度も読み直すので、呼ばれた順ではなく ID で返す
+      battleRepository.findBattlePokemonStatusById.mockImplementation((id: number) =>
+        Promise.resolve([attackerStatus, defenderStatus].find(status => status.id === id) ?? null),
+      );
       battleRepository.updateBattlePokemonMove.mockResolvedValue(battlePokemonMoveAfterConsumption);
       battleRepository.update.mockResolvedValue({
         ...battle,
@@ -1251,18 +1255,13 @@ describe('ExecuteTurnUseCase', () => {
       );
 
       battleRepository.findById.mockResolvedValue(battle);
-      battleRepository.findActivePokemonByBattleIdAndTrainerId
-        .mockResolvedValueOnce(attackerStatus)
-        .mockResolvedValueOnce(defenderStatus);
+      mockActivePokemon(attackerStatus, defenderStatus);
       battleRepository.findBattlePokemonMovesByBattlePokemonStatusId
         .mockResolvedValueOnce([battlePokemonMove])
         .mockResolvedValueOnce([battlePokemonMove]);
       // determineActionOrderで技の優先度を取得するため
-      moveRepository.findById
-        .mockResolvedValueOnce(move) // determineActionOrder用（trainer1）
-        .mockResolvedValueOnce(move) // determineActionOrder用（trainer2）
-        .mockResolvedValueOnce(move) // executeMove用（trainer1）
-        .mockResolvedValueOnce(move); // executeMove用（trainer2）
+      // 行動順・ターンの初めの効果・技の実行で、同じ技を何度も引く
+      moveRepository.findById.mockResolvedValue(move);
       // determineActionOrderで特性による優先度補正のためにTrainedPokemonを取得
       // getEffectiveSpeedで速度計算のためにTrainedPokemonを取得
       // executeMoveで命中率判定のためにTrainedPokemonを取得

@@ -17,6 +17,8 @@ const createContext = (
   const updateMock = jest.fn().mockResolvedValue(undefined);
   const battleRepository = {
     updateBattlePokemonStatus: updateMock,
+    // ねむりの付与で、場の誰かがさわいでいないかを確かめる
+    findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([]),
   } as unknown as IBattleRepository;
   const trainedPokemonRepository = {
     findById: jest.fn().mockResolvedValue({

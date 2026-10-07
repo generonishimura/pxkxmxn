@@ -6,11 +6,25 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 /**
  * 「きつけ」の特殊効果実装
  *
- * 効果: 相手がまひ状態のときに命中させるとまひを解除する
- * 注: 「相手がまひ状態のときに威力2倍」の効果は、技の威力を動的に修正する
- *     power-modifier API が未整備のため別処理（ダメージ計算側）で扱う
+ * 効果: 相手がまひのとき、威力が 2 倍になる（70 → 140）。命中させると相手のまひを解除する
  */
 export class SmellingSaltsEffect implements IMoveEffect {
+  modifyMovePower(
+    _attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): number | undefined {
+    const basePower = battleContext.movePower;
+    if (
+      basePower === null ||
+      basePower === undefined ||
+      defender.statusCondition !== StatusCondition.Paralysis
+    ) {
+      return undefined;
+    }
+    return basePower * 2;
+  }
+
   async onHit(
     _attacker: BattlePokemonStatus,
     defender: BattlePokemonStatus,

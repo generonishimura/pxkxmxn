@@ -1,6 +1,7 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { Field } from '@/modules/battle/domain/entities/battle.entity';
+import { setTerrain } from '../../../battle-events/field-state';
 import { BattleContext } from '../../battle-context.interface';
 import { HitResult } from '../../../battle-events/hit-result';
 
@@ -20,19 +21,12 @@ export class SeedSowerEffect implements IAbilityEffect {
     _hit: HitResult,
     battleContext?: BattleContext,
   ): Promise<string | null> {
-    if (!battleContext?.battleRepository) {
+    if (!battleContext) {
       return null;
     }
-
-    // 連続技の前のヒットで張っていることがあるため、最新のバトルの状態で判定する
-    const battle =
-      (await battleContext.battleRepository.findById(battleContext.battle.id)) ??
-      battleContext.battle;
-    if (battle.field === Field.GrassyTerrain) {
-      return null;
-    }
-
-    await battleContext.battleRepository.update(battle.id, { field: Field.GrassyTerrain });
-    return 'Grassy Terrain was set up!';
+    // 連続技の前のヒットで張っていることがあるため、setTerrain が最新のバトルの状態で判定する
+    return (await setTerrain(battleContext, Field.GrassyTerrain))
+      ? 'Grassy Terrain was set up!'
+      : null;
   }
 }

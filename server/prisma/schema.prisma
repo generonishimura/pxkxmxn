@@ -218,6 +218,9 @@ model Battle {
   field               Field?
   status              BattleStatus          @default(Active)
   winnerTrainerId     Int?                  @map("winner_trainer_id")
+  /// 両陣営の場の状態（リフレクター・まきびしなど）と全体の場の状態（トリックルームなど）
+  /// 中身の型は src/modules/battle/domain/state/side-state.ts の SideState
+  sideState           Json                  @default("{}") @map("side_state")
   createdAt           DateTime              @default(now()) @map("created_at")
   updatedAt           DateTime              @updatedAt @map("updated_at")
   battlePokemonStatus BattlePokemonStatus[]
@@ -246,6 +249,12 @@ model BattlePokemonStatus {
   accuracyRank       Int                 @default(0) @map("accuracy_rank")
   evasionRank        Int                 @default(0) @map("evasion_rank")
   statusCondition    StatusCondition?    @map("status_condition")
+  /// 場に出ている間だけ続く状態（やどりぎのタネ・みがわりなど）
+  /// 中身の型は src/modules/battle/domain/state/volatile-state.ts の VolatileState
+  volatileState      Json                @default("{}") @map("volatile_state")
+  /// 交代しても消えない状態（ばけのかわ・ねむりのターン数など）
+  /// 中身の型は src/modules/battle/domain/state/persistent-state.ts の PersistentPokemonState
+  persistentState    Json                @default("{}") @map("persistent_state")
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
   battlePokemonMoves BattlePokemonMove[]

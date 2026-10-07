@@ -8,6 +8,7 @@ import {
 import { Inject } from '@nestjs/common';
 import { StartBattleDto } from './dto/start-battle.dto';
 import { ExecuteTurnDto } from './dto/execute-turn.dto';
+import { toBattlePokemonStatusResponses } from './dto/battle-pokemon-status.response';
 
 /**
  * BattleController
@@ -66,7 +67,7 @@ export class BattleController {
 
     return {
       battle,
-      pokemonStatuses: battleStatuses,
+      pokemonStatuses: toBattlePokemonStatusResponses(battleStatuses),
     };
   }
 }

@@ -2,12 +2,14 @@ import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 import { Weather } from '@/modules/battle/domain/entities/battle.entity';
+import { setWeather } from '../../../battle-events/field-state';
 
 /**
  * 天候変更の基底クラス
  * 場に出すときに天候を変更する汎用的な実装
  *
  * 各特性は、このクラスを継承して変更する天候を設定するだけで実装できる
+ * setWeather で 5 ターンの残りターン数を書く。ゲンシ天候の間は何もしない
  */
 export abstract class BaseWeatherEffect implements IAbilityEffect {
   /**
@@ -20,22 +22,9 @@ export abstract class BaseWeatherEffect implements IAbilityEffect {
    * 天候を変更
    */
   async onEntry(_pokemon: BattlePokemonStatus, battleContext?: BattleContext): Promise<void> {
-    // バトルリポジトリがない場合は処理しない
-    if (!battleContext?.battleRepository) {
+    if (!battleContext) {
       return;
     }
-
-    const battle = battleContext.battle;
-
-    // 既に同じ天候の場合は変更しない
-    if (battle.weather === this.weather) {
-      return;
-    }
-
-    // 天候を変更
-    await battleContext.battleRepository.update(battle.id, {
-      weather: this.weather,
-    });
+    await setWeather(battleContext, this.weather);
   }
 }
-

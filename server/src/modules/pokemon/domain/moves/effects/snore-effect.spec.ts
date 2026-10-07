@@ -30,6 +30,7 @@ describe('SnoreEffect', () => {
     const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
     const mockBattleRepository = {
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(undefined),
+      patchVolatileState: jest.fn().mockResolvedValue(undefined),
     };
     const mockTrainedPokemonRepository = {
       findById: jest.fn().mockResolvedValue({
@@ -57,8 +58,32 @@ describe('SnoreEffect', () => {
     const result = await effect.onHit(attacker, defender, ctx);
 
     expect(result).toBe('flinched!');
-    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
-      statusCondition: StatusCondition.Flinch,
+    expect(ctx.battleRepository?.patchVolatileState).toHaveBeenCalledWith(defender.id, {
+      flinched: true,
+    });
+
+    jest.restoreAllMocks();
+  });
+
+  it('ぜったいねむりの使用者（状態異常なし）でも、30%でひるみを付与する', async () => {
+    // Arrange
+    const effect = new SnoreEffect();
+    const attacker = createBattlePokemonStatus({ statusCondition: StatusCondition.None });
+    const defender = createBattlePokemonStatus({ id: 2 });
+    const ctx: BattleContext = {
+      ...createBattleContext(),
+      attacker,
+      attackerEffectiveStatus: StatusCondition.Sleep,
+    };
+    jest.spyOn(Math, 'random').mockReturnValue(0.1);
+
+    // Act
+    const result = await effect.onHit(attacker, defender, ctx);
+
+    // Assert
+    expect(result).toBe('flinched!');
+    expect(ctx.battleRepository?.patchVolatileState).toHaveBeenCalledWith(defender.id, {
+      flinched: true,
     });
 
     jest.restoreAllMocks();

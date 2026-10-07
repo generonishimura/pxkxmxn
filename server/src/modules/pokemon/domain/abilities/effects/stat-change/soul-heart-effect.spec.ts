@@ -13,8 +13,8 @@ describe('SoulHeartEffect（ソウルハート）', () => {
     AbilityRegistry.initialize();
   });
 
-  describe('onKnockOut', () => {
-    it('自分の技で相手をひんしにしたら、特攻を1段階上げる', async () => {
+  describe('onAnyFaint', () => {
+    it('場のポケモンがひんしになったら、特攻を1段階上げる', async () => {
       // Arrange
       const { context, get } = createInMemoryBattle(
         { ability: 'ソウルハート' },
@@ -22,7 +22,7 @@ describe('SoulHeartEffect（ソウルハート）', () => {
       );
 
       // Act
-      const message = await new SoulHeartEffect().onKnockOut(get(1), get(2), context());
+      const message = await new SoulHeartEffect().onAnyFaint(get(1), get(2), context());
 
       // Assert
       expect(get(1).specialAttackRank).toBe(1);
@@ -37,7 +37,7 @@ describe('SoulHeartEffect（ソウルハート）', () => {
       );
 
       // Act
-      const message = await new SoulHeartEffect().onKnockOut(get(1), get(2), context());
+      const message = await new SoulHeartEffect().onAnyFaint(get(1), get(2), context());
 
       // Assert
       expect(get(1).specialAttackRank).toBe(6);

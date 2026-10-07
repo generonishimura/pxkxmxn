@@ -3,6 +3,12 @@ import { Battle, BattleStatus } from '../../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../../domain/entities/battle-pokemon-status.entity';
 import { BattlePokemonMove } from '../../../domain/entities/battle-pokemon-move.entity';
 import { IBattleRepository } from '../../../domain/battle.repository.interface';
+import { StatePatch } from '../../../domain/state/state-field-parser';
+import { VolatileState, updateVolatileState } from '../../../domain/state/volatile-state';
+import {
+  PersistentPokemonState,
+  updatePersistentPokemonState,
+} from '../../../domain/state/persistent-state';
 import { DamageCalculator } from '../../../domain/logic/damage-calculator';
 import { AccuracyCalculator } from '../../../domain/logic/accuracy-calculator';
 import { Nature } from '../../../domain/logic/stat-calculator';
@@ -22,6 +28,7 @@ import {
 } from '@/modules/pokemon/domain/entities/ability.entity';
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
+import { NO_CRITICAL_HIT_RANDOM } from '../../__tests__/battle-engine-harness';
 
 /**
  * MoveExecutorService のイベントフックのテスト用セットアップ
@@ -58,6 +65,8 @@ export const withChanges = (
     merged.accuracyRank,
     merged.evasionRank,
     merged.statusCondition,
+    merged.volatileState,
+    merged.persistentState,
   );
 };
 
@@ -121,6 +130,10 @@ export const createMove = (
 export interface MoveExecutorSetupOptions {
   move?: Move;
   moveEffect?: IMoveEffect;
+  /** ID・技名で引ける技（ゆびをふるなどで呼ぶ技）。ここにない ID は move を返す */
+  moves?: Move[];
+  /** 技名ごとの効果（ここにない技は moveEffect） */
+  moveEffects?: Readonly<Record<string, IMoveEffect>>;
   attackerAbility?: string;
   defenderAbility?: string;
   attacker?: Partial<BattlePokemonStatus>;
@@ -159,6 +172,30 @@ export const setupMoveExecutor = (options: MoveExecutorSetupOptions = {}) => {
     findBattlePokemonMoveById: jest
       .fn()
       .mockResolvedValue(new BattlePokemonMove(1, ATTACKER_ID, 1, 10, 10)),
+    patchVolatileState: jest.fn((id: number, patch: StatePatch<VolatileState>) => {
+      const current = statuses.get(id);
+      if (!current) {
+        throw new Error(`status ${id} not found`);
+      }
+      const updated = withChanges(current, {
+        volatileState: updateVolatileState(current.volatileState, patch),
+      });
+      statuses.set(id, updated);
+      return Promise.resolve(updated);
+    }),
+    patchPersistentState: jest.fn((id: number, patch: StatePatch<PersistentPokemonState>) => {
+      const current = statuses.get(id);
+      if (!current) {
+        throw new Error(`status ${id} not found`);
+      }
+      const updated = withChanges(current, {
+        persistentState: updatePersistentPokemonState(current.persistentState, patch),
+      });
+      statuses.set(id, updated);
+      return Promise.resolve(updated);
+    }),
+    patchSideConditions: jest.fn(),
+    patchGlobalFieldState: jest.fn(),
   };
   const trainedPokemons = new Map<number, TrainedPokemon>([
     [ATTACKER_ID, createTrainedPokemon(ATTACKER_ID, options.attackerAbility)],
@@ -168,16 +205,27 @@ export const setupMoveExecutor = (options: MoveExecutorSetupOptions = {}) => {
     findById: jest.fn((id: number) => Promise.resolve(trainedPokemons.get(id) ?? null)),
     findByTrainerId: jest.fn(),
   };
+  const defaultMove = options.move ?? createMove('ほのおのパンチ');
+  const moves = options.moves ?? [];
   const moveRepository: jest.Mocked<IMoveRepository> = {
-    findById: jest.fn().mockResolvedValue(options.move ?? createMove('ほのおのパンチ')),
+    findById: jest.fn((id: number) =>
+      Promise.resolve(moves.find(move => move.id === id) ?? defaultMove),
+    ),
     findByPokemonId: jest.fn(),
+    findByName: jest.fn((name: string) =>
+      Promise.resolve(
+        moves.find(move => move.name === name) ?? (defaultMove.name === name ? defaultMove : null),
+      ),
+    ),
   };
   const typeEffectivenessRepository: jest.Mocked<ITypeEffectivenessRepository> = {
     getTypeEffectivenessMap: jest.fn().mockResolvedValue(new Map()),
     findTypeByName: jest.fn().mockResolvedValue(null),
   };
 
-  jest.spyOn(MoveRegistry, 'get').mockReturnValue(options.moveEffect);
+  jest
+    .spyOn(MoveRegistry, 'get')
+    .mockImplementation(name => options.moveEffects?.[name] ?? options.moveEffect);
   const checkHit = jest.spyOn(AccuracyCalculator, 'checkHit').mockReturnValue(true);
   const damages = Array.isArray(options.damage) ? [...options.damage] : undefined;
   const calculate = jest
@@ -191,6 +239,7 @@ export const setupMoveExecutor = (options: MoveExecutorSetupOptions = {}) => {
     trainedPokemonRepository,
     moveRepository,
     typeEffectivenessRepository,
+    NO_CRITICAL_HIT_RANDOM,
   );
   const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
   const execute = () =>
@@ -205,6 +254,9 @@ export const setupMoveExecutor = (options: MoveExecutorSetupOptions = {}) => {
 
   return {
     execute,
+    service,
+    battle,
+    moveRepository,
     statuses,
     calculate,
     checkHit,

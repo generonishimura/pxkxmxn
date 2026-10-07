@@ -143,6 +143,37 @@ describe('DrySkinEffect', () => {
       });
     });
 
+    it('かいふくふうじ中は、雨でも回復しない', async () => {
+      // Arrange
+      const pokemon = new BattlePokemonStatus(
+        1,
+        1,
+        1,
+        1,
+        true,
+        50,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        {
+          healBlockTurns: 2,
+        },
+      );
+      const ctx = createCtx(pokemon, { weather: Weather.Rain });
+
+      // Act
+      await effect.onTurnEnd(pokemon, ctx);
+
+      // Assert
+      expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
+    });
+
     it('雨でも HP が満タンなら更新しない', async () => {
       // Arrange
       const pokemon = createPokemon(100);

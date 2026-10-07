@@ -7,6 +7,7 @@ import {
   createPokemonMoveSeedData,
   createPokemonSeedData,
   createTypeSeedData,
+  isDefaultPokemon,
   PokemonSeedData,
   TypeSeedData,
 } from './seed-utils/data-mapper';
@@ -167,6 +168,11 @@ async function seedPokemon(typeMap: Map<string, number>): Promise<void> {
     for (const resource of list.results) {
       try {
         const pokemon = await pokeApi.fetchPokemon(resource.name);
+        // 別のすがた（ID 10001 以降）は、同じ全国図鑑の番号の既定のすがたを上書きしないよう入れない
+        if (!isDefaultPokemon(pokemon)) {
+          processed++;
+          continue;
+        }
         // pokemon-speciesのURLからIDを抽出（例: "https://pokeapi.co/api/v2/pokemon-species/386/" -> 386）
         const speciesUrl = pokemon.species.url;
         const speciesIdMatch = speciesUrl.match(/\/pokemon-species\/(\d+)\//);

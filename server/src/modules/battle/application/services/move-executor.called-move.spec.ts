@@ -1,0 +1,504 @@
+import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { Move, MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
+import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
+import { MirrorMoveEffect } from '@/modules/pokemon/domain/moves/effects/mirror-move-effect';
+import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
+import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
+import { StatusCondition } from '../../domain/entities/status-condition.enum';
+import {
+  ATTACKER_ID,
+  DEFENDER_ID,
+  NORMAL,
+  MoveExecutorSetupOptions,
+  setupMoveExecutor,
+} from './__tests__/move-executor-test-setup';
+
+const moveOf = (id: number, name: string, category: MoveCategory, power: number | null): Move =>
+  new Move(id, name, name, NORMAL, category, power, 100, 10, 0, null);
+
+const CALLER = moveOf(1, 'テストよびだし', MoveCategory.Status, null);
+const CALLED = moveOf(2, 'テストよばれる', MoveCategory.Physical, 80);
+
+/**
+ * ID 1 の技（呼び出す側）が、ID 2 の技（呼ばれる側）を呼ぶ
+ */
+const setupCalledMove = (callerEffect: IMoveEffect, options: MoveExecutorSetupOptions = {}) =>
+  setupMoveExecutor({
+    move: CALLER,
+    moves: [CALLER, CALLED],
+    moveEffects: { [CALLER.name]: callerEffect },
+    ...options,
+  });
+
+describe('MoveExecutorService - 別の技を出す（callMove）', () => {
+  beforeEach(() => {
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('技の効果から callMove で、別の技を技の流れに乗せて出せる', async () => {
+    // Arrange
+    const { execute, statuses } = setupCalledMove({
+      onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'テストよびだし' }),
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used テストよびだし Used テストよばれる and dealt 10 damage');
+    expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
+  });
+
+  it('呼ばれた技は PP を減らさず、使用者の lastMoveId は呼んだ技のまま', async () => {
+    // Arrange
+    const { execute, statuses, battleRepository } = setupCalledMove({
+      onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'テストよびだし' }),
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(battleRepository.updateBattlePokemonMove).toHaveBeenCalledTimes(1);
+    expect(statuses.get(ATTACKER_ID).volatileState.lastMoveId).toBe(1);
+    expect(battleRepository.patchGlobalFieldState).toHaveBeenLastCalledWith(1, { lastMoveId: 2 });
+  });
+
+  it('技の処理の中では、バトル全体の lastMoveId をまだ書かない（まねっこが直前に出た技を読める）', async () => {
+    // Arrange
+    let writesDuringMove = -1;
+    const { execute, battleRepository } = setupMoveExecutor({
+      move: moveOf(1, 'まねっこ', MoveCategory.Status, null),
+      moveEffect: {
+        onUse: () => {
+          writesDuringMove = battleRepository.patchGlobalFieldState.mock.calls.length;
+          return Promise.resolve(null);
+        },
+      },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(writesDuringMove).toBe(0);
+    expect(battleRepository.patchGlobalFieldState).toHaveBeenCalledWith(1, { lastMoveId: 1 });
+  });
+
+  it('呼ばれた技の中でも、バトル全体の lastMoveId はまだ書かず、最後に呼ばれた技を書く', async () => {
+    // Arrange
+    let writesDuringCalledMove = -1;
+    const { execute, battleRepository } = setupCalledMove(
+      { onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ゆびをふる' }) },
+      {
+        moveEffects: {
+          [CALLER.name]: {
+            onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ゆびをふる' }),
+          },
+          [CALLED.name]: {
+            onHit: () => {
+              writesDuringCalledMove = battleRepository.patchGlobalFieldState.mock.calls.length;
+              return Promise.resolve(null);
+            },
+          },
+        },
+      },
+    );
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(writesDuringCalledMove).toBe(0);
+    expect(battleRepository.patchGlobalFieldState).toHaveBeenCalledTimes(1);
+    expect(battleRepository.patchGlobalFieldState).toHaveBeenCalledWith(1, { lastMoveId: 2 });
+  });
+
+  it('呼ばれた技にも、相手がまだ行動していないか（defenderPendingMoveId）と最後に行動するかを渡す（ゆびをふる → ふいうち）', async () => {
+    // Arrange
+    const seen: Array<{ pending?: number; last?: boolean }> = [];
+    const { service, statuses } = setupCalledMove(
+      { onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ゆびをふる' }) },
+      {
+        moveEffects: {
+          [CALLER.name]: {
+            onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ゆびをふる' }),
+          },
+          [CALLED.name]: {
+            onHit: (_a, _d, ctx) => {
+              seen.push({ pending: ctx.defenderPendingMoveId, last: ctx.isLastToMove });
+              return Promise.resolve(null);
+            },
+          },
+        },
+      },
+    );
+    const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
+
+    // Act
+    await service.executeMove(
+      battle,
+      ATTACKER_ID,
+      1,
+      statuses.get(ATTACKER_ID)!,
+      statuses.get(DEFENDER_ID)!,
+      1,
+      { defenderPendingMoveId: 7, isLastToMove: false },
+    );
+
+    // Assert
+    expect(seen).toEqual([{ pending: 7, last: false }]);
+  });
+
+  it('別のポケモンが呼ばれた技を出すときは、呼んだ技の行動順の情報を渡さない（さいはい）', async () => {
+    // Arrange
+    const seen: Array<number | undefined> = [];
+    const { service, statuses } = setupCalledMove(
+      {
+        onUse: (_a, defender, ctx) =>
+          ctx.callMove!({ moveId: 2, calledBy: 'さいはい', user: defender }),
+      },
+      {
+        moveEffects: {
+          [CALLER.name]: {
+            onUse: (_a, defender, ctx) =>
+              ctx.callMove!({ moveId: 2, calledBy: 'さいはい', user: defender }),
+          },
+          [CALLED.name]: {
+            onHit: (_a, _d, ctx) => {
+              seen.push(ctx.defenderPendingMoveId);
+              return Promise.resolve(null);
+            },
+          },
+        },
+      },
+    );
+    const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
+
+    // Act
+    await service.executeMove(
+      battle,
+      ATTACKER_ID,
+      1,
+      statuses.get(ATTACKER_ID)!,
+      statuses.get(DEFENDER_ID)!,
+      1,
+      { defenderPendingMoveId: 7 },
+    );
+
+    // Assert
+    expect(seen).toEqual([undefined]);
+  });
+
+  it('技名で呼べる（ゆびをふる・しぜんのちから）', async () => {
+    // Arrange
+    const { execute, statuses } = setupCalledMove({
+      onUse: (_a, _d, ctx) => ctx.callMove!({ moveName: 'テストよばれる', calledBy: 'ゆびをふる' }),
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
+  });
+
+  it('呼ばれた技の中では、calledBy に呼び出した技の名前が入る', async () => {
+    // Arrange
+    let calledBy: string | undefined;
+    const { execute } = setupCalledMove(
+      { onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ねごと' }) },
+      {
+        moveEffects: {
+          [CALLER.name]: {
+            onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ねごと' }),
+          },
+          [CALLED.name]: {
+            onHit: (_a, _d, ctx) => {
+              calledBy = ctx.calledBy;
+              return Promise.resolve(null);
+            },
+          },
+        },
+      },
+    );
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(calledBy).toBe('ねごと');
+  });
+
+  it('powerMultiplier で威力を変えられる（さきどり = 1.5）', async () => {
+    // Arrange
+    const { execute, calculate } = setupCalledMove({
+      onUse: (_a, _d, ctx) =>
+        ctx.callMove!({ moveId: 2, calledBy: 'さきどり', powerMultiplier: 1.5 }),
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(calculate.mock.calls[0][0].move.power).toBe(120);
+  });
+
+  it('技を出すポケモンを変えられる（さいはい）', async () => {
+    // Arrange
+    const { execute, statuses } = setupCalledMove({
+      onUse: (_a, defender, ctx) =>
+        ctx.callMove!({ moveId: 2, calledBy: 'さいはい', user: defender }),
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(ATTACKER_ID).currentHp).toBe(90);
+    expect(statuses.get(DEFENDER_ID).currentHp).toBe(100);
+  });
+
+  it('runBeforeMoveChecks を渡すと、技を出すポケモンの技を出す前の判定をする（ねむっていれば出せない）', async () => {
+    // Arrange
+    const { execute, statuses } = setupCalledMove(
+      {
+        onUse: (_a, defender, ctx) =>
+          ctx.callMove!({
+            moveId: 2,
+            calledBy: 'さいはい',
+            user: defender,
+            runBeforeMoveChecks: true,
+          }),
+      },
+      { defender: { statusCondition: StatusCondition.Sleep } },
+    );
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used テストよびだし Cannot act due to sleep');
+    expect(statuses.get(ATTACKER_ID).currentHp).toBe(100);
+  });
+
+  it('runBeforeMoveChecks がなければ、技を出す前の判定はしない', async () => {
+    // Arrange
+    const { execute, statuses } = setupCalledMove(
+      {
+        onUse: (_a, defender, ctx) =>
+          ctx.callMove!({ moveId: 2, calledBy: 'テストよびだし', user: defender }),
+      },
+      { defender: { statusCondition: StatusCondition.Sleep } },
+    );
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(statuses.get(ATTACKER_ID).currentHp).toBe(90);
+  });
+
+  it('consumePp を渡すと、技を出すポケモンの技の欄の PP を減らし、そのポケモンの lastMoveId を書く（さいはい）', async () => {
+    // Arrange
+    const { execute, statuses, battleRepository } = setupCalledMove({
+      onUse: (_a, defender, ctx) =>
+        ctx.callMove!({
+          moveId: 2,
+          calledBy: 'さいはい',
+          user: defender,
+          runBeforeMoveChecks: true,
+          consumePp: true,
+        }),
+    });
+    battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockImplementation(
+      (statusId: number) =>
+        Promise.resolve(
+          statusId === DEFENDER_ID
+            ? [new BattlePokemonMove(5, DEFENDER_ID, 2, 10, 10)]
+            : [new BattlePokemonMove(1, ATTACKER_ID, 1, 10, 10)],
+        ),
+    );
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(battleRepository.updateBattlePokemonMove).toHaveBeenCalledWith(5, { currentPp: 9 });
+    expect(statuses.get(DEFENDER_ID).volatileState.lastMoveId).toBe(2);
+  });
+
+  it('呼び出しが深くなりすぎると失敗する', async () => {
+    // Arrange
+    const { execute } = setupCalledMove({
+      onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 1, calledBy: 'テストよびだし' }),
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toContain('But it failed');
+  });
+
+  it('相手がみがわり中でも、オウムがえしはまねした技を出し、その技がみがわりに当たる', async () => {
+    // Arrange
+    const mirrorMove = moveOf(1, 'オウムがえし', MoveCategory.Status, null);
+    const pound = moveOf(2, 'はたく', MoveCategory.Physical, 40);
+    const { execute, statuses } = setupMoveExecutor({
+      move: mirrorMove,
+      moves: [mirrorMove, pound],
+      moveEffects: { [mirrorMove.name]: new MirrorMoveEffect() },
+      defender: { volatileState: { lastMoveId: pound.id, substituteHp: 25 } },
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toBe('Used オウムがえし Used はたく and hit the substitute (10 damage)');
+    expect(statuses.get(DEFENDER_ID).currentHp).toBe(100);
+    expect(statuses.get(DEFENDER_ID).volatileState.substituteHp).toBe(15);
+  });
+
+  it('相手がよこどりを使っていると、奪われる変化技は相手が出す', async () => {
+    // Arrange
+    const onUse = jest.fn().mockResolvedValue("'s Attack rose sharply!");
+    const swordsDance = moveOf(1, 'つるぎのまい', MoveCategory.Status, null);
+    const { execute, statuses } = setupMoveExecutor({
+      move: swordsDance,
+      moveEffect: { onUse },
+      defender: { volatileState: { snatch: true } },
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(message).toContain('Used つるぎのまい but it was snatched!');
+    expect(onUse.mock.calls[0][0].id).toBe(DEFENDER_ID);
+    expect(statuses.get(DEFENDER_ID).volatileState.snatch).toBeUndefined();
+  });
+
+  it('相手の技のあとに、自分の特性の onOpponentMoveUsed を呼ぶ（おどりこ）', async () => {
+    // Arrange
+    const swordsDance = moveOf(1, 'つるぎのまい', MoveCategory.Status, null);
+    const onOpponentMoveUsed = jest.fn(
+      (_holder, _user, ctx: { moveName?: string; callMove?: (r: object) => Promise<string> }) =>
+        ctx.callMove!({ moveId: 1, calledBy: 'おどりこ' }),
+    );
+    AbilityRegistry.register('テストおどりこ', { onOpponentMoveUsed });
+    const onUse = jest.fn().mockResolvedValue(null);
+    const { execute } = setupMoveExecutor({
+      move: swordsDance,
+      moveEffect: { onUse },
+      defenderAbility: 'テストおどりこ',
+    });
+
+    // Act
+    const message = await execute();
+
+    // Assert
+    expect(onOpponentMoveUsed.mock.calls[0][2].moveName).toBe('つるぎのまい');
+    expect(onUse).toHaveBeenCalledTimes(2);
+    expect(onUse.mock.calls[1][0].id).toBe(DEFENDER_ID);
+    expect(message).toBe('Used つるぎのまい Used つるぎのまい');
+  });
+
+  it('相手の技が外れたときは、onOpponentMoveUsed を呼ばない', async () => {
+    // Arrange
+    const onOpponentMoveUsed = jest.fn().mockResolvedValue(null);
+    AbilityRegistry.register('テストおどりこ', { onOpponentMoveUsed });
+    const { execute, checkHit } = setupMoveExecutor({ defenderAbility: 'テストおどりこ' });
+    checkHit.mockReturnValue(false);
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(onOpponentMoveUsed).not.toHaveBeenCalled();
+  });
+
+  it('自分が隠れている（そらをとぶなど）ときは、onOpponentMoveUsed を呼ばない', async () => {
+    // Arrange
+    const onOpponentMoveUsed = jest.fn().mockResolvedValue(null);
+    AbilityRegistry.register('テストおどりこ', { onOpponentMoveUsed });
+    const { execute } = setupMoveExecutor({
+      move: moveOf(1, 'つるぎのまい', MoveCategory.Status, null),
+      moveEffect: { onUse: () => Promise.resolve(null) },
+      defenderAbility: 'テストおどりこ',
+      defender: { volatileState: { semiInvulnerable: 'air' } },
+    });
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(onOpponentMoveUsed).not.toHaveBeenCalled();
+  });
+
+  it('相手が別の技から呼んだ技を出したときは、呼ばれた技を onOpponentMoveUsed に渡す（ゆびをふる → ちょうのまい）', async () => {
+    // Arrange
+    const onOpponentMoveUsed = jest.fn().mockResolvedValue(null);
+    AbilityRegistry.register('テストおどりこ', { onOpponentMoveUsed });
+    const { execute } = setupCalledMove(
+      { onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'ゆびをふる' }) },
+      { defenderAbility: 'テストおどりこ' },
+    );
+
+    // Act
+    await execute();
+
+    // Assert
+    expect(onOpponentMoveUsed.mock.calls[0][2].moveName).toBe('テストよばれる');
+    expect(onOpponentMoveUsed.mock.calls[0][2].moveId).toBe(2);
+  });
+});
+
+describe('MoveExecutorService - みらいよちが当たる（executeFutureAttacks）', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  const battleWithFutureAttack = (turns: number): Battle =>
+    new Battle(1, 1, 2, 1, 2, 3, null, null, BattleStatus.Active, null, {
+      sides: { [String(DEFENDER_ID)]: { futureAttack: { turns, moveId: 7, sourceStatusId: 1 } } },
+    });
+
+  it('残りターン数が 1 の陣営の場のポケモンに、技を使ったポケモンの能力で当てる', async () => {
+    // Arrange
+    const futureSight = moveOf(7, 'みらいよち', MoveCategory.Special, 120);
+    const { service, statuses, battleRepository } = setupMoveExecutor({ moves: [futureSight] });
+    const battle = battleWithFutureAttack(1);
+    battleRepository.findById.mockResolvedValue(battle);
+
+    // Act
+    const messages = await service.executeFutureAttacks(battle);
+
+    // Assert
+    expect(messages).toEqual([{ trainerId: 1, message: 'Used みらいよち and dealt 10 damage' }]);
+    expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
+    expect(battleRepository.patchSideConditions).not.toHaveBeenCalled();
+    expect(battleRepository.updateBattlePokemonMove).not.toHaveBeenCalled();
+  });
+
+  it('残りターン数が 1 でなければ、まだ当てない', async () => {
+    // Arrange
+    const futureSight = moveOf(7, 'みらいよち', MoveCategory.Special, 120);
+    const { service, statuses, battleRepository } = setupMoveExecutor({ moves: [futureSight] });
+    const battle = battleWithFutureAttack(2);
+    battleRepository.findById.mockResolvedValue(battle);
+
+    // Act
+    const messages = await service.executeFutureAttacks(battle);
+
+    // Assert
+    expect(messages).toEqual([]);
+    expect(statuses.get(DEFENDER_ID).currentHp).toBe(100);
+  });
+});

@@ -54,6 +54,10 @@ describe('StartBattleUseCase', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     };
 
     const mockTeamRepository: jest.Mocked<ITeamRepository> = {
@@ -476,12 +480,15 @@ describe('StartBattleUseCase', () => {
 
       // Assert
       // position=1のポケモンのみがisActive=trueに更新される
+      // 先発は、場に出たターン（switchedInTurn）を 0 にする（ターン 1 が出てから最初の行動）
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledTimes(2);
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(battleStatus1.id, {
         isActive: true,
+        volatileState: { switchedInTurn: 0 },
       });
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(battleStatus3.id, {
         isActive: true,
+        volatileState: { switchedInTurn: 0 },
       });
       // position=2のポケモンは更新されない
       expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalledWith(

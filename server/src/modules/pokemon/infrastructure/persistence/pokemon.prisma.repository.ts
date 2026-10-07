@@ -151,6 +151,21 @@ export class MovePrismaRepository implements IMoveRepository {
 
     return pokemonMoves.map(pm => MoveMapper.toDomainEntity(pm.move));
   }
+
+  async findByName(name: string): Promise<Move | null> {
+    const moveData = await this.prisma.move.findFirst({
+      where: { name },
+      include: {
+        type: true,
+      },
+    });
+
+    if (!moveData) {
+      return null;
+    }
+
+    return MoveMapper.toDomainEntity(moveData);
+  }
 }
 
 /**

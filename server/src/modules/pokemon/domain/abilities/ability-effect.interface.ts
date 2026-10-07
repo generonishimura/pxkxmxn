@@ -6,6 +6,10 @@ import type { StatType } from '../moves/effects/base/base-stat-change-effect';
 import type { HitResult } from '../battle-events/hit-result';
 import type { EffectSource } from '../battle-events/effect-source';
 import type { StatChange } from '../battle-events/stat-change';
+import type { VolatileKind } from '../battle-events/volatile-infliction';
+// 場の状態・設置技・交代の仕組み（Issue #102 #103 #135 一部）
+import type { PrimalWeather } from '@/modules/battle/domain/state/side-state';
+import type { TrapTarget } from '../battle-events/switching';
 
 /**
  * 特性効果のインターフェース
@@ -96,9 +100,10 @@ export interface IAbilityEffect {
   /**
    * 命中率を修正する効果
    * @param pokemon 対象のポケモン
-   * @param accuracy 現在の命中率（0-100）
+   * @param accuracy 現在の命中率（ランク補正のあとの値で、100 を超えることがある）
    * @param battleContext バトルコンテキスト
-   * @returns 修正後の命中率（0-100）、修正しない場合はundefined
+   * @returns 修正後の命中率、修正しない場合はundefined。
+   *   100 を超えても上限を付けない（最終的な 0〜100 の制限は AccuracyCalculator.checkHit が行う）
    */
   modifyAccuracy?(
     _pokemon: BattlePokemonStatus,
@@ -309,23 +314,11 @@ export interface IAbilityEffect {
   ): void | Promise<void>;
 
   /**
-   * 防御側: 接触技などを受けたあと、技全体で1回だけ発動する効果（例: せいでんき、ぬめぬめ）
-   * ダメージが1以上のとき、ヒットのループのあと・技の onHit の前に呼ばれる。かたやぶりでは無視されない
-   * @param defender 防御側のポケモン（この特性を持つ側）
-   * @param attacker 攻撃側のポケモン
-   * @returns 発動した場合はtrue（メッセージ「<特性名> activated!」が付く）
-   */
-  applyContactStatusCondition?(
-    _defender: BattlePokemonStatus,
-    _attacker: BattlePokemonStatus,
-    _battleContext?: BattleContext,
-  ): Promise<boolean>;
-
-  /**
    * 防御側: 攻撃技のダメージを受けたヒットごとに発動する効果
    * （例: じきゅうりょく、せいぎのこころ、びびり、みずがため、わたげ、すなはき、とびだすなかみ）
-   * てつのトゲ・さめはだ・ゆうばくも BaseContactRecoilDamageEffect がこのフックで作る（接触したヒットごと）。
-   * applyContactStatusCondition にも書くと攻撃側が2回ダメージを受ける
+   * てつのトゲ・さめはだ・ゆうばくは BaseContactRecoilDamageEffect、せいでんき・どくのトゲ・ほのおのからだ・ほうしは
+   * BaseContactStatusConditionEffect、ぬめぬめ・カーリーヘアー・くだけるよろいは BaseContactStatChangeEffect が
+   * このフックで作る（連続技ではヒットのたびに発動する。本家の onDamagingHit と同じ）。
    * ダメージが1以上のヒットのたびに、ダメージを減らした直後に呼ばれる。ひんしになったヒットでも呼ばれる
    * （hit.targetFainted が true）。かたやぶりでは無視されない
    * @param holder この特性を持つ防御側のポケモン（ダメージ反映後の状態）
@@ -379,6 +372,21 @@ export interface IAbilityEffect {
    * @returns メッセージ（nullの場合は何も起こらない）
    */
   onKnockOut?(
+    _holder: BattlePokemonStatus,
+    _fainted: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 場のどれかのポケモンがひんしになったとき（例: ソウルハート。本家の onAnyFaint）
+   * ひんしの原因（技・反動・状態異常・接触特性など）と陣営は問わない。ExecuteTurnUseCase が、技・交代・
+   * みらいよち・ターン終了時の処理のあとに、新しくひんしになったポケモンごとに notifyFaint で呼ぶ。
+   * 呼ぶのは場のひんしでないポケモンの実効の特性だけ（持ち主がひんしなら呼ばない）
+   * @param holder この特性を持つ、場のポケモン（最新の状態）
+   * @param fainted ひんしになったポケモン
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onAnyFaint?(
     _holder: BattlePokemonStatus,
     _fainted: BattlePokemonStatus,
     _battleContext?: BattleContext,
@@ -568,4 +576,278 @@ export interface IAbilityEffect {
    * applyDrainHeal で、吸い取られた側の特性として参照される。かたやぶりでは無視されない
    */
   readonly reversesDrainHeal?: boolean;
+  // ---- 一時的な状態（volatile）の仕組み（Issue #103 #104 #107 #135 一部） ----
+
+  /**
+   * 使用者: 技を出そうとしたときに、行動そのものを止める効果（例: なまけ）
+   * MoveExecutorService が、ねむり・こおりの判定のあと、ひるみの判定の前に呼ぶ（本家の onBeforeMove の優先度 9）。
+   * 呼ばれた技（ゆびをふるで出た技など）では呼ばない
+   * @param holder この特性を持つ技の使用者
+   * @returns 行動を止めるときはメッセージ（例: "is loafing around!"）、止めないときは null
+   */
+  onBeforeMove?(
+    _holder: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null> | string | null;
+
+  /**
+   * ひるんで動けなかったときの効果（例: ふくつのこころ）
+   * MoveExecutorService が、ひるみで技を出せなかったときに 1 回呼ぶ
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onFlinch?(_holder: BattlePokemonStatus, _battleContext?: BattleContext): Promise<string | null>;
+
+  /**
+   * 一時的な状態（ちょうはつ・メロメロなど）を受けられるかどうか（例: アロマベール、どんかん）
+   * canApplyVolatile / tryApplyVolatile が呼ぶ。相手の技で付与されるときは、かたやぶりで無視される。
+   * こんらん・ひるみは canReceiveStatusCondition（StatusCondition.Confusion / Flinch）で判定する
+   * @returns 受けない場合はfalse、判定しない場合はundefined
+   */
+  canReceiveVolatile?(
+    _holder: BattlePokemonStatus,
+    _kind: VolatileKind,
+    _battleContext?: BattleContext,
+    _source?: EffectSource,
+  ): boolean | undefined;
+
+  /**
+   * 状態異常がないときに、この状態異常として扱う（例: ぜったいねむり = StatusCondition.Sleep）
+   * getEffectiveStatusCondition / resolveEffectiveStatusCondition が参照する（たたりめ・ゆめくい・ねごとなど）。
+   * 状態異常の欄には書かない
+   */
+  readonly treatedAsStatusCondition?: StatusCondition;
+
+  /**
+   * 防御側: 相手が自分を対象にする技を出したとき、余分に減らす PP（例: プレッシャー = 1）
+   * MoveExecutorService が PP を減らすときに、相手を対象にする技（と mustPressure の技）だけで呼ぶ。
+   * かたやぶりでは無視されない
+   * @param holder この特性を持つポケモン
+   * @param user 技の使用者
+   * @returns 余分に減らす PP、減らさない場合はundefined
+   */
+  modifyOpponentPpDeduction?(
+    _holder: BattlePokemonStatus,
+    _user: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): number | undefined;
+
+  /**
+   * 使用者: 最初に出した技に固定される特性かどうか（例: ごりむちゅう）
+   * true なら MoveExecutorService が、技を出したときに volatileState.choiceLockedMoveId を書く（わるあがきを除く）
+   */
+  readonly locksMoveChoice?: boolean;
+
+  /**
+   * 攻撃側: 相手のみがわり・壁（リフレクター・ひかりのかべ・オーロラベール）・しんぴのまもり・しろいきりを
+   * 無視して技を当てる特性かどうか（例: すりぬけ）
+   */
+  readonly infiltrates?: boolean;
+
+  /**
+   * 相手が技を出し終えたあとの効果（例: おどりこ）
+   * MoveExecutorService が、相手の技の処理がすべて終わったあとに 1 回呼ぶ（呼ばれた技のあとでは呼ばない）。
+   * 相手の技が外れた・失敗したとき、この特性を持つポケモンが隠れている（そらをとぶなど）ときは呼ばない。
+   * battleContext.moveName / moveId は相手が最後に出し始めた技（ゆびをふるで出た技なら、その技）。
+   * 技を出し直すときは battleContext.callMove を使う（おどりこは runBeforeMoveChecks: true）
+   * @param holder この特性を持つポケモン
+   * @param user 技を出した相手
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onOpponentMoveUsed?(
+    _holder: BattlePokemonStatus,
+    _user: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+  // ---- 場の状態・設置技・交代の仕組み（Issue #102 #103 #135 一部） ----
+
+  /**
+   * この特性が出すゲンシ天候（はじまりのうみ・おわりのだいち・デルタストリーム。BasePrimalWeatherEffect が持つ）
+   * ゲンシ天候を出したポケモンが場を離れたとき、場に同じゲンシ天候の特性のポケモンがいれば、
+   * エンジンがそのポケモンに天候を引き継ぐ（いなければ天候が終わる）
+   */
+  readonly primalWeather?: PrimalWeather;
+
+  /**
+   * 防御側: ほえる・ふきとばし・ドラゴンテール・ともえなげ（技の forceSwitch）で交代させられない（例: きゅうばん、ばんけん）
+   * 相手の技なので、かたやぶりで無視される
+   */
+  readonly preventsForcedSwitch?: boolean;
+
+  /**
+   * HP が最大 HP の半分以下になったとき、控えと交代する（例: ききかいひ、にげごし）
+   * エンジンが、相手の技のダメージ（技のあと）・設置技・ターン終了時のダメージで、HP が半分より上から
+   * 半分以下になったときに pendingChoice（emergencyExit）を書き、すぐに交代させる
+   */
+  readonly switchesOutBelowHalfHp?: boolean;
+
+  /**
+   * 相手を逃げられなくするか（例: かげふみ、ありじごく、じりょく）
+   * 相手が交代を選んだとき、ExecuteTurnUseCase（PokemonSwitcherService.findSwitchBlocker）が場の相手の特性として呼ぶ。
+   * ゴーストタイプの相手は、true を返しても交代できる（エンジンが判定する）。持ち主がひんしのときは呼ばない。
+   * とんぼがえり・ほえるなどの交代は止めない
+   * @param holder この特性を持つポケモン
+   * @param target 交代しようとしている相手（タイプ・特性・地面にいるか）
+   * @returns 逃げられなくするなら true
+   */
+  trapsOpponent?(
+    _holder: BattlePokemonStatus,
+    _target: TrapTarget,
+    _battleContext?: BattleContext,
+  ): boolean | undefined;
+  // ---- 急所ランク（Issue #111 #135 一部） ----
+
+  /**
+   * 攻撃側: 急所ランクを変える効果（例: きょううん = stage + 1、ひとでなし = 相手がどくなら 3）
+   * MoveExecutorService が、攻撃技のヒットごとに急所を判定する前に呼ぶ。stage は技・きあいだめ・とぎすますを
+   * 反映した急所ランク（0〜3。3 は必ず急所）。返した値は 0〜3 に収める
+   * @param holder この特性を持つ攻撃側のポケモン
+   * @param stage 今の急所ランク
+   * @returns 変更後の急所ランク、変更しない場合はundefined
+   */
+  modifyCritRatio?(
+    _holder: BattlePokemonStatus,
+    _stage: number,
+    _battleContext?: BattleContext,
+  ): number | undefined;
+
+  /**
+   * 防御側: 急所に当たらない特性かどうか（例: カブトアーマー、シェルアーマー）
+   * MoveExecutorService が急所を判定するときに参照する。かたやぶりで無視される
+   */
+  readonly preventsCriticalHit?: boolean;
+  // ---- 変化技の命中（Issue #135 一部） ----
+
+  /**
+   * 技の命中率を、ランク補正の前に変える効果（例: ミラクルスキン = 防御側で変化技なら 50）
+   * AccuracyCalculator が、命中率が数値の技（変化技を含む）で、攻撃側（role = 'attacker'）→
+   * 防御側（role = 'defender'。かたやぶりで無視される）の順に呼ぶ。このあとにランク補正・じゅうりょく・
+   * modifyAccuracy・modifyEvasion が掛かる（本家の ModifyAccuracy）
+   * @param holder この特性を持つポケモン
+   * @param role この特性を持つポケモンが攻撃側か防御側か
+   * @param accuracy 今の命中率（0-100）
+   * @returns 変更後の命中率、変更しない場合はundefined
+   */
+  modifyBaseAccuracy?(
+    _holder: BattlePokemonStatus,
+    _role: 'attacker' | 'defender',
+    _accuracy: number,
+    _battleContext?: BattleContext,
+  ): number | undefined;
+
+  /**
+   * 自分が使う技も、自分が受ける技も必ず当たる特性かどうか（例: ノーガード）
+   * AccuracyCalculator と、隠れている相手（そらをとぶなど）に届くかの判定で、攻撃側・防御側の両方を見る。
+   * かたやぶりでは無視されない
+   */
+  readonly ensuresMoveHit?: boolean;
+  // ---- きんしのちから（Issue #135 一部） ----
+
+  /**
+   * 使用者: 同じ優先度の中での順番を変える効果（例: きんしのちから・あとだし = -0.1、クイックドロウ = +0.1）
+   * 行動順を決めるとき（ActionOrderDeterminerService）、modifyPriority のあとの優先度に足す。
+   * 1 未満の値を返すので、優先度の違いは越えない（本家の onFractionalPriority）。
+   * battleContext.moveCategory などは行動するポケモンが選んだ技。技の実行中の effectivePriority には入らない
+   * @param holder この特性を持つ、行動するポケモン
+   * @returns 足す値（-1 より大きく 1 より小さい数）、変えない場合はundefined
+   */
+  modifyFractionalPriority?(
+    _holder: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): number | undefined;
+
+  /**
+   * 攻撃側: 技によって、相手の特性を無視する効果（例: きんしのちから = 変化技なら true）
+   * AbilityRegistry.hasMoldBreaker / isIgnoredByMoldBreaker が、技のコンテキスト（moveCategory など）を渡して呼ぶ。
+   * true を返す技では breaksMold（かたやぶり）と同じに扱う
+   * @returns 相手の特性を無視するなら true
+   */
+  breaksMoldFor?(_battleContext?: BattleContext): boolean | undefined;
+  // ---- まもる系（Issue #135 一部） ----
+
+  /**
+   * 攻撃側: 相手のまもる系（まもる・キングシールド・ワイドガード・ファストガード・たたみがえしなど）を
+   * 通り抜ける効果（例: ふかしのこぶし = 接触技なら true）
+   * MoveExecutorService が、相手を対象にする技で守りを判定するときに呼ぶ。トリックガードは通り抜けない
+   * （本家のふかしのこぶしは技の protect フラグを外すだけで、トリックガードは protect フラグを見ないため）
+   * @returns 通り抜けるなら true
+   */
+  bypassesProtection?(
+    _holder: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): boolean | undefined;
+  // ---- 技をはね返す（Issue #135 一部） ----
+
+  /**
+   * 防御側: はね返せる技（MoveBehaviors の reflectable）を、使用者に返す特性かどうか（例: マジックミラー）
+   * MoveExecutorService が、まもる系の判定のあと・特性の無効化の前に参照する。かたやぶりで無視される。
+   * 返した技は、この特性を持つポケモンが元の使用者に出す（はね返した技は、もう一度はね返されない）
+   */
+  readonly bouncesMoves?: boolean;
+  // ---- タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #135 一部） ----
+
+  /**
+   * 攻撃側: 技を出す直前の効果（例: へんげんじざい・リベロ = 技のタイプにタイプを変える、バトルスイッチ = フォルムを変える）
+   * MoveExecutorService が、特性の preventsMove（しめりけなど）を通ったあと、まもる系・命中判定の前に 1 回呼ぶ
+   * （本家の onPrepareHit。変化技・外れる技でも呼ぶ）。battleContext.moveTypeName はタイプを変える効果のあとのタイプ。
+   * 次の技では呼ばない（本家と同じ）: はね返した技、みらいよちが当たるとき、よこどりで奪った技、技を呼ぶ技
+   * （ゆびをふる・ねごと・ねこのて・まねっこ・オウムがえし・さきどり・しぜんのちから。呼ばれた技では呼ぶ）
+   * 呼んだあと、エンジンは使用者を読み直し、タイプ・実数値・特性を求め直してから技を続ける
+   * ため技は、ためる 1 ターン目にも呼ぶ（本家の twoturnmove の PrepareHit）。2 ターン目は技の本体でまた呼ぶ
+   * @param holder この特性を持つ、技の使用者
+   * @param target 技の相手
+   * @returns メッセージ（技のメッセージの前に付く）。何もしなければ null
+   */
+  onPrepareHit?(
+    _holder: BattlePokemonStatus,
+    _target: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 防御側: 攻撃技のヒットを防ぎ、ダメージを 0 にする効果（例: ばけのかわ、アイスフェイス = 物理技だけ）
+   * MoveExecutorService が、ダメージ技のヒットごとに、ダメージを与える前に呼ぶ（みがわりに当たるヒットでは呼ばない）。
+   * かたやぶりで無視される。メッセージを返すと、そのヒットのダメージを 0 にする（本家の onDamage が 0 を返すのと同じ）。
+   * 防いだヒットも当たったものとして、技の追加効果（onHit）・接触時の特性・onDamagingHit（hit.damage は 0）・
+   * 交代（とんぼがえりなど）は起きる。急所にはならない。連続技は次のヒットに進む
+   * 防いだ状態（persistentState.disguiseBusted など）・フォルム・自分へのダメージ（1/8）は、このフックの中で書く
+   * @param holder この特性を持つ、技を受けるポケモン
+   * @param attacker 技の使用者
+   * @returns 防いだならメッセージ、防がなければ null
+   */
+  blockDamagingHit?(
+    _holder: BattlePokemonStatus,
+    _attacker: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 天候が変わったとき（例: てんきや・フラワーギフト = フォルムを変える、アイスフェイス = ゆき（あられ）で戻る）
+   * setWeather / setPrimalWeather で変えたあと、天候がターン終了時に終わったあと、ゲンシ天候が終わったあとに、
+   * 場のひんしでないポケモンの特性ごとに呼ぶ（notifyFieldChange）。battleContext.weather は効果のある天候
+   * （ノーてんき・エアロックが場にいれば None）。場に出たときは呼ばないので、onEntry でも同じ判定をする
+   * 注: ノーてんき・エアロックが場に出入りしたときは呼ばない。メッセージは出せない
+   */
+  onWeatherChange?(_holder: BattlePokemonStatus, _battleContext?: BattleContext): Promise<void>;
+
+  /**
+   * フィールドが変わったとき（例: ぎたい = フィールドのタイプに変える）
+   * setTerrain で変えたあと、フィールドがターン終了時に終わったあとに、場のひんしでないポケモンの特性ごとに呼ぶ
+   * （notifyFieldChange）。battleContext.field は今のフィールド。場に出たときは呼ばないので、onEntry でも同じ判定をする
+   * 注: メッセージは出せない
+   */
+  onTerrainChange?(_holder: BattlePokemonStatus, _battleContext?: BattleContext): Promise<void>;
+
+  /**
+   * 相手が交代で場に出たとき（例: トレース = 場に出たときに写せなかったら、写せる相手が出てきたときに写す）
+   * PokemonSwitcherService.executeSwitch が、場に出たポケモンの onEntry のあとに、相手の場のひんしでないポケモンの
+   * 実効の特性で呼ぶ（本家の Trace の onUpdate の seek）。場に出たポケモンが設置技でひんしになったら呼ばない
+   * 注: バトル開始時は呼ばない（先発の onEntry は、両方の先発が場に出てから呼ぶので、相手を見られる）。メッセージは出せない
+   * @param holder この特性を持つ、場のポケモン
+   * @param entered 場に出た相手（設置技・onEntry のあとの状態）
+   */
+  onFoeEntry?(
+    _holder: BattlePokemonStatus,
+    _entered: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<void>;
 }

@@ -932,6 +932,10 @@ function generateBeforeEach(baseClass: string, params: Record<string, any>): str
     lines.push(`      createBattlePokemonMove: jest.fn(),`);
     lines.push(`      updateBattlePokemonMove: jest.fn(),`);
     lines.push(`      findBattlePokemonMoveById: jest.fn(),`);
+    lines.push(`      patchVolatileState: jest.fn(),`);
+    lines.push(`      patchPersistentState: jest.fn(),`);
+    lines.push(`      patchSideConditions: jest.fn(),`);
+    lines.push(`      patchGlobalFieldState: jest.fn(),`);
     lines.push(`    } as jest.Mocked<IBattleRepository>;`);
     lines.push(``);
     if (params.immuneTypes && Array.isArray(params.immuneTypes) && params.immuneTypes.length > 0) {
@@ -1077,6 +1081,10 @@ function generateHelpers(baseClass: string): string {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     };
   };
 

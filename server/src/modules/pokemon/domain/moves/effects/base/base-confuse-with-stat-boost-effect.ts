@@ -3,6 +3,7 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 import { StatType, STAT_RANK_PROP_MAP, STAT_NAME_MAP } from './base-stat-change-effect';
+import { tryInflictStatus } from '../../../battle-events/status-infliction';
 
 /**
  * 「相手の能力を上げつつこんらんにする」変化技の基底クラス
@@ -11,14 +12,15 @@ import { StatType, STAT_RANK_PROP_MAP, STAT_NAME_MAP } from './base-stat-change-
  *
  * - 能力ランクとこんらん付与は独立して試行される
  *   片方が失敗してももう片方は実行される（本家挙動）
- * - こんらん付与は既に状態異常がある場合はスキップ（エンジン上 statusCondition が単一スロットのため）
+ * - こんらんは volatileState に置くので、状態異常があっても付与する。すでにこんらんしている相手と、
+ *   マイペースなどで防ぐ相手には付与しない（tryInflictStatus で判定する）
  */
 export abstract class BaseConfuseWithStatBoostEffect implements IMoveEffect {
   protected abstract readonly statType: StatType;
   protected abstract readonly rankChange: number;
 
   async onUse(
-    _attacker: BattlePokemonStatus,
+    attacker: BattlePokemonStatus,
     defender: BattlePokemonStatus,
     battleContext: BattleContext,
   ): Promise<string | null> {
@@ -41,11 +43,21 @@ export abstract class BaseConfuseWithStatBoostEffect implements IMoveEffect {
       messages.push(`${statName} ${direction}!`);
     }
 
-    // こんらん付与
-    if (!defender.statusCondition || defender.statusCondition === StatusCondition.None) {
-      await battleContext.battleRepository.updateBattlePokemonStatus(defender.id, {
-        statusCondition: StatusCondition.Confusion,
-      });
+    // こんらん付与（変化技の効果なので、追加効果の確率判定はしない）
+    const { inflicted } = await tryInflictStatus(
+      defender,
+      StatusCondition.Confusion,
+      battleContext,
+      {
+        source: {
+          pokemon: attacker,
+          abilityName: battleContext.attackerAbilityName,
+          kind: 'move',
+          name: battleContext.moveName,
+        },
+      },
+    );
+    if (inflicted) {
       messages.push('became confused!');
     }
 
