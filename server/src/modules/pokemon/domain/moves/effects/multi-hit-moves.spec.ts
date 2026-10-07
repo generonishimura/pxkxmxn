@@ -4,6 +4,7 @@ import { TripleDiveEffect } from './triple-dive-effect';
 import { TwineedleEffect } from './twineedle-effect';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 import { BattleContext } from '../../abilities/battle-context.interface';
+import { HitResult } from '../../battle-events/hit-result';
 import { MoveCategory } from '../../entities/move.entity';
 import { Type } from '../../entities/type.entity';
 import {
@@ -63,7 +64,17 @@ describe('連続技の効果', () => {
     expect(context.multiHitCount).toBe(hits);
   });
 
-  describe('TwineedleEffect の追加効果', () => {
+  describe('TwineedleEffect の追加効果（ヒットごとの onDamagingHit で判定する）', () => {
+    const hit: HitResult = {
+      damage: 10,
+      hpBefore: 100,
+      hitIndex: 0,
+      hitCount: 1,
+      isContact: false,
+      moveTypeName: 'むし',
+      moveCategory: 'Physical',
+      targetFainted: false,
+    };
     const createContext = (defenderTypeName: string): BattleContext => ({
       ...createBattleContext(),
       battleRepository: {
@@ -85,9 +96,10 @@ describe('連続技の効果', () => {
       const context = createContext('ノーマル');
 
       // Act
-      const result = await new TwineedleEffect().onHit(
+      const result = await new TwineedleEffect().onDamagingHit(
         createBattlePokemonStatus(),
         defender,
+        hit,
         context,
       );
 
@@ -104,9 +116,10 @@ describe('連続技の効果', () => {
       const context = createContext('ノーマル');
 
       // Act
-      const result = await new TwineedleEffect().onHit(
+      const result = await new TwineedleEffect().onDamagingHit(
         createBattlePokemonStatus(),
         createBattlePokemonStatus({ id: 2 }),
+        hit,
         context,
       );
 
@@ -120,14 +133,26 @@ describe('連続技の効果', () => {
       const context = createContext('はがね');
 
       // Act
-      const result = await new TwineedleEffect().onHit(
+      const result = await new TwineedleEffect().onDamagingHit(
         createBattlePokemonStatus(),
         createBattlePokemonStatus({ id: 2 }),
+        hit,
         context,
       );
 
       // Assert
       expect(result).toBeNull();
+    });
+
+    it('技全体で1回だけの onHit は持たない（ヒットごとと二重に判定しないため）', () => {
+      // Arrange
+      const effect = new TwineedleEffect();
+
+      // Act
+      const hasOnHit = 'onHit' in effect;
+
+      // Assert
+      expect(hasOnHit).toBe(false);
     });
   });
 });

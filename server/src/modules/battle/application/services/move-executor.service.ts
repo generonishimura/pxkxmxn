@@ -267,8 +267,9 @@ export class MoveExecutorService {
    * 6. 技タイプの決定（技の modifyMoveType → 攻撃側特性の modifyMoveType）と、技全体のタイプ相性
    * 7. 技の beforeDamage（連続技の回数決定）。このあと両者の状態を取り直す
    * 8. 技の威力の決定（技の modifyMovePower）
-   * 9. ヒットごとにダメージを適用し（みがわりがあればみがわりに）、防御側特性の onDamagingHit → 攻撃側特性の onSourceDamagingHit を呼ぶ
-   * 10. 接触時の特性 → onHit → afterDamage（合計ダメージ） → 防御側特性の onAfterMoveHit → 攻撃側特性の onKnockOut
+   * 9. ヒットごとにダメージを適用し（みがわりがあればみがわりに）、技の onDamagingHit → 防御側特性の onDamagingHit →
+   *    攻撃側特性の onSourceDamagingHit を呼ぶ
+   * 10. onHit → afterDamage（合計ダメージ） → 防御側特性の onAfterMoveHit → 攻撃側特性の onKnockOut
    * 11. 倒した相手のみちづれ・おんねん
    *
    * @param battlePokemonMoveId 技の欄（BattlePokemonMove の ID）。覚えていない技を出し続けるとき（ゆびをふるで出た
@@ -1457,11 +1458,14 @@ export class MoveExecutorService {
         hitCount += 1;
       }
 
-      // ヒットごとの特性（防御側の onDamagingHit → 攻撃側の onSourceDamagingHit）。
+      // ヒットごとの技の追加効果と特性（技の onDamagingHit → 防御側の onDamagingHit → 攻撃側の onSourceDamagingHit）。
+      // 本家の spreadMoveHit と同じく、技の追加効果（secondaries）を DamagingHit より先にする。
       // 防いだヒットでも呼ぶ（hit.damage は 0。本家の DamagingHit もダメージ 0 で呼ばれる）
       if (
         (dealtDamage > 0 || blockMessage) &&
-        (defenderEventEffect?.onDamagingHit || attackerAbilityEffect?.onSourceDamagingHit)
+        (moveEffect?.onDamagingHit ||
+          defenderEventEffect?.onDamagingHit ||
+          attackerAbilityEffect?.onSourceDamagingHit)
       ) {
         // 特性で能力ランク・HP・状態異常が変わるため、そのたびに両者の状態を取り直す
         const refreshStatuses = async (): Promise<void> => {
@@ -1475,6 +1479,17 @@ export class MoveExecutorService {
           battleContext.defender = updatedDefender;
         };
         const hit = createHitResult(dealtDamage, hpBeforeHit, hitIndex, isCriticalHit);
+        let moveMessage: string | null = null;
+        if (moveEffect?.onDamagingHit) {
+          moveMessage = await moveEffect.onDamagingHit(
+            currentAttacker,
+            updatedDefender,
+            hit,
+            battleContext,
+          );
+          // 特性に、追加効果で変わったあとの状態を渡す（ダブルニードルのどくなど）
+          await refreshStatuses();
+        }
         let defenderMessage: string | null = null;
         if (defenderEventEffect?.onDamagingHit) {
           defenderMessage = await defenderEventEffect.onDamagingHit(
@@ -1498,7 +1513,7 @@ export class MoveExecutorService {
           await refreshStatuses();
         }
         hitEventMessages.push(
-          ...[defenderMessage, attackerMessage].filter((m): m is string => Boolean(m)),
+          ...[moveMessage, defenderMessage, attackerMessage].filter((m): m is string => Boolean(m)),
         );
       }
 
@@ -1513,6 +1528,10 @@ export class MoveExecutorService {
     }
     // 1 回でも当たったか（ダメージを与えたか、ばけのかわなどで防がれたか）。追加効果・接触時の特性・交代の判定に使う
     const landed = damage > 0 || blockedHitCount > 0;
+    // 技が相手に効かなかったか（タイプ相性、またはふしぎなまもり・ちくでんなど防御側特性の isImmuneToType で無効）。
+    // 本家では技そのものが失敗するので、技の追加効果（onHit）と使用者への効果（afterDamage）を起こさない。
+    // ダメージが 0 になった理由は、ダメージ計算の前に求めた技全体のタイプ相性（moveTypeEffectiveness）で判定する
+    const hadNoEffect = !landed && battleContext.moveTypeEffectiveness === 0;
 
     // みがわりにだけ当たったときは、反動・吸収（afterDamage）だけを起こす（本家と同じ）
     if (damage === 0 && substituteDamage > 0) {
@@ -1557,27 +1576,12 @@ export class MoveExecutorService {
       await this.battleRepository.patchVolatileState(defender.id, { lastHitByMoveId: move.id });
     }
 
-    // 接触技による状態異常付与（防御側の特性）
+    // 接触したときのメッセージ（くちばしキャノンのやけど）。せいでんき・ぬめぬめ・くだけるよろいなどの
+    // 接触時の特性は、ヒットのループの onDamagingHit で発動している
     let contactEffectMessage = '';
-    // 技の追加効果に渡すポケモンの状態（接触時の特性で変わった場合は取得し直す）
+    // 技の追加効果に渡すポケモンの状態（ヒットごとの特性で変わった状態は、ヒットのループで取得し直している）
     let attackerForMoveEffect = currentAttacker;
-    let defenderForMoveEffect = updatedDefender;
-    if (landed && defenderEventEffect?.applyContactStatusCondition) {
-      const applied = await defenderEventEffect.applyContactStatusCondition(
-        updatedDefender,
-        currentAttacker,
-        battleContext,
-      );
-      if (applied) {
-        contactEffectMessage = ` ${defenderAbilityName} activated!`;
-        // くだけるよろい（防御側）やぬめぬめ（攻撃側）などで能力ランク・状態異常が変わるため、
-        // 追加効果が古い状態で上書きしないよう最新の状態を取得し直す
-        attackerForMoveEffect =
-          (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? currentAttacker;
-        defenderForMoveEffect =
-          (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? updatedDefender;
-      }
-    }
+    const defenderForMoveEffect = updatedDefender;
 
     // くちばしキャノンをためている相手に接触技を当てると、やけどになる
     if (
@@ -1599,9 +1603,9 @@ export class MoveExecutorService {
       }
     }
 
-    // 技の特殊効果（onHit）を呼び出す
+    // 技の特殊効果（onHit）を呼び出す（技が相手に効かなかったときは呼ばない）
     let moveEffectMessage = '';
-    if (moveEffect?.onHit) {
+    if (moveEffect?.onHit && !hadNoEffect) {
       const hitMessage = await moveEffect.onHit(
         attackerForMoveEffect,
         defenderForMoveEffect,
@@ -1612,8 +1616,8 @@ export class MoveExecutorService {
       }
     }
 
-    // ダメージ適用後の技の効果（反動など）。全ヒットで実際に減らしたHPの合計を渡す
-    if (moveEffect?.afterDamage) {
+    // ダメージ適用後の技の効果（反動など）。全ヒットで実際に減らしたHPの合計を渡す（技が相手に効かなかったときは呼ばない）
+    if (moveEffect?.afterDamage && !hadNoEffect) {
       const afterDamageMessage = await moveEffect.afterDamage(
         attackerForMoveEffect,
         defenderForMoveEffect,

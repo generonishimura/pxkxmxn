@@ -51,8 +51,8 @@ const CHARGE_OR_FUTURE_MOVE_NAMES: ReadonlySet<string> = new Set([
  *
  * 2回目の威力は1回目と同じで、基礎ダメージ（ダメージ式の +2 のあと）を0.25倍にする（本家と同じ）
  *
- * 注: 技の追加効果（onHit）と、せいでんきなど applyContactStatusCondition の接触時の特性は、
- * 2回当たっても1回だけ判定する（エンジンの近似）
+ * 注: 技の追加効果（onHit）は、2回当たっても1回だけ判定する（エンジンの近似）。せいでんきなどの接触時の特性は
+ * ヒットごとの onDamagingHit で判定するので、2回判定する（本家と同じ）
  */
 export class ParentalBondEffect implements IAbilityEffect {
   /**

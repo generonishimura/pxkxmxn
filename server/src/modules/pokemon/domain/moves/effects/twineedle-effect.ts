@@ -2,6 +2,7 @@ import { BaseMultiHitEffect } from './base-multi-hit-effect';
 import { BaseStatusConditionEffect } from './base-status-condition-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
+import { HitResult } from '../../battle-events/hit-result';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 
 /**
@@ -19,7 +20,8 @@ class TwineedlePoisonEffect extends BaseStatusConditionEffect {
  *
  * 効果: 毎回2回連続で攻撃し、20%の確率で相手をどくにする
  *
- * 注: 本家はヒットごとに追加効果を判定するが、エンジンは onHit を1回だけ呼ぶため、どくの判定も1回だけ
+ * どくの判定はヒットごとの onDamagingHit で行う（本家と同じく、ヒットのたびに20%を判定する。
+ * 少なくとも1回どくにできる確率は 1 - 0.8 × 0.8 = 36%）
  */
 export class TwineedleEffect extends BaseMultiHitEffect {
   protected readonly minHits = 2;
@@ -27,9 +29,10 @@ export class TwineedleEffect extends BaseMultiHitEffect {
 
   private readonly poisonEffect = new TwineedlePoisonEffect();
 
-  async onHit(
+  async onDamagingHit(
     attacker: BattlePokemonStatus,
     defender: BattlePokemonStatus,
+    _hit: HitResult,
     battleContext: BattleContext,
   ): Promise<string | null> {
     return this.poisonEffect.onHit(attacker, defender, battleContext);

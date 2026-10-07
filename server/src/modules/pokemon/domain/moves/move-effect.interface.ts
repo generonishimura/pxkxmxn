@@ -1,6 +1,7 @@
 import { BattleContext } from '../abilities/battle-context.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { Move } from '../entities/move.entity';
+import type { HitResult } from '../battle-events/hit-result';
 import type { StatType } from './effects/base/base-stat-change-effect';
 // まもる系の仕組み（Issue #102 #103 #107 #108 #120 一部）
 import type { ProtectionKind } from '@/modules/battle/domain/state/volatile-state';
@@ -77,6 +78,7 @@ export type ProtectionMoveConfig =
 export interface IMoveEffect {
   /**
    * 技が命中したとき（ダメージ適用後）に発動する効果
+   * 技が相手に効かなかったとき（タイプ相性・ふしぎなまもりなどの特性で無効）は呼ばれない
    * @param attacker 攻撃側のポケモン
    * @param defender 防御側のポケモン
    * @param battleContext バトルコンテキスト
@@ -85,6 +87,25 @@ export interface IMoveEffect {
   onHit?(
     attacker: BattlePokemonStatus,
     defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 攻撃技がダメージを与えたヒットごとに発動する追加効果（例: ダブルニードルの20%のどく）
+   * 連続技ではヒットのたびに呼ばれる（本家は追加効果をヒットごとに判定する）。技全体で1回の onHit と
+   * 両方に書くと二重に判定するので、どちらか一方に書く。
+   * ダメージを減らした直後（ばけのかわで防がれたヒットを含む。みがわりに当たったヒットは除く）、防御側特性の
+   * onDamagingHit より先に呼ばれる（本家の spreadMoveHit で、secondaries が DamagingHit より先なのと同じ）
+   * @param attacker 攻撃側のポケモン
+   * @param defender 防御側のポケモン（ダメージ反映後の状態）
+   * @param hit このヒットの情報
+   * @param battleContext バトルコンテキスト
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onDamagingHit?(
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    hit: HitResult,
     battleContext: BattleContext,
   ): Promise<string | null>;
 
@@ -119,6 +140,7 @@ export interface IMoveEffect {
 
   /**
    * ダメージ適用後に発動する効果
+   * 技が相手に効かなかったとき（タイプ相性・ふしぎなまもりなどの特性で無効）は呼ばれない
    * @param attacker 攻撃側のポケモン
    * @param defender 防御側のポケモン
    * @param damage 与えたダメージ
