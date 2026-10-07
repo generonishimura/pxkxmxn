@@ -171,7 +171,9 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `consecutiveMoveCount` | `recordMoveUse` / `afterMove` | 同じ技を続けて成功させた回数。技の処理の中では「この技を直前まで続けて成功させた回数」（別の技なら、ない） |
 | `lastHitByMoveId` | 技の本体 | 1 以上のダメージを受けた技 |
 | `GlobalFieldState.lastMoveId` | `executeMove` | バトル全体で最後に出た技（呼ばれた技も書く。まねっこが読む）。本家と同じく技を出し終えてから書くので、技の処理の中ではまだ前の技のまま |
-| `protectCount` | `recordMoveUse` / `BeforeMoveChecker` | まもる系（技の `isProtectionMove`）以外の技を出したら消す。技を出せなかったとき（ひるみ・まひ・ねむり・反動など）も消す（本家の stall は、次のターンにまもる系を成功させなければ切れる） |
+| `protectCount` | `recordMoveUse` / `BeforeMoveChecker` / `MoveExecutorService`（まもる系） | まもる系（技の `protection`。トリックガード・たたみがえしを除く。`isProtectionMove` の技も）以外の技を出したら消す。技を出せなかったとき（ひるみ・まひ・ねむり・反動など）も消す（本家の stall は、次のターンにまもる系を成功させなければ切れる）。まもる系が成功したら 1 増やし、失敗したら消す。フェイントなどで守りを解かれたときも消す（`docs/battle-engine-hooks.md` の 13.5） |
+| `protection` | `MoveExecutorService`（まもる系） | 技の `protection` の `kind` の技が成功したら書く。フェイントなどで解かれたら消す（こらえるは消さない）。ターン終了時に消える（`VOLATILE_TURN_SCOPED_FLAGS`） |
+| `SideConditions.wideGuard`・`quickGuard`・`craftyShield`・`matBlock` | `MoveExecutorService`（まもる系） | 技の `protection` の `side` の技が成功したら、使用者の陣営に書く。フェイントなどで解かれたら消す。ターン終了時に消える（`SIDE_TURN_SCOPED_FLAGS`） |
 | `choiceLockedMoveId` | `recordMoveUse` | 特性の `locksMoveChoice`（ごりむちゅう）なら、最初に出した技（わるあがきを除く） |
 | `chargingMoveId`・`semiInvulnerable` | `MoveLifecycle.handleChargeTurn` | ため技の 1 ターン目に書き、2 ターン目・技を出せなかったときに消す |
 | `mustRecharge` | `afterMove` / `BeforeMoveChecker` | 反動技（`MoveBehaviors` の `recharge`）が当たったら書き、次の行動で消す |
@@ -240,10 +242,17 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 
 | キー | 型 | 意味 | 使う技・特性 |
 | --- | --- | --- | --- |
-| `protectCount` | 0 以上の整数 | まもる系を続けて成功させた回数 | まもる系すべて・こらえる |
-| `protection` | `ProtectionKind` | このターンに張っている守り | まもる・みきり・キングシールド・ニードルガード・トーチカ・ブロッキング・スレッドトラップ・かえんのまもり・こらえる・ふかしのこぶし |
+| `protectCount` | 0 以上の整数 | まもる系を続けて成功させた回数（エンジンが書く。成功率は 1/3^n、最低 1/729） | まもる系すべて・こらえる・ワイドガード・ファストガード |
+| `protection` | `ProtectionKind` | このターンに張っている守り（エンジンが書く。技は `protection` を宣言するだけ） | まもる・みきり・キングシールド・ニードルガード・トーチカ・ブロッキング・スレッドトラップ・かえんのまもり・こらえる・ふかしのこぶし・フェイント |
 
-`ProtectionKind` は `'protect' | 'kingsShield' | 'spikyShield' | 'banefulBunker' | 'obstruct' | 'silkTrap' | 'burningBulwark' | 'endure'` です。`endure`（こらえる）は攻撃を防ぎませんが、連続で使うと失敗しやすくなる点が同じなので一緒に扱います。ワイドガードなど陣営全体の守りは `SideConditions` に置きます。
+`ProtectionKind` は `'protect' | 'kingsShield' | 'spikyShield' | 'banefulBunker' | 'obstruct' | 'silkTrap' | 'burningBulwark' | 'endure'` です。`endure`（こらえる）は攻撃を防ぎませんが、連続で使うと失敗しやすくなる点が同じなので一緒に扱います。ワイドガードなど陣営全体の守りは `SideConditions` に置きます（型は `SideGuardKind`）。
+
+まもる系の流れは次のとおりです（くわしくは `docs/battle-engine-hooks.md` の 13.5）。
+
+1. まもるを使う → エンジンが成功を引き、`protection: 'protect'` と `protectCount: 1` を書く
+2. 同じターンに相手の技が来る → エンジンが `protection` を見て防ぐ
+3. ターン終了時 → `protection` が消える。`protectCount` は残る
+4. 次のターンにまたまもるを使う → 成功率 1/3。ほかの技を出したら `protectCount` が消える
 
 ### このターンだけ続くフラグ
 
@@ -305,8 +314,8 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `perishCount` | 0〜3 | ほろびのうたのカウント。使ったターンに `3` を書く。ターン終了時に 0 ならひんし、それ以外は 1 減らす（4 回目のターン終了時にひんし） | ほろびのうた・ほろびのボディ |
 | `stockpileCount` | 1〜3 | たくわえるの回数 | たくわえる・はきだす・のみこむ |
 | `stockpileBoosts` | `{ defense, specialDefense }`（各 0〜6） | たくわえるで実際に上がったランク | たくわえる・はきだす・のみこむ |
-| `critStageBoost` | 0 以上の整数 | 急所ランクの上昇 | きあいだめ |
-| `laserFocusTurns` | 0 以上の整数 | 次の技が必ず急所になる残りターン数 | とぎすます |
+| `critStageBoost` | 0 以上の整数 | 急所ランクの上昇（急所の判定でエンジンが足す。種類は `'focusEnergy'`） | きあいだめ |
+| `laserFocusTurns` | 0 以上の整数 | 技が必ず急所になる残りターン数（使ったターンに `2` を書く。種類は `'laserFocus'`） | とぎすます |
 | `charged` | 真偽値 | 次のでんき技の威力が 2 倍。でんき技を出すとエンジンが消す（第 9 世代は、でんき技を出すまで続く） | じゅうでん・でんきにかえる・ふうりょくでんき |
 | `loafing` | 真偽値 | 次のターンは動かない | なまけ |
 
@@ -551,6 +560,9 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | `charged`（使用者） | でんき技の威力 2 倍 | `DamageCalculator` |
 | `lockOnTurns`（使用者）・`telekinesisTurns`（相手） | 必ず当たる | `AccuracyCalculator` |
 | `uproar`（場の誰か） | ねむりにできない | `canInflictStatus` |
+| `protection`（相手） | 相手を対象にする技を防ぐ（こらえるは HP が 1 残る）。接触した使用者に守りの効果を与える | 技の本体 |
+| `magicCoat`（相手） | はね返せる技（`reflectable`）を、相手が使用者に出し直す | 技の本体 |
+| `critStageBoost`・`laserFocusTurns`（使用者） | 急所ランク +2 / 必ず急所 | 技の本体（急所の判定） |
 
 ### ターン終了時（`VolatileResidualProcessor`）
 
@@ -609,6 +621,8 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | `trickRoomTurns` | 同じ優先度なら遅い方が先 | 行動順 |
 | `primalWeather` が `heavyRain` / `harshSunlight` | ほのお / みずの攻撃技が失敗する（PP は減る。タイプ変更の反映後で判定。ノーてんき・エアロックが場にいれば効かない） | `MoveExecutorService.useMove` |
 | `Battle.field` がサイコフィールド | 地面にいて隠れていない相手への、優先度（`effectivePriority`）1 以上の技が失敗する | 技の本体 |
+| 相手の陣営の `quickGuard`・`wideGuard`・`craftyShield`・`matBlock` | 優先度 1 以上の技 / 相手全体の技 / 変化技 / 攻撃技を防ぐ（`docs/battle-engine-hooks.md` の 13.5） | 技の本体 |
+| 相手の陣営の `luckyChantTurns` | 急所にならない | 技の本体（急所の判定） |
 
 ### 状態異常・能力ランク
 

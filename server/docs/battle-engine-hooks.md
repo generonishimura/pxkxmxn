@@ -20,18 +20,19 @@
 
 1. ヒット共通のコンテキストを作る（技名・技フラグ・効果のある天候・実数値・無視するランク・`effectivePriority`）
 2. 両者の特性の `preventsMove` で技を失敗させるか判定する（変化技も含む。防御側はかたやぶりで無視）。失敗ならPPだけ減って `Used <技> but it failed (<特性名>)`
-3. 防御側特性の `isImmuneToMove` で技そのものを無効にするか判定する（変化技も含む）。無効なら防御側特性の `onMoveBlocked` を呼んで終わり
-4. 技の `shouldFail` で技が失敗するか判定する。失敗ならPPだけ減って `Used <技> but it failed`
-5. 隠れている相手（そらをとぶなど）に届くかの判定と、命中判定（`AccuracyCalculator.checkHit`）。相手のみがわりで、相手を対象にする変化技は失敗する
-6. 変化技なら `onUse` を呼んで終わり（威力が null で `modifyMovePower` もない攻撃技も、今までどおりここで終わる）
-7. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType`）。技全体のタイプ相性を `moveTypeEffectiveness` に入れる
-8. 技の `beforeDamage`（連続技の回数決定）。このあと攻撃側・防御側の状態を取り直す
-9. 技の威力を決める（技の `modifyMovePower`）
-10. ヒットごとにダメージを計算して当てる（連続技・おやこあいの追加ヒット。相手にみがわりがあればみがわりに当て、追加効果は起きない）。1以上減らしたヒットごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
-11. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
-12. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut` → 倒した相手のみちづれ・おんねん
+3. 相手のまもる系（13.5）で防ぐかを判定する（相手を対象にする技だけ）。防いだら `Used <技> but it was blocked (<守りの技名>)` で終わる。続けて、マジックコート・マジックミラー（13.6）ではね返すかを判定する
+4. 防御側特性の `isImmuneToMove` で技そのものを無効にするか判定する（変化技も含む）。無効なら防御側特性の `onMoveBlocked` を呼んで終わり
+5. 技の `shouldFail` で技が失敗するか判定する。失敗ならPPだけ減って `Used <技> but it failed`
+6. 隠れている相手（そらをとぶなど）に届くかの判定と、命中判定（`AccuracyCalculator.checkHit`）。変化技も、相手を対象にする技なら命中判定をする（13.2）。当たったら、フェイントなど（`breaksProtect`）は相手の守りを解く（13.5）。相手のみがわりで、相手を対象にする変化技は失敗する
+7. 変化技なら、まもる系の技（技の `protection`）の成功判定をしてから `onUse` を呼んで終わり（威力が null で `modifyMovePower` もない攻撃技も、今までどおりここで終わる）
+8. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType`）。技全体のタイプ相性を `moveTypeEffectiveness` に入れる
+9. 技の `beforeDamage`（連続技の回数決定）。このあと攻撃側・防御側の状態を取り直す
+10. 技の威力を決める（技の `modifyMovePower`）
+11. ヒットごとに急所を引き（13.1）、ダメージを計算して当てる（連続技・おやこあいの追加ヒット。相手にみがわりがあればみがわりに当て、追加効果は起きない。こらえるの相手は HP が 1 残る）。1以上減らしたヒットごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
+12. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
+13. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut` → 倒した相手のみちづれ・おんねん
 
-メッセージは `Used <技> and dealt <ダメージ> damage (hit N times) <接触時の特性> <10のメッセージ> <onHit・afterDamage> <12のメッセージ>` の順に並びます。
+メッセージは `Used <技> and dealt <ダメージ> damage (hit N times) <A critical hit!> <It broke through the protection!> <The opponent endured the hit!> <接触時の特性> <11のメッセージ> <onHit・afterDamage> <13のメッセージ>` の順に並びます。
 
 ターン終了時（`StatusConditionProcessorService.processTurnEndAbilities`）は、すなあらし・ねがいごとのあと、場のポケモンごとに次の順で処理します（くわしくは `docs/battle-state.md` の 10 章）。
 
@@ -49,7 +50,7 @@
 2. 防御側特性の `isImmuneToType`（じゅうりょくの間は、ふゆうのじめん技の無効を無視する）
 3. 威力補正（攻撃側特性の `modifyBasePower` → 場の特性の `modifyAnyBasePower` → じゅうでん → フィールド・どろあそび・みずあそび）
 4. 能力値とランク（`attackStatOverride`、無視するランク、やけど半減。ワンダールームなら防御と特防の実数値を入れ替える）
-5. 基本ダメージ → 攻撃側特性の `modifyDamageDealt` → 防御側特性の `modifyDamage` → 天候補正 → 隠れている相手への 2 倍 → 壁（リフレクター・ひかりのかべ・オーロラベール）
+5. 基本ダメージ（急所なら 1.5 倍で切り捨て。13.1）→ 攻撃側特性の `modifyDamageDealt` → 防御側特性の `modifyDamage` → 天候補正 → 隠れている相手への 2 倍 → 壁（リフレクター・ひかりのかべ・オーロラベール。急所には効かない）
 
 ## 2. 技のフック（IMoveEffect）
 
@@ -497,6 +498,7 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `attacker` / `defender` | 攻撃側・防御側の最新の状態（ランク・HP・状態異常） | 技の実行・ダメージ計算。行動順では `attacker` が行動するポケモン |
 | `attackerStats` / `defenderStats` | ランク補正前の実数値 | 技の実行・ダメージ計算。行動順では `attackerStats` が行動するポケモン |
 | `typeEffectiveness` | このヒットのタイプ相性（0〜4） | ダメージ計算中の特性フック |
+| `isCriticalHit` | このヒットが急所か（13.1。ヒットのループのあとは最後のヒットの値） | ダメージ計算中の特性フック・攻撃技の `onHit` 以降 |
 | `moveTypeEffectiveness` | 技全体のタイプ相性（0〜4）。防御側特性の `isImmuneToType` で無効なら0 | ダメージ技の `beforeDamage` 以降 |
 | `weather` | 効果のある天候（ノーてんき等がいれば `None`） | 技の実行・行動順・ターン終了時・ダメージ計算 |
 | `isLastToMove` | このターン最後に行動するか | 技の実行・ダメージ計算 |
@@ -603,7 +605,6 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | かぜのりの「おいかぜで攻撃+1」 | おいかぜを張ったときに呼ばれるフックがない（おいかぜの技の `onUse` で、場の自分のポケモンのかぜのりを見て `applyStatChanges` する）。風技を無効にして攻撃+1にする部分は `isImmuneToMove` + `onMoveBlocked` で作れる |
 | こだいかっせい・クォークチャージの「ブーストエナジー」 | 持ち物の仕組みがない。晴れ・エレキフィールドで発動する部分は作れる |
 | じんばいったい（ブリザポス） | きんちょうかん（相手がきのみを食べられない）に持ち物の仕組みがない。しろのいななきの部分は `onKnockOut` で作れる |
-| 急所でのおまじない | 急所の仕組みがない。急所を決める処理を作るときに `preventsCriticalHit`（11.2）を呼ぶ |
 | ゆき（さむいギャグ・ゆきふらし・ゆきげしき） | `Weather` enum に `Snow` がない（マイグレーションが要る）。今は `Hail` で代わりにする |
 
 ## 8. 特性・技ごとに使うフック
@@ -787,8 +788,9 @@ shouldFail(attacker: BattlePokemonStatus): boolean {
 #### isProtectionMove（技のプロパティ）
 
 - 型: `readonly isProtectionMove?: boolean`
-- 参照する場所: `MoveLifecycle.recordMoveUse`。`true` でない技を出すと、エンジンが `protectCount` を消す
-- 使う技: まもる・みきり・キングシールド・ニードルガード・トーチカ・ブロッキング・スレッドトラップ・かえんのまもり・こらえる
+- 参照する場所: `MoveLifecycle.recordMoveUse`。`true` でない技（と、技の `protection` を持たない技。13.5）を出すと、エンジンが `protectCount` を消す
+- まもる系の技は、`isProtectionMove` ではなく技の `protection`（13.5）を使う。`protection` があれば、成功判定・守りの書き込み・`protectCount` の更新もエンジンが行う
+- 使う技: 今は使う技はない（`protection` で足りる）。`protection` を持たないのに `protectCount` を残す技を作るときだけ使う
 
 ```ts
 export class ProtectEffect implements IMoveEffect {
@@ -1095,12 +1097,12 @@ export class ReflectEffect extends BaseSideConditionMoveEffect {
 #### preventsCriticalHit（おまじない）
 
 - シグネチャ: `preventsCriticalHit(defenderSide: SideConditions): boolean`（`battle/domain/logic/field-modifiers.ts`）
-- 呼ばれる場所: まだない。急所を決める処理を作るときに、防御側の陣営で `true` なら急所にしない
-- 使う技: おまじない
+- 呼ばれる場所: `MoveExecutorService` の急所の判定（13.1）。防御側の陣営で `true` なら急所にしない
+- 使う技: おまじない（技は `luckyChantTurns` を書くだけ）
 
 ```ts
 const side = getSideConditions(battle.sideState, defender.trainerId);
-const isCriticalHit = !preventsCriticalHit(side) && rollCriticalHit(stage);
+const blocked = preventsCriticalHit(side); // おまじないの間は true
 ```
 
 ### 11.3 両陣営にかかる状態（GlobalFieldState）
@@ -1289,7 +1291,7 @@ return grounded; // ありじごく（trapsOpponent では target.grounded が�
 | どくびし | `addEntryHazard(ctx, defender.trainerId, 'toxicSpikes')`（11.4） |
 | みかづきのまい | `hasSwitchTarget` で失敗判定、`healingWish: 'lunarDance'`、自分をひんしにする（11.5）。回復はエンジン |
 | グラスフィールド | `BaseTerrainMoveEffect`（`Field.GrassyTerrain`。11.1）。回復・威力はエンジン |
-| おまじない | `BaseSideConditionMoveEffect`（`luckyChantTurns`, 5）。急所の防止は急所の仕組みと一緒に（11.2） |
+| おまじない | `BaseSideConditionMoveEffect`（`luckyChantTurns`, 5）。急所の防止はエンジン（11.2・13.1） |
 | きゅうばん | `preventsForcedSwitch = true`（11.5） |
 | かげふみ・じりょく・ありじごく | `trapsOpponent`（11.6） |
 | すりぬけ | `infiltrates = true`。壁・しんぴのまもり・しろいきり・みがわりを無視するのはエンジン |
@@ -1298,3 +1300,312 @@ return grounded; // ありじごく（trapsOpponent では target.grounded が�
 | バリアフリー | `onEntry` で両方の陣営に `clearSideConditions(ctx, trainerId, SCREEN_KEYS)`（11.4） |
 | そうだいしょう | `modifyBasePower` で `ctx.attackerFaintedAllyCount`（11.7） |
 | どくげしょう | `onDamagingHit` で `hit.moveCategory === 'Physical'` なら `addEntryHazard(ctx, attacker.trainerId, 'toxicSpikes')`（11.4） |
+
+## 13. 急所・変化技の命中・まもる系・技をはね返す仕組み
+
+急所・まもる系・マジックコートの効果は、エンジンが行います。技・特性の実装では、キーを書くか、プロパティやフックを宣言するだけにします。ダイマックス技・Z 技は対象外です。
+
+### 13.1 急所
+
+エンジンは、攻撃技のヒットごとに急所を引きます（本家の getDamage）。
+
+1. 急所ランクを決める（`baseCriticalHitStage`）: 急所に当たりやすい技（`MoveBehaviors` の `highCritRatio`）は +1、使用者の `critStageBoost`（きあいだめ）を足す。必ず急所になる技（`alwaysCrit`）と使用者の `laserFocusTurns`（とぎすます）は必ず急所（ランク 3）
+2. 攻撃側特性の `modifyCritRatio` でランクを変える。0〜3 に収める
+3. 防御側特性の `preventsCriticalHit`（かたやぶりで無視される）か、防御側の陣営の `luckyChantTurns`（おまじない）があれば急所にしない
+4. ランクごとの確率で引く（ランク 0 = 1/24、1 = 1/8、2 = 1/2、3 以上 = 必ず。第 9 世代）
+5. 急所なら、`battleContext.isCriticalHit` を `true` にしてダメージを計算する。基礎ダメージを 1.5 倍（切り捨て）し、攻撃側の下がったランクと防御側の上がったランクを 0 として扱い、壁を無視する。メッセージに `A critical hit!` が付く
+
+#### modifyCritRatio（特性、攻撃側）
+
+- シグネチャ: `modifyCritRatio?(holder, stage: number, battleContext?): number | undefined`
+- 呼ばれる場所: `MoveExecutorService.runMoveBody`。攻撃技のヒットのループの前に 1 回（急所はヒットごとに引くが、ランクは技全体で同じ）。`stage` は 1 の手順のあとの急所ランク（0〜3）
+- 使う特性: きょううん（`stage + 1`）、ひとでなし（相手がどく・もうどくなら `3`。相手は `battleContext.defender`）
+
+```ts
+modifyCritRatio(_holder: BattlePokemonStatus, stage: number): number {
+  return stage + 1; // きょううん
+}
+```
+
+#### preventsCriticalHit（特性のプロパティ、防御側）
+
+- 型: `readonly preventsCriticalHit?: boolean`
+- 参照する場所: `MoveExecutorService.runMoveBody` の急所の判定。かたやぶりで無視される（本家の breakable）
+- 使う特性: カブトアーマー、シェルアーマー
+
+```ts
+export class BattleArmorEffect implements IAbilityEffect {
+  readonly preventsCriticalHit = true;
+}
+```
+
+#### HitResult.isCriticalHit（ヒットの情報）
+
+- 型: `readonly isCriticalHit?: boolean`（`pokemon/domain/battle-events/hit-result.ts`）
+- 入る場所: `onDamagingHit`・`onSourceDamagingHit`（このヒットが急所か）、`onAfterMoveHit`（どれかのヒットが急所か）
+- 使う特性: いかりのつぼ（急所に当たったら攻撃 +12。本家と同じく、ひんしになったときは上げない）
+
+```ts
+async onDamagingHit(holder: BattlePokemonStatus, _a: BattlePokemonStatus, hit: HitResult, ctx?: BattleContext) {
+  if (!ctx || !hit.isCriticalHit || hit.targetFainted) return null;
+  return joinStatChangeMessages(await applyStatChanges(holder, [{ statType: 'attack', rankChange: 12 }], ctx, { source: { pokemon: holder, kind: 'ability', name: 'いかりのつぼ' } }));
+}
+```
+
+#### critStageBoost・laserFocusTurns（volatileState）と tryApplyVolatile
+
+- 種類: `'focusEnergy'`（キーは `critStageBoost`）、`'laserFocus'`（キーは `laserFocusTurns`）。すでにその状態なら `tryApplyVolatile` が `false` を返す
+- 使う技: きあいだめ（`critStageBoost: 2`。`FOCUS_ENERGY_CRIT_STAGE_BOOST`）、とぎすます（`laserFocusTurns: 2`。使ったターンと次のターンの技が必ず急所。ターン終了時にエンジンが減らす）
+- バトンタッチで引き継ぐ（`BATON_PASS_KEYS`）
+
+```ts
+const applied = await tryApplyVolatile(attacker, 'focusEnergy', { critStageBoost: FOCUS_ENERGY_CRIT_STAGE_BOOST }, ctx);
+return applied ? 'is getting pumped!' : 'But it failed';
+```
+
+#### 急所の補助関数（`battle/domain/logic/critical-hit.ts`）
+
+| 関数・定数 | 用途 |
+| --- | --- |
+| `criticalHitChance(stage)` | 急所ランクから急所率（1/24・1/8・1/2・1） |
+| `rollCriticalHit(stage, random)` | 急所を引く。ランク 3 以上なら乱数を引かずに `true` |
+| `baseCriticalHitStage(moveName, volatileState)` | 特性の補正の前の急所ランク |
+| `CRITICAL_HIT_DAMAGE_MULTIPLIER` | 1.5 |
+
+```ts
+const stage = baseCriticalHitStage('つじぎり', attacker.volatileState); // 1
+criticalHitChance(stage); // 1/8
+```
+
+#### 急所の乱数（CRITICAL_HIT_RANDOM_TOKEN）とテスト
+
+- `MoveExecutorService` の 5 つめの引数（DI トークン `CRITICAL_HIT_RANDOM_TOKEN`、省略可）が急所の乱数（`() => number`）です。省略すると `Math.random` を使います
+- `Math.random` を差し替えるテスト（命中・追加効果）で急所が出ないよう、急所だけ別の乱数にしています
+- テストの部品（`createBattleEngine`・`move-executor-test-setup`）は、既定で `NO_CRITICAL_HIT_RANDOM`（急所ランク 3 以上のときだけ急所）を渡します。急所を試すときは `createBattleEngine({ criticalHitRandom: () => 0.01, ... })` のように渡します
+- テストで `new MoveExecutorService(...)` を直接作るときも、5 つめに `NO_CRITICAL_HIT_RANDOM` を渡してください。渡さないと 1/24 で急所になり、ダメージの値が揺れます
+
+```ts
+const engine = createBattleEngine({ moves, pokemon, criticalHitRandom: () => 0.04 }); // 1/24 より小さいので急所
+await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+```
+
+### 13.2 変化技の命中
+
+相手を対象にする変化技（`MoveFlags.targetsOpponent`）も、命中判定をするようになりました（以前は必ず当たっていた）。
+
+- 命中率が `null` の技は必ず当たる。命中・回避ランク、じゅうりょく、特性の `modifyAccuracy` / `modifyEvasion` も掛かる
+- 自分を対象にする変化技・場の技（つるぎのまい・まきびしなど）は命中判定をしない
+- 隠れている相手（そらをとぶなど）には、変化技も当たらない（`MoveBehaviors.hitsSemiInvulnerable` の技・ロックオン・ノーガードは当たる）
+- どくタイプが使うどくどくは必ず当たり、隠れている相手にも当たる（第 8 世代から。`AccuracyCalculator.alwaysHitsByMoveUser`）
+- 威力が null で `modifyMovePower` もない攻撃技は、今までどおり命中判定をしない
+
+`AccuracyCalculator.checkHit` の順番は次のとおりです。
+
+1. 命中率が `null`、または `options.ensuresHit`（どくタイプのどくどく）なら当たる
+2. 攻撃側か防御側の特性が `ensuresMoveHit`（ノーガード）なら当たる
+3. 使用者の `lockOnTurns`・相手の `telekinesisTurns` なら当たる
+4. 特性の `modifyBaseAccuracy`（攻撃側 → 防御側）
+5. 命中・回避ランク → じゅうりょく → 攻撃側特性の `modifyAccuracy` → 防御側特性の `modifyEvasion` → 乱数
+
+#### modifyBaseAccuracy（特性、攻撃側・防御側）
+
+- シグネチャ: `modifyBaseAccuracy?(holder, role: 'attacker' | 'defender', accuracy: number, battleContext?): number | undefined`
+- 呼ばれる場所: `AccuracyCalculator.checkHit`。命中率が数値の技で、ランク補正の前に攻撃側（`role = 'attacker'`）→ 防御側（`role = 'defender'`。かたやぶりで無視される）の順（本家の ModifyAccuracy）
+- 使う特性: ミラクルスキン（防御側で、変化技なら 50）
+
+```ts
+modifyBaseAccuracy(_h: BattlePokemonStatus, role: 'attacker' | 'defender', _accuracy: number, ctx?: BattleContext): number | undefined {
+  return role === 'defender' && ctx?.moveCategory === 'Status' ? 50 : undefined;
+}
+```
+
+#### ensuresMoveHit（特性のプロパティ）
+
+- 型: `readonly ensuresMoveHit?: boolean`
+- 参照する場所: `AccuracyCalculator.checkHit` と、隠れている相手に届くかの判定（攻撃側・防御側の両方。かたやぶりでは無視されない）
+- 使う特性: ノーガード（`NoGuardEffect` は乗せ換え済み）
+
+```ts
+export class NoGuardEffect implements IAbilityEffect {
+  readonly ensuresMoveHit = true;
+}
+```
+
+### 13.3 同じ優先度の中の順番（modifyFractionalPriority）
+
+- シグネチャ: `modifyFractionalPriority?(holder, battleContext?): number | undefined`
+- 呼ばれる場所: `ActionOrderDeterminerService`（と `ActionOrderDeterminer`）。`modifyPriority` のあとの優先度に足す。-1 より大きく 1 より小さい値を返すので、優先度の違いは越えない（本家の onFractionalPriority）。`battleContext.moveCategory` などは行動するポケモンが選んだ技。技の実行中の `effectivePriority` には入らない
+- 使う特性: きんしのちから（変化技なら -0.1）、あとだし（-0.1。今は `modifySpeed` で近似している）、クイックドロウ（攻撃技で 30% なら +0.1）
+
+```ts
+modifyFractionalPriority(_holder: BattlePokemonStatus, ctx?: BattleContext): number | undefined {
+  return ctx?.moveCategory === 'Status' ? -0.1 : undefined; // きんしのちから
+}
+```
+
+### 13.4 技によって相手の特性を無視する（breaksMoldFor）
+
+- シグネチャ: `breaksMoldFor?(battleContext?): boolean | undefined`
+- 呼ばれる場所: `AbilityRegistry.hasMoldBreaker(name, ctx)` / `isIgnoredByMoldBreaker(attacker, defender, ctx)`。`true` を返す技では、`breaksMold`（かたやぶり）と同じに扱う。技の実行・ダメージ計算・命中判定・`canInflictStatus`・`applyStatChanges`・`canApplyVolatile` が、技のコンテキスト（`moveCategory` など）を渡す
+- 使う特性: きんしのちから（変化技なら `true`）
+- 自分のファイルで「かたやぶりで止まるか」を判定するとき（ねつこうかんなど）は、`isIgnoredByMoldBreaker(ctx.attackerAbilityName, '<特性名>', ctx)` のように 3 つめにコンテキストを渡す
+
+```ts
+export class MyceliumMightEffect implements IAbilityEffect {
+  breaksMoldFor(ctx?: BattleContext): boolean { return ctx?.moveCategory === 'Status'; }
+  modifyFractionalPriority(_h: BattlePokemonStatus, ctx?: BattleContext): number | undefined { return ctx?.moveCategory === 'Status' ? -0.1 : undefined; }
+}
+```
+
+### 13.5 まもる系
+
+#### protection（技のプロパティ）
+
+- 型: `readonly protection?: ProtectionMoveConfig`（`{ kind: ProtectionKind }` か `{ side: SideGuardKind }`。`pokemon/domain/moves/move-effect.interface.ts`）
+- 参照する場所: `MoveExecutorService.runMoveBody`（変化技の `onUse` の前）と `MoveLifecycle.recordMoveUse`（`protectCount` を残すか）
+- エンジンが行うこと（`startProtection`）:
+  1. このターン最後に動くなら失敗する（本家の queue.willAct。相手が交代したときなど）
+  2. `side: 'matBlock'`（たたみがえし）は、出てから最初の行動（`battle.turn === switchedInTurn + 1`）でなければ失敗する
+  3. `kind` の技は、続けて成功させた回数（`protectCount`）から `protectSuccessChance(count)`（1、1/3、1/9、…、最低 1/729）で成功を引く。成功したら `protection` と `protectCount + 1` を書く。失敗したら `protectCount` を消す
+  4. `side` の技は、使用者の陣営にそのキーを書く。ワイドガード・ファストガードは `protectCount` も 1 増やす（本家の stall。成功率は下がらない）。トリックガード・たたみがえしは `protectCount` を消す
+  5. 失敗したら `onUse` を呼ばずに `Used <技> but it failed`。成功したら `protected itself!`（こらえるは `braced itself!`、陣営の守りは `protected its team!`）のあとに `onUse` のメッセージが付く
+- 使う技: まもる・みきり（`{ kind: 'protect' }`）、キングシールド（`'kingsShield'`）、ニードルガード（`'spikyShield'`）、トーチカ（`'banefulBunker'`）、ブロッキング（`'obstruct'`）、スレッドトラップ（`'silkTrap'`）、かえんのまもり（`'burningBulwark'`）、こらえる（`'endure'`）、ワイドガード（`{ side: 'wideGuard' }`）、ファストガード（`'quickGuard'`）、トリックガード（`'craftyShield'`）、たたみがえし（`'matBlock'`）。優先度（まもる 4・ワイドガード 3 など）は DB の値
+
+```ts
+export class KingsShieldEffect implements IMoveEffect {
+  readonly protection = { kind: 'kingsShield' } as const;
+}
+```
+
+#### 相手の技を防ぐ（findBlockingGuard）
+
+- シグネチャ: `findBlockingGuard({ protection, side, move: { moveName, category, effectivePriority, bypassesProtect? } }): BlockingGuard | undefined`（`battle/domain/logic/protection.ts`）
+- 呼ばれる場所: `MoveExecutorService.runMoveBody`。相手を対象にする技で、特性の `preventsMove`・サイコフィールドのあと、マジックコートと `isImmuneToMove` の前。防いだら `Used <技> but it was blocked (<守りの技名>)` で終わる（PP は減る。outcome は `failed`）
+- 判定（本家の onTryHit の順）:
+  1. ファストガード: 優先度（`effectivePriority`。いたずらごころを含む）が 1 以上の技（変化技も）
+  2. ワイドガード: 相手全体・自分以外全体の技（`MoveBehaviors` の `spread`。じしん・なみのり・なきごえなど）
+  3. 自分の守り: まもる・ニードルガード・トーチカは変化技も防ぐ。キングシールド・ブロッキング・スレッドトラップ・かえんのまもりは攻撃技だけ。こらえるは防がない
+  4. トリックガード: 変化技（まもるで防げない技も防ぐ）。たたみがえし: 攻撃技
+- まもるで防げない技（`MoveBehaviors` の `noProtect`。フェイント・ほえる・ゴーストダイブ・みらいよち・ハイパードリルなど）と、使用者の特性の `bypassesProtection` が `true` の技は、トリックガード以外を通る
+
+```ts
+const guard = findBlockingGuard({ protection: defender.volatileState.protection, side, move: { moveName: 'たいあたり', category: 'Physical', effectivePriority: 0 } });
+// 'protect' なら防がれる。キングシールドなら接触した使用者の攻撃 -1
+```
+
+#### 接触した相手への効果（PROTECTION_CONTACT_EFFECTS）
+
+接触技（`isContactMove`。えんかくなら接触しない）を防いだとき、エンジンが使用者に与えます。
+
+| 守り | 効果 |
+| --- | --- |
+| キングシールド | 攻撃 -1（第 8 世代から） |
+| ブロッキング | 防御 -2 |
+| スレッドトラップ | 素早さ -1 |
+| ニードルガード | 最大 HP の 1/8（切り捨て・最低 1）の技以外のダメージ（マジックガードで防げる） |
+| トーチカ | どく |
+| かえんのまもり | やけど |
+
+能力の低下・状態異常は、守ったポケモンが起こしたもの（`{ pokemon: 守ったポケモン, kind: 'other', name: '<守りの技名>' }`）として `applyStatChanges` / `tryInflictStatus` で与えます。クリアボディ・ミラーアーマー・しろいきり・しんぴのまもり・タイプの免疫が効きます。
+
+#### bypassesProtection（特性、攻撃側）
+
+- シグネチャ: `bypassesProtection?(holder, battleContext?): boolean | undefined`
+- 呼ばれる場所: `MoveExecutorService` の守りの判定。`true` なら、トリックガード以外の守りを通り抜ける（接触したときの効果も起きない）
+- 使う特性: ふかしのこぶし（接触技なら `true`）
+
+```ts
+bypassesProtection(_holder: BattlePokemonStatus, ctx?: BattleContext): boolean {
+  return ctx ? isContactMove(ctx) : false;
+}
+```
+
+#### 守りを解く技（MoveBehaviors の breaksProtect）
+
+- 技の効果は要らない。フェイント・シャドーダイブ・ゴーストダイブ・いじげんホール・いじげんラッシュは、命中したら相手の `protection`（こらえるを除く）・`protectCount` と、相手の陣営の `wideGuard`・`quickGuard`・`craftyShield`・`matBlock` を消す（本家の hitStepBreakProtect）。消したらメッセージに `It broke through the protection!` が付く
+- この 5 つは `noProtect` も持つので、守りに防がれずに当たる
+
+```ts
+MoveBehaviors.has('フェイント', 'breaksProtect'); // true
+MoveBehaviors.has('フェイント', 'noProtect'); // true
+```
+
+#### こらえる（protection: 'endure'）
+
+- `protection` が `'endure'` のポケモンは、そのターンに技のダメージで HP が 0 になるとき、HP が 1 残る（連続技はヒットごと）。メッセージに `The opponent endured the hit!` が付く
+- 技以外のダメージ（どく・すなあらしなど）と、こんらんの自傷では残らない（本家と同じ）
+
+```ts
+export class EndureEffect implements IMoveEffect {
+  readonly protection = { kind: 'endure' } as const;
+}
+```
+
+#### まもる系の補助関数（`battle/domain/logic/protection.ts`）
+
+| 関数・定数 | 用途 |
+| --- | --- |
+| `protectSuccessChance(count)` | 続けて count 回成功させたあとの成功率 |
+| `findBlockingGuard(params)` | 相手の技を防ぐ守り |
+| `keepsProtectCount(moveEffect)` | 出したあとも `protectCount` を残す技か |
+| `hasBreakableProtection(protection, side)` | フェイントなどで解く守りがあるか |
+| `GUARD_MOVE_NAMES` / `PROTECTION_CONTACT_EFFECTS` | 守りの技名 / 接触した相手への効果 |
+
+```ts
+protectSuccessChance(2); // 1/9
+keepsProtectCount({ protection: { side: 'craftyShield' } }); // false
+```
+
+### 13.6 技をはね返す（マジックコート・マジックミラー）
+
+- 判定: `MoveExecutorService.runMoveBody`。まもる系の判定のあと、`isImmuneToMove` の前（本家の onTryHit の優先度）。はね返せる技（`MoveBehaviors` の `reflectable`。まきびしなど相手の陣営に置く技を含む）で、相手が次のどれかを持つとき、相手が使用者に同じ技を出し直す（`callMove` と同じ流れ。PP は減らない）
+  - `volatileState.magicCoat`（マジックコート。このターンだけ）
+  - 特性の `bouncesMoves`（マジックミラー。かたやぶりで無視される）
+- はね返した技は、もう一度はね返さない（両方がマジックミラーでも 1 回で止まる）。相手が隠れている（そらをとぶなど）ときは、はね返さない
+- 元の技のメッセージは `Used <技> but it was bounced back (<マジックコート|マジックミラー>)! <はね返した技のメッセージ>`（outcome は `failed`）
+- マジックコートの技は `tryApplyVolatile(attacker, 'magicCoat', { magicCoat: true }, ctx)` を書くだけ（ターン終了時にエンジンが消す）
+
+```ts
+export class MagicBounceEffect implements IAbilityEffect {
+  readonly bouncesMoves = true;
+}
+```
+
+### 13.7 近似と注意
+
+- 注: 出し続ける技（あばれるなど）は、まもる系に防がれると止まる（失敗として扱う）。本家は 1 ターン目に防がれたときだけ止まる
+- 注: ふかしのこぶしは、本家と同じくトリックガードを通り抜けない（変化技で接触する技はない）
+- 注: まもる系を続けて使ったときの成功の判定と、たたみがえし・まもる系の「最後に動くなら失敗」は、`Math.random` と `isLastToMove` で判定する（呼ばれた技でも同じ）
+- 注: 決まったダメージを与える技（ちきゅうなげなど）を作るときは、本家と同じく急所にならないようにする必要がある（今のエンジンは、ダメージ計算をする攻撃技すべてで急所を引く）
+- 注: ドラゴンエールは味方が要るので、シングルバトルでは失敗する（今は NoOpEffect）。`critStageBoost` を書く技は、今はきあいだめだけ
+- 注: どくどくの必中は使用者のタイプ（`TrainedPokemon` のタイプ）で判定する。みずびたしなどの `typeOverride` は見ない
+
+### 13.8 特性・技ごとに使うもの
+
+| 特性・技 | 使うもの |
+| --- | --- |
+| まもる・みきり | `protection = { kind: 'protect' }` |
+| キングシールド | `protection = { kind: 'kingsShield' }`（攻撃技だけ防ぎ、接触で攻撃 -1）。ギルガルドのフォルムチェンジ（バトルスイッチ）は別の仕組み |
+| ニードルガード | `protection = { kind: 'spikyShield' }`（接触で 1/8） |
+| トーチカ | `protection = { kind: 'banefulBunker' }`（接触でどく） |
+| ブロッキング | `protection = { kind: 'obstruct' }`（接触で防御 -2） |
+| スレッドトラップ | `protection = { kind: 'silkTrap' }`（接触で素早さ -1） |
+| かえんのまもり | `protection = { kind: 'burningBulwark' }`（接触でやけど） |
+| こらえる | `protection = { kind: 'endure' }` |
+| ワイドガード | `protection = { side: 'wideGuard' }`（シングルバトルでも、じしんなど `spread` の技を防ぐ） |
+| ファストガード | `protection = { side: 'quickGuard' }` |
+| トリックガード | `protection = { side: 'craftyShield' }` |
+| たたみがえし | `protection = { side: 'matBlock' }`（出てから最初の行動だけ） |
+| マジックコート | `tryApplyVolatile(attacker, 'magicCoat', { magicCoat: true }, ctx)`（13.6） |
+| マジックミラー | `bouncesMoves = true`（13.6） |
+| きあいだめ | `tryApplyVolatile(attacker, 'focusEnergy', { critStageBoost: 2 }, ctx)`（13.1） |
+| とぎすます | `tryApplyVolatile(attacker, 'laserFocus', { laserFocusTurns: 2 }, ctx)`（13.1） |
+| カブトアーマー・シェルアーマー | `preventsCriticalHit = true`（13.1） |
+| きょううん | `modifyCritRatio` で `stage + 1`（13.1） |
+| ひとでなし | `modifyCritRatio` で、`ctx.defender` がどく・もうどくなら `3`（13.1） |
+| いかりのつぼ | `onDamagingHit` で `hit.isCriticalHit && !hit.targetFainted` なら攻撃 +12（13.1） |
+| スナイパー | 作成済み（`modifyDamageDealt` で `ctx.isCriticalHit` を見る。急所が出るようになったので効く） |
+| ミラクルスキン | `modifyBaseAccuracy`（防御側で変化技なら 50。13.2） |
+| ノーガード | `ensuresMoveHit = true`（乗せ換え済み。13.2） |
+| ふかしのこぶし | `bypassesProtection`（接触技なら `true`。13.5） |
+| きんしのちから | `breaksMoldFor`（変化技なら `true`。13.4）と `modifyFractionalPriority`（変化技なら -0.1。13.3） |
