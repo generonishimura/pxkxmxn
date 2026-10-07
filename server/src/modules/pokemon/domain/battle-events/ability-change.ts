@@ -12,6 +12,16 @@ import { resolveBattleAbilityName } from './battle-traits';
 const ILLUSION_ABILITY_NAME = 'イリュージョン';
 
 /**
+ * 場に出たときだけ動く特性（本家の onSwitchIn・onBeforeSwitchIn。onStart を持たない）
+ * スキルスワップ・なりきり・へんしんで受け取っても、onEntry を呼ばない（受け取ったかわりものはへんしんしない）
+ */
+export const SWITCH_IN_ONLY_ABILITY_NAMES: readonly string[] = [
+  'かわりもの',
+  ILLUSION_ABILITY_NAME,
+  'テラスチェンジ',
+];
+
+/**
  * 特性を書き換えた結果
  * - changed: 書き換えたか
  * - previousAbilityName: 書き換える前の今の特性名（消されているかは見ない。ミイラのメッセージなどに使う）
@@ -53,12 +63,17 @@ const illusionPatch = (
 /**
  * 書き換えたあとに、新しい特性が効いていれば（いえき・かがくへんかガスで消されていなければ）onEntry を呼ぶ
  * 本家の setAbility は新しい特性の Start を呼ぶ（スキルスワップで受け取ったいかくが発動する）
+ * 場に出たときだけ動く特性（SWITCH_IN_ONLY_ABILITY_NAMES）は呼ばない（本家の Start を持たない）
+ * へんしん（transformInto）も、今と同じ特性を写したときは呼ばずに、これを使う
  */
-const startAbility = async (
+export const startAbility = async (
   pokemonId: number,
   abilityName: string,
   battleContext: BattleContext,
 ): Promise<void> => {
+  if (SWITCH_IN_ONLY_ABILITY_NAMES.includes(abilityName)) {
+    return;
+  }
   const latest = await battleContext.battleRepository?.findBattlePokemonStatusById(pokemonId);
   if (!latest || latest.currentHp <= 0) {
     return;

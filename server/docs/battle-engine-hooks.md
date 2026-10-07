@@ -1700,7 +1700,7 @@ modifyBasePower(_p: BattlePokemonStatus, power: number, ctx?: BattleContext): nu
 
 - シグネチャ: `setAbility(target, abilityName, ctx): Promise<{ changed, previousAbilityName? }>`、`swapAbilities(source, target, ctx): Promise<boolean>`、`suppressAbility(target, ctx): Promise<boolean>`、`resolveCurrentAbilityName(pokemon, ctx): Promise<string | undefined>`（`ability-change.ts`）、`hasAbilityFlag(abilityName, flag)`・`ABILITY_FLAGS`（`battle/domain/logic/ability-flags.ts`）
 - フラグ（Showdown の flags と同じ）: `cantSuppress`（消せない・書き換えられない）・`failRolePlay`（なりきり・うつしえで写せない）・`noReceiver`・`noEntrain`（なかまづくりで写せない）・`noTrace`・`failSkillSwap`（スキルスワップ・さまようたましいで入れ替えられない）・`noTransform`（へんしん中は効かない）
-- `setAbility`: `abilityOverride` を書き、新しい特性が効いていれば `onEntry` を呼ぶ（本家の Start。受け取ったいかくが発動する）。ひんし・新しい特性か今の特性が `cantSuppress` なら `{ changed: false }`
+- `setAbility`: `abilityOverride` を書き、新しい特性が効いていれば `onEntry` を呼ぶ（本家の Start。受け取ったいかくが発動する）。場に出たときだけ動く特性（`SWITCH_IN_ONLY_ABILITY_NAMES`: かわりもの・イリュージョン・テラスチェンジ。本家の onSwitchIn）は呼ばない（スキルスワップで受け取ったかわりものはへんしんしない）。ひんし・新しい特性か今の特性が `cantSuppress` なら `{ changed: false }`
 - `swapAbilities`: 両方の今の特性を入れ替え、それぞれの `onEntry` を呼ぶ。ひんし・どちらかが `failSkillSwap` なら false。第 9 世代は同じ特性どうしでも入れ替えられる
 - `suppressAbility`: `abilitySuppressed` を書く。ひんし・`cantSuppress`・すでに消されているなら false
 - `resolveCurrentAbilityName`: 今の特性名（消されているかは見ない。本家の `pokemon.ability`）。なりきり・スキルスワップで写す特性や、ミイラで上書きできるかに使う
@@ -1746,7 +1746,7 @@ if (ctx && holder.currentHp > 0 && holder.currentHp <= holder.maxHp / 2) {
 ### 14.7 へんしん（transformInto）
 
 - シグネチャ: `transformInto(user, target, ctx): Promise<boolean>`（`transform.ts`）
-- 使用者に書くもの: `transformedIntoStatusId`、`typeOverride`（相手のタイプ。はねやすめで失ったひこうも写す）と `addedType`、`statOverrides`（相手の HP 以外の実数値）、`abilityOverride`（相手の今の特性）、`moveSlotOverrides`（相手の技。PP と最大 PP は 5、もとが 5 未満ならその値）、`critStageBoost`・`laserFocusTurns`、能力ランク 7 つ。写した特性が効いていれば `onEntry` を呼ぶ
+- 使用者に書くもの: `transformedIntoStatusId`、`typeOverride`（相手のタイプ。はねやすめで失ったひこうも写す）と `addedType`、`statOverrides`（相手の HP 以外の実数値）、`abilityOverride`（相手の今の特性）、`moveSlotOverrides`（相手の技。PP と最大 PP は 5、もとが 5 未満ならその値）、`critStageBoost`・`laserFocusTurns`、能力ランク 7 つ。写した特性が効いていれば `onEntry` を呼ぶ。ただし、使用者の今の特性と同じ特性を写したとき（本家の setAbility の isTransform）と、場に出たときだけ動く特性は呼ばない
 - へんしん中は、技の欄が `moveSlotOverrides` だけになり（欄の数も相手と同じ）、自分のフォルムを見ない。交代で元に戻る
 - どちらかがひんし・どちらかがへんしん中・相手がみがわり中・どちらかがイリュージョンで化けているなら false
 - 使う技・特性: へんしん（`onUse`）、かわりもの（`onEntry` で相手の場のポケモンに）

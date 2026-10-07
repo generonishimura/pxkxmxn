@@ -262,6 +262,67 @@ describe('ExecuteTurnUseCase - フォルムチェンジとへんしん', () => {
       expect(engine.status(1).volatileState.transformedIntoStatusId).toBeUndefined();
     });
 
+    it('今と同じ特性を写したときは、onEntry を呼ばない（いかくが出直さない。本家の setAbility の isTransform）', async () => {
+      // Arrange
+      const onEntry = jest.fn();
+      AbilityRegistry.register('テストのいかく', { onEntry });
+      MoveRegistry.register('へんしん', {
+        onUse: async (attacker, defender, ctx) =>
+          (await transformInto(attacker, defender, ctx)) ? 'transformed!' : 'But it failed',
+      });
+      const engine = createBattleEngine({
+        moves: MOVES,
+        pokemon: [
+          { id: 1, trainerId: 1, active: true, moveIds: [3], ability: 'テストのいかく' },
+          {
+            id: 2,
+            trainerId: 2,
+            active: true,
+            moveIds: [1],
+            ability: 'テストのいかく',
+            baseSpeed: 50,
+          },
+        ],
+      });
+
+      // Act
+      await engine.runTurn({ moveId: TRANSFORM.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(1).volatileState.transformedIntoStatusId).toBe(2);
+      expect(onEntry).not.toHaveBeenCalled();
+    });
+
+    it('ちがう特性を写したときは、写した特性の onEntry を呼ぶ', async () => {
+      // Arrange
+      const onEntry = jest.fn();
+      AbilityRegistry.register('テストのいかく', { onEntry });
+      MoveRegistry.register('へんしん', {
+        onUse: async (attacker, defender, ctx) =>
+          (await transformInto(attacker, defender, ctx)) ? 'transformed!' : 'But it failed',
+      });
+      const engine = createBattleEngine({
+        moves: MOVES,
+        pokemon: [
+          { id: 1, trainerId: 1, active: true, moveIds: [3], ability: 'ふみん' },
+          {
+            id: 2,
+            trainerId: 2,
+            active: true,
+            moveIds: [1],
+            ability: 'テストのいかく',
+            baseSpeed: 50,
+          },
+        ],
+      });
+
+      // Act
+      await engine.runTurn({ moveId: TRANSFORM.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(onEntry).toHaveBeenCalledTimes(1);
+    });
+
     it('交代で場に出たときの特性（かわりもの）から、相手にへんしんできる', async () => {
       // Arrange
       AbilityRegistry.register('テストのかわりもの', {

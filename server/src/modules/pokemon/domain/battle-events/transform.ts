@@ -8,8 +8,7 @@ import {
 } from '@/modules/battle/domain/logic/battle-pokemon-traits';
 import { currentAbilityName } from '@/modules/battle/domain/logic/effective-traits';
 import { BattleContext } from '../abilities/battle-context.interface';
-import { getAbilityEffect } from './ability-lookup';
-import { resolveBattleAbilityName } from './battle-traits';
+import { resolveCurrentAbilityName, startAbility } from './ability-change';
 
 /** へんしんで写した技の PP の上限（第 5 世代から） */
 const TRANSFORMED_MOVE_PP = 5;
@@ -37,7 +36,8 @@ const RANK_KEYS = [
  * - abilityOverride: 相手の今の特性（いえきで消されていても、もとの特性を写す）
  * - moveSlotOverrides: 相手の技の欄（PP と最大 PP は 5。もとの PP が 5 未満ならその値）。へんしん中は、この欄だけを使う
  * - critStageBoost・laserFocusTurns: 相手のきあいだめ・とぎすますを写す（使用者の分は消す）
- * 能力ランク（attackRank など 7 つ）も相手と同じにする。写した特性が効いていれば onEntry を呼ぶ（いかくなど）
+ * 能力ランク（attackRank など 7 つ）も相手と同じにする。写した特性が効いていれば onEntry を呼ぶ（いかくなど）。
+ * 今と同じ特性を写したときと、場に出たときだけ動く特性（かわりもの・イリュージョン）は呼ばない
  *
  * 次のときは写さずに false を返す（本家と同じ）:
  * どちらかがひんし・どちらかがへんしん中・相手がみがわり中・どちらかがイリュージョンで化けている
@@ -72,6 +72,8 @@ export const transformInto = async (
   const abilityName = currentAbilityName(
     abilityHolderOf({ trainedPokemon: targetTrainedPokemon, status: target }),
   );
+  // 写す前の使用者の今の特性（同じ特性を写したときは始め直さない）
+  const previousAbilityName = await resolveCurrentAbilityName(user, battleContext);
   const targetMoves =
     (await repository.findBattlePokemonMovesByBattlePokemonStatusId(target.id)) ?? [];
   const moveSlotOverrides: MoveSlotOverride[] = resolveMoveSlots(
@@ -106,9 +108,10 @@ export const transformInto = async (
   }
   const transformed = await repository.updateBattlePokemonStatus(user.id, ranks);
 
-  // 写した特性が効いていれば始める（本家の setAbility の Start。かわりもので写したいかくが発動する）
-  if (abilityName && (await resolveBattleAbilityName(transformed, battleContext)) === abilityName) {
-    await (await getAbilityEffect(abilityName))?.onEntry?.(transformed, battleContext);
+  // 写した特性が効いていれば始める（本家の setAbility の Start。かわりもので写したいかくが発動する）。
+  // 今と同じ特性を写したときと、場に出たときだけ動く特性は始めない（本家の setAbility の isTransform）
+  if (abilityName && abilityName !== previousAbilityName) {
+    await startAbility(transformed.id, abilityName, battleContext);
   }
   return true;
 };

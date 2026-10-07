@@ -145,6 +145,23 @@ describe('タイプ・特性を書き換える補助関数', () => {
   });
 
   describe('setAbility', () => {
+    it('場に出たときだけ動く特性（かわりもの・イリュージョン）を受け取っても、onEntry は呼ばない（本家の onSwitchIn）', async () => {
+      // Arrange
+      const onEntry = jest.fn();
+      AbilityRegistry.register('かわりもの', { onEntry });
+      AbilityRegistry.register('イリュージョン', { onEntry });
+      const battle = createInMemoryBattle({ ability: 'ふみん' }, { ability: 'ふみん' });
+
+      // Act
+      const imposter = await setAbility(battle.get(1), 'かわりもの', battle.context());
+      const illusion = await setAbility(battle.get(2), 'イリュージョン', battle.context());
+
+      // Assert
+      expect(imposter.changed).toBe(true);
+      expect(illusion.changed).toBe(true);
+      expect(onEntry).not.toHaveBeenCalled();
+    });
+
     it('abilityOverride を書き、新しい特性の onEntry を呼ぶ', async () => {
       // Arrange
       const onEntry = jest.fn();
