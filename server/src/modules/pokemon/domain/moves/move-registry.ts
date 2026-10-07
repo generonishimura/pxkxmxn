@@ -293,6 +293,13 @@ import { ForesightEffect } from './effects/foresight-effect';
 import { AttractEffect } from './effects/attract-effect';
 import { TormentEffect } from './effects/torment-effect';
 import { ImprisonEffect } from './effects/imprison-effect';
+// 一時的な状態を書く技（Issue #103 一部）
+import { StockpileEffect } from './effects/stockpile-effect';
+import { PowerTrickEffect } from './effects/power-trick-effect';
+import { OdorSleuthEffect } from './effects/odor-sleuth-effect';
+import { MiracleEyeEffect } from './effects/miracle-eye-effect';
+import { TarShotEffect } from './effects/tar-shot-effect';
+import { OctolockEffect } from './effects/octolock-effect';
 
 /**
  * 技のレジストリ
@@ -696,6 +703,13 @@ export class MoveRegistry {
       this.registry.set('メロメロ', new AttractEffect());
       this.registry.set('いちゃもん', new TormentEffect());
       this.registry.set('ふういん', new ImprisonEffect());
+      // 一時的な状態を書く技（Issue #103 一部）
+      this.registry.set('たくわえる', new StockpileEffect());
+      this.registry.set('パワートリック', new PowerTrickEffect());
+      this.registry.set('かぎわける', new OdorSleuthEffect());
+      this.registry.set('ミラクルアイ', new MiracleEyeEffect());
+      this.registry.set('タールショット', new TarShotEffect());
+      this.registry.set('たこがため', new OctolockEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
