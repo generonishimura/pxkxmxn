@@ -13,7 +13,7 @@
 `MoveExecutorService.executeMove`（`src/modules/battle/application/services/move-executor.service.ts`）は、まず次の 3 段で技を出します（9 章）。
 
 - 技を出す前の判定（`BeforeMoveChecker`）: 反動・ねむり・こおり・なまけ（`onBeforeMove`）・ひるみ（`onFlinch`）・技の制限・こんらん・メロメロ・まひ。止まったら PP も減らない
-- 技を使う（`useMove`）: PP（プレッシャーの `modifyOpponentPpDeduction`）→ 技を出した記録（`lastMoveId` など）→ ふんじん → みらいよちの予約 → よこどり → ため技の 1 ターン目（`chargeTurn`）→ 技の本体（下の 1〜12）→ 反動・出し続ける技（`lockedIn`）・じゅうでんの消去
+- 技を使う（`useMove`）: PP（プレッシャーの `modifyOpponentPpDeduction`）→ 技を出した記録（`lastMoveId` など）→ ゲンシ天候 → ふんじん（おおあめで消えたほのお技では爆発しない）→ みらいよちの予約 → よこどり → ため技の 1 ターン目（`chargeTurn`）→ 技の本体（下の 1〜12）→ 反動・出し続ける技（`lockedIn`）・じゅうでんの消去
 - 相手の特性の `onOpponentMoveUsed`（おどりこ）
 
 技の本体は次の順で処理します。

@@ -560,21 +560,8 @@ export class MoveExecutorService {
             contextFor(attacker),
           );
 
-    // ふんじん: ほのお技を出そうとすると爆発し、技は失敗する（PP は減る。マジックガードならダメージなし）
-    if (attacker.volatileState.powder === true && triedTypeName === 'ほのお') {
-      const powderDamage = await applyIndirectDamage(
-        attacker,
-        Math.max(1, Math.round(attacker.maxHp / MoveExecutorService.POWDER_DAMAGE_DIVISOR)),
-        contextFor(attacker),
-      );
-      return {
-        message: `Used ${move.name} but the powder exploded! (${powderDamage} damage)`,
-        outcome: 'failed',
-        moveTypeName: 'ほのお',
-      };
-    }
-
-    // ゲンシ天候: おおあめのほのおの攻撃技・おおひでりのみずの攻撃技は失敗する（PP は減る。ノーてんきが場にいれば効かない）
+    // ゲンシ天候: おおあめのほのおの攻撃技・おおひでりのみずの攻撃技は失敗する（PP は減る。ノーてんきが場にいれば効かない）。
+    // ふんじんより先に判定する（本家の onTryMovePriority はゲンシ天候 1・ふんじん -1）
     const primal = effectivePrimalWeather(battle.sideState, [
       attackerAbilityName,
       defenderAbilityName,
@@ -590,6 +577,20 @@ export class MoveExecutorService {
             : `Used ${move.name} but the Water-type attack evaporated in the harsh sunlight`,
         outcome: 'failed',
         moveTypeName: triedTypeName,
+      };
+    }
+
+    // ふんじん: ほのお技を出そうとすると爆発し、技は失敗する（PP は減る。マジックガードならダメージなし）
+    if (attacker.volatileState.powder === true && triedTypeName === 'ほのお') {
+      const powderDamage = await applyIndirectDamage(
+        attacker,
+        Math.max(1, Math.round(attacker.maxHp / MoveExecutorService.POWDER_DAMAGE_DIVISOR)),
+        contextFor(attacker),
+      );
+      return {
+        message: `Used ${move.name} but the powder exploded! (${powderDamage} damage)`,
+        outcome: 'failed',
+        moveTypeName: 'ほのお',
       };
     }
 

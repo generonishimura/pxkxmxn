@@ -97,6 +97,23 @@ describe('MoveExecutorService - 場の状態', () => {
       expect(statuses.get(DEFENDER_ID)!.currentHp).toBe(100);
     });
 
+    it('おおあめの間は、ふんじんをかけられていても爆発せず、ほのおの攻撃技が消える', async () => {
+      // Arrange
+      const { execute, statuses } = setup(
+        { global: { primalWeather: 'heavyRain', weatherSourceStatusId: DEFENDER_ID } },
+        { move: typedMove('かえんほうしゃ', FIRE), attacker: { volatileState: { powder: true } } },
+      );
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(message).toBe(
+        'Used かえんほうしゃ but the Fire-type attack fizzled out in the heavy rain',
+      );
+      expect(statuses.get(ATTACKER_ID)!.currentHp).toBe(100);
+    });
+
     it('おおひでりの間は、みずの攻撃技が失敗する', async () => {
       // Arrange
       const { execute } = setup(
