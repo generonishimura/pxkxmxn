@@ -2,7 +2,6 @@ import { IMoveEffect } from '../../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
 import { Weather } from '@/modules/battle/domain/entities/battle.entity';
-import { getGlobalFieldState } from '@/modules/battle/domain/state/side-state';
 import { setWeather } from '../../../battle-events/field-state';
 
 /**
@@ -10,7 +9,7 @@ import { setWeather } from '../../../battle-events/field-state';
  * 変化技を使用したときに天候を変更する汎用的な実装
  *
  * 各技の特殊効果は、このクラスを継承して変更する天候を設定するだけで実装できる
- * setWeather で 5 ターンの残りターン数を書く。ゲンシ天候の間は失敗する（ふつうの天候で上書きできない）
+ * setWeather で 5 ターンの残りターン数を書く。すでに同じ天候のときと、ゲンシ天候の間は失敗する（本家と同じ）
  */
 export abstract class BaseWeatherMoveEffect implements IMoveEffect {
   /**
@@ -37,13 +36,7 @@ export abstract class BaseWeatherMoveEffect implements IMoveEffect {
       return null;
     }
 
-    if (await setWeather(battleContext, this.weather)) {
-      return this.message;
-    }
-    // ゲンシ天候の間は失敗する。すでに同じ天候のときは何もしない
-    const battle =
-      (await battleContext.battleRepository.findById(battleContext.battle.id)) ??
-      battleContext.battle;
-    return getGlobalFieldState(battle.sideState).primalWeather ? 'But it failed' : null;
+    // すでに同じ天候のときと、ゲンシ天候の間（ふつうの天候で上書きできない）は失敗する
+    return (await setWeather(battleContext, this.weather)) ? this.message : 'But it failed';
   }
 }

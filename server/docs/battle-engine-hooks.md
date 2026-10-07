@@ -1087,7 +1087,7 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 - シグネチャ: `setWeather(ctx, weather, turns = 5): Promise<boolean>`、`setTerrain(ctx, field, turns = 5): Promise<boolean>`、`setPrimalWeather(ctx, holder, kind: 'heavyRain' | 'harshSunlight' | 'strongWinds'): Promise<boolean>`（`pokemon/domain/battle-events/field-state.ts`）。変えたら `true`
 - 呼ばれる場所: 技の `onUse`・特性の `onEntry` / `onDamagingHit` から呼ぶ。`weatherTurns` / `terrainTurns` が 1 のターン終了時に戻すのはエンジン（`FieldResidualProcessor`）
 - 決まり: すでに同じ天候・フィールドなら何もしない。ゲンシ天候の間は `setWeather` が何もしない。`setPrimalWeather` はふつうの天候・別のゲンシ天候を上書きし、`holder` が場を離れたらエンジンが天候を終わらせる
-- 基底クラス: `BaseWeatherMoveEffect`（あまごいなど。ゲンシ天候の間は `But it failed`）、`BaseWeatherEffect`（あめふらしなど）、`BaseTerrainMoveEffect`（エレキフィールドなど）、`BaseFieldEffect`（エレキメイカーなど）、`BasePrimalWeatherEffect`（ゲンシ天候の特性）
+- 基底クラス: `BaseWeatherMoveEffect`（あまごいなど。すでに同じ天候のときとゲンシ天候の間は `But it failed`）、`BaseWeatherEffect`（あめふらしなど）、`BaseTerrainMoveEffect`（エレキフィールドなど。すでに同じフィールドなら `But it failed`）、`BaseFieldEffect`（エレキメイカーなど）、`BasePrimalWeatherEffect`（ゲンシ天候の特性）
 - 使う技・特性: グラスフィールド、さむいギャグ（ゆき。11.5 の `selfSwitch` と一緒に）、はじまりのうみ・おわりのだいち・デルタストリーム
 
 ```ts
@@ -1123,7 +1123,7 @@ export class PrimordialSeaEffect extends BasePrimalWeatherEffect {
 export class ReflectEffect extends BaseSideConditionMoveEffect {
   protected readonly key = 'reflectTurns';
   protected readonly turns = 5;
-  protected readonly message = 'Reflect raised the team\'s Defense!';
+  protected readonly message = 'Reflect made the team stronger against physical moves!';
 }
 ```
 
@@ -1141,6 +1141,11 @@ const blocked = preventsCriticalHit(side); // おまじないの間は true
 ### 11.3 両陣営にかかる状態（GlobalFieldState）
 
 技は `patchGlobalFieldState` で書くだけです。効果はエンジンが行います。
+
+基底クラスが 2 つあります。使える技は、こちらを継承します。
+
+- `BaseGlobalFieldConditionMoveEffect { key; turns; message }`（`pokemon/domain/moves/effects/base/base-global-field-condition-move-effect.ts`）: `key` は `GLOBAL_TURN_COUNTER_KEYS` のどれか。`{ [key]: turns }` を書く。すでにあれば `But it failed`。使う技: どろあそび・みずあそび
+- `BaseRoomMoveEffect { key; startMessage; endMessage }`（`base-room-move-effect.ts`）: 5 を書く。すでにあれば `null` で消す。使う技: トリックルーム・ワンダールーム
 
 | キー（書く値） | 効果（エンジン） | 使う技 |
 | --- | --- | --- |
@@ -1311,7 +1316,7 @@ return grounded; // ありじごく（trapsOpponent では target.grounded が�
 | テレポート | `selfSwitch = true` と、控えがいなければ失敗（11.5） |
 | リフレクター・ひかりのかべ・オーロラベール | `BaseSideConditionMoveEffect`（11.2）。オーロラベールは `shouldFail` で `getContextWeather(ctx) !== Weather.Hail` |
 | クモのす・くろいまなざし・とおせんぼう | `tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id })`（9.7） |
-| どろあそび・みずあそび | `mudSportTurns` / `waterSportTurns: 5`（11.3） |
+| どろあそび・みずあそび | `BaseGlobalFieldConditionMoveEffect`（`mudSportTurns` / `waterSportTurns`, 5。11.3） |
 | コートチェンジ | `swapSideConditions(ctx)`（11.4） |
 | さいきのいのり | `hasFaintedPartyMember` で失敗判定と `requestSwitch(ctx, attacker.trainerId, 'revivalBlessing')`（11.5） |
 | しっぽきり | `selfSwitch = 'shedTail'`。`onUse` で、控えなし・みがわりがある・`attacker.currentHp <= Math.ceil(attacker.maxHp / 2)` なら `But it failed` を返す（エンジンが交代を止める。ほかのメッセージで失敗するなら `ctx.selfSwitchCancelled = true` も立てる）。成功なら `Math.ceil(maxHp / 2)` を払い `substituteHp: Math.floor(maxHp / 4)` を書く |
@@ -1319,8 +1324,8 @@ return grounded; // ありじごく（trapsOpponent では target.grounded が�
 | ひかりのかべ | `BaseSideConditionMoveEffect`（`lightScreenTurns`, 5） |
 | おいかぜ | `BaseSideConditionMoveEffect`（`tailwindTurns`, 4） |
 | じゅうりょく | `gravityTurns: 5` と、場のポケモンの浮く状態・そらをとぶの消去（11.3） |
-| トリックルーム | `trickRoomTurns` を 5 と `null` で切り替える（11.3） |
-| ワンダールーム | `wonderRoomTurns` を 5 と `null` で切り替える（11.3） |
+| トリックルーム | `BaseRoomMoveEffect`（`trickRoomTurns` を 5 と `null` で切り替える。11.3） |
+| ワンダールーム | `BaseRoomMoveEffect`（`wonderRoomTurns` を 5 と `null` で切り替える。11.3） |
 | どくびし | `addEntryHazard(ctx, defender.trainerId, 'toxicSpikes')`（11.4） |
 | みかづきのまい | `hasSwitchTarget` で失敗判定、`healingWish: 'lunarDance'`、自分をひんしにする（11.5）。回復はエンジン |
 | グラスフィールド | `BaseTerrainMoveEffect`（`Field.GrassyTerrain`。11.1）。回復・威力はエンジン |
