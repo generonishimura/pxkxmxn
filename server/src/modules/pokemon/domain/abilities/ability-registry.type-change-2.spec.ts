@@ -1,6 +1,7 @@
 import { AbilityRegistry } from './ability-registry';
 import { ColorChangeEffect } from './effects/other/color-change-effect';
 import { ProteanEffect } from './effects/other/protean-effect';
+import { NormalizeEffect } from './effects/other/normalize-effect';
 
 describe('AbilityRegistry（タイプを変える特性）', () => {
   beforeEach(() => {
@@ -11,6 +12,7 @@ describe('AbilityRegistry（タイプを変える特性）', () => {
   it.each([
     ['へんしょく', ColorChangeEffect],
     ['へんげんじざい', ProteanEffect],
+    ['ノーマルスキン', NormalizeEffect],
   ])('%s が登録されている', (name, effectClass) => {
     // Act
     const effect = AbilityRegistry.get(name);

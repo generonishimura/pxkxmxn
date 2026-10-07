@@ -207,6 +207,7 @@ import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 // 自分のタイプ・技のタイプを変える特性（Issue #135 一部）
 import { ColorChangeEffect } from './effects/other/color-change-effect';
 import { ProteanEffect } from './effects/other/protean-effect';
+import { NormalizeEffect } from './effects/other/normalize-effect';
 
 /**
  * 特性レジストリ
@@ -512,6 +513,7 @@ export class AbilityRegistry {
       // 自分のタイプ・技のタイプを変える特性（Issue #135 一部）
       this.registry.set('へんしょく', new ColorChangeEffect());
       this.registry.set('へんげんじざい', new ProteanEffect());
+      this.registry.set('ノーマルスキン', new NormalizeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

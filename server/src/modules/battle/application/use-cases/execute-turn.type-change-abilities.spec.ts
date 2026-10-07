@@ -21,6 +21,7 @@ describe('ExecuteTurnUseCase - タイプを変える特性', () => {
   const setup = (attacker: Partial<HarnessPokemon> = {}, defender: Partial<HarnessPokemon> = {}) =>
     createBattleEngine({
       moves: MOVES,
+      typeChart: [['ほのお', 'くさ', 2]],
       pokemon: [
         { id: 1, trainerId: 1, active: true, moveIds: MOVE_IDS, ...attacker },
         { id: 2, trainerId: 2, active: true, moveIds: MOVE_IDS, baseSpeed: 50, ...defender },
@@ -63,6 +64,19 @@ describe('ExecuteTurnUseCase - タイプを変える特性', () => {
       // Assert: ほのおタイプのままなので、たいあたりはタイプ一致にならない
       expect(engine.status(1).volatileState.typeOverride).toEqual(['ほのお']);
       expect(result.actions[0].result).toBe('Used たいあたり and dealt 24 damage');
+    });
+  });
+
+  describe('ノーマルスキン', () => {
+    it('ほのお技がノーマル技になり、威力 1.2 倍とタイプ一致でダメージが上がる', async () => {
+      // Arrange: 威力 50 → 60。基本ダメージ 28 にタイプ一致 1.5 倍で 42
+      const engine = setup({ ability: 'ノーマルスキン' }, { types: ['くさ'] });
+
+      // Act
+      const result = await engine.runTurn({ moveId: EMBER.id }, { moveId: SPLASH.id });
+
+      // Assert: ほのおの相性 2 倍がかからない
+      expect(result.actions[0].result).toBe('Used ひのこ and dealt 42 damage');
     });
   });
 });
