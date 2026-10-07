@@ -14,12 +14,11 @@ import {
   MOVE_REPOSITORY_TOKEN,
 } from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { Battle } from '../../domain/entities/battle.entity';
-import { StatCalculator, TrainedPokemonStats } from '../../domain/logic/stat-calculator';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 import { updateVolatileState } from '../../domain/state/volatile-state';
 // タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #119 #135 一部）
-import { battleAbilityNameOf } from '../../domain/logic/battle-pokemon-traits';
+import { battleAbilityNameOf, battleMaxHpOf } from '../../domain/logic/battle-pokemon-traits';
 
 /**
  * StartBattleUseCase
@@ -87,17 +86,16 @@ export class StartBattleUseCase {
     for (const member of team1Members) {
       const trainedPokemon = member.trainedPokemon;
 
-      // ステータスを計算
-      const stats = this.calculateStats(trainedPokemon);
-      const calculatedStats = StatCalculator.calculate(stats);
+      // 最大 HP を計算（フォルムが変わるポケモンは、表の既定のフォルムの HP の種族値で計算する）
+      const maxHp = battleMaxHpOf(trainedPokemon, undefined);
 
       // BattlePokemonStatusを作成
       const battleStatus = await this.battleRepository.createBattlePokemonStatus({
         battleId: battle.id,
         trainedPokemonId: trainedPokemon.id,
         trainerId: trainer1Id,
-        currentHp: calculatedStats.hp,
-        maxHp: calculatedStats.hp,
+        currentHp: maxHp,
+        maxHp,
       });
 
       // ポケモンが覚えている技を取得してBattlePokemonMoveを作成
@@ -122,17 +120,16 @@ export class StartBattleUseCase {
     for (const member of team2Members) {
       const trainedPokemon = member.trainedPokemon;
 
-      // ステータスを計算
-      const stats = this.calculateStats(trainedPokemon);
-      const calculatedStats = StatCalculator.calculate(stats);
+      // 最大 HP を計算（フォルムが変わるポケモンは、表の既定のフォルムの HP の種族値で計算する）
+      const maxHp = battleMaxHpOf(trainedPokemon, undefined);
 
       // BattlePokemonStatusを作成
       const battleStatus = await this.battleRepository.createBattlePokemonStatus({
         battleId: battle.id,
         trainedPokemonId: trainedPokemon.id,
         trainerId: trainer2Id,
-        currentHp: calculatedStats.hp,
-        maxHp: calculatedStats.hp,
+        currentHp: maxHp,
+        maxHp,
       });
 
       // ポケモンが覚えている技を取得してBattlePokemonMoveを作成
@@ -155,34 +152,6 @@ export class StartBattleUseCase {
     }
 
     return battle;
-  }
-
-  /**
-   * TrainedPokemonからステータス情報を計算
-   */
-  private calculateStats(trainedPokemon: TrainedPokemon): TrainedPokemonStats {
-    return {
-      baseHp: trainedPokemon.pokemon.baseHp,
-      baseAttack: trainedPokemon.pokemon.baseAttack,
-      baseDefense: trainedPokemon.pokemon.baseDefense,
-      baseSpecialAttack: trainedPokemon.pokemon.baseSpecialAttack,
-      baseSpecialDefense: trainedPokemon.pokemon.baseSpecialDefense,
-      baseSpeed: trainedPokemon.pokemon.baseSpeed,
-      level: trainedPokemon.level,
-      ivHp: trainedPokemon.ivHp,
-      ivAttack: trainedPokemon.ivAttack,
-      ivDefense: trainedPokemon.ivDefense,
-      ivSpecialAttack: trainedPokemon.ivSpecialAttack,
-      ivSpecialDefense: trainedPokemon.ivSpecialDefense,
-      ivSpeed: trainedPokemon.ivSpeed,
-      evHp: trainedPokemon.evHp,
-      evAttack: trainedPokemon.evAttack,
-      evDefense: trainedPokemon.evDefense,
-      evSpecialAttack: trainedPokemon.evSpecialAttack,
-      evSpecialDefense: trainedPokemon.evSpecialDefense,
-      evSpeed: trainedPokemon.evSpeed,
-      nature: trainedPokemon.nature,
-    };
   }
 
   /**

@@ -121,6 +121,17 @@ describe('battle-pokemon-traits', () => {
       expect(types).toEqual(['みず']);
     });
 
+    it('フォルムを書いていなければ、表の既定のフォルムのタイプになる（DB にゆきぐものすがたが残っていても、ポワルンはノーマル）', () => {
+      // Arrange
+      const pokemon = trained({ nationalDex: 351, types: ['こおり'] });
+
+      // Act
+      const types = battleTypeNamesOf(pokemon, status());
+
+      // Assert
+      expect(types).toEqual(['ノーマル']);
+    });
+
     it('へんしん中は、自分のフォルムを見ない', () => {
       // Arrange
       const pokemon = trained({ nationalDex: 555, types: ['ほのお'] });
@@ -172,9 +183,9 @@ describe('battle-pokemon-traits', () => {
       });
     });
 
-    it('フォルムがなければ、DB の種族値を使う', () => {
+    it('フォルムを書いていなければ、表の既定のフォルムの種族値を使う（DB にブレードフォルムが残っていても、シールドフォルム）', () => {
       // Arrange
-      const pokemon = trained({ nationalDex: 681, base: [60, 50, 140, 50, 140, 60] });
+      const pokemon = trained({ nationalDex: 681, base: [60, 140, 50, 140, 50, 60] });
 
       // Act
       const stats = battleStatsOf(pokemon, status());
@@ -182,6 +193,18 @@ describe('battle-pokemon-traits', () => {
       // Assert
       expect(stats.attack).toBe(70);
       expect(stats.defense).toBe(160);
+    });
+
+    it('表にないポケモンは、DB の種族値を使う', () => {
+      // Arrange
+      const pokemon = trained({ nationalDex: 1, base: [60, 140, 50, 140, 50, 60] });
+
+      // Act
+      const stats = battleStatsOf(pokemon, status());
+
+      // Assert
+      expect(stats.attack).toBe(160);
+      expect(stats.defense).toBe(70);
     });
   });
 
@@ -196,6 +219,18 @@ describe('battle-pokemon-traits', () => {
       // Assert
       // floor((2 * 216 + 31) * 50 / 100) + 50 + 10 = 291
       expect(maxHp).toBe(291);
+    });
+
+    it('フォルムを渡さなければ、表の既定のフォルムの HP で計算する（DB にメガジガルデが残っていても、50% フォルム）', () => {
+      // Arrange
+      const pokemon = trained({ nationalDex: 718, base: [216, 70, 91, 216, 85, 100] });
+
+      // Act
+      const maxHp = battleMaxHpOf(pokemon, undefined);
+
+      // Assert
+      // floor((2 * 108 + 31) * 50 / 100) + 50 + 10 = 183
+      expect(maxHp).toBe(183);
     });
   });
 });

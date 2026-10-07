@@ -3,7 +3,7 @@ import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemo
 import type { BattleStatValues } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { StatCalculator } from './stat-calculator';
 import { applyStatOverrides } from './volatile-modifiers';
-import { BaseStatValues, PokemonForm, findPokemonForm } from './pokemon-forms';
+import { BaseStatValues, PokemonForm, resolvePokemonForm } from './pokemon-forms';
 import {
   AbilityHolder,
   EffectiveTypeParams,
@@ -28,8 +28,8 @@ export const baseTypeNamesOf = (trainedPokemon: TrainedPokemon): string[] =>
   );
 
 /**
- * 今のフォルム（交代で戻る volatileState.form → 交代しても残る persistentState.form）
- * へんしん中は、自分のフォルムを見ない（写した相手のタイプ・実数値を使う）
+ * 今のフォルム（交代で戻る volatileState.form → 交代しても残る persistentState.form → 表の既定のフォルム）
+ * へんしん中は、自分のフォルムを見ない（写した相手のタイプ・実数値を使う）。表にないポケモンは undefined（DB の値）
  */
 export const activeFormOf = (
   trainedPokemon: TrainedPokemon,
@@ -39,7 +39,7 @@ export const activeFormOf = (
     return undefined;
   }
   const form = status.volatileState.form ?? status.persistentState.form;
-  return findPokemonForm(trainedPokemon.pokemon.nationalDex, form);
+  return resolvePokemonForm(trainedPokemon.pokemon.nationalDex, form);
 };
 
 /**
@@ -82,7 +82,7 @@ export const battleAbilityNameOf = (
   );
 
 /**
- * 種族値（フォルムがあれば表の値、なければ DB の値）
+ * 種族値（表のフォルムがあれば表の値、なければ DB の値）
  */
 const baseStatsOf = (trainedPokemon: TrainedPokemon, form: PokemonForm | undefined) =>
   form?.baseStats ?? {
@@ -146,11 +146,11 @@ export const battleStatsOf = (
 };
 
 /**
- * フォルムを変えたあとの最大 HP（スワームチェンジのパーフェクトフォルムなど）
- * @param form フォルム名。表にないフォルム・undefined なら DB の種族値で計算する
+ * そのフォルムの最大 HP（バトル開始時の最大 HP・スワームチェンジのパーフェクトフォルムなど）
+ * @param form フォルム名。undefined なら表の既定のフォルム。表にないフォルム・表にないポケモンは DB の種族値で計算する
  */
 export const battleMaxHpOf = (trainedPokemon: TrainedPokemon, form: string | undefined): number =>
   calculateStatsWith(
     trainedPokemon,
-    baseStatsOf(trainedPokemon, findPokemonForm(trainedPokemon.pokemon.nationalDex, form)),
+    baseStatsOf(trainedPokemon, resolvePokemonForm(trainedPokemon.pokemon.nationalDex, form)),
   ).hp;

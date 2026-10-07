@@ -21,6 +21,11 @@ export interface PokemonForm {
   /** タイプ名（DB の Type.name） */
   readonly types: readonly string[];
   readonly baseStats: BaseStatValues;
+  /**
+   * 種族の既定のフォルム（バトルに出たときのフォルム）。全国図鑑の番号ごとに 1 つ
+   * フォルムを書いていないポケモンは、このフォルムのタイプと種族値を使う
+   */
+  readonly isDefault?: boolean;
 }
 
 const stats = (
@@ -35,15 +40,16 @@ const stats = (
 /**
  * バトル中にフォルムが変わるポケモンの、フォルムごとのタイプと種族値（Pokemon Showdown の data/pokedex.ts）
  *
- * DB の Pokemon は全国図鑑の番号ごとに 1 行しかなく、別のフォルムの種族値を持たない（シードが番号で upsert するので、
- * 最後に読んだフォルムの値が残ることもある）。そのため、フォルムを変えたあとの値はこの表から引く。
- * フォルムを書いていない（form がない）ポケモンは、今までどおり DB の値を使う
+ * DB の Pokemon は全国図鑑の番号ごとに 1 行しかなく、別のフォルムの種族値を持たない（古いシードは番号で upsert して
+ * いたので、最後に読んだ別のフォルムの値が残っていることもある）。そのため、フォルムの値はこの表から引く。
+ * フォルムを書いていない（form がない）ポケモンは、表の既定のフォルム（isDefault）の値を使い、表にないポケモンだけ DB の値を使う
  */
 export const POKEMON_FORMS: readonly PokemonForm[] = [
   // ギルガルド（バトルスイッチ）
   {
     nationalDex: 681,
     form: 'shield',
+    isDefault: true,
     types: ['はがね', 'ゴースト'],
     baseStats: stats(60, 50, 140, 50, 140, 60),
   },
@@ -53,10 +59,11 @@ export const POKEMON_FORMS: readonly PokemonForm[] = [
     types: ['はがね', 'ゴースト'],
     baseStats: stats(60, 140, 50, 140, 50, 60),
   },
-  // ヒヒダルマ（ダルマモード）。ガラルのすがたは 'galar-standard' / 'galar-zen'
+  // ヒヒダルマ（ダルマモード）。ガラルのすがたは 'galar-standard' / 'galar-zen'（DB は既定のすがただけなので、今は使わない）
   {
     nationalDex: 555,
     form: 'standard',
+    isDefault: true,
     types: ['ほのお'],
     baseStats: stats(105, 140, 55, 30, 55, 95),
   },
@@ -88,11 +95,18 @@ export const POKEMON_FORMS: readonly PokemonForm[] = [
   {
     nationalDex: 774,
     form: 'meteor',
+    isDefault: true,
     types: ['いわ', 'ひこう'],
     baseStats: stats(60, 60, 100, 60, 100, 60),
   },
   // ヨワシ（ぎょぐん）
-  { nationalDex: 746, form: 'solo', types: ['みず'], baseStats: stats(45, 20, 20, 25, 25, 40) },
+  {
+    nationalDex: 746,
+    form: 'solo',
+    isDefault: true,
+    types: ['みず'],
+    baseStats: stats(45, 20, 20, 25, 25, 40),
+  },
   {
     nationalDex: 746,
     form: 'school',
@@ -103,6 +117,7 @@ export const POKEMON_FORMS: readonly PokemonForm[] = [
   {
     nationalDex: 778,
     form: 'disguised',
+    isDefault: true,
     types: ['ゴースト', 'フェアリー'],
     baseStats: stats(55, 90, 80, 50, 105, 96),
   },
@@ -113,12 +128,19 @@ export const POKEMON_FORMS: readonly PokemonForm[] = [
     baseStats: stats(55, 90, 80, 50, 105, 96),
   },
   // コオリッポ（アイスフェイス）
-  { nationalDex: 875, form: 'ice', types: ['こおり'], baseStats: stats(75, 80, 110, 65, 90, 50) },
+  {
+    nationalDex: 875,
+    form: 'ice',
+    isDefault: true,
+    types: ['こおり'],
+    baseStats: stats(75, 80, 110, 65, 90, 50),
+  },
   { nationalDex: 875, form: 'noice', types: ['こおり'], baseStats: stats(75, 80, 70, 65, 50, 130) },
   // モルペコ（はらぺこスイッチ）
   {
     nationalDex: 877,
     form: 'full-belly',
+    isDefault: true,
     types: ['でんき', 'あく'],
     baseStats: stats(58, 95, 58, 70, 58, 97),
   },
@@ -132,6 +154,7 @@ export const POKEMON_FORMS: readonly PokemonForm[] = [
   {
     nationalDex: 718,
     form: '50',
+    isDefault: true,
     types: ['ドラゴン', 'じめん'],
     baseStats: stats(108, 100, 121, 81, 95, 95),
   },
@@ -164,6 +187,7 @@ export const POKEMON_FORMS: readonly PokemonForm[] = [
   {
     nationalDex: 351,
     form: 'normal',
+    isDefault: true,
     types: ['ノーマル'],
     baseStats: stats(70, 70, 70, 70, 70, 70),
   },
@@ -171,15 +195,28 @@ export const POKEMON_FORMS: readonly PokemonForm[] = [
   { nationalDex: 351, form: 'rainy', types: ['みず'], baseStats: stats(70, 70, 70, 70, 70, 70) },
   { nationalDex: 351, form: 'snowy', types: ['こおり'], baseStats: stats(70, 70, 70, 70, 70, 70) },
   // チェリム（フラワーギフト）
-  { nationalDex: 421, form: 'overcast', types: ['くさ'], baseStats: stats(70, 60, 70, 87, 78, 85) },
+  {
+    nationalDex: 421,
+    form: 'overcast',
+    isDefault: true,
+    types: ['くさ'],
+    baseStats: stats(70, 60, 70, 87, 78, 85),
+  },
   { nationalDex: 421, form: 'sunshine', types: ['くさ'], baseStats: stats(70, 60, 70, 87, 78, 85) },
   // イルカマン（マイティチェンジ）
-  { nationalDex: 964, form: 'zero', types: ['みず'], baseStats: stats(100, 70, 72, 53, 62, 100) },
+  {
+    nationalDex: 964,
+    form: 'zero',
+    isDefault: true,
+    types: ['みず'],
+    baseStats: stats(100, 70, 72, 53, 62, 100),
+  },
   { nationalDex: 964, form: 'hero', types: ['みず'], baseStats: stats(100, 160, 97, 106, 87, 100) },
 ];
 
 /**
  * 全国図鑑の番号とフォルム名から、フォルムを引く（ないときは undefined）
+ * form が undefined なら undefined（既定のフォルムも引くときは resolvePokemonForm）
  */
 export const findPokemonForm = (
   nationalDex: number,
@@ -188,3 +225,19 @@ export const findPokemonForm = (
   form === undefined
     ? undefined
     : POKEMON_FORMS.find(entry => entry.nationalDex === nationalDex && entry.form === form);
+
+/**
+ * 種族の既定のフォルム（表の isDefault）。表にないポケモンは undefined
+ */
+export const defaultPokemonForm = (nationalDex: number): PokemonForm | undefined =>
+  POKEMON_FORMS.find(entry => entry.nationalDex === nationalDex && entry.isDefault === true);
+
+/**
+ * 今のフォルムの値を引く。form が undefined（フォルムを書いていない）なら既定のフォルム
+ * 表にないフォルム・表にないポケモンは undefined（DB の値を使う）
+ */
+export const resolvePokemonForm = (
+  nationalDex: number,
+  form: string | undefined,
+): PokemonForm | undefined =>
+  form === undefined ? defaultPokemonForm(nationalDex) : findPokemonForm(nationalDex, form);

@@ -688,7 +688,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | タイプ | `battleTypeNamesOf(trainedPokemon, status)`（`battle/domain/logic/battle-pokemon-traits.ts`） | `resolveTypeNames(pokemon, ctx)`・`hasType(pokemon, typeName, ctx)`（`pokemon/domain/battle-events/battle-traits.ts`） | `typeOverride` → フォルムのタイプ → もとのタイプ。はねやすめのターンはひこうを除く（なくなればノーマル）。最後に `addedType` を足す（`resolveEffectiveTypeNames`） |
 | 特性 | `battleAbilityNameOf(trainedPokemon, status, others)` | `resolveAbilityName(pokemon, ctx)`・`resolveBattleAbilityName(pokemon, deps)` | `abilityOverride` → もとの特性。へんしん中の `noTransform` の特性は効かない。消せない特性はいつも効く。`abilitySuppressed` と、場のほかのポケモンのかがくへんかガスで消える（`resolveEffectiveAbilityName`） |
 | 実数値（ランク補正の前） | `battleStatsOf(trainedPokemon, status)` | `resolveBattlePokemonTraits(pokemon, deps).stats` | フォルムの種族値（表になければ DB の値）で計算し、`statOverrides` で上書きする |
-| 最大 HP | `battleMaxHpOf(trainedPokemon, form)` | ― | フォルムの HP の種族値で計算する（`changeForm` が使う） |
+| 最大 HP | `battleMaxHpOf(trainedPokemon, form)` | ― | フォルムの HP の種族値で計算する（`changeForm` が使う）。`form` が undefined なら既定のフォルム（`StartBattleUseCase` が使う） |
 
 エンジンが実効の値を読むところは次のとおりです。
 
@@ -703,5 +703,5 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | `PrimalWeatherReleaser` | ゲンシ天候を出したポケモンの特性（書き換えられた・消されたら、行動のあとに天候を終わらせる） |
 | `canInflictStatus`・`canApplyVolatile` | 対象のタイプの免疫・特性 |
 
-注: DB の `Pokemon` は全国図鑑の番号ごとに 1 行しかありません（シードが番号で upsert するので、最後に読んだフォルムの値が残ることもあります）。そのため、フォルムを書いたときのタイプと種族値は `pokemon-forms.ts` の表（Pokemon Showdown の値）から引きます。フォルムを書いていないポケモンは、今までどおり DB の値を使います。
+注: DB の `Pokemon` は全国図鑑の番号ごとに 1 行しかありません。シードは既定のすがた（PokeAPI の `is_default`）だけを入れますが、古いシードの DB には、最後に読んだ別のすがた（ゆきぐものポワルン・ブレードフォルムのギルガルド・メガジガルデなど）の値が残っていることがあります。そのため、表にあるポケモンのタイプと種族値は、いつも `pokemon-forms.ts` の表（Pokemon Showdown の値）から引きます。フォルムを書いていないときは、表の既定のフォルム（`isDefault`。`resolvePokemonForm`）の値を使います。表にないポケモンだけ DB の値を使います。
 

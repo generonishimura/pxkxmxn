@@ -289,9 +289,9 @@ describe('ExecuteTurnUseCase - 実効のタイプ・特性・フォルム', () =
       await shield.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
       await blade.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
 
-      // Assert: DB のタイプ（ノーマル）のままなら一致で攻撃 70 → 21 ダメージ。
-      // ブレードフォルムは表のタイプ（はがね・ゴースト）になり、一致なしで攻撃 160 → 31 ダメージ
-      expect(shield.status(2).currentHp).toBe(160 - 21);
+      // Assert: フォルムを書いていなければ既定のシールドフォルム（はがね・ゴースト。DB のノーマルは使わない）で、
+      // 一致なしで攻撃 70 → 14 ダメージ。ブレードフォルムは一致なしで攻撃 160 → 31 ダメージ
+      expect(shield.status(2).currentHp).toBe(160 - 14);
       expect(blade.status(2).currentHp).toBe(160 - 31);
     });
 
