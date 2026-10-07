@@ -3,6 +3,7 @@ import { DisguiseEffect } from './effects/other/disguise-effect';
 import { IceFaceEffect } from './effects/other/ice-face-effect';
 import { PowerConstructEffect } from './effects/other/power-construct-effect';
 import { BattleBondEffect } from './effects/stat-change/battle-bond-effect';
+import { GulpMissileEffect } from './effects/other/gulp-missile-effect';
 
 describe('AbilityRegistry（フォルムチェンジの特性）', () => {
   beforeEach(() => {
@@ -15,6 +16,7 @@ describe('AbilityRegistry（フォルムチェンジの特性）', () => {
     ['アイスフェイス', IceFaceEffect],
     ['スワームチェンジ', PowerConstructEffect],
     ['きずなへんげ', BattleBondEffect],
+    ['うのミサイル', GulpMissileEffect],
   ])('%s が登録されている', (name, effectClass) => {
     // Act
     const effect = AbilityRegistry.get(name);

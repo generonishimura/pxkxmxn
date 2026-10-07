@@ -209,6 +209,7 @@ import { DisguiseEffect } from './effects/other/disguise-effect';
 import { IceFaceEffect } from './effects/other/ice-face-effect';
 import { PowerConstructEffect } from './effects/other/power-construct-effect';
 import { BattleBondEffect } from './effects/stat-change/battle-bond-effect';
+import { GulpMissileEffect } from './effects/other/gulp-missile-effect';
 
 /**
  * 特性レジストリ
@@ -516,6 +517,7 @@ export class AbilityRegistry {
       this.registry.set('アイスフェイス', new IceFaceEffect());
       this.registry.set('スワームチェンジ', new PowerConstructEffect());
       this.registry.set('きずなへんげ', new BattleBondEffect());
+      this.registry.set('うのミサイル', new GulpMissileEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
