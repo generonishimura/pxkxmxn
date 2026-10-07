@@ -11,6 +11,7 @@ import { StartBattleUseCase } from '../application/use-cases/start-battle.use-ca
 import { ExecuteTurnUseCase } from '../application/use-cases/execute-turn.use-case';
 import { IBattleRepository, BATTLE_REPOSITORY_TOKEN } from '../domain/battle.repository.interface';
 import { Inject, Logger } from '@nestjs/common';
+import { toBattlePokemonStatusResponses } from './dto/battle-pokemon-status.response';
 
 /**
  * BattleGateway
@@ -74,7 +75,7 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
         event: 'battle:started',
         data: {
           battle,
-          pokemonStatuses: battleStatuses,
+          pokemonStatuses: toBattlePokemonStatusResponses(battleStatuses),
         },
       };
     } catch (error) {
@@ -125,7 +126,7 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
         event: 'battle:turn:result',
         data: {
           ...result,
-          pokemonStatuses: battleStatuses,
+          pokemonStatuses: toBattlePokemonStatusResponses(battleStatuses),
         },
       };
     } catch (error) {
@@ -163,7 +164,7 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
         event: 'battle:status:result',
         data: {
           battle,
-          pokemonStatuses: battleStatuses,
+          pokemonStatuses: toBattlePokemonStatusResponses(battleStatuses),
         },
       };
     } catch (error) {

@@ -503,7 +503,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 `battle.controller.ts` の `POST /battle/start`・`POST /battle/:id/turn`・`GET /battle/:id` は、entity をそのまま返しています。そのため `volatileState`・`persistentState`・`sideState` が、両方のプレイヤーにそのまま見えます。
 
-イリュージョンを実装する前に、controller で状態を response DTO に詰め替えてください。そのとき、相手に見せないキー（`illusionStatusId` など）を外します。
+ただし、ポケモンの状態の一覧（`GET /battle/:id` と `battle.gateway.ts` の `pokemonStatuses`）は、`toBattlePokemonStatusResponses`（`infrastructure/dto/battle-pokemon-status.response.ts`）で詰め替えて、相手に見せないキー（`illusionStatusId`）を外しています。見せないキーを足すときは、この関数で外してください。
 
 注: API はポケモンの名前・見た目を返さず、`trainedPokemonId` だけを返します。そのため、イリュージョンで「化けた先として見せる」ことはまだできません。エンジンは `illusionStatusId` の書き込みと解除（特性を書き換える・消す・へんしんの失敗）だけを扱います。
 
