@@ -16,8 +16,8 @@ type StatType =
  * 相手によって能力ランクを下げられない
  *
  * `canReceiveStatChange` フックで、すべての能力の低下を無効化する。
- * 本フックは相手が能力変化を適用する側（`BaseOpponentStatChangeMoveEffect` /
- * `BaseOpponentStatChangeEffect`）でのみ参照されるため、自分の技による低下には影響しない。
+ * 本フックは、能力ランクを変える共通の処理 `applyStatChanges`（battle-events/stat-change.ts）が、
+ * 相手が起こした低下に対してだけ能力ごとに呼ぶ。そのため自分の技による低下には影響しない。
  *
  * 注: メタルプロテクトは本来かたやぶりで無視されないが、ここではクリアボディと同じく
  * 攻撃側がかたやぶりを持つと判定がスキップされる。
