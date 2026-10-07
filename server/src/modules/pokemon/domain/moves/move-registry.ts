@@ -259,7 +259,7 @@ import { FoulPlayEffect } from './effects/foul-play-effect';
 import { ChipAwayEffect } from './effects/chip-away-effect';
 // 相手のランクを奪う技（Issue #129 一部）
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
-// うのミサイルのフォルムチェンジを起こすため技（Issue #135 一部）
+// うのミサイルのフォルムチェンジを起こすための技（Issue #135 一部）
 import { DiveEffect } from './effects/dive-effect';
 
 /**
@@ -628,7 +628,7 @@ export class MoveRegistry {
       this.registry.set('ＤＤラリアット', chipAwayEffect);
       // 相手のランクを奪う技（Issue #129 一部）
       this.registry.set('シャドースチール', new SpectralThiefEffect());
-      // うのミサイルのフォルムチェンジを起こすため技（Issue #135 一部）
+      // うのミサイルのフォルムチェンジを起こすための技（Issue #135 一部）
       this.registry.set('ダイビング', new DiveEffect());
     } catch (error) {
       throw new Error(
