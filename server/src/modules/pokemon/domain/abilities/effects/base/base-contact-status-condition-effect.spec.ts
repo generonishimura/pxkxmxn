@@ -12,6 +12,7 @@ import { Ability } from '@/modules/pokemon/domain/entities/ability.entity';
 import { Gender } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 import { Nature } from '@/modules/battle/domain/logic/stat-calculator';
 import { AbilityRegistry } from '../../ability-registry';
+import { HitResult } from '../../../battle-events/hit-result';
 
 /**
  * テスト用の具象クラス（どくを付与）
@@ -306,6 +307,73 @@ describe('BaseContactStatusConditionEffect', () => {
       const result = effect.modifyDamage(pokemon, damage, undefined);
 
       expect(result).toBe(damage);
+    });
+  });
+
+  describe('onDamagingHit', () => {
+    const hit: HitResult = {
+      damage: 10,
+      hpBefore: 100,
+      hitIndex: 0,
+      hitCount: 1,
+      isContact: true,
+      moveTypeName: 'ノーマル',
+      moveCategory: 'Physical',
+      targetFainted: false,
+    };
+
+    it('状態異常を付与したら「<特性名> activated!」を返す', async () => {
+      // Arrange
+      const effect = new TestPoisonContactEffect();
+      const battleRepository = createMockBattleRepository();
+      const battleContext: BattleContext = {
+        battle: new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null),
+        battleRepository,
+        trainedPokemonRepository: createMockTrainedPokemonRepository(
+          createTrainedPokemon(2, createPokemon(2, createType(1, 'ほのお'))),
+        ),
+        moveCategory: 'Physical',
+        defenderAbilityName: 'テストどくのトゲ',
+      };
+
+      // Act
+      const message = await effect.onDamagingHit(
+        createBattlePokemonStatus(),
+        createBattlePokemonStatus({ id: 2 }),
+        hit,
+        battleContext,
+      );
+
+      // Assert
+      expect(message).toBe('テストどくのトゲ activated!');
+      expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
+        statusCondition: StatusCondition.Poison,
+      });
+    });
+
+    it('付与しなかったら null を返す', async () => {
+      // Arrange
+      const effect = new TestPoisonContactEffect();
+      const battleRepository = createMockBattleRepository();
+      const battleContext: BattleContext = {
+        battle: new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null),
+        battleRepository,
+        trainedPokemonRepository: createMockTrainedPokemonRepository(null),
+        moveCategory: 'Physical',
+        defenderAbilityName: 'テストどくのトゲ',
+      };
+
+      // Act
+      const message = await effect.onDamagingHit(
+        createBattlePokemonStatus(),
+        createBattlePokemonStatus({ id: 2, statusCondition: StatusCondition.Burn }),
+        hit,
+        battleContext,
+      );
+
+      // Assert
+      expect(message).toBeNull();
+      expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
   });
 });

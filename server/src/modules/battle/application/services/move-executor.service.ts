@@ -268,7 +268,7 @@ export class MoveExecutorService {
    * 7. 技の beforeDamage（連続技の回数決定）。このあと両者の状態を取り直す
    * 8. 技の威力の決定（技の modifyMovePower）
    * 9. ヒットごとにダメージを適用し（みがわりがあればみがわりに）、防御側特性の onDamagingHit → 攻撃側特性の onSourceDamagingHit を呼ぶ
-   * 10. 接触時の特性 → onHit → afterDamage（合計ダメージ） → 防御側特性の onAfterMoveHit → 攻撃側特性の onKnockOut
+   * 10. onHit → afterDamage（合計ダメージ） → 防御側特性の onAfterMoveHit → 攻撃側特性の onKnockOut
    * 11. 倒した相手のみちづれ・おんねん
    *
    * @param battlePokemonMoveId 技の欄（BattlePokemonMove の ID）。覚えていない技を出し続けるとき（ゆびをふるで出た
@@ -1557,27 +1557,12 @@ export class MoveExecutorService {
       await this.battleRepository.patchVolatileState(defender.id, { lastHitByMoveId: move.id });
     }
 
-    // 接触技による状態異常付与（防御側の特性）
+    // 接触したときのメッセージ（くちばしキャノンのやけど）。せいでんき・ぬめぬめ・くだけるよろいなどの
+    // 接触時の特性は、ヒットのループの onDamagingHit で発動している
     let contactEffectMessage = '';
-    // 技の追加効果に渡すポケモンの状態（接触時の特性で変わった場合は取得し直す）
+    // 技の追加効果に渡すポケモンの状態（ヒットごとの特性で変わった状態は、ヒットのループで取得し直している）
     let attackerForMoveEffect = currentAttacker;
-    let defenderForMoveEffect = updatedDefender;
-    if (landed && defenderEventEffect?.applyContactStatusCondition) {
-      const applied = await defenderEventEffect.applyContactStatusCondition(
-        updatedDefender,
-        currentAttacker,
-        battleContext,
-      );
-      if (applied) {
-        contactEffectMessage = ` ${defenderAbilityName} activated!`;
-        // くだけるよろい（防御側）やぬめぬめ（攻撃側）などで能力ランク・状態異常が変わるため、
-        // 追加効果が古い状態で上書きしないよう最新の状態を取得し直す
-        attackerForMoveEffect =
-          (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? currentAttacker;
-        defenderForMoveEffect =
-          (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? updatedDefender;
-      }
-    }
+    const defenderForMoveEffect = updatedDefender;
 
     // くちばしキャノンをためている相手に接触技を当てると、やけどになる
     if (

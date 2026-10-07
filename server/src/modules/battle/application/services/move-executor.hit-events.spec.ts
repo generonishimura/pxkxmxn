@@ -2,6 +2,7 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { MoldBreakerEffect } from '@/modules/pokemon/domain/abilities/effects/mold-breaker-effect';
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
+import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { ATTACKER_ID, DEFENDER_ID, setupMoveExecutor } from './__tests__/move-executor-test-setup';
 
 describe('MoveExecutorService - ヒットとひんしのイベント', () => {
@@ -211,6 +212,61 @@ describe('MoveExecutorService - ヒットとひんしのイベント', () => {
       expect(statuses.get(ATTACKER_ID)?.currentHp).toBe(75);
       expect(message).toBe(
         'Used ほのおのパンチ and dealt 15 damage (hit 2 times) ゆうばく activated!',
+      );
+    });
+  });
+
+  describe('ヒットごとに発動する接触時の特性（せいでんき・ぬめぬめ・くだけるよろいなど）', () => {
+    it('くだけるよろい: 連続技ではヒットごとに発動し、下がった防御を次のヒットのダメージ計算に使う', async () => {
+      // Arrange
+      const { execute, calculate, statuses } = setupMoveExecutor({
+        defenderAbility: 'くだけるよろい',
+        moveEffect: twoHits,
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(calculate).toHaveBeenCalledTimes(2);
+      expect(calculate.mock.calls[1][0].defender.defenseRank).toBe(-1);
+      expect(statuses.get(DEFENDER_ID)?.defenseRank).toBe(-2);
+      expect(statuses.get(DEFENDER_ID)?.speedRank).toBe(4);
+      expect(message).toBe(
+        'Used ほのおのパンチ and dealt 20 damage (hit 2 times) くだけるよろい activated! くだけるよろい activated!',
+      );
+    });
+
+    it('ぬめぬめ: 連続技の接触では、ヒットごとに攻撃側の素早さを下げる', async () => {
+      // Arrange
+      const { execute, statuses } = setupMoveExecutor({
+        defenderAbility: 'ぬめぬめ',
+        moveEffect: twoHits,
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID)?.speedRank).toBe(-2);
+    });
+
+    it('せいでんき: 連続技ではヒットごとに確率を判定する（1回目で外れても2回目でまひにできる）', async () => {
+      // Arrange
+      // 1回目のヒットの判定は 0.5（30% から外れる）、2回目は 0.1（30% に入る）
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.5).mockReturnValueOnce(0.1);
+      const { execute, statuses } = setupMoveExecutor({
+        defenderAbility: 'せいでんき',
+        moveEffect: twoHits,
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID)?.statusCondition).toBe(StatusCondition.Paralysis);
+      expect(message).toBe(
+        'Used ほのおのパンチ and dealt 20 damage (hit 2 times) せいでんき activated!',
       );
     });
   });
