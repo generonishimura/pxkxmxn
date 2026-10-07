@@ -264,6 +264,8 @@ import { ReflectTypeEffect } from './effects/reflect-type-effect';
 import { MagicPowderEffect } from './effects/magic-powder-effect';
 import { TrickOrTreatEffect } from './effects/trick-or-treat-effect';
 import { ForestsCurseEffect } from './effects/forests-curse-effect';
+// 技のタイプを変える場の状態（Issue #107 一部）
+import { IonDelugeEffect } from './effects/ion-deluge-effect';
 
 /**
  * 技のレジストリ
@@ -636,6 +638,8 @@ export class MoveRegistry {
       this.registry.set('まほうのこな', new MagicPowderEffect());
       this.registry.set('ハロウィン', new TrickOrTreatEffect());
       this.registry.set('もりののろい', new ForestsCurseEffect());
+      // 技のタイプを変える場の状態（Issue #107 一部）
+      this.registry.set('プラズマシャワー', new IonDelugeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
