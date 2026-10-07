@@ -958,13 +958,27 @@ export class MoveExecutorService {
       return { message: `Used ${move.name} but it failed`, outcome: 'failed' };
     }
 
-    // そらをとぶ・あなをほるなどで隠れている相手には、決まった技しか当たらない（ロックオン中は当たる）
-    if (targetsOpponent && !this.canReachSemiInvulnerable(attacker, defender, move)) {
+    // 技の側の理由で必ず当たるか（どくタイプが使うどくどく）。隠れている相手にも当たる
+    const ensuresHit = AccuracyCalculator.alwaysHitsByMoveUser(
+      move.name,
+      this.typeNamesOf(attackerTrainedPokemon),
+    );
+
+    // そらをとぶ・あなをほるなどで隠れている相手には、決まった技しか当たらない（ロックオン中・ノーガードは当たる）
+    if (
+      targetsOpponent &&
+      !ensuresHit &&
+      !this.canReachSemiInvulnerable(attacker, defender, move, [
+        attackerAbilityName,
+        defenderAbilityName,
+      ])
+    ) {
       return this.missed(move, moveEffect, attacker, defender, battleContext);
     }
 
-    // 命中率判定（変化技の場合は常に命中とみなす）
-    if (isDamagingMove) {
+    // 命中率判定。変化技も、相手を対象にする技なら判定する（命中率が null の技は必ず当たる）。
+    // 威力が null で modifyMovePower もない攻撃技は、今までどおり判定しない
+    if (isDamagingMove || (move.category === 'Status' && targetsOpponent)) {
       const hit = AccuracyCalculator.checkHit(
         move.accuracy,
         attacker,
@@ -972,6 +986,7 @@ export class MoveExecutorService {
         attackerAbilityName,
         defenderAbilityName,
         battleContext,
+        { ensuresHit },
       );
 
       if (!hit) {
@@ -1585,15 +1600,21 @@ export class MoveExecutorService {
 
   /**
    * そらをとぶ・あなをほるなどで隠れている相手に、この技が届くか
-   * 隠れていなければ届く。ロックオン・こころのめ（使用者の lockOnTurns）があれば届く
+   * 隠れていなければ届く。ロックオン・こころのめ（使用者の lockOnTurns）があれば届く。
+   * 攻撃側か防御側の特性が ensuresMoveHit（ノーガード）なら届く
    */
   private canReachSemiInvulnerable(
     attacker: BattlePokemonStatus,
     defender: BattlePokemonStatus,
     move: Move,
+    abilityNames: readonly [string | undefined, string | undefined],
   ): boolean {
     const kind = defender.volatileState.semiInvulnerable;
-    if (kind === undefined || attacker.volatileState.lockOnTurns !== undefined) {
+    if (
+      kind === undefined ||
+      attacker.volatileState.lockOnTurns !== undefined ||
+      AccuracyCalculator.ensuresHitByAbility(...abilityNames)
+    ) {
       return true;
     }
     return MoveBehaviors.hitsSemiInvulnerable(kind, move.name);

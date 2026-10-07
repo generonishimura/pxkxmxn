@@ -711,4 +711,29 @@ export interface IAbilityEffect {
    * MoveExecutorService が急所を判定するときに参照する。かたやぶりで無視される
    */
   readonly preventsCriticalHit?: boolean;
+  // ---- 変化技の命中（Issue #135 一部） ----
+
+  /**
+   * 技の命中率を、ランク補正の前に変える効果（例: ミラクルスキン = 防御側で変化技なら 50）
+   * AccuracyCalculator が、命中率が数値の技（変化技を含む）で、攻撃側（role = 'attacker'）→
+   * 防御側（role = 'defender'。かたやぶりで無視される）の順に呼ぶ。このあとにランク補正・じゅうりょく・
+   * modifyAccuracy・modifyEvasion が掛かる（本家の ModifyAccuracy）
+   * @param holder この特性を持つポケモン
+   * @param role この特性を持つポケモンが攻撃側か防御側か
+   * @param accuracy 今の命中率（0-100）
+   * @returns 変更後の命中率、変更しない場合はundefined
+   */
+  modifyBaseAccuracy?(
+    _holder: BattlePokemonStatus,
+    _role: 'attacker' | 'defender',
+    _accuracy: number,
+    _battleContext?: BattleContext,
+  ): number | undefined;
+
+  /**
+   * 自分が使う技も、自分が受ける技も必ず当たる特性かどうか（例: ノーガード）
+   * AccuracyCalculator と、隠れている相手（そらをとぶなど）に届くかの判定で、攻撃側・防御側の両方を見る。
+   * かたやぶりでは無視されない
+   */
+  readonly ensuresMoveHit?: boolean;
 }
