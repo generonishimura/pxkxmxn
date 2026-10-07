@@ -35,6 +35,9 @@ describe.each([
   ],
 ])('%s - 同じ優先度の中での順番', (_name, createDeterminer) => {
   const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
+  const trickRoomBattle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null, {
+    global: { trickRoomTurns: 5 },
+  });
   const NORMAL = new Type(1, 'ノーマル', 'Normal');
 
   const createMove = (id: number, category: MoveCategory, priority: number): Move =>
@@ -85,6 +88,7 @@ describe.each([
     move1: Move,
     move2: Move,
     abilities: { first?: string; second?: string } = {},
+    currentBattle: Battle = battle,
   ): Promise<number[]> => {
     const moveRepository: IMoveRepository = {
       findById: (id: number) => Promise.resolve(moves.find(m => m.id === id) ?? null),
@@ -99,7 +103,7 @@ describe.each([
       findByTrainerId: () => Promise.resolve([]),
     };
     const actions = await createDeterminer(moveRepository, trainedPokemonRepository).determine({
-      battle,
+      battle: currentBattle,
       trainer1Action: { trainerId: 1, moveId: move1.id },
       trainer2Action: { trainerId: 2, moveId: move2.id },
       trainer1Active: createStatus(1),
@@ -153,5 +157,51 @@ describe.each([
 
     // Assert
     expect(order).toEqual([1, 2]);
+  });
+
+  it('modifyFractionalPriority は、トリックルームの間も逆にならない', async () => {
+    // Act
+    const order = await determineOrder(
+      PHYSICAL_MOVE,
+      STATUS_MOVE,
+      { second: 'テストのきんし' },
+      trickRoomBattle,
+    );
+
+    // Assert
+    expect(order).toEqual([1, 2]);
+  });
+
+  describe('あとだし', () => {
+    it('速くても、同じ優先度の中では最後に動く', async () => {
+      // Act
+      const order = await determineOrder(PHYSICAL_MOVE, PHYSICAL_MOVE, { first: 'あとだし' });
+
+      // Assert
+      expect(order).toEqual([2, 1]);
+    });
+
+    it('トリックルームの間も、同じ優先度の中では最後に動く（遅くても先に動かない）', async () => {
+      // Act
+      const order = await determineOrder(
+        PHYSICAL_MOVE,
+        PHYSICAL_MOVE,
+        { second: 'あとだし' },
+        trickRoomBattle,
+      );
+
+      // Assert
+      expect(order).toEqual([1, 2]);
+    });
+
+    it('優先度の高い技なら、優先度の低い相手より先に動く', async () => {
+      // Act
+      const order = await determineOrder(PRIORITY_STATUS_MOVE, PHYSICAL_MOVE, {
+        first: 'あとだし',
+      });
+
+      // Assert
+      expect(order).toEqual([1, 2]);
+    });
   });
 });

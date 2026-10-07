@@ -5,25 +5,16 @@ describe('StallEffect', () => {
   const pokemon = new BattlePokemonStatus(1, 1, 1, 1, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, null);
   const effect = new StallEffect();
 
-  it('素早さを 0 にして同じ優先度の中で最後に行動させる', () => {
-    // Arrange
-    const speed = 200;
-
+  it('同じ優先度の中で最後に動くよう、優先度に -0.1 を足す', () => {
     // Act
-    const result = effect.modifySpeed(pokemon, speed);
+    const result = effect.modifyFractionalPriority(pokemon);
 
     // Assert
-    expect(result).toBe(0);
+    expect(result).toBe(-0.1);
   });
 
-  it('素早さが元々 0 でも 0 を返す', () => {
-    // Arrange
-    const speed = 0;
-
-    // Act
-    const result = effect.modifySpeed(pokemon, speed);
-
+  it('素早さは変えない（トリックルームで順番が逆にならない）', () => {
     // Assert
-    expect(result).toBe(0);
+    expect('modifySpeed' in effect).toBe(false);
   });
 });
