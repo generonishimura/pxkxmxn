@@ -208,6 +208,7 @@ import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 import { ForecastEffect } from './effects/form-change/forecast-effect';
 import { ZenModeEffect } from './effects/form-change/zen-mode-effect';
 import { StanceChangeEffect } from './effects/form-change/stance-change-effect';
+import { ShieldsDownEffect } from './effects/form-change/shields-down-effect';
 
 /**
  * 特性レジストリ
@@ -514,6 +515,7 @@ export class AbilityRegistry {
       this.registry.set('てんきや', new ForecastEffect());
       this.registry.set('ダルマモード', new ZenModeEffect());
       this.registry.set('バトルスイッチ', new StanceChangeEffect());
+      this.registry.set('リミットシールド', new ShieldsDownEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

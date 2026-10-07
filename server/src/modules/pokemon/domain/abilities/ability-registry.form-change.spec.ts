@@ -2,6 +2,7 @@ import { AbilityRegistry } from './ability-registry';
 import { ForecastEffect } from './effects/form-change/forecast-effect';
 import { ZenModeEffect } from './effects/form-change/zen-mode-effect';
 import { StanceChangeEffect } from './effects/form-change/stance-change-effect';
+import { ShieldsDownEffect } from './effects/form-change/shields-down-effect';
 
 describe('AbilityRegistry（フォルムを変える特性）', () => {
   beforeEach(() => {
@@ -13,6 +14,7 @@ describe('AbilityRegistry（フォルムを変える特性）', () => {
     ['てんきや', ForecastEffect],
     ['ダルマモード', ZenModeEffect],
     ['バトルスイッチ', StanceChangeEffect],
+    ['リミットシールド', ShieldsDownEffect],
   ])('%s が登録されている', (name, effectClass) => {
     // Act
     const effect = AbilityRegistry.get(name);
