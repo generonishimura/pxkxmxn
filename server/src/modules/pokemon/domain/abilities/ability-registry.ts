@@ -256,6 +256,10 @@ import { BattleArmorEffect } from './effects/other/battle-armor-effect';
 import { SuperLuckEffect } from './effects/other/super-luck-effect';
 import { MercilessEffect } from './effects/other/merciless-effect';
 import { AngerPointEffect } from './effects/stat-change/anger-point-effect';
+// 変化技の命中・行動順・はね返しに関わる特性（Issue #135 一部）
+import { WonderSkinEffect } from './effects/other/wonder-skin-effect';
+import { MagicBounceEffect } from './effects/other/magic-bounce-effect';
+import { MyceliumMightEffect } from './effects/other/mycelium-might-effect';
 
 /**
  * 特性レジストリ
@@ -616,6 +620,10 @@ export class AbilityRegistry {
       this.registry.set('きょううん', new SuperLuckEffect());
       this.registry.set('ひとでなし', new MercilessEffect());
       this.registry.set('いかりのつぼ', new AngerPointEffect());
+      // 変化技の命中・行動順・はね返しに関わる特性（Issue #135 一部）
+      this.registry.set('ミラクルスキン', new WonderSkinEffect());
+      this.registry.set('マジックミラー', new MagicBounceEffect());
+      this.registry.set('きんしのちから', new MyceliumMightEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

@@ -357,6 +357,8 @@ import { LunarDanceEffect } from './effects/lunar-dance-effect';
 // 急所ランクを上げる技（Issue #111 一部）
 import { FocusEnergyEffect } from './effects/focus-energy-effect';
 import { LaserFocusEffect } from './effects/laser-focus-effect';
+// 技をはね返す技（Issue #107 一部）
+import { MagicCoatEffect } from './effects/magic-coat-effect';
 
 /**
  * 技のレジストリ
@@ -824,6 +826,8 @@ export class MoveRegistry {
       // 急所ランクを上げる技（Issue #111 一部）
       this.registry.set('きあいだめ', new FocusEnergyEffect());
       this.registry.set('とぎすます', new LaserFocusEffect());
+      // 技をはね返す技（Issue #107 一部）
+      this.registry.set('マジックコート', new MagicCoatEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
