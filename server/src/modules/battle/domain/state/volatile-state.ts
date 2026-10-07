@@ -275,6 +275,11 @@ export type VolatileState = {
   readonly switchedInTurn?: number;
   /** へんげんじざい・リベロを、場に出てから使った（場に出るたびに 1 回だけ） */
   readonly typeChangeAbilityUsed?: boolean;
+  /**
+   * スロースタートを、場に出たあと（場に出たターンより後）に得たときの Battle.turn（スキルスワップ・なりきりなど）
+   * あれば、スロースタートはこのターンから数える。場に出たときから持っていれば書かない（switchedInTurn で数える）
+   */
+  readonly slowStartTurn?: number;
 
   // ---- 技の流れ（エンジンが書く） ----
   /** ため技でためている間の隠れ方。ため技を出すか、出せなかったときにエンジンが消す */
@@ -399,6 +404,7 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   illusionStatusId: positiveInteger,
   switchedInTurn: nonNegativeInteger,
   typeChangeAbilityUsed: booleanValue,
+  slowStartTurn: nonNegativeInteger,
   semiInvulnerable: oneOf(SEMI_INVULNERABLE_KINDS),
   mustRecharge: booleanValue,
   consecutiveMoveCount: positiveInteger,

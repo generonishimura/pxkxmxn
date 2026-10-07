@@ -1057,7 +1057,7 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 | なまけ | `onBeforeMove` で `loafing` を交互に書く（9.2） |
 | メロメロボディ | 接触技を受けたとき 30% で `tryApplyVolatile(attacker, 'attract', ..., { source: { pokemon: holder, kind: 'ability' } })` |
 | ふくつのこころ | `onFlinch`（9.2） |
-| スロースタート | `switchedInTurn`（`battle.turn - switchedInTurn <= 5`）で攻撃・素早さ半分 |
+| スロースタート | `switchedInTurn`（`battle.turn - switchedInTurn <= 5`）で攻撃・素早さ半分。場に出たあとで得たら、`onEntry` で `slowStartTurn` を書き、そのターンから数える |
 | のろわれボディ | `onDamagingHit` で 30% `tryApplyVolatile(attacker, 'disable', { disable: { moveId: ctx.moveId, turns: 4 } })` |
 | アロマベール | `canReceiveVolatile`（9.1） |
 | ぜったいねむり | `treatedAsStatusCondition = StatusCondition.Sleep` と状態異常の無効化（9.1） |

@@ -366,6 +366,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | キー | 型 | 意味 | 使う技・特性 |
 | --- | --- | --- | --- |
 | `switchedInTurn` | 0 以上の整数 | 場に出たときの `Battle.turn`。先発は `0` | スロースタート・はりこみ・たたみがえし・ねこだまし・であいがしら |
+| `slowStartTurn` | 0 以上の整数 | スロースタートを、場に出たターンより後に得たときの `Battle.turn`（スキルスワップ・なりきりなど。特性の `onEntry` が書く） | スロースタート |
 
 先発は `0`、ターン N に交代で出たら `N` です。出てから最初に行動するターンは `switchedInTurn + 1` になります。技ごとの比べ方は次のとおりです。
 
@@ -373,7 +374,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | --- | --- |
 | ねこだまし・であいがしら・たたみがえし（出てから最初の行動） | `battle.turn === switchedInTurn + 1` |
 | はりこみ（相手がこのターンに交代で出てきた） | `target.switchedInTurn === battle.turn` |
-| スロースタート（出てから 5 ターン） | `battle.turn - switchedInTurn <= 5` |
+| スロースタート（出てから 5 ターン） | `battle.turn - switchedInTurn <= 5`。`slowStartTurn` があれば `battle.turn - slowStartTurn <= 4`（得たターンを含めて 5 ターン） |
 
 ## 6. PersistentPokemonState のキー
 
