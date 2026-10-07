@@ -277,6 +277,36 @@ describe('ExecuteTurnUseCase - 実効のタイプ・特性・フォルム', () =
     });
   });
 
+  describe('かがくへんかガスが交代で出たとき', () => {
+    it('相手のゲンシ天候の特性が消え、交代のあとにゲンシ天候が終わる', async () => {
+      // Arrange
+      AbilityRegistry.register('テストのおわりのだいち', { primalWeather: 'harshSunlight' });
+      const engine = createBattleEngine({
+        moves: MOVES,
+        weather: Weather.Sun,
+        sideState: { global: { primalWeather: 'harshSunlight', weatherSourceStatusId: 1 } },
+        pokemon: [
+          {
+            id: 1,
+            trainerId: 1,
+            active: true,
+            moveIds: ALL_MOVES,
+            ability: 'テストのおわりのだいち',
+          },
+          { id: 2, trainerId: 2, active: true, moveIds: ALL_MOVES, baseSpeed: 50 },
+          { id: 4, trainerId: 2, moveIds: ALL_MOVES, ability: 'かがくへんかガス' },
+        ],
+      });
+
+      // Act
+      await engine.runTurn({ moveId: SPLASH.id }, { switchPokemonId: 4 });
+
+      // Assert
+      expect(engine.battle().weather).toBe(Weather.None);
+      expect(engine.battle().sideState.global?.primalWeather).toBeUndefined();
+    });
+  });
+
   describe('フォルム', () => {
     it('volatileState.form の種族値で、ダメージが決まる（ブレードフォルム）', async () => {
       // Arrange

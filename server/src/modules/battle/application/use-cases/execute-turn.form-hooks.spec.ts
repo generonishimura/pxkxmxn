@@ -1,4 +1,5 @@
 import { Field, Weather } from '../../domain/entities/battle.entity';
+import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
@@ -30,8 +31,18 @@ describe('ExecuteTurnUseCase - タイプ・フォルムを変える特性のフ�
     type: 'でんき',
   });
   const DEFOG = createTestMove(8, 'きりばらい', { category: MoveCategory.Status, type: 'ひこう' });
-  const MOVES = [SPLASH, TACKLE, EMBER, METRONOME, DOUBLE_HIT, RAIN_DANCE, TERRAIN, DEFOG];
-  const ALL_MOVES = MOVES.map(move => move.id);
+  const THUNDER_WAVE = createTestMove(9, 'でんじは', {
+    category: MoveCategory.Status,
+    type: 'でんき',
+  });
+  const SWORDS_DANCE = createTestMove(10, 'つるぎのまい', { category: MoveCategory.Status });
+  const FUTURE_SIGHT = createTestMove(11, 'みらいよち', { type: 'エスパー', power: 120 });
+  const SOLAR_BEAM = createTestMove(12, 'ソーラービーム', { type: 'くさ', power: 120 });
+  const U_TURN = createTestMove(13, 'テストのとんぼがえり', { type: 'むし' });
+  const BASE_MOVES = [SPLASH, TACKLE, EMBER, METRONOME, DOUBLE_HIT, RAIN_DANCE, TERRAIN, DEFOG];
+  const MOVES = [...BASE_MOVES, THUNDER_WAVE, SWORDS_DANCE, FUTURE_SIGHT, SOLAR_BEAM, U_TURN];
+  // 覚えている技（ハーネスの技の欄の ID は「ポケモンの ID × 10 + 番号」なので、10 個までにする）
+  const ALL_MOVES = BASE_MOVES.map(move => move.id);
 
   const setup = (
     attacker: Partial<HarnessPokemon> = {},
@@ -99,6 +110,100 @@ describe('ExecuteTurnUseCase - タイプ・フォルムを変える特性のフ�
         ([, role]: [unknown, 'attacker' | 'defender']) => role === 'defender',
       );
       expect(tackleCalls).toHaveLength(1);
+    });
+
+    describe('呼ばない技', () => {
+      /** onPrepareHit を呼んだ技の名前を記録する特性 */
+      const registerRecorder = (): Array<string | undefined> => {
+        const seen: Array<string | undefined> = [];
+        AbilityRegistry.register('テストのへんげんじざい', {
+          onPrepareHit: async (_holder, _target, ctx) => {
+            seen.push(ctx?.moveName);
+            return null;
+          },
+        });
+        return seen;
+      };
+
+      it('はね返した技（マジックコート）では呼ばない', async () => {
+        // Arrange
+        const seen = registerRecorder();
+        const engine = setup(
+          { moveIds: [SPLASH.id, THUNDER_WAVE.id] },
+          { ability: 'テストのへんげんじざい', volatileState: { magicCoat: true } },
+        );
+
+        // Act
+        await engine.runTurn({ moveId: THUNDER_WAVE.id }, { moveId: SPLASH.id });
+
+        // Assert: はね返した側は、自分で出したはねるでだけ呼ぶ
+        expect(engine.status(1).statusCondition).toBe(StatusCondition.Paralysis);
+        expect(seen).toEqual(['はねる']);
+      });
+
+      it('よこどりで奪った技では呼ばない', async () => {
+        // Arrange
+        const seen = registerRecorder();
+        const engine = setup(
+          { moveIds: [SPLASH.id, SWORDS_DANCE.id] },
+          { ability: 'テストのへんげんじざい', volatileState: { snatch: true } },
+        );
+
+        // Act
+        await engine.runTurn({ moveId: SWORDS_DANCE.id }, { moveId: SPLASH.id });
+
+        // Assert
+        expect(engine.status(2).attackRank).toBe(2);
+        expect(seen).toEqual(['はねる']);
+      });
+
+      it('みらいよちが当たるときは呼ばない', async () => {
+        // Arrange
+        const seen = registerRecorder();
+        const engine = createBattleEngine({
+          moves: MOVES,
+          sideState: {
+            sides: {
+              '2': { futureAttack: { turns: 1, moveId: FUTURE_SIGHT.id, sourceStatusId: 1 } },
+            },
+          },
+          pokemon: [
+            {
+              id: 1,
+              trainerId: 1,
+              active: true,
+              moveIds: ALL_MOVES,
+              ability: 'テストのへんげんじざい',
+            },
+            { id: 2, trainerId: 2, active: true, moveIds: ALL_MOVES, baseSpeed: 50 },
+          ],
+        });
+
+        // Act
+        await engine.runTurn({ moveId: SPLASH.id }, { moveId: SPLASH.id });
+
+        // Assert: みらいよちは当たるが、呼ぶのは自分で出したはねるだけ
+        expect(engine.status(2).currentHp).toBeLessThan(160);
+        expect(seen).toEqual(['はねる']);
+      });
+
+      it('ため技の 1 ターン目では呼ばず、2 ターン目に呼ぶ', async () => {
+        // Arrange
+        const seen = registerRecorder();
+        const engine = setup({
+          ability: 'テストのへんげんじざい',
+          moveIds: [SPLASH.id, SOLAR_BEAM.id],
+        });
+
+        // Act
+        await engine.runTurn({ moveId: SOLAR_BEAM.id }, { moveId: SPLASH.id });
+        const afterCharge = [...seen];
+        await engine.runTurn({ moveId: SOLAR_BEAM.id }, { moveId: SPLASH.id });
+
+        // Assert
+        expect(afterCharge).toEqual([]);
+        expect(seen).toEqual(['ソーラービーム']);
+      });
     });
 
     it('技を呼ぶ技（ゆびをふる）では呼ばず、呼ばれた技で呼ぶ', async () => {
@@ -247,6 +352,49 @@ describe('ExecuteTurnUseCase - タイプ・フォルムを変える特性のフ�
       // Assert: 1 回目は防ぎ（1/8 の 20）、2 回目は 36（タイプ一致）
       expect(engine.status(2).currentHp).toBe(160 - 20 - 36);
       expect(result.actions[0].result).toContain('(hit 2 times)');
+    });
+
+    it('みがわりに当たるヒットでは呼ばない', async () => {
+      // Arrange
+      const blockDamagingHit = jest.fn().mockResolvedValue('blocked!');
+      AbilityRegistry.register(DISGUISE, { blockDamagingHit });
+      const engine = setup({}, { ability: DISGUISE, volatileState: { substituteHp: 40 } });
+
+      // Act
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert: みがわりが 36 を受ける
+      expect(blockDamagingHit).not.toHaveBeenCalled();
+      expect(engine.status(2).volatileState.substituteHp).toBe(4);
+      expect(engine.status(2).currentHp).toBe(160);
+    });
+
+    it('防いだヒットでも、とんぼがえりの交代は起きる', async () => {
+      // Arrange
+      registerDisguise();
+      MoveRegistry.register(U_TURN.name, { selfSwitch: true });
+      const engine = createBattleEngine({
+        moves: MOVES,
+        pokemon: [
+          { id: 1, trainerId: 1, active: true, moveIds: [SPLASH.id, U_TURN.id] },
+          { id: 3, trainerId: 1, moveIds: ALL_MOVES },
+          {
+            id: 2,
+            trainerId: 2,
+            active: true,
+            moveIds: ALL_MOVES,
+            baseSpeed: 50,
+            ability: DISGUISE,
+          },
+        ],
+      });
+
+      // Act
+      await engine.runTurn({ moveId: U_TURN.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(2).persistentState.disguiseBusted).toBe(true);
+      expect(engine.active(1)?.id).toBe(3);
     });
 
     it('かたやぶりの技には効かない', async () => {

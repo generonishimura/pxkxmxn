@@ -6,6 +6,7 @@ import { transformInto } from '@/modules/pokemon/domain/battle-events/transform'
 import { resolveBattleAbilityName } from '@/modules/pokemon/domain/battle-events/battle-traits';
 import { resolveCurrentAbilityName } from '@/modules/pokemon/domain/battle-events/ability-change';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
+import { resolveMoveSlots } from '../../domain/logic/move-selection';
 import { createBattleEngine, createTestMove } from '../__tests__/battle-engine-harness';
 
 /**
@@ -248,6 +249,42 @@ describe('ExecuteTurnUseCase - フォルムチェンジとへんしん', () => {
       // Assert
       expect(result.actions[0].result).toMatch(/^Used ひのこ and dealt/);
       expect(engine.status(1).volatileState.moveSlotOverrides?.[1].currentPp).toBe(4);
+    });
+
+    it('へんしん中に同じ欄を入れ替えた（ものまねで写した技）ときは、あとの技を出せて、その欄の PP が減る', async () => {
+      // Arrange: 欄 20 はへんしんで写したはねるを、ものまねでたいあたりに入れ替えた
+      const engine = createBattleEngine({
+        moves: MOVES,
+        pokemon: [
+          {
+            id: 1,
+            trainerId: 1,
+            active: true,
+            moveIds: [3],
+            volatileState: {
+              transformedIntoStatusId: 2,
+              moveSlotOverrides: [
+                { battlePokemonMoveId: 20, moveId: SPLASH.id, currentPp: 5, maxPp: 5 },
+                { battlePokemonMoveId: 20, moveId: TACKLE.id, currentPp: 5, maxPp: 5 },
+              ],
+            },
+          },
+          { id: 2, trainerId: 2, active: true, moveIds: [1], baseSpeed: 50 },
+        ],
+      });
+
+      // Act
+      const result = await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert: 欄 20 は 1 つだけ見え、たいあたりの PP が 4 になる
+      expect(result.actions[0].result).toMatch(/^Used たいあたり and dealt/);
+      const slots = resolveMoveSlots(
+        await engine.battleRepository.findBattlePokemonMovesByBattlePokemonStatusId(1),
+        engine.status(1).volatileState,
+      );
+      expect(slots).toEqual([
+        { battlePokemonMoveId: 20, moveId: TACKLE.id, currentPp: 4, maxPp: 5, isOverride: true },
+      ]);
     });
 
     it('みがわりの相手には、へんしんできない', async () => {

@@ -34,6 +34,10 @@ import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context
 import { transformInto } from '@/modules/pokemon/domain/battle-events/transform';
 import { setPrimalWeather } from '@/modules/pokemon/domain/battle-events/field-state';
 import { findIllusionTarget } from '@/modules/pokemon/domain/battle-events/illusion';
+import {
+  resolveCurrentAbilityName,
+  setAbility,
+} from '@/modules/pokemon/domain/battle-events/ability-change';
 import { Weather } from '../../domain/entities/battle.entity';
 import { typeOf } from '../__tests__/battle-engine-harness';
 import { StartBattleUseCase } from './start-battle.use-case';
@@ -331,6 +335,29 @@ describe('StartBattleUseCase - 先発の場に出たときの処理', () => {
 
     // Assert
     expect(engine.statusOf(1).volatileState.transformedIntoStatusId).toBe(engine.statusOf(2).id);
+  });
+
+  it('トレーナー 1 の先発のトレースが、トレーナー 2 の先発の特性を写す', async () => {
+    // Arrange
+    AbilityRegistry.register('テストのトレース', {
+      onEntry: async (holder, ctx) => {
+        const opponent = ctx ? await opponentOf(holder, ctx) : undefined;
+        const name = ctx && opponent ? await resolveCurrentAbilityName(opponent, ctx) : undefined;
+        if (ctx && name) {
+          await setAbility(holder, name, ctx);
+        }
+      },
+    });
+    const engine = createStartBattle([
+      { id: 1, trainerId: 1, position: 1, ability: 'テストのトレース' },
+      { id: 2, trainerId: 2, position: 1, ability: 'ふみん' },
+    ]);
+
+    // Act
+    await engine.start();
+
+    // Assert
+    expect(engine.statusOf(1).volatileState.abilityOverride).toBe('ふみん');
   });
 
   it('先発のイリュージョンは、あとに作る手持ちのポケモンに化けられる', async () => {

@@ -166,6 +166,32 @@ describe('ExecuteTurnUseCase - 技のタイプの変更', () => {
     expect(engine.status(1).volatileState.lastMoveTypeName).toBeUndefined();
   });
 
+  it('そうでんされても、わるあがきはタイプなしのまま（でんき技にならない）', async () => {
+    // Arrange: 相手はじめんタイプ。でんき技になれば効かない
+    const struggle = createTestMove(7, 'わるあがき');
+    const engine = createBattleEngine({
+      moves: [...MOVES, struggle],
+      pokemon: [
+        {
+          id: 1,
+          trainerId: 1,
+          active: true,
+          moveIds: [struggle.id],
+          types: ['みず'],
+          volatileState: { electrified: true },
+        },
+        { id: 2, trainerId: 2, active: true, moveIds: [1], types: ['じめん'], baseSpeed: 50 },
+      ],
+    });
+
+    // Act
+    await engine.runTurn({ moveId: struggle.id }, { moveId: SPLASH.id });
+
+    // Assert
+    expect(engine.status(2).currentHp).toBeLessThan(160);
+    expect(engine.status(1).volatileState.lastMoveTypeName).toBeUndefined();
+  });
+
   describe('-スキンの 1.2 倍（ctx.moveTypeChangedByAbility）', () => {
     const WEATHER_BALL = createTestMove(4, 'テストのウェザーボール');
     const TECHNO_BLAST = createTestMove(5, 'テストのテクノバスター');
