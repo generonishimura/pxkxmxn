@@ -147,6 +147,25 @@ describe('WanderingSpiritEffect（さまようたましい）', () => {
     expect(get(2).volatileState.abilityOverride).toBeUndefined();
   });
 
+  it('自分がひんしになったヒットでは、相手の特性だけが変わったことを伝える', async () => {
+    // Arrange
+    const { context, get } = createInMemoryBattle(
+      { ability: 'ふみん' },
+      { ability: 'さまようたましい', status: { currentHp: 0 } },
+    );
+
+    // Act
+    const message = await new WanderingSpiritEffect().onDamagingHit(
+      get(2),
+      get(1),
+      hit(true, true),
+      context(),
+    );
+
+    // Assert
+    expect(message).toBe("The attacker's ability became さまようたましい!");
+  });
+
   it('連続技の 2 発目では、もう さまようたましい ではないので入れ替えない', async () => {
     // Arrange
     const { context, get } = createInMemoryBattle(

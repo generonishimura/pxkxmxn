@@ -15,7 +15,7 @@ const WANDERING_SPIRIT_ABILITY_NAME = 'さまようたましい';
  * - 本家と同じく、先に相手の特性をさまようたましいにし（setAbility）、成功したら自分に相手のもとの特性を書く。
  *   そのため、相手が消せない特性（cantSuppress。うのミサイル）なら何もしない
  * - 自分がひんしになったヒットでは、相手だけがさまようたましいになり、自分の特性は変わらない（本家の setAbility は
- *   ひんしのポケモンに失敗する）
+ *   ひんしのポケモンに失敗する）。メッセージも相手の特性が変わったことだけを伝える
  * - 受け取った特性の onEntry は setAbility が呼ぶ（受け取ったいかくが発動する）
  * - かたやぶりでは無視されない（本家と同じ）
  * - 自分の今の特性がさまようたましいでなければ何もしない（連続技の 2 発目以降。1 発目で入れ替えたあと）
@@ -46,7 +46,10 @@ export class WanderingSpiritEffect implements IAbilityEffect {
     if (!attackerResult.changed) {
       return null;
     }
-    await setAbility(holder, attackerAbilityName, battleContext);
+    const holderResult = await setAbility(holder, attackerAbilityName, battleContext);
+    if (!holderResult.changed) {
+      return `The attacker's ability became ${WANDERING_SPIRIT_ABILITY_NAME}!`;
+    }
     return `${WANDERING_SPIRIT_ABILITY_NAME} swapped abilities with the attacker!`;
   }
 }
