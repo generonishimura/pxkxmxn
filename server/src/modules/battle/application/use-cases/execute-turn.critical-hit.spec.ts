@@ -8,6 +8,7 @@ import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
 import { VolatileState } from '../../domain/state/volatile-state';
 import { SideState } from '../../domain/state/side-state';
+import { applyVolatile } from '@/modules/pokemon/domain/battle-events/volatile-infliction';
 import { createBattleEngine, createTestMove } from '../__tests__/battle-engine-harness';
 
 /**
@@ -20,7 +21,8 @@ describe('ExecuteTurnUseCase - 急所', () => {
   const NIGHT_SLASH = createTestMove(3, 'つじぎり');
   const FROST_BREATH = createTestMove(4, 'こおりのいぶき');
   const DOUBLE_HIT = createTestMove(5, 'ダブルアタック');
-  const moves = [SPLASH, TACKLE, NIGHT_SLASH, FROST_BREATH, DOUBLE_HIT];
+  const LASER_FOCUS = createTestMove(6, 'とぎすます', { category: MoveCategory.Status });
+  const moves = [SPLASH, TACKLE, NIGHT_SLASH, FROST_BREATH, DOUBLE_HIT, LASER_FOCUS];
 
   const setup = (
     options: {
@@ -42,7 +44,7 @@ describe('ExecuteTurnUseCase - 急所', () => {
           trainerId: 1,
           active: true,
           baseSpeed: 150,
-          moveIds: [1, 2, 3, 4, 5],
+          moveIds: [1, 2, 3, 4, 5, 6],
           ability: options.attackerAbility,
           volatileState: options.attackerVolatile,
         },
@@ -133,6 +135,52 @@ describe('ExecuteTurnUseCase - 急所', () => {
 
     // Assert
     expect(damageTaken(engine)).toBe(54);
+  });
+
+  describe('とぎすますの期限', () => {
+    beforeEach(() => {
+      // とぎすます相当: すでにとぎすましていても、laserFocusTurns を 2 に書き直す（本家の onRestart）
+      MoveRegistry.register('とぎすます', {
+        onUse: async (
+          attacker: BattlePokemonStatus,
+          _d: BattlePokemonStatus,
+          ctx: BattleContext,
+        ) => {
+          await applyVolatile(attacker, { laserFocusTurns: 2 }, ctx);
+          return 'concentrated intensely!';
+        },
+      });
+    });
+
+    it('使ったターンの次のターンの攻撃は必ず急所になり、その次のターンの攻撃は急所にならない', async () => {
+      // Arrange
+      const engine = setup({ random: () => 1 });
+
+      // Act
+      await engine.runTurn({ moveId: LASER_FOCUS.id }, { moveId: SPLASH.id });
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+      const afterNextTurn = damageTaken(engine);
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(afterNextTurn).toBe(54);
+      expect(damageTaken(engine)).toBe(54 + 36);
+      expect(engine.status(1).volatileState.laserFocusTurns).toBeUndefined();
+    });
+
+    it('とぎすましている間にもう一度使うと成功し、効果が次のターンまで延びる', async () => {
+      // Arrange
+      const engine = setup({ random: () => 1 });
+
+      // Act
+      await engine.runTurn({ moveId: LASER_FOCUS.id }, { moveId: SPLASH.id });
+      const result = await engine.runTurn({ moveId: LASER_FOCUS.id }, { moveId: SPLASH.id });
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(result.actions[0].result).toContain('concentrated intensely!');
+      expect(damageTaken(engine)).toBe(54);
+    });
   });
 
   it('連続技は、ヒットごとに急所を判定する', async () => {

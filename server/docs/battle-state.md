@@ -315,7 +315,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `stockpileCount` | 1〜3 | たくわえるの回数 | たくわえる・はきだす・のみこむ |
 | `stockpileBoosts` | `{ defense, specialDefense }`（各 0〜6） | たくわえるで実際に上がったランク | たくわえる・はきだす・のみこむ |
 | `critStageBoost` | 0 以上の整数 | 急所ランクの上昇（急所の判定でエンジンが足す。種類は `'focusEnergy'`） | きあいだめ |
-| `laserFocusTurns` | 0 以上の整数 | 技が必ず急所になる残りターン数（使ったターンに `2` を書く。種類は `'laserFocus'`） | とぎすます |
+| `laserFocusTurns` | 0 以上の整数 | 技が必ず急所になる残りターン数（使ったターンに `2` を書く。もう一度使ったら `2` に書き直す。種類は `'laserFocus'`） | とぎすます |
 | `charged` | 真偽値 | 次のでんき技の威力が 2 倍。でんき技を出すとエンジンが消す（第 9 世代は、でんき技を出すまで続く） | じゅうでん・でんきにかえる・ふうりょくでんき |
 | `loafing` | 真偽値 | 次のターンは動かない | なまけ |
 

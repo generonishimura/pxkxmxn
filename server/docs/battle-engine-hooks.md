@@ -1352,15 +1352,21 @@ async onDamagingHit(holder: BattlePokemonStatus, _a: BattlePokemonStatus, hit: H
 }
 ```
 
-#### critStageBoost・laserFocusTurns（volatileState）と tryApplyVolatile
+#### critStageBoost・laserFocusTurns（volatileState）と tryApplyVolatile / applyVolatile
 
 - 種類: `'focusEnergy'`（キーは `critStageBoost`）、`'laserFocus'`（キーは `laserFocusTurns`）。すでにその状態なら `tryApplyVolatile` が `false` を返す
-- 使う技: きあいだめ（`critStageBoost: 2`。`FOCUS_ENERGY_CRIT_STAGE_BOOST`）、とぎすます（`laserFocusTurns: 2`。使ったターンと次のターンの技が必ず急所。ターン終了時にエンジンが減らす）
+- きあいだめ（`critStageBoost: 2`。`FOCUS_ENERGY_CRIT_STAGE_BOOST`）: `tryApplyVolatile` を使う。すでにきあいだめしていたら失敗する（本家と同じ）
+- とぎすます（`laserFocusTurns: 2`）: `applyVolatile` を使う。使ったターンと次のターンの技が必ず急所（ターン終了時にエンジンが減らす）。とぎすましている間にもう一度使っても成功し、`2` に書き直して次のターンまで延びる（本家の onRestart）。`tryApplyVolatile` だと、残りが `1` のときに失敗してしまう
 - バトンタッチで引き継ぐ（`BATON_PASS_KEYS`）
 
 ```ts
 const applied = await tryApplyVolatile(attacker, 'focusEnergy', { critStageBoost: FOCUS_ENERGY_CRIT_STAGE_BOOST }, ctx);
 return applied ? 'is getting pumped!' : 'But it failed';
+```
+
+```ts
+await applyVolatile(attacker, { laserFocusTurns: 2 }, ctx); // とぎすます（いつも書き直す）
+return 'concentrated intensely!';
 ```
 
 #### 急所の補助関数（`battle/domain/logic/critical-hit.ts`）
@@ -1601,7 +1607,7 @@ export class MagicBounceEffect implements IAbilityEffect {
 | マジックコート | `tryApplyVolatile(attacker, 'magicCoat', { magicCoat: true }, ctx)`（13.6） |
 | マジックミラー | `bouncesMoves = true`（13.6） |
 | きあいだめ | `tryApplyVolatile(attacker, 'focusEnergy', { critStageBoost: 2 }, ctx)`（13.1） |
-| とぎすます | `tryApplyVolatile(attacker, 'laserFocus', { laserFocusTurns: 2 }, ctx)`（13.1） |
+| とぎすます | `applyVolatile(attacker, { laserFocusTurns: 2 }, ctx)`（13.1。もう一度使うと延びる） |
 | カブトアーマー・シェルアーマー | `preventsCriticalHit = true`（13.1） |
 | きょううん | `modifyCritRatio` で `stage + 1`（13.1） |
 | ひとでなし | `modifyCritRatio` で、`ctx.defender` がどく・もうどくなら `3`（13.1） |
