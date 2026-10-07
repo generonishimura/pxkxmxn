@@ -6,7 +6,7 @@
 - 特性のフック: `src/modules/pokemon/domain/abilities/ability-effect.interface.ts`（`IAbilityEffect`）
 - 技のフック: `src/modules/pokemon/domain/moves/move-effect.interface.ts`（`IMoveEffect`）
 - コンテキスト: `src/modules/pokemon/domain/abilities/battle-context.interface.ts`（`BattleContext`）
-- イベントの型と補助関数: `src/modules/pokemon/domain/battle-events/`（ヒットの情報・原因・能力ランク・状態異常・技以外のダメージ・吸収）
+- イベントの型と補助関数: `src/modules/pokemon/domain/battle-events/`（ヒットの情報・原因・能力ランク・状態異常・技以外のダメージ・吸収・場の状態 `field-state.ts`・交代 `switching.ts`）
 
 ## 1. 技を使ったときの処理の順番
 
@@ -45,11 +45,11 @@
 
 `DamageCalculator.calculate`（`src/modules/battle/domain/logic/damage-calculator.ts`）の中は次の順です。
 
-1. タイプ一致・タイプ相性（攻撃側特性の `ignoresTypeImmunity` で相性0を等倍にできる）
-2. 防御側特性の `isImmuneToType`
-3. 威力補正（攻撃側特性の `modifyBasePower` → 場の特性の `modifyAnyBasePower`）
-4. 能力値とランク（`attackStatOverride`、無視するランク、やけど半減）
-5. 基本ダメージ → 攻撃側特性の `modifyDamageDealt` → 防御側特性の `modifyDamage` → 天候補正
+1. タイプ一致・タイプ相性（攻撃側特性の `ignoresTypeImmunity` で相性0を等倍にできる。じゅうりょく・らんきりゅうも反映する）
+2. 防御側特性の `isImmuneToType`（じゅうりょくの間は、ふゆうのじめん技の無効を無視する）
+3. 威力補正（攻撃側特性の `modifyBasePower` → 場の特性の `modifyAnyBasePower` → じゅうでん → フィールド・どろあそび・みずあそび）
+4. 能力値とランク（`attackStatOverride`、無視するランク、やけど半減。ワンダールームなら防御と特防の実数値を入れ替える）
+5. 基本ダメージ → 攻撃側特性の `modifyDamageDealt` → 防御側特性の `modifyDamage` → 天候補正 → 隠れている相手への 2 倍 → 壁（リフレクター・ひかりのかべ・オーロラベール）
 
 ## 2. 技のフック（IMoveEffect）
 
@@ -510,6 +510,8 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `attackerEffectiveStatus` / `defenderEffectiveStatus` | 状態異常として扱う状態（ぜったいねむりならねむり。9.1） | 技の実行 |
 | `hitSubstitute` | 技がみがわりに当たった（`afterDamage` の `damage` はみがわりに与えた量） | 技の実行の `afterDamage` |
 | `moveRepository` | 技のリポジトリ（9.4） | 技の実行 |
+| `selfSwitchCancelled` | 技の効果が `true` にすると、技の `selfSwitch` の交代をやめる（11.5） | 技の実行（`onUse`・`onHit`・`afterDamage` で書く） |
+| `attackerFaintedAllyCount` | 攻撃側の、自分以外の手持ちがひんしになった延べ数（11.7） | ダメージ技の実行・ダメージ計算 |
 
 ### イベントの型（`pokemon/domain/battle-events/`）
 
@@ -598,10 +600,11 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | 効果 | 足りないもの |
 | --- | --- |
 | ヘヴィメタル、ライトメタル | ポケモンの重さのデータがない |
-| かぜのりの「おいかぜで攻撃+1」 | おいかぜ（場の状態）がない。風技を無効にして攻撃+1にする部分は `isImmuneToMove` + `onMoveBlocked` で作れる |
+| かぜのりの「おいかぜで攻撃+1」 | おいかぜを張ったときに呼ばれるフックがない（おいかぜの技の `onUse` で、場の自分のポケモンのかぜのりを見て `applyStatChanges` する）。風技を無効にして攻撃+1にする部分は `isImmuneToMove` + `onMoveBlocked` で作れる |
 | こだいかっせい・クォークチャージの「ブーストエナジー」 | 持ち物の仕組みがない。晴れ・エレキフィールドで発動する部分は作れる |
 | じんばいったい（ブリザポス） | きんちょうかん（相手がきのみを食べられない）に持ち物の仕組みがない。しろのいななきの部分は `onKnockOut` で作れる |
-| ばんけんの「ふきとばし・ほえるで交代させられない」 | 強制交代の仕組みがない。いかくで攻撃が上がる部分は `modifyIncomingStatChange` で作れる |
+| 急所でのおまじない | 急所の仕組みがない。急所を決める処理を作るときに `preventsCriticalHit`（11.2）を呼ぶ |
+| ゆき（さむいギャグ・ゆきふらし・ゆきげしき） | `Weather` enum に `Snow` がない（マイグレーションが要る）。今は `Hail` で代わりにする |
 
 ## 8. 特性・技ごとに使うフック
 
@@ -829,7 +832,7 @@ const moveName = candidates[Math.floor(Math.random() * candidates.length)];
 | フック | 型・シグネチャ | 呼ばれる場所 | 使う特性 |
 | --- | --- | --- | --- |
 | `locksMoveChoice` | `readonly locksMoveChoice?: boolean` | `MoveLifecycle.recordMoveUse`。最初に出した技を `choiceLockedMoveId` に書く（わるあがきを除く。交代で消える） | ごりむちゅう |
-| `infiltrates` | `readonly infiltrates?: boolean` | 技の本体。相手のみがわりを無視する | すりぬけ（壁を無視する部分はまだない） |
+| `infiltrates` | `readonly infiltrates?: boolean` | 技の本体・`DamageCalculator`・`canInflictStatus`・`applyStatChanges`。相手のみがわり・壁・しんぴのまもり・しろいきりを無視する | すりぬけ |
 | `modifyOpponentPpDeduction` | `(holder, user, ctx?) => number \| undefined` | `MoveLifecycle.consumePp`。相手を対象にする技と `mustPressure` の技で、余分に減らす PP。かたやぶりでは無視されない | プレッシャー |
 
 ```ts
@@ -966,9 +969,9 @@ await ctx.battleRepository?.patchVolatileState(attacker.id, { substituteHp: cost
 
 #### findSwitchBlocker / executeSwitch の transfer
 
-- シグネチャ: `findSwitchBlocker(state, typeNames): 'ingrain' | 'trapped' | 'partialTrap' | undefined`（`battle/domain/logic/switch-restriction.ts`）、`PokemonSwitcherService.executeSwitch(battle, trainerId, trainedPokemonId, { transfer?: 'batonPass' | 'shedTail' })`
+- シグネチャ: `findSwitchBlocker(state, typeNames, { trappedByAbility?, fairyLock? }): 'ingrain' | 'trapped' | 'partialTrap' | 'trappingAbility' | 'fairyLock' | undefined`（`battle/domain/logic/switch-restriction.ts`）、`PokemonSwitcherService.executeSwitch(battle, trainerId, trainedPokemonId, { transfer?: 'batonPass' | 'shedTail' }): Promise<string[]>`
 - 呼ばれる場所: `ExecuteTurnUseCase`（交代を選んだとき。できなければ `Cannot switch out because it is trapped`）
-- 使う技: くろいまなざし・とおせんぼう・クモのす・たこがため（`trappedByStatusId` を書く）、ねをはる（`ingrain`）、しめつける系（`partialTrap`）、バトンタッチ・しっぽきり（`transfer`。交代先を選ぶ `pendingChoice` の仕組みと一緒に使う）
+- 使う技: くろいまなざし・とおせんぼう・クモのす・たこがため（`trappedByStatusId` を書く）、ねをはる（`ingrain`）、しめつける系（`partialTrap`）、バトンタッチ・しっぽきり（技の `selfSwitch: 'batonPass'` / `'shedTail'`。エンジンが `transfer` を渡す。11.5）。かげふみなどは 11.6、フェアリーロックは 11.3
 
 ```ts
 await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx, { source: moveEffectSource(attacker, ctx) });
@@ -1035,3 +1038,261 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 | ふうりょくでんき | `onDamagingHit` で `hit` の技が `wind` なら `charged: true`（おいかぜの部分は `tailwindTurns` を見る） |
 | どくくぐつ | `onInflictStatus` でこんらん（9.1） |
 | じゅうでん | 特防 +1 と `charged: true` |
+
+## 11. 場の状態・設置技・交代の仕組み
+
+壁・おいかぜ・ルーム・フィールド・天候・設置技・交代は、`Battle.sideState`（`SideConditions` / `GlobalFieldState`）と `Battle.weather` / `Battle.field` に置きます（キーの一覧と片付けは `docs/battle-state.md` の 7 章・11 章）。技・特性の実装では、キーを書くか、プロパティを宣言するだけにします。効果（ダメージ半減・素早さ 2 倍・設置技のダメージ・交代など）と、残りターン数を減らすのはエンジンです。
+
+- 書くときは、この章の補助関数か `battleRepository.patchSideConditions` / `patchGlobalFieldState` を使う。`Battle.weather` / `Battle.field` を `update` で直接書かない（残りターン数とゲンシ天候の決まりが守れない）
+- 残りターン数は、本家（Showdown）の condition の `duration` と同じ値を書く（使ったターンを含む。使ったターンの終わりにも 1 減る）
+- 自分の陣営は `attacker.trainerId`、相手の陣営は `defender.trainerId` で指す
+
+### 11.1 天候・フィールド（setWeather / setTerrain / setPrimalWeather）
+
+- シグネチャ: `setWeather(ctx, weather, turns = 5): Promise<boolean>`、`setTerrain(ctx, field, turns = 5): Promise<boolean>`、`setPrimalWeather(ctx, holder, kind: 'heavyRain' | 'harshSunlight' | 'strongWinds'): Promise<boolean>`（`pokemon/domain/battle-events/field-state.ts`）。変えたら `true`
+- 呼ばれる場所: 技の `onUse`・特性の `onEntry` / `onDamagingHit` から呼ぶ。`weatherTurns` / `terrainTurns` が 1 のターン終了時に戻すのはエンジン（`FieldResidualProcessor`）
+- 決まり: すでに同じ天候・フィールドなら何もしない。ゲンシ天候の間は `setWeather` が何もしない。`setPrimalWeather` はふつうの天候・別のゲンシ天候を上書きし、`holder` が場を離れたらエンジンが天候を終わらせる
+- 基底クラス: `BaseWeatherMoveEffect`（あまごいなど。ゲンシ天候の間は `But it failed`）、`BaseWeatherEffect`（あめふらしなど）、`BaseTerrainMoveEffect`（エレキフィールドなど）、`BaseFieldEffect`（エレキメイカーなど）、`BasePrimalWeatherEffect`（ゲンシ天候の特性）
+- 使う技・特性: グラスフィールド、さむいギャグ（ゆき。11.5 の `selfSwitch` と一緒に）、はじまりのうみ・おわりのだいち・デルタストリーム
+
+```ts
+export class GrassyTerrainEffect extends BaseTerrainMoveEffect {
+  protected readonly field = Field.GrassyTerrain;
+  protected readonly message = 'Grassy Terrain was set up!';
+}
+```
+
+#### primalWeather（特性のプロパティ）と BasePrimalWeatherEffect
+
+- 型: `readonly primalWeather?: PrimalWeather`（`IAbilityEffect`）
+- 参照する場所: `PrimalWeatherReleaser`（交代・ひんしの片付け）。ゲンシ天候を出したポケモンが場を離れたとき、場に同じ `primalWeather` の特性のポケモンがいれば、そのポケモンに引き継ぐ
+- `BasePrimalWeatherEffect` を継承すると、`onEntry` で `setPrimalWeather` を呼び、`primalWeather` も持つ
+- 使う特性: はじまりのうみ（`'heavyRain'`）、おわりのだいち（`'harshSunlight'`）、デルタストリーム（`'strongWinds'`）
+
+```ts
+export class PrimordialSeaEffect extends BasePrimalWeatherEffect {
+  readonly primalWeather = 'heavyRain' as const;
+}
+```
+
+- おおあめのほのおの攻撃技・おおひでりのみずの攻撃技の失敗、らんきりゅうの弱点の等倍、ノーてんき・エアロックでの無効は、エンジンが行う（`docs/battle-state.md` の 11 章）
+
+### 11.2 陣営の守り（BaseSideConditionMoveEffect）
+
+- シグネチャ: `abstract class BaseSideConditionMoveEffect { key; turns; message }`（`pokemon/domain/moves/effects/base/base-side-condition-move-effect.ts`）。`key` は `SIDE_TURN_COUNTER_KEYS` のどれか
+- 呼ばれる場所: 技の `onUse`。使用者の陣営に `{ [key]: turns }` を書く。すでに張っていれば `But it failed`
+- 効果はエンジン: 壁は `DamageCalculator`（急所・すりぬけでは効かない）、おいかぜは行動順、しんぴのまもりは `canInflictStatus` / `canApplyVolatile`、しろいきりは `applyStatChanges`
+- 使う技: リフレクター（`reflectTurns`, 5）、ひかりのかべ（`lightScreenTurns`, 5）、オーロラベール（`auroraVeilTurns`, 5。あられ・ゆきでなければ失敗するので `shouldFail` も書く）、おいかぜ（`tailwindTurns`, 4）、おまじない（`luckyChantTurns`, 5）。しんぴのまもり・しろいきりは作成済み
+
+```ts
+export class ReflectEffect extends BaseSideConditionMoveEffect {
+  protected readonly key = 'reflectTurns';
+  protected readonly turns = 5;
+  protected readonly message = 'Reflect raised the team\'s Defense!';
+}
+```
+
+#### preventsCriticalHit（おまじない）
+
+- シグネチャ: `preventsCriticalHit(defenderSide: SideConditions): boolean`（`battle/domain/logic/field-modifiers.ts`）
+- 呼ばれる場所: まだない。急所を決める処理を作るときに、防御側の陣営で `true` なら急所にしない
+- 使う技: おまじない
+
+```ts
+const side = getSideConditions(battle.sideState, defender.trainerId);
+const isCriticalHit = !preventsCriticalHit(side) && rollCriticalHit(stage);
+```
+
+### 11.3 両陣営にかかる状態（GlobalFieldState）
+
+技は `patchGlobalFieldState` で書くだけです。効果はエンジンが行います。
+
+| キー（書く値） | 効果（エンジン） | 使う技 |
+| --- | --- | --- |
+| `trickRoomTurns`（5。すでにあれば `null` で消す） | 同じ優先度なら遅い方が先 | トリックルーム |
+| `gravityTurns`（5。すでにあれば失敗） | 命中 6840/4096 倍、`MoveBehaviors` の `gravity` の技を出せない、ひこう・ふゆうにもじめん技が当たる | じゅうりょく |
+| `wonderRoomTurns`（5。すでにあれば `null` で消す） | 防御と特防の実数値を入れ替える | ワンダールーム |
+| `magicRoomTurns`（5。すでにあれば `null` で消す） | なし（持ち物の仕組みがない） | マジックルーム |
+| `mudSportTurns` / `waterSportTurns`（5。すでにあれば失敗） | でんき技 / ほのお技の威力 1352/4096 倍 | どろあそび・みずあそび |
+| `fairyLockTurns`（2。すでにあれば失敗） | 両方とも交代できない（ゴーストを除く） | フェアリーロック |
+
+```ts
+const global = getGlobalFieldState((await ctx.battleRepository!.findById(ctx.battle.id))!.sideState);
+await ctx.battleRepository!.patchGlobalFieldState(ctx.battle.id, { trickRoomTurns: global.trickRoomTurns ? null : 5 });
+return global.trickRoomTurns ? 'The twisted dimensions returned to normal!' : 'The dimensions were twisted!';
+```
+
+- じゅうりょくを張ったときに、場のポケモンの `magnetRiseTurns`・`telekinesisTurns` と、そらをとぶ・とびはねるの `semiInvulnerable: 'air'`・`chargingMoveId` を消すのは技の `onUse` で行う（`patchVolatileState`）
+
+### 11.4 設置技（addEntryHazard / clearSideConditions / swapSideConditions）
+
+- シグネチャ: `addEntryHazard(ctx, trainerId, 'spikes' | 'toxicSpikes' | 'stealthRock' | 'stickyWeb'): Promise<boolean>`、`clearSideConditions(ctx, trainerId, keys): Promise<Array<keyof SideConditions>>`、`swapSideConditions(ctx): Promise<void>`（`pokemon/domain/battle-events/field-state.ts`）。キーの組は `HAZARD_KEYS`・`SCREEN_KEYS`（`battle/domain/state/side-state.ts`）
+- 呼ばれる場所: 技の `onUse`・特性の `onEntry` / `onDamagingHit`。`addEntryHazard` は上限（まきびし 3 層・どくびし 2 層・ほかは 1 つ）なら `false`。`clearSideConditions` は実際に消したキーを返す。`swapSideConditions` はコートチェンジ（`COURT_CHANGE_KEYS` だけを入れ替える）
+- 場に出たポケモンへの効果はエンジン（`EntryEffectProcessor`。`docs/battle-state.md` の 11 章）
+- 使う技・特性: まきびし・どくびし・ステルスロック・ねばねばネット（相手の陣営に置く）、どくげしょう（物理技を受けたら相手の陣営にどくびし）、バリアフリー（両方の陣営の壁を消す）、コートチェンジ、こうそくスピン（自分の陣営の設置技）、きりばらい（作成済み）
+
+```ts
+const placed = await addEntryHazard(ctx, defender.trainerId, 'stealthRock');
+return placed ? 'Pointed stones float in the air around the opposing team!' : 'But it failed';
+```
+
+```ts
+// バリアフリー（onEntry）
+await clearSideConditions(ctx, ctx.battle.trainer1Id, SCREEN_KEYS);
+await clearSideConditions(ctx, ctx.battle.trainer2Id, SCREEN_KEYS);
+```
+
+### 11.5 交代（selfSwitch / forceSwitch / switchesOutBelowHalfHp / preventsForcedSwitch）
+
+交代そのものは、行動のすぐあとに `ExecuteTurnUseCase` が行います（`docs/battle-state.md` の 7 章）。交代で出てきたポケモンは、そのターンに行動しません。出てきたポケモンにも、いやしのねがい・設置技・`onEntry` が効きます。
+
+注: 交代先をプレイヤーが選ぶ API はまだないので、控えの先頭（ID の順。強制交代はランダム）を選びます。
+
+#### selfSwitch（技のプロパティ）
+
+- 型: `readonly selfSwitch?: true | 'batonPass' | 'shedTail'`（`IMoveEffect`）
+- 参照する場所: `MoveExecutorService` の技の本体の最後（変化技は `onUse` のあと、攻撃技はダメージを与えた・みがわりに当たったとき）。使用者がひんしでなく、控えがいて、`ctx.selfSwitchCancelled` でなく、相手のききかいひが発動していなければ、使用者の陣営に `pendingChoice` を書く
+- `'batonPass'` は能力ランクと `BATON_PASS_KEYS`、`'shedTail'` は `substituteHp` を次のポケモンに引き継ぐ
+- 控えがいないときに失敗する技（テレポート・バトンタッチ・しっぽきり）は、`onUse` で `hasSwitchTarget` を見て `But it failed` を返す（エンジンは交代しないだけで、失敗にはしない）
+- 使う技: とんぼがえり・ボルトチェンジ・クイックターン（攻撃技）、すてゼリフ・テレポート・さむいギャグ（`true`）、バトンタッチ（`'batonPass'`）、しっぽきり（`'shedTail'`。HP を払ってみがわりを書くのは `onUse`）
+
+```ts
+export class TeleportEffect implements IMoveEffect {
+  readonly selfSwitch = true;
+  async onUse(a: BattlePokemonStatus, _d: BattlePokemonStatus, ctx: BattleContext) { return (await hasSwitchTarget(ctx, a.trainerId)) ? null : 'But it failed'; }
+}
+```
+
+- すてゼリフは、攻撃・特攻が 1 つも下がらなかった（ミラーアーマーで返したときを除く）ら `ctx.selfSwitchCancelled = true` にする（本家と同じく交代しない）
+
+```ts
+const result = await applyStatChanges(defender, [{ statType: 'attack', rankChange: -1 }, { statType: 'specialAttack', rankChange: -1 }], ctx, { source: moveEffectSource(attacker, ctx) });
+if (result.applied.length === 0 && result.reflected.length === 0) ctx.selfSwitchCancelled = true;
+return joinStatChangeMessages(result);
+```
+
+#### forceSwitch（技のプロパティ）と preventsForcedSwitch（特性のプロパティ）
+
+- 型: `readonly forceSwitch?: boolean`（`IMoveEffect`）、`readonly preventsForcedSwitch?: boolean`（`IAbilityEffect`）
+- 参照する場所: `MoveExecutorService`。変化技は、相手がひんし・控えなし・ねをはる・`preventsForcedSwitch`（かたやぶりで無視される）なら `onUse` の前に失敗する。攻撃技は、ダメージを与えて相手が残り、交代させられるときだけ。相手の陣営に `forcedSwitch` を書き、行動のすぐあとにランダムな控えと入れ替える
+- 使う技・特性: ほえる・ふきとばし（変化技、優先度 -6 は DB の値）、ドラゴンテール・ともえなげ（攻撃技）、きゅうばん（`preventsForcedSwitch = true`）、ばんけん（作成済み）
+
+```ts
+export class RoarEffect implements IMoveEffect {
+  readonly forceSwitch = true;
+}
+```
+
+#### switchesOutBelowHalfHp（特性のプロパティ）
+
+- 型: `readonly switchesOutBelowHalfHp?: boolean`（`IAbilityEffect`）
+- 参照する場所: `MoveExecutorService`（相手の攻撃技のあと）、`PokemonSwitcherService`（設置技・ターン終了時のダメージ）。HP が最大 HP の半分より上から半分以下（ひんしを除く）になり、控えがいれば `pendingChoice: { reason: 'emergencyExit' }` を書く。かたやぶりでは無視されない
+- 発動したら、相手のとんぼがえりなどの交代は起きない（本家と同じ）。そのターンにまだ行動していなければ行動しない
+- 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
+- 使う特性: ききかいひ・にげごし
+
+```ts
+export class EmergencyExitEffect implements IAbilityEffect {
+  readonly switchesOutBelowHalfHp = true;
+}
+```
+
+#### requestSwitch / requestForcedSwitch / hasSwitchTarget / hasFaintedPartyMember
+
+- シグネチャ: `requestSwitch(ctx, trainerId, reason: PendingChoiceReason): Promise<void>`、`requestForcedSwitch(ctx, trainerId): Promise<void>`、`hasSwitchTarget(ctx, trainerId): Promise<boolean>`、`hasFaintedPartyMember(ctx, trainerId): Promise<boolean>`（`pokemon/domain/battle-events/switching.ts`）
+- 呼ばれる場所: 技の `onUse` / `onHit`、特性のフック。プロパティで書けないときに使う（判定はしないので、呼ぶ側で確かめる）
+- 使う技: さいきのいのり（`revivalBlessing`。エンジンがひんしの手持ちの先頭を最大 HP の半分で復活させる）、みかづきのまい・いやしのねがい（`hasSwitchTarget` で失敗判定）
+
+```ts
+// さいきのいのり
+if (!(await hasFaintedPartyMember(ctx, attacker.trainerId))) return 'But it failed';
+await requestSwitch(ctx, attacker.trainerId, 'revivalBlessing');
+```
+
+```ts
+// みかづきのまい（自分がひんしになり、次に出てきたポケモンの HP・状態異常・PP を回復する）
+if (!(await hasSwitchTarget(ctx, attacker.trainerId))) return 'But it failed';
+await ctx.battleRepository!.patchSideConditions(ctx.battle.id, attacker.trainerId, { healingWish: 'lunarDance' });
+await ctx.battleRepository!.updateBattlePokemonStatus(attacker.id, { currentHp: 0 });
+```
+
+### 11.6 逃げられなくする特性（trapsOpponent）
+
+- シグネチャ: `trapsOpponent?(holder, target: TrapTarget, ctx?): boolean | undefined`（`IAbilityEffect`）。`TrapTarget` は `{ pokemon, typeNames, abilityName?, grounded }`（`pokemon/domain/battle-events/switching.ts`）
+- 呼ばれる場所: `PokemonSwitcherService.findSwitchBlocker`（相手が交代を選んだとき、場の相手の特性として）。持ち主がひんし・特性が消されている（`abilitySuppressed`）ときは呼ばない。ゴーストタイプの相手は、`true` を返しても交代できる。とんぼがえり・ほえるなどの交代は止めない
+- 使う特性: かげふみ（相手がかげふみでなければ）、ありじごく（相手が地面にいれば）、じりょく（相手がはがねタイプなら）
+
+```ts
+trapsOpponent(_holder: BattlePokemonStatus, target: TrapTarget): boolean {
+  return target.typeNames.includes('はがね'); // じりょく
+}
+```
+
+- くろいまなざし・とおせんぼう・クモのすは `trappedByStatusId`（9.7）
+
+### 11.7 手持ちの数（attackerFaintedAllyCount / countFaintedAllies）
+
+- 型・シグネチャ: `battleContext.attackerFaintedAllyCount?: number`、`countFaintedAllies(ctx, holder): Promise<number>`（`pokemon/domain/battle-events/switching.ts`）
+- 入る場所: ダメージ技の実行（`beforeDamage` 以降）と、ダメージ計算の特性フック（`modifyBasePower` など）のコンテキスト
+- 値: 自分以外の手持ちがひんしになった延べ数（今ひんしの仲間の数 + `persistentState.revivalCount`。さいきのいのりで復活しても減らない。本家の `side.totalFainted`）
+- 使う特性: そうだいしょう（`[4096, 4506, 4915, 5325, 5734, 6144][Math.min(5, n)]` を威力に掛ける）
+
+```ts
+modifyBasePower(_p: BattlePokemonStatus, power: number, ctx?: BattleContext): number | undefined {
+  const fallen = Math.min(5, ctx?.attackerFaintedAllyCount ?? 0);
+  return fallen > 0 ? modifyByFixedPoint(power, [4096, 4506, 4915, 5325, 5734, 6144][fallen]) : undefined;
+}
+```
+
+### 11.8 エンジンが読む判定（grounded.ts・field-modifiers.ts）
+
+技・特性からも読めます（書き込みはしない）。
+
+| 関数 | 場所 | 用途 |
+| --- | --- | --- |
+| `isGrounded({ typeNames, abilityName, volatileState, sideState })` | `battle/domain/logic/grounded.ts` | 地面にいるか（フィールド・まきびし・どくびし・ねばねばネット・ありじごく） |
+| `screenDamageModifier(side, category, { isCriticalHit, infiltrates })` | `battle/domain/logic/field-modifiers.ts` | 壁の補正（2048 か undefined） |
+| `sideSpeedMultiplier(side)` / `isTrickRoomActive(sideState)` / `movesBefore(a, b, trickRoom)` | 同上 | おいかぜ・トリックルームの行動順 |
+| `fieldBasePowerModifiers(params)` | 同上 | フィールド・どろあそび・みずあそびの威力補正 |
+| `effectivePrimalWeather(sideState, abilityNames)` / `primalWeatherBlocksMove` / `isNeutralizedByStrongWinds` | 同上 | ゲンシ天候（ノーてんき・エアロックで無効） |
+| `preventsCriticalHit(side)` | 同上 | おまじない |
+
+```ts
+const grounded = isGrounded({ typeNames: target.typeNames, abilityName: target.abilityName, volatileState: target.pokemon.volatileState, sideState: ctx?.battle.sideState });
+return grounded; // ありじごく（trapsOpponent では target.grounded が同じ値）
+```
+
+## 12. 場の状態・交代の項目ごとに使うもの
+
+| 技・特性 | 使うもの |
+| --- | --- |
+| ほえる・ふきとばし | `forceSwitch = true`（11.5）。失敗の判定と入れ替えはエンジン |
+| まきびし・ステルスロック・ねばねばネット・どくびし | `addEntryHazard(ctx, defender.trainerId, kind)`（11.4）。`false` なら `But it failed` |
+| バトンタッチ | `selfSwitch = 'batonPass'` と、控えがいなければ失敗（11.5） |
+| すてゼリフ | `selfSwitch = true` と、攻撃・特攻 -1。下がらなければ `selfSwitchCancelled`（11.5） |
+| フェアリーロック | `fairyLockTurns: 2`（11.3）。交代できないのはエンジン |
+| テレポート | `selfSwitch = true` と、控えがいなければ失敗（11.5） |
+| リフレクター・ひかりのかべ・オーロラベール | `BaseSideConditionMoveEffect`（11.2）。オーロラベールは `shouldFail` で `getContextWeather(ctx) !== Weather.Hail` |
+| クモのす・くろいまなざし・とおせんぼう | `tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id })`（9.7） |
+| どろあそび・みずあそび | `mudSportTurns` / `waterSportTurns: 5`（11.3） |
+| コートチェンジ | `swapSideConditions(ctx)`（11.4） |
+| さいきのいのり | `hasFaintedPartyMember` で失敗判定と `requestSwitch(ctx, attacker.trainerId, 'revivalBlessing')`（11.5） |
+| しっぽきり | `selfSwitch = 'shedTail'`。`onUse` で、控えなし・HP が最大 HP の半分以下・みがわりがあれば失敗、`Math.ceil(maxHp / 2)` を払い `substituteHp: Math.floor(maxHp / 4)` を書く |
+| さむいギャグ | `selfSwitch = true` と `setWeather(ctx, Weather.Hail)`（ゆきがないので近似。7 章） |
+| ひかりのかべ | `BaseSideConditionMoveEffect`（`lightScreenTurns`, 5） |
+| おいかぜ | `BaseSideConditionMoveEffect`（`tailwindTurns`, 4） |
+| じゅうりょく | `gravityTurns: 5` と、場のポケモンの浮く状態・そらをとぶの消去（11.3） |
+| トリックルーム | `trickRoomTurns` を 5 と `null` で切り替える（11.3） |
+| ワンダールーム | `wonderRoomTurns` を 5 と `null` で切り替える（11.3） |
+| どくびし | `addEntryHazard(ctx, defender.trainerId, 'toxicSpikes')`（11.4） |
+| みかづきのまい | `hasSwitchTarget` で失敗判定、`healingWish: 'lunarDance'`、自分をひんしにする（11.5）。回復はエンジン |
+| グラスフィールド | `BaseTerrainMoveEffect`（`Field.GrassyTerrain`。11.1）。回復・威力はエンジン |
+| おまじない | `BaseSideConditionMoveEffect`（`luckyChantTurns`, 5）。急所の防止は急所の仕組みと一緒に（11.2） |
+| きゅうばん | `preventsForcedSwitch = true`（11.5） |
+| かげふみ・じりょく・ありじごく | `trapsOpponent`（11.6） |
+| すりぬけ | `infiltrates = true`。壁・しんぴのまもり・しろいきり・みがわりを無視するのはエンジン |
+| はじまりのうみ・おわりのだいち・デルタストリーム | `BasePrimalWeatherEffect`（11.1） |
+| にげごし・ききかいひ | `switchesOutBelowHalfHp = true`（11.5） |
+| バリアフリー | `onEntry` で両方の陣営に `clearSideConditions(ctx, trainerId, SCREEN_KEYS)`（11.4） |
+| そうだいしょう | `modifyBasePower` で `ctx.attackerFaintedAllyCount`（11.7） |
+| どくげしょう | `onDamagingHit` で `hit.moveCategory === 'Physical'` なら `addEntryHazard(ctx, attacker.trainerId, 'toxicSpikes')`（11.4） |

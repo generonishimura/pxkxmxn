@@ -13,7 +13,7 @@
 - `src/modules/battle/domain/state/side-state.ts`（`SideState` / `SideConditions` / `GlobalFieldState`）
 - `src/modules/battle/domain/state/state-field-parser.ts`（JSON を読む部品と、更新の共通処理）
 
-エンジンは、片付け（交代時の消去・ターン終了時の減算など）と、一時的な状態の決まった効果（技を出す前の判定・技の制限・ため技・ターン終了時のダメージなど）を受け持ちます（4 章・10 章）。個々の技・特性は、まだほとんどこの状態を書いていません。この文書は、これから技や特性を実装するときの置き場所と決まりを書いたものです。技・特性から使う関数とフックは `docs/battle-engine-hooks.md` の 9 章にあります。
+エンジンは、片付け（交代時の消去・ターン終了時の減算など）と、一時的な状態の決まった効果（技を出す前の判定・技の制限・ため技・ターン終了時のダメージなど）を受け持ちます（4 章・10 章）。場の状態（壁・おいかぜ・ルーム・フィールド・天候・設置技）の効果と、技・特性による交代も受け持ちます（11 章）。個々の技・特性は、まだほとんどこの状態を書いていません。この文書は、これから技や特性を実装するときの置き場所と決まりを書いたものです。技・特性から使う関数とフックは `docs/battle-engine-hooks.md` の 9 章（一時的な状態）と 11 章（場の状態・設置技・交代）にあります。
 
 ## 1. 保存のしかた
 
@@ -114,11 +114,16 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | 交代で引っ込んだあと | `PokemonSwitcherService.executeSwitch` | ほかのポケモンの、引っ込んだポケモンによる `trappedByStatusId`・`octolock`・`infatuatedWithStatusId` を消す（`releaseVolatileReferencesTo`） |
 | 場のポケモンがひんしになったとき | `ExecuteTurnUseCase.execute`（技を出すたびと、ターン終了時の片付けの前） | ほかのポケモンの、ひんしのポケモンによる `trappedByStatusId`・`octolock`・`infatuatedWithStatusId`・`partialTrap` を消す（`releaseVolatileReferencesTo`）。ひんしのポケモンは交代するまで場に残るので、交代を待たずに消す |
 | 交代で場に出たとき | `PokemonSwitcherService.executeSwitch` | `switchedInTurn` に今の `Battle.turn` を書く。`transfer` を渡したときは、引っ込む前の状態から引き継ぐキーも書く（10 章） |
+| 交代で場に出たとき（`switchedInTurn` のあと） | `EntryEffectProcessor.apply` | 陣営の `healingWish` を使ったら消す。地面にいるどくタイプが出てきたら `toxicSpikesLayers` を消す（11 章） |
+| 交代で引っ込んだとき・場のポケモンがひんしになったとき | `PrimalWeatherReleaser.release` | そのポケモンが `weatherSourceStatusId` なら、ゲンシ天候（`primalWeather`・`weatherSourceStatusId`・`Battle.weather`）を消す。場に同じゲンシ天候の特性のポケモンがいれば `weatherSourceStatusId` を書き換える |
+| 行動のすぐあと・ターン終了時の処理のあと | `ExecuteTurnUseCase.resolvePendingSwitches` | `forcedSwitch`・`pendingChoice` を消し、交代・復活を行う。復活させたポケモンの `revivalCount` を 1 増やす（11 章） |
 | 技を出そうとしたとき | `BeforeMoveChecker.check` | 最初に `grudge` を消す。反動のターンは `mustRecharge` を消す。こんらんの `confusionTurns` を 1 減らす。技を出せなかったら（反動のターンも）`destinyBond`・`protectCount` を消し、反動以外で止まったら `chargingMoveId`・`semiInvulnerable`・`lockedInMove`・`uproar`・`consecutiveMoveCount` も消す。でんき技（じゅうでんを除く）で止まったら `charged` も消す |
 | 技を出す前の判定を通ったとき | `MoveLifecycle.recordMoveUse` | 使用者の `destinyBond`・`grudge` を消す（`clearVolatileOnBeforeMove`。技を出せなかったときは `BeforeMoveChecker` が消す）。`lastMoveId`・`choiceLockedMoveId` を書き、`protectCount` を消す |
 | 技を出し終えたとき | `MoveExecutorService.executeMove` | `GlobalFieldState.lastMoveId` に、最後に出し始めた技（ゆびをふるで出た技など、呼ばれた技を含む）を書く。技を出せなかったときは書かない |
 | 技を出したあと | `MoveLifecycle.afterMove` | `mustRecharge`・`lockedInMove`・`uproar`・`consecutiveMoveCount` を書き直し、でんき技なら `charged` を消す。くちばしキャノンなら `beakBlast` を消す |
-| ターン終了時（特性の前） | `StatusConditionProcessorService.processTurnEndAbilities` → `VolatileResidualProcessor` | すなあらし・ねがいごと・アクアリング・ねをはる・やどりぎのタネ・あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた（10 章） |
+| ターン終了時（いちばん初め） | `FieldResidualProcessor.endExpiringWeather` | `weatherTurns` が 1 なら `Battle.weather` を `None` にし、`weatherTurns` を消す（ゲンシ天候は除く） |
+| ターン終了時（特性の前） | `StatusConditionProcessorService.processTurnEndAbilities` → `VolatileResidualProcessor` | すなあらし・ねがいごと・グラスフィールドの回復・アクアリング・ねをはる・やどりぎのタネ・あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた（10 章） |
+| ターン終了時（特性のあと） | `FieldResidualProcessor.endExpiringTerrain` | `terrainTurns` が 1 なら `Battle.field` を `None` にし、`terrainTurns` を消す |
 | ターン終了時 | `ExecuteTurnUseCase.execute`（特性・状態異常のターン終了時の処理のあと） | 場のポケモンの `volatileState` を `tickVolatileStateAtTurnEnd` で、`sideState` を `tickSideStateAtTurnEnd` で進める |
 | ターン終了時に場のポケモンがひんしのとき | `ExecuteTurnUseCase.execute` | その `volatileState` をすべて消す（ほろびのカウント・みがわりを、さいきのいのりで持ち越さない） |
 
@@ -154,7 +159,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 1. ターン終了時の処理（`VolatileResidualProcessor.applyAfterStatusDamage`）が `yawnTurns === 1` を見て、眠らせる
 2. そのあとで `tickVolatileStateAtTurnEnd` が `yawnTurns` を消す
 
-天候とフィールドも同じです。`weatherTurns === 1` / `terrainTurns === 1` のとき、ターン終了時の処理で `Battle.weather` / `Battle.field` を元に戻します。
+天候とフィールドも同じです。`weatherTurns === 1` / `terrainTurns === 1` のとき、ターン終了時の処理で `Battle.weather` / `Battle.field` を `None` に戻します（エンジンが行う）。天候はターン終了時の処理の初めに戻すので、最後のターンはすなあらしのダメージを受けません。フィールドは最後に戻すので、最後のターンもグラスフィールドで回復します（本家と同じ）。
 
 ### エンジンが書くキー
 
@@ -174,6 +179,9 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `charged` | `afterMove` / `BeforeMoveChecker` | でんき技を出したら消す（じゅうでんそのものは除く）。でんき技を出そうとして止まったときも消す（第 9 世代の本家と同じ）。書くのは技・特性 |
 | `confusionTurns` | `BeforeMoveChecker` | 技を出そうとするたびに 1 減らす。書くのは `inflictStatus`（こんらん） |
 | `SideConditions.futureAttack` | `MoveLifecycle.scheduleFutureAttack` | みらいよち・はめつのねがい（`MoveBehaviors` の `futureMove`）を使ったら相手の陣営に書く |
+| `SideConditions.pendingChoice`（pivot・batonPass・shedTail・emergencyExit） | `MoveExecutorService`（技の `selfSwitch`、特性の `switchesOutBelowHalfHp`）・`PokemonSwitcherService.scheduleEmergencyExits` | 交代する側の陣営に書く。技・特性が `requestSwitch` で書いてもよい |
+| `SideConditions.forcedSwitch` | `MoveExecutorService`（技の `forceSwitch`） | 相手を控えと入れ替えるとき、相手の陣営に書く。技・特性が `requestForcedSwitch` で書いてもよい |
+| `PersistentPokemonState.revivalCount` | `ExecuteTurnUseCase.resolvePendingSwitches` | さいきのいのりで復活させたポケモンに、1 増やして書く |
 
 ## 5. VolatileState のキー
 
@@ -356,6 +364,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `disguiseBusted` | 真偽値 | ばけのかわが破れた | ばけのかわ |
 | `iceFaceBroken` | 真偽値 | アイスフェイスが壊れた（ゆきで戻る） | アイスフェイス |
 | `oncePerBattleAbilityUsed` | 真偽値 | 1 バトルに 1 回だけの特性を使った | ふとうのけん・ふくつのたて・きずなへんげ |
+| `revivalCount` | 1 以上の整数 | さいきのいのりで復活した回数（エンジンが書く）。ひんしになった延べ数を、今ひんしの数 + この回数で求める | さいきのいのり・そうだいしょう |
 
 マイティチェンジは、引っ込むことでフォルムが変わります。引っ込むときに `PersistentPokemonState.form` に `'hero'` を書いてください。
 
@@ -392,7 +401,8 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | `wish` | `{ turns, healAmount }` | ねがいごと。使ったターンに `turns: 2` を書くと、次のターンの終わりに、その陣営の場のポケモンを `healAmount` だけ回復する（エンジンが行う。かいふくふうじ中は回復しない） | ねがいごと |
 | `futureAttack` | `{ turns, moveId, sourceStatusId }` | みらいよち・はめつのねがい。使ったターンにエンジンが `turns: 3` で書き、`turns` が 1 のターン終了時に、その陣営の場のポケモンに当てる | みらいよち・はめつのねがい |
 | `healingWish` | `'healingWish' \| 'lunarDance'` | 次に出てきたポケモンを回復する技 | いやしのねがい（HP と状態異常）・みかづきのまい（PP も） |
-| `pendingChoice` | `{ reason }` | 交代先（復活させるポケモン）の選択を待っている | とんぼがえり・すてゼリフ・テレポート・バトンタッチ・しっぽきり・ききかいひ・にげごし・さいきのいのり |
+| `pendingChoice` | `{ reason }` | 交代先（復活させるポケモン）の選択を待っている。行動のすぐあとにエンジンが解決して消す | とんぼがえり・すてゼリフ・テレポート・バトンタッチ・しっぽきり・さむいギャグ・ききかいひ・にげごし・さいきのいのり |
+| `forcedSwitch` | 真偽値 | 場のポケモンを控えとランダムに入れ替える。行動のすぐあとにエンジンが入れ替えて消す | ほえる・ふきとばし・ドラゴンテール・ともえなげ |
 
 ### コートチェンジ
 
@@ -402,18 +412,25 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 - `wish`・`healingWish`
 - `wideGuard`・`quickGuard`・`craftyShield`・`matBlock`
-- `pendingChoice`
+- `pendingChoice`・`forcedSwitch`
 
 ### 交代先の選択（pendingChoice）
 
-技や特性のあとでプレイヤーが交代先を選ぶ仕組みは、`pendingChoice` を使う案に決めます。流れは次のとおりです。
+技や特性のあとで交代する仕組みは、`pendingChoice` を使います。今の流れは次のとおりです。
 
-1. 技や特性の処理が、交代する側の陣営に `pendingChoice` を書く
-2. `ExecuteTurnUseCase` は、そこでターンの処理を止めて結果を返す
-3. クライアントが交代先（復活させるポケモン）を選んで送る
-4. 交代して `pendingChoice` を消し、残りの行動とターン終了時の処理を続ける
+1. 技や特性の処理が、交代する側の陣営に `pendingChoice` を書く（技の `selfSwitch`・特性の `switchesOutBelowHalfHp` なら、エンジンが書く）
+2. `ExecuteTurnUseCase` が、その行動のすぐあとに `resolvePendingSwitches` で解決する
+   - `pivot`・`batonPass`・`shedTail`・`emergencyExit`: 場のポケモンを、控えの先頭（ID の順）と交代させる。`batonPass`・`shedTail` は引き継ぐものも渡す（10 章）
+   - `revivalBlessing`: ひんしの手持ちの先頭を、最大 HP の半分（切り捨て、最低 1）で復活させる。状態異常も治す。場には出さない。結果に `action: 'revive'` が入る
+3. `pendingChoice` を消し、残りの行動とターン終了時の処理を続ける
 
-`ExecuteTurnParams` に交代先を先に入れておく案は採りません。技が当たるか、ききかいひが発動するかは、ターンの途中まで分からないためです。2〜4 の API と処理はまだありません。最初に使う項目を実装するときに作ってください。
+場のポケモンがひんし・控えがいない（復活させるポケモンがいない）ときは、何もせずにキーだけを消します。交代で出てきたポケモンは、そのターンには行動しません（行動を決めたポケモンが場にいないため）。
+
+注: 交代先（復活させるポケモン）をプレイヤーが選ぶ API はまだありません。今は控えの先頭を自動で選びます。作るときは、2 でターンの処理を止めて結果を返し、クライアントが選んだポケモンを次のリクエストで受け取って続きを処理する形にします。`ExecuteTurnParams` に交代先を先に入れておく案は採りません。技が当たるか、ききかいひが発動するかは、ターンの途中まで分からないためです。
+
+### 強制交代（forcedSwitch）
+
+ほえる・ふきとばし・ドラゴンテール・ともえなげは、相手の陣営に `forcedSwitch` を書きます（技の `forceSwitch` なら、エンジンが書く）。行動のすぐあとに、エンジンが場のポケモンを控えからランダムに選んだポケモンと入れ替えます（本家の dragIn と同じ）。逃げられない状態・かげふみなどでも入れ替わります。結果の `action: 'switch'` は `Pokemon was dragged out! Pokemon switched to ID: <ID>` になります。
 
 ### GlobalFieldState（両陣営）
 
@@ -433,16 +450,15 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | `terrainTurns` | 0 以上の整数 | `Battle.field` の残りターン数 | グラスフィールドなどのフィールド |
 | `ionDeluge` | 真偽値 | このターンだけ、ノーマル技がでんき技になる | プラズマシャワー |
 | `lastMoveId` | 技 ID | バトル全体で最後に使われた技（エンジンが書く。4 章） | まねっこ |
+| `primalWeather` | `'heavyRain' \| 'harshSunlight' \| 'strongWinds'` | ゲンシ天候（おおあめ・おおひでり・らんきりゅう）。`Battle.weather` はおおあめなら `Rain`、おおひでりなら `Sun`、らんきりゅうなら `None`。`weatherTurns` は持たず、`weatherSourceStatusId` のポケモンが場を離れたら終わる | はじまりのうみ・おわりのだいち・デルタストリーム |
 
 ### 天候について
 
-- `Weather` enum（`battle.entity.ts` と `prisma/schema.prisma`）には、まだ `Snow`（ゆき）とゲンシ天候（`HarshSunlight`・`HeavyRain`・`StrongWinds`）がありません。さむいギャグ・ゆきふらし（第 9 世代）・ゲンシ天候を入れるときは、enum に値を足し、Prisma の enum のマイグレーションを作ってください。
-- ゲンシ天候は普通の天候で上書きできません。`weatherSourceStatusId` があるときは、天候を出す処理は何もしないでください。
-- 今ある天候とフィールドを出す処理は、残りターン数を書いていません。そのため天候もフィールドも終わりません。すなあらしのターン終了時のダメージも、`weatherTurns` があるときだけ与えます（10 章）。`weatherTurns` / `terrainTurns` を使い始めるときは、次の処理にも残りターン数を書く変更と、`weatherTurns === 1` のターン終了時に `Battle.weather` を戻す処理が要ります。
-  - `src/modules/pokemon/domain/abilities/effects/base/base-weather-effect.ts`（あめふらし・ひでり・すなおこし・ゆきふらし）
-  - `src/modules/pokemon/domain/moves/effects/base/base-weather-move-effect.ts`（あまごい・にほんばれ など）
-  - `src/modules/pokemon/domain/abilities/effects/weather/*-surge-effect.ts`（エレキメイカー など）
-  - `src/modules/pokemon/domain/moves/effects/*-terrain-effect.ts`（エレキフィールド など）
+- 天候・フィールドを出す処理は、`setWeather` / `setTerrain` / `setPrimalWeather`（`pokemon/domain/battle-events/field-state.ts`）を使います。`Battle.weather` / `Battle.field` を直接書かないでください。残りターン数（既定 5）とゲンシ天候の決まりを、この関数が守ります（`docs/battle-engine-hooks.md` の 11 章）。
+- 天候の特性・技（`BaseWeatherEffect`・`BaseWeatherMoveEffect`）、フィールドの特性・技（`BaseFieldEffect`・`BaseTerrainMoveEffect`）、すなはき・こぼれダネは、これに乗せ換え済みです。天候とフィールドは 5 ターンで終わります。
+- ゲンシ天候は普通の天候で上書きできません（`setWeather` が何もしない。あまごいなどは失敗する）。ゲンシ天候は別のゲンシ天候で上書きできます。
+- `Weather` enum（`battle.entity.ts` と `prisma/schema.prisma`）には、まだ `Snow`（ゆき）がありません。ゲンシ天候は enum を増やさず、`GlobalFieldState.primalWeather` と、近いふつうの天候（`Rain`・`Sun`・`None`）で表します。ゆきを入れるときは、enum に値を足し、Prisma の enum のマイグレーションを作ってください。
+- すなあらしのターン終了時のダメージは、今までどおり `weatherTurns` があるときだけ与えます（終わらない天候を古い行から読んだときのため）。
 
 ## 8. まだしていないこと
 
@@ -517,7 +533,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 - `encore` があれば、選んだ技にかかわらずアンコールされた技を出す（交代はできる）。その技の PP が 0 ならアンコールを消す
 - 技の欄は `moveSlotOverrides` を先に見る
 - PP がない・技の制限で出せない技を選び、ほかに出せる技もなければ、わるあがきを出す
-- `ingrain`・`trappedByStatusId`・`partialTrap` があれば交代できない（ゴーストタイプはどれでも交代できる。本家の ingrain も tryTrap なので、trapped を受けないゴーストは逃げられる。`findSwitchBlocker`）。かけたポケモンがひんし・場にいない `trappedByStatusId`・`partialTrap` は見ない
+- `ingrain`・`trappedByStatusId`・`partialTrap` があれば交代できない（ゴーストタイプはどれでも交代できる。本家の ingrain も tryTrap なので、trapped を受けないゴーストは逃げられる。`findSwitchBlocker`）。かけたポケモンがひんし・場にいない `trappedByStatusId`・`partialTrap` は見ない。相手の場のポケモンの特性の `trapsOpponent`（かげふみなど）と、`GlobalFieldState.fairyLockTurns` でも交代できない（ゴーストタイプは交代できる）
 
 ### 技の処理の中
 
@@ -566,4 +582,68 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 - `'batonPass'`: `BATON_PASS_KEYS` のキー（`substituteHp`・`confusionTurns`・`leechSeed`・`cursed`・`ingrain`・`aquaRing`・`tauntTurns`・`healBlockTurns`・`perishCount`・`telekinesisTurns`・`magnetRiseTurns`・`tarShot`・`critStageBoost`・`laserFocusTurns`・`charged`・`abilitySuppressed`・`throatChopTurns`）と能力ランク
 - `'shedTail'`: `substituteHp` だけ（`shedTailPatch`）
 
-注: 交代先をプレイヤーが選ぶ仕組み（7 章の `pendingChoice`）はまだないので、技から `executeSwitch` を呼ぶ流れは、その仕組みと一緒に作ってください。
+技の `selfSwitch: 'batonPass'` / `'shedTail'` を使えば、エンジンが `transfer` を渡して交代させます（7 章の `pendingChoice`）。技から `executeSwitch` を直接呼ばないでください。
+
+## 11. エンジンが行う場の状態の効果
+
+次の効果は、キーがあればエンジンが行います。技・特性の実装では、キーを書くだけです（書き方は `docs/battle-engine-hooks.md` の 11 章）。「地面にいる」は `isGrounded`（`battle/domain/logic/grounded.ts`）で判定します（じゅうりょく・ねをはるなら地面にいる。ひこうタイプ（はねやすめのターンを除く）・ふゆう・でんじふゆう・テレキネシスなら地面にいない）。
+
+### ダメージ計算（`DamageCalculator`）
+
+| キー | 効果 |
+| --- | --- |
+| 防御側の陣営の `reflectTurns`・`lightScreenTurns`・`auroraVeilTurns` | 物理技（リフレクター）・特殊技（ひかりのかべ）・両方（オーロラベール）のダメージを 0.5 倍（最後に掛け、最低 1。重ねても 1 回）。急所（`battleContext.isCriticalHit`）・すりぬけ（`infiltrates`）・こんらんの自傷には効かない |
+| `wonderRoomTurns` | 防御と特防の実数値（ランク補正の前）を入れ替える。ランクは入れ替えない |
+| `Battle.field` | 地面にいて隠れていない攻撃側の、でんき（エレキ）・くさ（グラス）・エスパー（サイコ）技の威力 1.3 倍。地面にいて隠れていない相手への、じしん・じならし・マグニチュード（グラス）とドラゴン技（ミスト）の威力 0.5 倍 |
+| `mudSportTurns`・`waterSportTurns` | でんき技・ほのお技の威力 1352/4096 倍 |
+| `gravityTurns` | ひこうタイプ・ふゆう・でんじふゆう・テレキネシスにも、じめん技が当たる |
+| `primalWeather` が `strongWinds` | 攻撃技の、ひこうタイプへの弱点を等倍にする（ノーてんき・エアロックが場にいれば効かない） |
+
+### 命中・行動順・技を出すとき
+
+| キー | 効果 | 場所 |
+| --- | --- | --- |
+| `gravityTurns` | 命中率 6840/4096 倍（特性の補正の前） | `AccuracyCalculator` |
+| `gravityTurns` | `MoveBehaviors` の `gravity` の技を出せない（技を出す前の判定で止まる。技を選ぶときも出せない技として扱う） | `BeforeMoveChecker`・`planAction` |
+| 陣営の `tailwindTurns` | 行動順の素早さ 2 倍 | 行動順 |
+| `trickRoomTurns` | 同じ優先度なら遅い方が先 | 行動順 |
+| `primalWeather` が `heavyRain` / `harshSunlight` | ほのお / みずの攻撃技が失敗する（PP は減る。タイプ変更の反映後で判定。ノーてんき・エアロックが場にいれば効かない） | `MoveExecutorService.useMove` |
+| `Battle.field` がサイコフィールド | 地面にいて隠れていない相手への、優先度（`effectivePriority`）1 以上の技が失敗する | 技の本体 |
+
+### 状態異常・能力ランク
+
+| キー | 効果 | 場所 |
+| --- | --- | --- |
+| 対象の陣営の `safeguardTurns` | 相手が起こした状態異常・こんらん・あくびを防ぐ（技・特性・どくびし。自分で起こしたものと、すりぬけの技は防がない） | `canInflictStatus`・`canApplyVolatile` |
+| 対象の陣営の `mistTurns` | 相手が起こした能力の低下を防ぐ（すりぬけの技は防がない） | `applyStatChanges` |
+| `Battle.field` がエレキフィールド | 地面にいて隠れていないポケモンは眠らない（ねむるも失敗する）・あくびを受けない | `canInflictStatus`・`canApplyVolatile` |
+| `Battle.field` がミストフィールド | 地面にいて隠れていないポケモンは状態異常・こんらんにならない | `canInflictStatus` |
+
+### ターン終了時
+
+1. `weatherTurns === 1` の天候を終わらせる（`FieldResidualProcessor`）
+2. すなあらし → ねがいごと → グラスフィールド（地面にいて隠れていないポケモンを最大 HP の 1/16 回復。`applyHeal`）→ ポケモンごとの処理（10 章）
+3. `terrainTurns === 1` のフィールドを終わらせる
+4. ターン終了時のダメージで HP が半分以下になった、ききかいひ・にげごしの交代
+
+### 交代で場に出たとき（`EntryEffectProcessor`）
+
+いやしのねがい・みかづきのまい → ステルスロック → まきびし → どくびし → ねばねばネット → 特性の `onEntry` の順です。設置技でひんしになったら、そこで止めます（`onEntry` も呼ばない）。メッセージは交代の結果に入ります。
+
+| キー | 効果 |
+| --- | --- |
+| `healingWish` | `'healingWish'` は HP と状態異常、`'lunarDance'` は PP も回復して消す。回復するところがないポケモンが出てきたときは残す（第 8 世代から） |
+| `stealthRock` | 最大 HP × いわの相性 / 8（切り捨て、最低 1） |
+| `spikesLayers` | 地面にいるポケモンに、1 層 1/8・2 層 1/6・3 層 1/4 |
+| `toxicSpikesLayers` | 地面にいるポケモンを、1 層どく・2 層もうどくにする（付与元は相手の場のポケモン。しんぴのまもり・ミストフィールド・特性で防げる）。地面にいるどくタイプが出てきたら消す |
+| `stickyWeb` | 地面にいるポケモンの素早さ -1（相手が起こした低下。しろいきり・クリアボディで防げる。まけんきは発動する） |
+
+ダメージは `applyIndirectDamage`（マジックガードは受けない）です。設置技で HP が半分以下になったききかいひ・にげごしは、すぐにまた交代します。
+
+注: あつぞこブーツなどの持ち物はありません。
+
+### 交代（`ExecuteTurnUseCase`）
+
+- 技の `selfSwitch`・特性の `switchesOutBelowHalfHp` → `pendingChoice`、技の `forceSwitch` → `forcedSwitch` を、エンジンが書きます（7 章）
+- 交代できない状態（`findSwitchBlocker`）に、相手の特性の `trapsOpponent`（かげふみ・ありじごく・じりょく）と `fairyLockTurns` を足しました。ゴーストタイプはどれでも交代できます。技・特性による交代は止めません
+
