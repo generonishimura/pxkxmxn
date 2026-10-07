@@ -10,6 +10,7 @@ import { swapAbilities } from '../../battle-events/ability-change';
  * 相手が受け取った特性 → 使用者が受け取った特性の順に始まる（受け取ったいかくが発動する）。
  * どちらかの特性が入れ替えられない特性（ふしぎなまもり・イリュージョン・マルチタイプなど）なら失敗する。
  * 第 9 世代は、同じ特性どうしでも入れ替えられる。みがわりを貫通する
+ * 注: とくせいガードで防ぐ効果は扱わない（持ち物の仕組みがない）
  */
 export class SkillSwapEffect implements IMoveEffect {
   async onUse(
