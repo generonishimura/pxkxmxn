@@ -236,6 +236,11 @@ import { ElectromorphosisEffect } from './effects/other/electromorphosis-effect'
 import { WindPowerEffect } from './effects/other/wind-power-effect';
 // 物理技を受けたら相手の陣営にどくびしを置く特性（Issue #135 一部）
 import { ToxicDebrisEffect } from './effects/other/toxic-debris-effect';
+// ゲンシ天候の特性・そうだいしょう（Issue #135 一部）
+import { PrimordialSeaEffect } from './effects/weather/primordial-sea-effect';
+import { DesolateLandEffect } from './effects/weather/desolate-land-effect';
+import { DeltaStreamEffect } from './effects/weather/delta-stream-effect';
+import { SupremeOverlordEffect } from './effects/damage-modify/supreme-overlord-effect';
 
 /**
  * 特性レジストリ
@@ -570,6 +575,11 @@ export class AbilityRegistry {
       this.registry.set('ふうりょくでんき', new WindPowerEffect());
       // 物理技を受けたら相手の陣営にどくびしを置く特性（Issue #135 一部）
       this.registry.set('どくげしょう', new ToxicDebrisEffect());
+      // ゲンシ天候の特性・そうだいしょう（Issue #135 一部）
+      this.registry.set('はじまりのうみ', new PrimordialSeaEffect());
+      this.registry.set('おわりのだいち', new DesolateLandEffect());
+      this.registry.set('デルタストリーム', new DeltaStreamEffect());
+      this.registry.set('そうだいしょう', new SupremeOverlordEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
