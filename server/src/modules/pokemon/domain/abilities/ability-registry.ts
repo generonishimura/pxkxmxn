@@ -244,6 +244,12 @@ import { SupremeOverlordEffect } from './effects/damage-modify/supreme-overlord-
 // 陣営の守りに関わる特性（Issue #135 一部）
 import { InfiltratorEffect } from './effects/other/infiltrator-effect';
 import { ScreenCleanerEffect } from './effects/other/screen-cleaner-effect';
+// 交代させない・逃げられなくする・自分から交代する特性（Issue #135 一部）
+import { SuctionCupsEffect } from './effects/other/suction-cups-effect';
+import { ShadowTagEffect } from './effects/other/shadow-tag-effect';
+import { MagnetPullEffect } from './effects/other/magnet-pull-effect';
+import { ArenaTrapEffect } from './effects/other/arena-trap-effect';
+import { EmergencyExitEffect } from './effects/other/emergency-exit-effect';
 
 /**
  * 特性レジストリ
@@ -586,6 +592,15 @@ export class AbilityRegistry {
       // 陣営の守りに関わる特性（Issue #135 一部）
       this.registry.set('すりぬけ', new InfiltratorEffect());
       this.registry.set('バリアフリー', new ScreenCleanerEffect());
+      // 交代させない・逃げられなくする・自分から交代する特性（Issue #135 一部）
+      // にげごしはききかいひと同効果のため EmergencyExitEffect を共有
+      const emergencyExit = new EmergencyExitEffect();
+      this.registry.set('きゅうばん', new SuctionCupsEffect());
+      this.registry.set('かげふみ', new ShadowTagEffect());
+      this.registry.set('じりょく', new MagnetPullEffect());
+      this.registry.set('ありじごく', new ArenaTrapEffect());
+      this.registry.set('にげごし', emergencyExit);
+      this.registry.set('ききかいひ', emergencyExit);
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
