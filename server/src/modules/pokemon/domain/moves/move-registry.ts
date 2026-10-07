@@ -260,6 +260,8 @@ import { ChipAwayEffect } from './effects/chip-away-effect';
 // 相手のランクを奪う技（Issue #129 一部）
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 // タイプを書き換える技（Issue #103 一部）
+import { ReflectTypeEffect } from './effects/reflect-type-effect';
+import { MagicPowderEffect } from './effects/magic-powder-effect';
 import { TrickOrTreatEffect } from './effects/trick-or-treat-effect';
 import { ForestsCurseEffect } from './effects/forests-curse-effect';
 
@@ -630,6 +632,8 @@ export class MoveRegistry {
       // 相手のランクを奪う技（Issue #129 一部）
       this.registry.set('シャドースチール', new SpectralThiefEffect());
       // タイプを書き換える技（Issue #103 一部）
+      this.registry.set('ミラータイプ', new ReflectTypeEffect());
+      this.registry.set('まほうのこな', new MagicPowderEffect());
       this.registry.set('ハロウィン', new TrickOrTreatEffect());
       this.registry.set('もりののろい', new ForestsCurseEffect());
     } catch (error) {
