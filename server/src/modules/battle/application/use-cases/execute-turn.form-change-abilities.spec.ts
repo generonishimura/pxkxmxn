@@ -78,4 +78,30 @@ describe('ExecuteTurnUseCase - フォルムを変える特性', () => {
     // Assert
     expect(engine.status(1).volatileState.form).toBe('zen');
   });
+
+  it('リミットシールドのメテノは、りゅうせいのすがたの間、でんじはでまひにならない', async () => {
+    // Arrange
+    const engine = createBattleEngine({
+      moves: MOVES,
+      pokemon: [
+        { id: 1, trainerId: 1, active: true, moveIds: MOVE_IDS },
+        {
+          id: 2,
+          trainerId: 2,
+          active: true,
+          moveIds: MOVE_IDS,
+          baseSpeed: 50,
+          ability: 'リミットシールド',
+          nationalDex: 774,
+          types: ['いわ', 'ひこう'],
+        },
+      ],
+    });
+
+    // Act
+    await engine.runTurn({ moveId: THUNDER_WAVE.id }, { moveId: SPLASH.id });
+
+    // Assert
+    expect(engine.status(2).statusCondition).toBe(StatusCondition.None);
+  });
 });
