@@ -187,7 +187,7 @@ describe('ExecuteTurnUseCase - タイプ・フォルムを変える特性のフ�
         expect(seen).toEqual(['はねる']);
       });
 
-      it('ため技の 1 ターン目では呼ばず、2 ターン目に呼ぶ', async () => {
+      it('ため技は、ためる 1 ターン目にも呼び、攻撃する 2 ターン目にも呼ぶ（本家の twoturnmove の PrepareHit）', async () => {
         // Arrange
         const seen = registerRecorder();
         const engine = setup({
@@ -201,8 +201,8 @@ describe('ExecuteTurnUseCase - タイプ・フォルムを変える特性のフ�
         await engine.runTurn({ moveId: SOLAR_BEAM.id }, { moveId: SPLASH.id });
 
         // Assert
-        expect(afterCharge).toEqual([]);
-        expect(seen).toEqual(['ソーラービーム']);
+        expect(afterCharge).toEqual(['ソーラービーム']);
+        expect(seen).toEqual(['ソーラービーム', 'ソーラービーム']);
       });
     });
 

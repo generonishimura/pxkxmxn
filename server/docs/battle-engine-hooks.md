@@ -13,7 +13,7 @@
 `MoveExecutorService.executeMove`（`src/modules/battle/application/services/move-executor.service.ts`）は、まず次の 3 段で技を出します（9 章）。
 
 - 技を出す前の判定（`BeforeMoveChecker`）: 反動・ねむり・こおり・なまけ（`onBeforeMove`）・ひるみ（`onFlinch`）・技の制限・こんらん・メロメロ・まひ。止まったら PP も減らない
-- 技を使う（`useMove`）: PP（プレッシャーの `modifyOpponentPpDeduction`）→ 技を出した記録（`lastMoveId` など）→ 技の `failsOnTryMove`（もえつきるなど）→ ゲンシ天候 → ふんじん（おおあめで消えたほのお技では爆発しない）→ みらいよちの予約 → よこどり → ため技の 1 ターン目（`chargeTurn`）→ 技の本体（下の 1〜13）→ 反動・出し続ける技（`lockedIn`）・じゅうでんの消去
+- 技を使う（`useMove`）: PP（プレッシャーの `modifyOpponentPpDeduction`）→ 技を出した記録（`lastMoveId` など）→ 技の `failsOnTryMove`（もえつきるなど）→ ゲンシ天候 → ふんじん（おおあめで消えたほのお技では爆発しない）→ みらいよちの予約 → よこどり → ため技の 1 ターン目（`chargeTurn`。ためたら特性の `onPrepareHit` を呼んで終わる）→ 技の本体（下の 1〜13）→ 反動・出し続ける技（`lockedIn`）・じゅうでんの消去
 - 相手の特性の `onOpponentMoveUsed`（おどりこ）
 
 技の本体は次の順で処理します。
@@ -1788,7 +1788,8 @@ if (target) await ctx.battleRepository!.patchVolatileState(holder.id, { illusion
 - 呼んだあと、エンジンは使用者を読み直し、タイプ・実数値・特性を求め直してから技を続ける。返したメッセージは技のメッセージの前に付く
 - 使う特性: へんげんじざい・リベロ（`typeChangeAbilityUsed` がなく、タイプなしの技でなく、今のタイプが技のタイプだけでなければ `setTypes` と `typeChangeAbilityUsed: true`）、バトルスイッチ（攻撃技で `'blade'`、キングシールドで `'shield'`。へんしん中は何もしない）
 - うのミサイルは onPrepareHit を使わない（本家は技が当たる直前・ため技の 1 ターン目に変わる）。なみのりは攻撃側の `onSourceDamagingHit`（ヒットのあと）で、ダイビングは技の効果の `chargeTurn.onCharge`（ため技の 1 ターン目。本家の Dive の onTryMove）で、使用者の実効の特性（`ctx.attackerAbilityName`）がうのミサイル・ウッウ（845）・へんしん中でなければ、HP が半分より上なら `'gulping'`、以下なら `'gorging'` にする。注: 本家のなみのりは onSourceTryPrimaryHit（命中・まもる系のあと、ダメージの前）で変わる。ここではヒットのあとなので、みがわりに当たったヒットでは変わらない（ばけのかわなどで防がれたヒットでは変わる）
-- onPrepareHit は、技の `failsOnTryMove`（もえつきる・でんこうそうげき。本家の onTryMove）で失敗した技・ため技の 1 ターン目では呼ばない
+- onPrepareHit は、技の `failsOnTryMove`（もえつきる・でんこうそうげき。本家の onTryMove）で失敗した技では呼ばない
+- ため技は、ためる 1 ターン目にも `useMove` が 1 回呼ぶ（本家の twoturnmove の PrepareHit。へんげんじざい・リベロは、ためるターンにタイプが変わる）。返したメッセージは、ためたメッセージの前に付く。攻撃する 2 ターン目は、技の本体でまた呼ぶ
 
 ```ts
 const type = ctx?.moveTypeName;

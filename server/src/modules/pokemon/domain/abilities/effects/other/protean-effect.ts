@@ -14,6 +14,7 @@ import { setTypes } from '../../../battle-events/type-change';
  * - 今のタイプが技のタイプだけのとき・タイプなしの技・タイプを変えられないとき（アルセウスなど）は変わらず、
  *   1 回の分も使わない
  * - はね返した技・みらいよち・よこどりで奪った技・技を呼ぶ技では、エンジンがこのフックを呼ばない
+ * - ため技（ソーラービーム・そらをとぶなど）は、本家と同じく、ためるターンにタイプが変わる（エンジンが 1 ターン目にも呼ぶ）
  */
 export class ProteanEffect implements IAbilityEffect {
   async onPrepareHit(
