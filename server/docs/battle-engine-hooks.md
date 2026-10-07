@@ -1188,6 +1188,7 @@ export class RoarEffect implements IMoveEffect {
 - 型: `readonly switchesOutBelowHalfHp?: boolean`（`IAbilityEffect`）
 - 参照する場所: `MoveExecutorService`（相手の攻撃技のあと）、`PokemonSwitcherService`（設置技・ターン終了時のダメージ）。HP が最大 HP の半分より上から半分以下（ひんしを除く）になり、控えがいれば `pendingChoice: { reason: 'emergencyExit' }` を書く。かたやぶりでは無視されない
 - 発動したら、相手のとんぼがえりなどの交代は起きない（本家と同じ）。そのターンにまだ行動していなければ行動しない
+- ドラゴンテール・ともえなげで交代させられるときは、強制交代が先に決まり、ききかいひは発動しない（本家の `forceSwitchFlag`）
 - 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
 - 使う特性: ききかいひ・にげごし
 

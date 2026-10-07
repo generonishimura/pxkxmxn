@@ -322,6 +322,26 @@ describe('ExecuteTurnUseCase - 技・特性による交代', () => {
     });
   });
 
+  describe('ドラゴンテールとききかいひ', () => {
+    it('ドラゴンテールで HP が半分以下になっても、ききかいひより強制交代が先に決まる', async () => {
+      // Arrange
+      AbilityRegistry.register('テストのききかいひ', { switchesOutBelowHalfHp: true });
+      const engine = setup({ p2: { ability: 'テストのききかいひ', currentHp: 90 } });
+
+      // Act
+      const result = await engine.runTurn({ moveId: DRAGON_TAIL.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.active(2)?.id).toBe(4);
+      expect(result.actions).toContainEqual({
+        trainerId: 2,
+        action: 'switch',
+        result: 'Pokemon was dragged out! Pokemon switched to ID: 4',
+      });
+      expect(getSideConditions(engine.battle().sideState, 2).pendingChoice).toBeUndefined();
+    });
+  });
+
   describe('さいきのいのり（revivalBlessing）', () => {
     it('ひんしの手持ちの先頭を、最大 HP の半分で復活させ、復活した回数を書く', async () => {
       // Arrange

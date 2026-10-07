@@ -1332,20 +1332,23 @@ export class MoveExecutorService {
           })
         : [];
 
-    // 交代（とんぼがえり・ドラゴンテール・ききかいひ）。ダメージを与えたときだけ
+    // 交代（とんぼがえり・ドラゴンテール・ききかいひ）。ダメージを与えたときだけ。
+    // ドラゴンテールの強制交代が先に決まり、そのときききかいひは発動しない（本家の forceSwitchFlag）
     if (damage > 0) {
-      const exited = await this.scheduleEmergencyExit(
-        battle,
-        defender.id,
-        hpBeforeMove,
-        defenderEventEffect,
-      );
+      const latestDefender = await this.battleRepository.findBattlePokemonStatusById(defender.id);
+      const forced =
+        moveEffect?.forceSwitch === true &&
+        latestDefender !== null &&
+        (await this.canForceOut(battle, latestDefender, defenderAbilityEffect));
+      const exited =
+        !forced &&
+        (await this.scheduleEmergencyExit(battle, defender.id, hpBeforeMove, defenderEventEffect));
       await this.scheduleSwitchesAfterMove({
         battle,
         moveEffect,
         attackerId: attacker.id,
         defenderId: defender.id,
-        forcesOut: moveEffect?.forceSwitch === true && !exited,
+        forcesOut: forced,
         battleContext,
         selfSwitchBlocked: exited,
         defenderAbilityEffect,
