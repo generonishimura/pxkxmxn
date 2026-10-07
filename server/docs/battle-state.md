@@ -110,7 +110,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | いつ | どこで | 何をするか |
 | --- | --- | --- |
 | バトル開始で先発が場に出たとき | `StartBattleUseCase.execute` | `switchedInTurn` に `0` を書く |
-| 交代で引っ込むとき | `PokemonSwitcherService.executeSwitch` | 引っ込むポケモンの `volatileState` をすべて消す（`clearVolatileOnSwitchOut`）。`persistentState` は残す |
+| 交代で引っ込むとき | `PokemonSwitcherService.executeSwitch` | 引っ込むポケモンの `volatileState` をすべて消し（`clearVolatileOnSwitchOut`）、能力ランク（`attackRank` など 7 つの列）を 0 に戻す（本家の `clearVolatile`）。`persistentState` は残す |
 | 交代で引っ込んだあと | `PokemonSwitcherService.executeSwitch` | ほかのポケモンの、引っ込んだポケモンによる `trappedByStatusId`・`octolock`・`infatuatedWithStatusId` を消す（`releaseVolatileReferencesTo`） |
 | 場のポケモンがひんしになったとき | `ExecuteTurnUseCase.execute`（技を出すたびと、ターン終了時の片付けの前） | ほかのポケモンの、ひんしのポケモンによる `trappedByStatusId`・`octolock`・`infatuatedWithStatusId`・`partialTrap` を消す（`releaseVolatileReferencesTo`）。ひんしのポケモンは交代するまで場に残るので、交代を待たずに消す |
 | 交代で場に出たとき | `PokemonSwitcherService.executeSwitch` | `switchedInTurn` に今の `Battle.turn` を書く。`transfer` を渡したときは、引っ込む前の状態から引き継ぐキーも書く（10 章） |
@@ -579,7 +579,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 `executeSwitch(battle, trainerId, trainedPokemonId, { transfer })` に `transfer` を渡すと、引っ込む前の状態から次のポケモンに書きます。
 
-- `'batonPass'`: `BATON_PASS_KEYS` のキー（`substituteHp`・`confusionTurns`・`leechSeed`・`cursed`・`ingrain`・`aquaRing`・`tauntTurns`・`healBlockTurns`・`perishCount`・`telekinesisTurns`・`magnetRiseTurns`・`tarShot`・`critStageBoost`・`laserFocusTurns`・`charged`・`abilitySuppressed`・`throatChopTurns`）と能力ランク
+- `'batonPass'`: `BATON_PASS_KEYS` のキー（`substituteHp`・`confusionTurns`・`leechSeed`・`cursed`・`ingrain`・`aquaRing`・`tauntTurns`・`healBlockTurns`・`perishCount`・`telekinesisTurns`・`magnetRiseTurns`・`tarShot`・`critStageBoost`・`laserFocusTurns`・`charged`・`abilitySuppressed`・`throatChopTurns`）と能力ランク（引っ込むポケモンの能力ランクを 0 に戻す前の値を書く）
 - `'shedTail'`: `substituteHp` だけ（`shedTailPatch`）
 
 技の `selfSwitch: 'batonPass'` / `'shedTail'` を使えば、エンジンが `transfer` を渡して交代させます（7 章の `pendingChoice`）。技から `executeSwitch` を直接呼ばないでください。

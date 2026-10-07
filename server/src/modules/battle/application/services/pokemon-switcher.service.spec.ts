@@ -65,7 +65,7 @@ describe('PokemonSwitcherService - 状態の片付け', () => {
     return { service, battleRepository, battle };
   };
 
-  it('引っ込むポケモンの volatileState をすべて消す', async () => {
+  it('引っ込むポケモンの volatileState と能力ランクをすべて消す', async () => {
     // Arrange
     const { service, battleRepository, battle } = setup({
       leaving: { leechSeed: true, substituteHp: 25, form: 'zen' },
@@ -78,6 +78,13 @@ describe('PokemonSwitcherService - 状態の片付け', () => {
     expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(LEAVING_ID, {
       isActive: false,
       statusCondition: null,
+      attackRank: 0,
+      defenseRank: 0,
+      specialAttackRank: 0,
+      specialDefenseRank: 0,
+      speedRank: 0,
+      accuracyRank: 0,
+      evasionRank: 0,
       volatileState: {},
     });
   });

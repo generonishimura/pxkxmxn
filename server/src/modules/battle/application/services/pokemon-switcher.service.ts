@@ -48,9 +48,9 @@ export interface SwitchOptions {
 }
 
 /**
- * バトンタッチで引き継ぐ能力ランクの列
+ * 能力ランクの列（引っ込むと 0 に戻る。バトンタッチでは引き継ぐ）
  */
-const BATON_PASS_RANK_KEYS = [
+const RANK_KEYS = [
   'attackRank',
   'defenseRank',
   'specialAttackRank',
@@ -241,11 +241,13 @@ export class PokemonSwitcherService {
         ? StatusCondition.None
         : currentActive.statusCondition;
 
-      // 場に出ている間だけの状態（volatileState）はすべて消す。交代しても残る状態は
-      // persistentState にあるので、ここでは触らない
+      // 場に出ている間だけの状態（volatileState）と能力ランクはすべて消す（本家の clearVolatile）。
+      // 交代しても残る状態は persistentState にあるので、ここでは触らない。
+      // バトンタッチは、この書き込みの前に読んだ currentActive から能力ランクを引き継ぐ
       await this.battleRepository.updateBattlePokemonStatus(currentActive.id, {
         isActive: false,
         statusCondition,
+        ...this.resetRanks(),
         volatileState: clearVolatileOnSwitchOut(),
       });
 
@@ -361,11 +363,22 @@ export class PokemonSwitcherService {
   }
 
   /**
+   * すべての能力ランクを 0 にする書き込み（引っ込むとき）
+   */
+  private resetRanks(): Partial<BattlePokemonStatus> {
+    const ranks: Partial<Record<(typeof RANK_KEYS)[number], number>> = {};
+    for (const key of RANK_KEYS) {
+      ranks[key] = 0;
+    }
+    return ranks;
+  }
+
+  /**
    * バトンタッチで引き継ぐ能力ランク
    */
   private batonPassRanks(leaving: BattlePokemonStatus): Partial<BattlePokemonStatus> {
-    const ranks: Partial<Record<(typeof BATON_PASS_RANK_KEYS)[number], number>> = {};
-    for (const key of BATON_PASS_RANK_KEYS) {
+    const ranks: Partial<Record<(typeof RANK_KEYS)[number], number>> = {};
+    for (const key of RANK_KEYS) {
       ranks[key] = leaving[key];
     }
     return ranks;

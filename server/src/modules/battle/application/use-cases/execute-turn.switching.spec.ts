@@ -98,6 +98,39 @@ describe('ExecuteTurnUseCase - 技・特性による交代', () => {
     }
   });
 
+  describe('引っ込んだポケモンの能力ランク', () => {
+    it('交代で引っ込むと能力ランクが 0 に戻り、また出てきても 0 のまま', async () => {
+      // Arrange
+      const engine = setup();
+      await engine.battleRepository.updateBattlePokemonStatus(1, {
+        attackRank: 6,
+        speedRank: 2,
+        evasionRank: -1,
+      });
+
+      // Act
+      await engine.runTurn({ switchPokemonId: 3 }, { moveId: SPLASH.id });
+      await engine.runTurn({ switchPokemonId: 1 }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.active(1)?.id).toBe(1);
+      expect(engine.status(1)).toMatchObject({ attackRank: 0, speedRank: 0, evasionRank: 0 });
+    });
+
+    it('ほえるで入れ替えられたポケモンの能力ランクも 0 に戻る', async () => {
+      // Arrange
+      const engine = setup();
+      await engine.battleRepository.updateBattlePokemonStatus(1, { attackRank: 6, speedRank: 2 });
+
+      // Act
+      await engine.runTurn({ moveId: SPLASH.id }, { moveId: ROAR.id });
+
+      // Assert
+      expect(engine.active(1)?.id).toBe(3);
+      expect(engine.status(1)).toMatchObject({ attackRank: 0, speedRank: 0 });
+    });
+  });
+
   describe('自分が交代する技（selfSwitch）', () => {
     it('とんぼがえりを当てると、控えの先頭と交代し、相手の技は出てきたポケモンが受ける', async () => {
       // Arrange
