@@ -100,9 +100,10 @@ export interface IAbilityEffect {
   /**
    * 命中率を修正する効果
    * @param pokemon 対象のポケモン
-   * @param accuracy 現在の命中率（0-100）
+   * @param accuracy 現在の命中率（ランク補正のあとの値で、100 を超えることがある）
    * @param battleContext バトルコンテキスト
-   * @returns 修正後の命中率（0-100）、修正しない場合はundefined
+   * @returns 修正後の命中率、修正しない場合はundefined。
+   *   100 を超えても上限を付けない（最終的な 0〜100 の制限は AccuracyCalculator.checkHit が行う）
    */
   modifyAccuracy?(
     _pokemon: BattlePokemonStatus,
