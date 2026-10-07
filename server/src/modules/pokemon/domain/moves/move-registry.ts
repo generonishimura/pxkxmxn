@@ -261,6 +261,8 @@ import { ChipAwayEffect } from './effects/chip-away-effect';
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 // 特性を書き換える・消す技（Issue #103, #119 一部）
 import { SkillSwapEffect } from './effects/skill-swap-effect';
+import { DoodleEffect } from './effects/doodle-effect';
+import { RolePlayEffect } from './effects/role-play-effect';
 
 /**
  * 技のレジストリ
@@ -630,6 +632,8 @@ export class MoveRegistry {
       this.registry.set('シャドースチール', new SpectralThiefEffect());
       // 特性を書き換える・消す技（Issue #103, #119 一部）
       this.registry.set('スキルスワップ', new SkillSwapEffect());
+      this.registry.set('うつしえ', new DoodleEffect());
+      this.registry.set('なりきり', new RolePlayEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
