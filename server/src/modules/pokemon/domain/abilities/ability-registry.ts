@@ -208,6 +208,7 @@ import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 import { TraceEffect } from './effects/other/trace-effect';
 import { MummyEffect } from './effects/other/mummy-effect';
 import { LingeringAromaEffect } from './effects/other/lingering-aroma-effect';
+import { WanderingSpiritEffect } from './effects/other/wandering-spirit-effect';
 
 /**
  * 特性レジストリ
@@ -514,6 +515,7 @@ export class AbilityRegistry {
       this.registry.set('トレース', new TraceEffect());
       this.registry.set('ミイラ', new MummyEffect());
       this.registry.set('とれないにおい', new LingeringAromaEffect());
+      this.registry.set('さまようたましい', new WanderingSpiritEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
