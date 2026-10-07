@@ -20,13 +20,21 @@ export const resolveAbilityName = async (
   if (battleContext.defender?.id === pokemon.id && battleContext.defenderAbilityName) {
     return battleContext.defenderAbilityName;
   }
-  // コンテキストに場のポケモン（攻撃側・防御側）がいれば、その実効の特性でかがくへんかガスを判定する（リポジトリを引かない）
+  // コンテキストに場のポケモン（攻撃側・防御側）がいれば、その実効の特性でかがくへんかガスを判定する（リポジトリを引かない）。
+  // 控えのポケモン（引っ込んだあとに当たるみらいよちの使用者）は、かがくへんかガスで特性を消さない
   const known = [
     { pokemon: battleContext.attacker, abilityName: battleContext.attackerAbilityName },
     { pokemon: battleContext.defender, abilityName: battleContext.defenderAbilityName },
   ].flatMap(({ pokemon: other, abilityName }) =>
     other && other.id !== pokemon.id
-      ? [{ baseAbilityName: abilityName, volatileState: {}, fainted: other.currentHp <= 0 }]
+      ? [
+          {
+            baseAbilityName: abilityName,
+            volatileState: {},
+            fainted: other.currentHp <= 0,
+            active: other.isActive,
+          },
+        ]
       : [],
   );
   return resolveBattleAbilityName(

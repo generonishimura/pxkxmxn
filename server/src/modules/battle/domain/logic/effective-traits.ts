@@ -24,6 +24,11 @@ export interface AbilityHolder {
   readonly volatileState: VolatileState;
   /** ひんしか（ひんしのかがくへんかガスは、ほかの特性を消さない） */
   readonly fainted?: boolean;
+  /**
+   * 場にいるか（false なら控え。控えのかがくへんかガスは、ほかの特性を消さない。本家の ignoringAbility は場のポケモンだけ見る）
+   * 省略すると場にいるとみなす
+   */
+  readonly active?: boolean;
 }
 
 /**
@@ -35,10 +40,11 @@ export const currentAbilityName = (holder: AbilityHolder): string | undefined =>
 
 /**
  * かがくへんかガスでほかの特性を消しているか
- * ひんし・いえき・へんしん中のかがくへんかガスは消さない（本家の ignoringAbility）
+ * ひんし・控え・いえき・へんしん中のかがくへんかガスは消さない（本家の ignoringAbility）
  */
 export const emitsNeutralizingGas = (holder: AbilityHolder): boolean =>
   holder.fainted !== true &&
+  holder.active !== false &&
   currentAbilityName(holder) === NEUTRALIZING_GAS_ABILITY_NAME &&
   holder.volatileState.abilitySuppressed !== true &&
   holder.volatileState.transformedIntoStatusId === undefined;

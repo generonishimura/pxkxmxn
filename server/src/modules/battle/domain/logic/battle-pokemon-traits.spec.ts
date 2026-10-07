@@ -76,13 +76,14 @@ const status = (
   volatileState: VolatileState = {},
   persistentState: PersistentPokemonState = {},
   id = 1,
+  isActive = true,
 ): BattlePokemonStatus =>
   new BattlePokemonStatus(
     id,
     1,
     1,
     1,
-    true,
+    isActive,
     100,
     200,
     0,
@@ -161,6 +162,21 @@ describe('battle-pokemon-traits', () => {
 
       // Assert
       expect(name).toBeUndefined();
+    });
+
+    it('控えにいるかがくへんかガスでは、特性は消えない（引っ込んだポケモンのみらいよちが当たるとき）', () => {
+      // Arrange
+      const pokemon = trained({ ability: 'ふしぎなまもり' });
+      const benched = {
+        trainedPokemon: trained({ ability: 'かがくへんかガス' }),
+        status: status({}, {}, 2, false),
+      };
+
+      // Act
+      const name = battleAbilityNameOf(pokemon, status(), [benched]);
+
+      // Assert
+      expect(name).toBe('ふしぎなまもり');
     });
   });
 

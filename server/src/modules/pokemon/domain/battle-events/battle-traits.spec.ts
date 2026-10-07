@@ -51,6 +51,24 @@ describe('battle-traits', () => {
   });
 
   describe('resolveAbilityName', () => {
+    it('コンテキストの使用者が控えにいるかがくへんかガスなら、特性は消えない（みらいよちが当たるとき）', async () => {
+      // Arrange
+      const battle = createInMemoryBattle(
+        { ability: 'いかく' },
+        { ability: 'かがくへんかガス', status: { isActive: false } },
+      );
+      const ctx = battle.context({
+        attacker: battle.get(2),
+        attackerAbilityName: 'かがくへんかガス',
+      });
+
+      // Act
+      const name = await resolveAbilityName(battle.get(1), ctx);
+
+      // Assert
+      expect(name).toBe('いかく');
+    });
+
     it('コンテキストの相手の特性がかがくへんかガスなら、リポジトリを引かずに消す', async () => {
       // Arrange
       const battle = createInMemoryBattle({ ability: 'いかく' }, { ability: 'かがくへんかガス' });
