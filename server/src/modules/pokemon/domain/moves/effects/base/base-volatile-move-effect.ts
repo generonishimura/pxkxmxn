@@ -30,25 +30,11 @@ export abstract class BaseVolatileMoveEffect implements IMoveEffect {
     battleContext: BattleContext,
   ): StatePatch<VolatileState>;
 
-  /**
-   * 技ごとの失敗の条件（例: みやぶるは相手がミラクルアイを受けていれば失敗）
-   * @returns 失敗するなら true
-   */
-  protected failsBeforeApply(
-    _attacker: BattlePokemonStatus,
-    _defender: BattlePokemonStatus,
-  ): boolean {
-    return false;
-  }
-
   async onUse(
     attacker: BattlePokemonStatus,
     defender: BattlePokemonStatus,
     battleContext: BattleContext,
   ): Promise<string | null> {
-    if (this.failsBeforeApply(attacker, defender)) {
-      return 'But it failed';
-    }
     const target = this.appliesTo === 'user' ? attacker : defender;
     const applied = await tryApplyVolatile(
       target,

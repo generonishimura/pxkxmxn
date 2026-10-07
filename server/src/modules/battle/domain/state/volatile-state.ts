@@ -96,7 +96,11 @@ export type MoveSlotOverride = {
 };
 
 /**
- * たくわえるで実際に上がったランク（のみこむ・はきだすで、この分だけ下げる）
+ * たくわえるでランクが変わった回数（能力ごと）
+ *
+ * - 1 回のたくわえるで 1 と数える。たんじゅんで 2 上がっても、あまのじゃくで下がっても 1
+ * - +6 で上がらなければ数えない
+ * - ランクの差ではない。はきだす・のみこむは rankChange: -値 を applyStatChanges に渡して戻す（ランクを直接引かない）
  */
 export type StockpileBoosts = {
   readonly defense: number;
@@ -229,7 +233,10 @@ export type VolatileState = {
   // ---- 段階・回数 ----
   /** たくわえるの回数（1〜3） */
   readonly stockpileCount?: number;
-  /** たくわえるで実際に上がったランク（ランクが +6 のときは上がらない分を数えない） */
+  /**
+   * たくわえるでランクが変わった回数（能力ごと、1 回につき 1。たんじゅんで 2 上がっても・あまのじゃくで下がっても 1。
+   * +6 で上がらなければ数えない）。はきだす・のみこむは、-値を applyStatChanges に渡して戻す（ランクを直接引かない）
+   */
   readonly stockpileBoosts?: StockpileBoosts;
   /** 急所ランクの上昇（きあいだめは +2） */
   readonly critStageBoost?: number;
@@ -272,6 +279,11 @@ export type VolatileState = {
   readonly switchedInTurn?: number;
   /** へんげんじざい・リベロを、場に出てから使った（場に出るたびに 1 回だけ） */
   readonly typeChangeAbilityUsed?: boolean;
+  /**
+   * スロースタートを、場に出たあと（場に出たターンより後）に得たときの Battle.turn（スキルスワップ・なりきりなど）
+   * あれば、スロースタートはこのターンから数える。場に出たときから持っていれば書かない（switchedInTurn で数える）
+   */
+  readonly slowStartTurn?: number;
 
   // ---- 技の流れ（エンジンが書く） ----
   /** ため技でためている間の隠れ方。ため技を出すか、出せなかったときにエンジンが消す */
@@ -324,7 +336,7 @@ const moveSlotOverride = requiredFieldsOf<MoveSlotOverride>({
 });
 
 /**
- * ランクの上がり幅（0〜6）
+ * たくわえるでランクが変わった回数（書くのは 0〜3。読むときは 0〜6 まで受け付ける）
  */
 const rankBoost = integerInRange(0, 6);
 
@@ -396,6 +408,7 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   illusionStatusId: positiveInteger,
   switchedInTurn: nonNegativeInteger,
   typeChangeAbilityUsed: booleanValue,
+  slowStartTurn: nonNegativeInteger,
   semiInvulnerable: oneOf(SEMI_INVULNERABLE_KINDS),
   mustRecharge: booleanValue,
   consecutiveMoveCount: positiveInteger,

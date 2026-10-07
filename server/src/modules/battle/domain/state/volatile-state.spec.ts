@@ -80,6 +80,7 @@ const FULL_VOLATILE_STATE: Required<VolatileState> = {
   illusionStatusId: 6,
   switchedInTurn: 4,
   typeChangeAbilityUsed: true,
+  slowStartTurn: 7,
   semiInvulnerable: 'air',
   mustRecharge: true,
   consecutiveMoveCount: 2,
@@ -117,6 +118,7 @@ const LOWER_BOUNDS: ReadonlyArray<readonly [keyof VolatileState, number, number]
   ['transformedIntoStatusId', 1, 0],
   ['illusionStatusId', 1, 0],
   ['switchedInTurn', 0, -1],
+  ['slowStartTurn', 0, -1],
   ['consecutiveMoveCount', 1, 0],
   ['throatChopTurns', 0, -1],
 ];

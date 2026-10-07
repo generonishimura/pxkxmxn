@@ -94,6 +94,20 @@ describe('StockpileEffect（たくわえる）', () => {
     expect(latest(1).volatileState.stockpileBoosts).toEqual({ defense: 1, specialDefense: 1 });
   });
 
+  it('あまのじゃくで防御・特防が下がっても、1 回分として 1 を数える', async () => {
+    // Arrange
+    const effect = new StockpileEffect();
+    const { attacker, defender, ctx, latest } = setup({ id: 1 });
+    ctx.attackerAbilityName = 'あまのじゃく';
+
+    // Act
+    await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(latest(1).defenseRank).toBe(-1);
+    expect(latest(1).volatileState.stockpileBoosts).toEqual({ defense: 1, specialDefense: 1 });
+  });
+
   it('3 回たくわえていると失敗する', () => {
     // Arrange
     const effect = new StockpileEffect();

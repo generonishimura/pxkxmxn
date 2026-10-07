@@ -1,6 +1,7 @@
 import { MoveRegistry } from '../move-registry';
 import { createInMemoryBattle } from '../../battle-events/__tests__/in-memory-battle';
 import { ForesightEffect } from './foresight-effect';
+import { BaseIdentifyEffect } from './base/base-identify-effect';
 
 describe('ForesightEffect（みやぶる）', () => {
   describe('onUse', () => {
@@ -33,22 +34,25 @@ describe('ForesightEffect（みやぶる）', () => {
       expect(result).toBe('But it failed');
     });
 
-    it('相手がミラクルアイを受けていれば失敗する', async () => {
+    it('相手がミラクルアイを受けていれば失敗する（shouldFail。本家の onTryHit）', () => {
       // Arrange
-      const { context, get, battleRepository } = createInMemoryBattle(
-        {},
-        { status: { volatileState: { miracleEye: true } } },
-      );
+      const { get } = createInMemoryBattle({}, { status: { volatileState: { miracleEye: true } } });
       const effect = new ForesightEffect();
 
       // Act
-      const result = await effect.onUse(get(1), get(2), context({ moveName: 'みやぶる' }));
+      const failed = effect.shouldFail(get(1), get(2));
 
       // Assert
-      expect(battleRepository.patchVolatileState).not.toHaveBeenCalled();
-      expect(get(2).volatileState.foresight).toBeUndefined();
-      expect(result).toBe('But it failed');
+      expect(failed).toBe(true);
     });
+  });
+
+  it('かぎわける・ミラクルアイと同じ基底クラス（BaseIdentifyEffect）を使う', () => {
+    // Act
+    const effect = new ForesightEffect();
+
+    // Assert
+    expect(effect).toBeInstanceOf(BaseIdentifyEffect);
   });
 
   describe('登録', () => {

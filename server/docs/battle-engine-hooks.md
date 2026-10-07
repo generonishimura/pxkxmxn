@@ -262,7 +262,7 @@ ignoresTypeImmunity(_p: BattlePokemonStatus, moveType: string, defenderType: str
 ### isImmuneToMove（防御側）
 
 - シグネチャ: `isImmuneToMove?(pokemon, battleContext): boolean | undefined`
-- 呼ばれる場所: `executeMove`。命中判定の前。変化技を含む、相手を対象にする技（`MoveFlags.targetsOpponent`）だけ。かたやぶりで無視される
+- 呼ばれる場所: `executeMove`。命中判定の前。変化技を含む、相手を対象にする技（`MoveFlags.targetsOpponent`）だけ。かたやぶりで無視される。例外として、場全体の技のほろびのうたは、技の効果が自分で呼ぶ（7 章）
 - 使う特性: ぼうおん、ぼうだん、ぼうじん（粉技）、かぜのり（風技。攻撃技・変化技とも）
 - `true` を返すと PP だけ減り、`Used <技> but it had no effect` になります。能力を上げるなどの副作用は `onMoveBlocked` に書きます（変化技にも使えます）。
 
@@ -600,7 +600,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - 連続技・おやこあいでも、`onHit`（追加効果）と `applyContactStatusCondition` の接触時の特性（せいでんきなど）は1回だけです。
 - `modifyBasePower` などの補正は順番に掛けます（ゲームは補正をまとめてから1回掛けるため、まれに1違うことがあります）。
 - 行動順のコンテキストの `moveTypeName` は技本来のタイプです（うるおいボイスなどのタイプ変更は反映しません）。
-- ほろびのうたは場全体の技なので、`isImmuneToMove` では止まりません。
+- ほろびのうたは場全体の技なので、エンジンは `isImmuneToMove` を呼びません。代わりに、ほろびのうたの効果（`PerishSongEffect`）が相手の `isImmuneToMove` を自分で呼びます。そのため、ぼうおん・おうごんのからだの相手には付きません。使い手のかたやぶりでは無視されます。
 - 混乱の自傷ダメージでは、特性のフック（`isImmuneToType`・`modifyBasePower`・`modifyAnyBasePower`・`modifyDamageDealt`・`modifyDamage`）を呼びません。本家と同じく、能力値とランクだけで決まります。
 - ポケモンの重さのデータがないため、重さを使う効果（ヘヴィメタル、ライトメタル、けたぐり等）は実装できません。
 - `onDamagingHit` / `onSourceDamagingHit` はヒットごとですが、`applyContactStatusCondition` と技の `onHit` は今までどおり技全体で1回です。
@@ -1043,7 +1043,7 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 | やどりぎのタネ | `tryApplyVolatile(defender, 'leechSeed', { leechSeed: true })`。吸うのはエンジン |
 | のろい | ゴーストなら HP を最大 HP の 1/2 払って `tryApplyVolatile(defender, 'curse', { cursed: true })` |
 | みちづれ | `shouldFail`（`consecutiveMoveCount > 0`）と `destinyBond: true`。発動はエンジン |
-| ほろびのうた | 両者に `perishCount: 3`（すでにあるポケモン・ぼうおんは除く）。ひんしにするのはエンジン |
+| ほろびのうた | 両者に `perishCount: 3`（すでにあるポケモン・相手の `isImmuneToMove` で防ぐポケモン（ぼうおん・おうごんのからだ）は除く）。ひんしにするのはエンジン |
 | かなしばり | 相手の `lastMoveId` で `disable: { moveId, turns }`（9.2） |
 | アンコール | 相手の `lastMoveId`（`failEncore` でない）で `encore: { moveId, turns: ctx.defenderPendingMoveId ? 3 : 4 }`（本家は相手がもう行動していれば 1 足す）。技の強制はエンジン（このターンにまだ行動していない相手も、このターンからアンコールされた技を出す） |
 | ちょうはつ | `tauntTurns: 3`（相手がもう行動していれば 4。9.1） |
@@ -1062,7 +1062,7 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 | なまけ | `onBeforeMove` で `loafing` を交互に書く（9.2） |
 | メロメロボディ | 接触技を受けたとき 30% で `tryApplyVolatile(attacker, 'attract', ..., { source: { pokemon: holder, kind: 'ability' } })` |
 | ふくつのこころ | `onFlinch`（9.2） |
-| スロースタート | `switchedInTurn`（`battle.turn - switchedInTurn <= 5`）で攻撃・素早さ半分 |
+| スロースタート | `switchedInTurn`（`battle.turn - switchedInTurn <= 5`）で攻撃・素早さ半分。場に出たあとで得たら、`onEntry` で `slowStartTurn` を書き、そのターンから数える |
 | のろわれボディ | `onDamagingHit` で 30% `tryApplyVolatile(attacker, 'disable', { disable: { moveId: ctx.moveId, turns: 4 } })` |
 | アロマベール | `canReceiveVolatile`（9.1） |
 | ぜったいねむり | `treatedAsStatusCondition = StatusCondition.Sleep` と状態異常の無効化（9.1） |

@@ -317,13 +317,13 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `yawnTurns` | 0 以上の整数 | 眠るまでの残りターン数。使ったターンに `2` を書くと、次のターンの終わりに眠る | あくび |
 | `perishCount` | 0〜3 | ほろびのうたのカウント。使ったターンに `3` を書く。ターン終了時に 0 ならひんし、それ以外は 1 減らす（4 回目のターン終了時にひんし） | ほろびのうた・ほろびのボディ |
 | `stockpileCount` | 1〜3 | たくわえるの回数 | たくわえる・はきだす・のみこむ |
-| `stockpileBoosts` | `{ defense, specialDefense }`（各 0〜6） | たくわえるで実際に上がったランク | たくわえる・はきだす・のみこむ |
+| `stockpileBoosts` | `{ defense, specialDefense }`（各 0〜3） | たくわえるでランクが変わった回数（能力ごと。上がった段階数ではない） | たくわえる・はきだす・のみこむ |
 | `critStageBoost` | 0 以上の整数 | 急所ランクの上昇（急所の判定でエンジンが足す。種類は `'focusEnergy'`） | きあいだめ |
 | `laserFocusTurns` | 0 以上の整数 | 技が必ず急所になる残りターン数（使ったターンに `2` を書く。もう一度使ったら `2` に書き直す。種類は `'laserFocus'`） | とぎすます |
 | `charged` | 真偽値 | 次のでんき技の威力が 2 倍。でんき技を出すとエンジンが消す（第 9 世代は、でんき技を出すまで続く） | じゅうでん・でんきにかえる・ふうりょくでんき |
 | `loafing` | 真偽値 | 次のターンは動かない | なまけ |
 
-`stockpileBoosts` は、ランクが +6 で上がらなかった分を数えません。のみこむ・はきだすでは、この値の分だけ防御・特防を下げます。
+`stockpileBoosts` は、たくわえるでランクが変わった回数です。1 回につき、能力ごとに 1 を数えます。たんじゅんで 2 段階上がっても 1、あまのじゃくで下がっても 1 です。+6 で上がらなかったときは数えません（本家と同じ）。のみこむ・はきだすでは、この値の符号を逆にして（`rankChange: -値`）`applyStatChanges` に渡します。ランクを直接引くと、たんじゅん・あまのじゃくで本家とずれます。
 
 ### 上書き
 
@@ -366,6 +366,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | キー | 型 | 意味 | 使う技・特性 |
 | --- | --- | --- | --- |
 | `switchedInTurn` | 0 以上の整数 | 場に出たときの `Battle.turn`。先発は `0` | スロースタート・はりこみ・たたみがえし・ねこだまし・であいがしら |
+| `slowStartTurn` | 0 以上の整数 | スロースタートを、場に出たターンより後に得たときの `Battle.turn`（スキルスワップ・なりきりなど。特性の `onEntry` が書く） | スロースタート |
 
 先発は `0`、ターン N に交代で出たら `N` です。出てから最初に行動するターンは `switchedInTurn + 1` になります。技ごとの比べ方は次のとおりです。
 
@@ -373,7 +374,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | --- | --- |
 | ねこだまし・であいがしら・たたみがえし（出てから最初の行動） | `battle.turn === switchedInTurn + 1` |
 | はりこみ（相手がこのターンに交代で出てきた） | `target.switchedInTurn === battle.turn` |
-| スロースタート（出てから 5 ターン） | `battle.turn - switchedInTurn <= 5` |
+| スロースタート（出てから 5 ターン） | `battle.turn - switchedInTurn <= 5`。`slowStartTurn` があれば `battle.turn - slowStartTurn <= 4`（得たターンを含めて 5 ターン） |
 
 ## 6. PersistentPokemonState のキー
 

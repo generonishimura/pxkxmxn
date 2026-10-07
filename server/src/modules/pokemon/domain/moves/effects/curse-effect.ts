@@ -21,7 +21,7 @@ const GHOST_TYPE = 'ゴースト';
  * 使ったポケモンがゴーストタイプかどうかで効果が変わる
  *
  * - ゴーストタイプ以外: 自分の攻撃・防御 +1、素早さ -1
- * - ゴーストタイプ: 相手をのろい状態にし（cursed）、自分の最大 HP の 1/2（切り捨て）を払う
+ * - ゴーストタイプ: 相手をのろい状態にし（cursed）、自分の最大 HP の 1/2（切り捨て、最低 1）を払う
  *   - すでにのろい状態の相手には失敗し、HP も払わない
  *   - 残り HP が足りなければ、のろいをかけて自分はひんしになる（本家と同じ）
  *   - HP を払うのは技以外のダメージではないので、マジックガードでも払う（本家の directDamage）
@@ -59,7 +59,7 @@ export class CurseEffect implements IMoveEffect {
 
     const user = (await battleRepository.findBattlePokemonStatusById(attacker.id)) ?? attacker;
     await battleRepository.updateBattlePokemonStatus(user.id, {
-      currentHp: Math.max(0, user.currentHp - Math.floor(user.maxHp / 2)),
+      currentHp: Math.max(0, user.currentHp - Math.max(1, Math.floor(user.maxHp / 2))),
     });
     return 'cut its own HP and laid a curse on the target!';
   }

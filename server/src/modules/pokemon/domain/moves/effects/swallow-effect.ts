@@ -13,7 +13,9 @@ import { joinStatChangeMessages } from './base/base-stat-change-effect';
  * - たくわえていなければ（volatileState.stockpileCount がない）失敗する
  * - 回復量は最大 HP の 1/4（1 回）・1/2（2 回）・全部（3 回）。本家と同じく modify の丸め（4096 分率）で求める
  * - 回復できなくても（HP が満タン・かいふくふうじ中）、たくわえるは終わる（本家と同じ）
- * - たくわえるが終わると、たくわえるで実際に上がった分（stockpileBoosts）だけ防御・特防が下がる
+ * - たくわえるが終わると、stockpileBoosts の回数を rankChange: -回数 として applyStatChanges に渡す。
+ *   stockpileBoosts はランクが変わった回数（1 回につき 1）で、ランクの差ではない。
+ *   applyStatChanges を通すので、たんじゅん・あまのじゃくでも本家と同じ変化になる
  */
 export class SwallowEffect implements IMoveEffect {
   /** たくわえた回数ごとの回復の割合（4096 分率） */
@@ -41,7 +43,8 @@ export class SwallowEffect implements IMoveEffect {
   }
 
   /**
-   * たくわえるを終わらせ、上がった分だけ防御・特防を下げる（本家の stockpile の onEnd）
+   * たくわえるを終わらせ、ランクが変わった回数（stockpileBoosts）の分だけ防御・特防を下げる（本家の stockpile の onEnd）
+   * ランクを直接引かず、rankChange: -回数 を applyStatChanges に渡す
    */
   private async endStockpile(
     attacker: BattlePokemonStatus,

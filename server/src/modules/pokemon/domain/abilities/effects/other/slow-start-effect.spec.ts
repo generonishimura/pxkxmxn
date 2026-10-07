@@ -62,6 +62,54 @@ describe('SlowStartEffect（スロースタート）', () => {
     });
   });
 
+  describe('途中で得たスロースタート（スキルスワップ・なりきりなど）', () => {
+    it.each([
+      [7, 50],
+      [11, 50],
+      [12, undefined],
+    ])(
+      '7 ターン目に得たら、%i ターン目の素早さ 101 は %s になる（得たターンを含めて 5 ターン）',
+      async (turn, expected) => {
+        // Arrange
+        const battle = await setup(7, { switchedInTurn: 0, abilityOverride: 'スロースタート' });
+        const effect = new SlowStartEffect();
+        await effect.onEntry(battle.get(1), battle.context());
+        await battle.battleRepository.update(1, { turn });
+
+        // Act
+        const speed = effect.modifySpeed(battle.get(1), 101, battle.context());
+
+        // Assert
+        expect(speed).toBe(expected);
+      },
+    );
+
+    it('場に出たときの onEntry では、得たターンを書かない（場に出たターンで数える）', async () => {
+      // Arrange
+      const { context, get } = await setup(1, { switchedInTurn: 0 });
+
+      // Act
+      await new SlowStartEffect().onEntry(get(1), context());
+
+      // Assert
+      expect(get(1).volatileState.slowStartTurn).toBeUndefined();
+    });
+
+    it('場に出たターンに得たとき（トレースなど）は、得たターンを書かない', async () => {
+      // Arrange
+      const { context, get } = await setup(3, {
+        switchedInTurn: 3,
+        abilityOverride: 'スロースタート',
+      });
+
+      // Act
+      await new SlowStartEffect().onEntry(get(1), context());
+
+      // Assert
+      expect(get(1).volatileState.slowStartTurn).toBeUndefined();
+    });
+  });
+
   describe('modifyDamageDealt', () => {
     const physical: Partial<BattleContext> = { moveCategory: 'Physical', moveName: 'たいあたり' };
 
