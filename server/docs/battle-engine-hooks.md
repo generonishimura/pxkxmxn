@@ -182,7 +182,7 @@ failsOnTryMove(_a: BattlePokemonStatus, _d: BattlePokemonStatus, ctx: BattleCont
 
 - シグネチャ: `modifyBasePower?(pokemon, power, battleContext): number | undefined`
 - 呼ばれる場所: `DamageCalculator`。ダメージ計算式に入る前の威力に掛かる
-- 使う特性: てつのこぶし、がんじょうあご、メガランチャー、かたいツメ、きれあじ、パンクロック（攻撃側）、アナライズ、テクニシャン、はりこみ（近似。7章）
+- 使う特性: てつのこぶし、がんじょうあご、メガランチャー、かたいツメ、きれあじ、パンクロック（攻撃側）、アナライズ、テクニシャン、はりこみ（近似。7章）、こんじょう（近似。7章）
 - `power` はヒットごとの威力です（技の `modifyMovePower` のあと。おやこあいの2回目も同じ威力）。威力で判定する特性（テクニシャンなど）は `battleContext.movePower` ではなくこの値を使います。
 - 補正は `modifyByFixedPoint` で4096分率を使います（1.2倍 = 4915、1.3倍 = 5325、1.5倍 = 6144）。
 
@@ -621,6 +621,11 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - オウムがえしは、`move-behavior-table.ts` で `bypassSubstitute` を持たせています（Showdown の flags にはありません）。本家はみがわりの判定より前に `onTryHit` でまねした技を出すためです。相手がみがわり中でもオウムがえしは失敗せず、まねした技が `callMove` の中で自分のみがわりの判定を受けます（かえんほうしゃならみがわりに当たる）。
 - よこどりは、ほかの技に呼ばれた技（ゆびをふる・ねこのて・オウムがえしなど）を奪いません。`useMove` が `isCalled` のときによこどりを判定しないためです。本家が除くのは、よこどりで出した技だけです。
 - スケッチが書き換えるのは、このバトルの技の欄（`BattlePokemonMove`）だけです。育成ポケモン（`TrainedPokemon`）の技は変わらないので、次のバトルではスケッチに戻ります。本家はずっと覚えたままになります。
+- こんじょうは、本家では攻撃を1.5倍にしますが、ここでは `modifyBasePower` で威力を1.5倍にします。ダメージ式では威力と攻撃を掛けるので、丸め以外は同じ結果になります（本家は攻撃の実数値を丸めるため、まれに1ずれる）。エンジンはやけどの半減を攻撃に掛けるので、やけどのときは威力をさらに2倍にして打ち消します（からげんきは、もともと半減しないので打ち消さない）。
+- こんじょうは、こおりのときは発動しません。こおりが治った直後の技でも、エンジンは治る前の状態（こおり）のまま技の処理に渡すためです。本家では治ってから技を出すので、状態異常がなく1.5倍になりません。結果は本家と同じです。
+- テラスシェルは、ヒットごとに「HPが満タンか」を見ます。本家は連続技の1回目で発動すると、技が終わるまで0.5倍のままです。ここでは2回目以降はもとの相性に戻ります（例: 2倍のスケイルショットは、1回目だけ0.5倍で、2〜5回目は2倍）。直すには、技を出す前の防御側のHP（`MoveExecutorService` の `hpBeforeMove`）を `BattleContext` に載せる必要があります。
+- テラスシェルは防御側の `modifyDamage` で相性を差し替えます。攻撃側のいろめがね・ブレインフォース（`modifyDamageDealt`）はその前に呼ばれるので、変える前の相性で判定されます。たとえば2倍の技はテラスシェルで0.5倍になっても、いろめがねは発動せず、ブレインフォースは1.25倍を掛けます。
+- こんじょう・クイックドロウ・テラスシェルは、発動したときのメッセージを出しません。`modifyBasePower`・`modifySpeed`・`modifyDamage` はメッセージを返せないためです。
 
 ### まだ作れない効果
 
@@ -1894,3 +1899,6 @@ async onFoeEntry(holder: BattlePokemonStatus, entered: BattlePokemonStatus, ctx?
 | きずなへんげ | `onKnockOut` で `oncePerBattleAbilityUsed` がなければ、攻撃・特攻・素早さ +1（第 9 世代はフォルムを変えない） |
 | マイティチェンジ | `onSwitchOut` で `changeForm(holder, 'hero', ctx, { persistent: true })` |
 | テラスチェンジ | `onEntry` で、テラパゴス（1024）でへんしん中でなければ `changeForm(holder, 'terastal', ctx, { persistent: true })`。特性はテラスシェルになる（14.6） |
+| こんじょう | `modifyBasePower`（`moveCategory === 'Physical'` で状態異常なら威力1.5倍。やけどは威力をさらに2倍にして半減を打ち消す。こおり・ボディプレスは対象外。近似は7章） |
+| クイックドロウ | `modifySpeed`（`moveCategory` が物理・特殊なら30%で素早さに大きな値を足す。優先度が同じときだけ呼ばれる。メッセージは出ない） |
+| テラスシェル | `modifyDamage`（HPが満タンで `typeEffectiveness > 0` なら、ダメージを `0.5 / typeEffectiveness` 倍にする。わるあがきは対象外。近似は7章） |
