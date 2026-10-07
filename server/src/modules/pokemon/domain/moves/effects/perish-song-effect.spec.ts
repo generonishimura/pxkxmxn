@@ -139,6 +139,32 @@ describe('PerishSongEffect（ほろびのうた）', () => {
       expect(get(2).volatileState.perishCount).toBe(3);
     });
 
+    it.each(['ぼうおん', 'おうごんのからだ'])(
+      '使い手が きんしのちから なら、相手の %s を無視して付ける',
+      async defenderAbility => {
+        // Arrange
+        const { context, get } = createInMemoryBattle(
+          { ability: 'きんしのちから' },
+          { ability: defenderAbility },
+        );
+
+        // Act
+        const message = await new PerishSongEffect().onUse(
+          get(1),
+          get(2),
+          context({
+            ...songContext,
+            attackerAbilityName: 'きんしのちから',
+            defenderAbilityName: defenderAbility,
+          }),
+        );
+
+        // Assert
+        expect(message).toBe('All Pokemon hearing the song will faint in three turns!');
+        expect(get(2).volatileState.perishCount).toBe(3);
+      },
+    );
+
     it('相手がそらをとぶで隠れていれば、相手には付かない', async () => {
       // Arrange
       const { context, get } = createInMemoryBattle(
