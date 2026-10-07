@@ -401,6 +401,8 @@ import { RoostEffect } from './effects/roost-effect';
 import { ConversionEffect } from './effects/conversion-effect';
 import { Conversion2Effect } from './effects/conversion2-effect';
 import { SoakEffect } from './effects/soak-effect';
+// フィールドに合わせて使用者のタイプを変える技（Issue #117 一部）
+import { CamouflageEffect } from './effects/camouflage-effect';
 
 /**
  * 技のレジストリ
@@ -912,6 +914,8 @@ export class MoveRegistry {
       this.registry.set('テクスチャー', new ConversionEffect());
       this.registry.set('テクスチャー２', new Conversion2Effect());
       this.registry.set('みずびたし', new SoakEffect());
+      // フィールドに合わせて使用者のタイプを変える技（Issue #117 一部）
+      this.registry.set('ほごしょく', new CamouflageEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,

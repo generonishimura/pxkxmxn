@@ -287,6 +287,11 @@ import { TeraShiftEffect } from './effects/other/tera-shift-effect';
 // 姿を写す・化ける特性（Issue #135 一部）
 import { ImposterEffect } from './effects/other/imposter-effect';
 import { IllusionEffect } from './effects/other/illusion-effect';
+// 自分のタイプ・技のタイプを変える特性（Issue #135 一部）
+import { ColorChangeEffect } from './effects/other/color-change-effect';
+import { ProteanEffect } from './effects/other/protean-effect';
+import { NormalizeEffect } from './effects/other/normalize-effect';
+import { RefrigerateEffect } from './effects/other/refrigerate-effect';
 
 /**
  * 特性レジストリ
@@ -678,6 +683,11 @@ export class AbilityRegistry {
       // 姿を写す・化ける特性（Issue #135 一部）
       this.registry.set('かわりもの', new ImposterEffect());
       this.registry.set('イリュージョン', new IllusionEffect());
+      // 自分のタイプ・技のタイプを変える特性（Issue #135 一部）
+      this.registry.set('へんしょく', new ColorChangeEffect());
+      this.registry.set('へんげんじざい', new ProteanEffect());
+      this.registry.set('ノーマルスキン', new NormalizeEffect());
+      this.registry.set('フリーズスキン', new RefrigerateEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
