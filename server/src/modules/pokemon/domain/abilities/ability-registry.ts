@@ -234,6 +234,8 @@ import { PoisonPuppeteerEffect } from './effects/other/poison-puppeteer-effect';
 import { GorillaTacticsEffect } from './effects/damage-modify/gorilla-tactics-effect';
 import { ElectromorphosisEffect } from './effects/other/electromorphosis-effect';
 import { WindPowerEffect } from './effects/other/wind-power-effect';
+// 物理技を受けたら相手の陣営にどくびしを置く特性（Issue #135 一部）
+import { ToxicDebrisEffect } from './effects/other/toxic-debris-effect';
 
 /**
  * 特性レジストリ
@@ -566,6 +568,8 @@ export class AbilityRegistry {
       this.registry.set('ごりむちゅう', new GorillaTacticsEffect());
       this.registry.set('でんきにかえる', new ElectromorphosisEffect());
       this.registry.set('ふうりょくでんき', new WindPowerEffect());
+      // 物理技を受けたら相手の陣営にどくびしを置く特性（Issue #135 一部）
+      this.registry.set('どくげしょう', new ToxicDebrisEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
