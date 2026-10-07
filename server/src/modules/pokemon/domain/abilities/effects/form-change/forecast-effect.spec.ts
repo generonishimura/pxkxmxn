@@ -1,10 +1,16 @@
 import { ForecastEffect } from './forecast-effect';
 import { createInMemoryBattle } from '../../../battle-events/__tests__/in-memory-battle';
 import { Weather } from '@/modules/battle/domain/entities/battle.entity';
+import { AbilityRegistry } from '../../ability-registry';
 
 describe('ForecastEffect（てんきや）', () => {
   const CASTFORM = 351;
   const effect = new ForecastEffect();
+
+  beforeEach(() => {
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+  });
 
   it.each([
     [Weather.Sun, 'sunny'],
@@ -27,6 +33,51 @@ describe('ForecastEffect（てんきや）', () => {
 
     // Act
     await effect.onEntry(get(1), context({ weather: Weather.Rain }));
+
+    // Assert
+    expect(get(1).volatileState.form).toBe('rainy');
+  });
+
+  it('場に出たとき、コンテキストに天候がなければバトルの天候を読む', async () => {
+    // Arrange
+    const { context, get, battleRepository } = createInMemoryBattle({ nationalDex: CASTFORM });
+    await battleRepository.update(1, { weather: Weather.Rain });
+
+    // Act
+    await effect.onEntry(get(1), context());
+
+    // Assert
+    expect(get(1).volatileState.form).toBe('rainy');
+  });
+
+  it.each(['ノーてんき', 'エアロック'])(
+    '場に出たとき、相手の %s が場にいれば、雨でもすがたは変わらない',
+    async ability => {
+      // Arrange
+      const { context, get, battleRepository } = createInMemoryBattle(
+        { nationalDex: CASTFORM },
+        { ability },
+      );
+      await battleRepository.update(1, { weather: Weather.Rain });
+
+      // Act
+      await effect.onEntry(get(1), context());
+
+      // Assert
+      expect(get(1).volatileState.form).toBeUndefined();
+    },
+  );
+
+  it('場に出たとき、相手のノーてんきがひんしなら、雨のすがたになる', async () => {
+    // Arrange
+    const { context, get, battleRepository } = createInMemoryBattle(
+      { nationalDex: CASTFORM },
+      { ability: 'ノーてんき', status: { currentHp: 0 } },
+    );
+    await battleRepository.update(1, { weather: Weather.Rain });
+
+    // Act
+    await effect.onEntry(get(1), context());
 
     // Assert
     expect(get(1).volatileState.form).toBe('rainy');
