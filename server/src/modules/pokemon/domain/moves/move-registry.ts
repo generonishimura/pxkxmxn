@@ -347,6 +347,13 @@ import { BatonPassEffect } from './effects/baton-pass-effect';
 import { PartingShotEffect } from './effects/parting-shot-effect';
 import { FairyLockEffect } from './effects/fairy-lock-effect';
 import { TeleportEffect } from './effects/teleport-effect';
+// 逃げられなくする技・交代する技（Issue #103, #110 一部）
+import { MeanLookEffect } from './effects/mean-look-effect';
+import { BlockEffect } from './effects/block-effect';
+import { SpiderWebEffect } from './effects/spider-web-effect';
+import { ShedTailEffect } from './effects/shed-tail-effect';
+import { ChillyReceptionEffect } from './effects/chilly-reception-effect';
+import { LunarDanceEffect } from './effects/lunar-dance-effect';
 
 /**
  * 技のレジストリ
@@ -804,6 +811,13 @@ export class MoveRegistry {
       this.registry.set('すてゼリフ', new PartingShotEffect());
       this.registry.set('フェアリーロック', new FairyLockEffect());
       this.registry.set('テレポート', new TeleportEffect());
+      // 逃げられなくする技・交代する技（Issue #103, #110 一部）
+      this.registry.set('くろいまなざし', new MeanLookEffect());
+      this.registry.set('とおせんぼう', new BlockEffect());
+      this.registry.set('クモのす', new SpiderWebEffect());
+      this.registry.set('しっぽきり', new ShedTailEffect());
+      this.registry.set('さむいギャグ', new ChillyReceptionEffect());
+      this.registry.set('みかづきのまい', new LunarDanceEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
