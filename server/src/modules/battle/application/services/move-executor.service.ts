@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
 import { Battle, Field } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import {
@@ -60,6 +60,19 @@ import {
   primalWeatherBlocksMove,
 } from '../../domain/logic/field-modifiers';
 import { countFaintedAllies, crossesHalfHp, findSwitchTargets } from '../../domain/logic/party';
+// 急所ランクの仕組み（Issue #111 #135 一部）
+import {
+  RandomSource,
+  baseCriticalHitStage,
+  clampCriticalHitStage,
+  rollCriticalHit,
+} from '../../domain/logic/critical-hit';
+import { preventsCriticalHit } from '../../domain/logic/field-modifiers';
+
+/**
+ * 急所の乱数（RandomSource）を差し替えるときの DI トークン。省略すると Math.random を使う
+ */
+export const CRITICAL_HIT_RANDOM_TOKEN = 'CRITICAL_HIT_RANDOM';
 
 /**
  * 技の実行オプション
@@ -162,6 +175,8 @@ export class MoveExecutorService {
 
   private readonly beforeMoveChecker: BeforeMoveChecker;
   private readonly moveLifecycle: MoveLifecycle;
+  /** 急所の判定に使う乱数 */
+  private readonly criticalHitRandom: RandomSource;
 
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
@@ -172,9 +187,13 @@ export class MoveExecutorService {
     private readonly moveRepository: IMoveRepository,
     @Inject(TYPE_EFFECTIVENESS_REPOSITORY_TOKEN)
     private readonly typeEffectivenessRepository: ITypeEffectivenessRepository,
+    @Optional()
+    @Inject(CRITICAL_HIT_RANDOM_TOKEN)
+    criticalHitRandom?: RandomSource,
   ) {
     this.beforeMoveChecker = new BeforeMoveChecker(battleRepository);
     this.moveLifecycle = new MoveLifecycle(battleRepository);
+    this.criticalHitRandom = criticalHitRandom ?? Math.random;
   }
 
   /**
@@ -1104,9 +1123,15 @@ export class MoveExecutorService {
     let substituteDamage = 0;
     let substituteBroke = false;
     let hitCount = 0;
+    let criticalHitCount = 0;
     const hpBeforeMove = updatedDefender.currentHp;
     const hitEventMessages: string[] = [];
-    const createHitResult = (hitDamage: number, hpBefore: number, hitIndex: number): HitResult => ({
+    const createHitResult = (
+      hitDamage: number,
+      hpBefore: number,
+      hitIndex: number,
+      isCriticalHit: boolean,
+    ): HitResult => ({
       damage: hitDamage,
       hpBefore,
       hitIndex,
@@ -1115,10 +1140,28 @@ export class MoveExecutorService {
       moveTypeName: moveType.name,
       moveCategory: move.category,
       targetFainted: updatedDefender.isFainted(),
+      isCriticalHit,
     });
+    // 急所ランク（技・きあいだめ・とぎすます → 攻撃側特性の modifyCritRatio）と、急所を防ぐもの
+    // （防御側特性の preventsCriticalHit・相手の陣営のおまじない）。急所はヒットごとに引く（本家の getDamage）
+    const criticalHitStage = this.resolveCriticalHitStage(
+      move,
+      currentAttacker,
+      attackerAbilityEffect,
+      battleContext,
+    );
+    const criticalHitBlocked =
+      defenderAbilityEffect?.preventsCriticalHit === true ||
+      preventsCriticalHit(getSideConditions(battle.sideState, defender.trainerId));
     for (const [hitIndex, hitDamageRatio] of hitDamageRatios.entries()) {
       battleContext.hitIndex = hitIndex;
+      const isCriticalHit =
+        !criticalHitBlocked && rollCriticalHit(criticalHitStage, this.criticalHitRandom);
+      battleContext.isCriticalHit = isCriticalHit;
       const hitDamage = await DamageCalculator.calculate(createDamageParams(power, hitDamageRatio));
+      if (isCriticalHit && hitDamage > 0) {
+        criticalHitCount += 1;
+      }
 
       // みがわりがあれば、HP の代わりにみがわりにダメージを与える（追加効果・接触時の特性は起きない）
       const substituteHp = updatedDefender.volatileState.substituteHp;
@@ -1171,7 +1214,7 @@ export class MoveExecutorService {
           battleContext.attacker = currentAttacker;
           battleContext.defender = updatedDefender;
         };
-        const hit = createHitResult(dealtDamage, hpBeforeHit, hitIndex);
+        const hit = createHitResult(dealtDamage, hpBeforeHit, hitIndex, isCriticalHit);
         let defenderMessage: string | null = null;
         if (defenderEventEffect?.onDamagingHit) {
           defenderMessage = await defenderEventEffect.onDamagingHit(
@@ -1220,6 +1263,7 @@ export class MoveExecutorService {
         : null;
       const brokeMessage = substituteBroke ? ' The substitute broke!' : '';
       const afterMessage = afterSubstituteMessage ? ` ${afterSubstituteMessage}` : '';
+      const substituteCriticalMessage = criticalHitCount > 0 ? ' A critical hit!' : '';
       // みがわりに当たったとんぼがえりは交代する（相手を交代させる技は、みがわりに当たったら入れ替えない）
       await this.scheduleSwitchesAfterMove({
         battle,
@@ -1230,7 +1274,7 @@ export class MoveExecutorService {
         battleContext,
       });
       return {
-        message: `Used ${move.name} and hit the substitute (${substituteDamage} damage)${brokeMessage}${afterMessage}`,
+        message: `Used ${move.name} and hit the substitute (${substituteDamage} damage)${substituteCriticalMessage}${brokeMessage}${afterMessage}`,
         outcome: 'hit',
         moveTypeName: moveType.name,
       };
@@ -1324,7 +1368,8 @@ export class MoveExecutorService {
       defenderId: defender.id,
       attackerAbilityEffect,
       defenderEventEffect,
-      createMoveHit: () => createHitResult(damage, hpBeforeMove, hitCount - 1),
+      createMoveHit: () =>
+        createHitResult(damage, hpBeforeMove, hitCount - 1, criticalHitCount > 0),
       damage,
       battleContext,
     });
@@ -1366,12 +1411,13 @@ export class MoveExecutorService {
     }
 
     const hitCountMessage = hitCount > 1 ? ` (hit ${hitCount} times)` : '';
+    const criticalHitMessage = criticalHitCount > 0 ? ' A critical hit!' : '';
     const eventMessage = hitEventMessages.map(message => ` ${message}`).join('');
     const afterMoveMessage = [...afterMoveMessages, ...faintMessages]
       .map(message => ` ${message}`)
       .join('');
     return {
-      message: `Used ${move.name} and dealt ${damage} damage${hitCountMessage}${contactEffectMessage}${eventMessage}${moveEffectMessage}${afterMoveMessage}`,
+      message: `Used ${move.name} and dealt ${damage} damage${hitCountMessage}${criticalHitMessage}${contactEffectMessage}${eventMessage}${moveEffectMessage}${afterMoveMessage}`,
       outcome: damage > 0 ? 'hit' : 'failed',
       moveTypeName: moveType.name,
     };
@@ -1765,6 +1811,22 @@ export class MoveExecutorService {
       moveEffect?.modifyMoveType?.(attacker, defender, battleContext) ?? move.type.name;
     battleContext.moveTypeName = typeName;
     return attackerAbilityEffect?.modifyMoveType?.(attacker, typeName, battleContext) ?? typeName;
+  }
+
+  /**
+   * 急所ランクを求める（0〜3。3 は必ず急所）
+   * 1. 技（急所に当たりやすい技 +1、必ず急所になる技）と、使用者の critStageBoost（きあいだめ）・laserFocusTurns（とぎすます）
+   * 2. 攻撃側特性の modifyCritRatio（きょううん・ひとでなし）
+   */
+  private resolveCriticalHitStage(
+    move: Move,
+    attacker: BattlePokemonStatus,
+    attackerAbilityEffect: IAbilityEffect | undefined,
+    battleContext: BattleContext,
+  ): number {
+    const stage = baseCriticalHitStage(move.name, attacker.volatileState);
+    const modified = attackerAbilityEffect?.modifyCritRatio?.(attacker, stage, battleContext);
+    return clampCriticalHitStage(modified ?? stage);
   }
 
   /**

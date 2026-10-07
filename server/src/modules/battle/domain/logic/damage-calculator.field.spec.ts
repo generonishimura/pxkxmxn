@@ -144,7 +144,8 @@ describe('DamageCalculator - 場の状態の補正', () => {
       const damage = await DamageCalculator.calculate(params);
 
       // Assert
-      expect(damage).toBe(46);
+      // 急所の 1.5 倍（floor(46 * 1.5) = 69）だけが掛かり、壁の 0.5 倍は掛からない
+      expect(damage).toBe(69);
     });
 
     it('すりぬけの攻撃は、壁でダメージが減らない', async () => {

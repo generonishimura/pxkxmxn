@@ -24,6 +24,7 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { BaseStatChangeEffect } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
+import { NO_CRITICAL_HIT_RANDOM } from '../__tests__/battle-engine-harness';
 
 /**
  * 命中時に必ず相手の防御を1段階下げるテスト用の技効果
@@ -198,6 +199,7 @@ describe('MoveExecutorService', () => {
       trainedPokemonRepository,
       moveRepository,
       typeEffectivenessRepository,
+      NO_CRITICAL_HIT_RANDOM,
     );
     const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
 

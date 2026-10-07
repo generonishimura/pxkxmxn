@@ -690,4 +690,25 @@ export interface IAbilityEffect {
     _target: TrapTarget,
     _battleContext?: BattleContext,
   ): boolean | undefined;
+  // ---- 急所ランク（Issue #111 #135 一部） ----
+
+  /**
+   * 攻撃側: 急所ランクを変える効果（例: きょううん = stage + 1、ひとでなし = 相手がどくなら 3）
+   * MoveExecutorService が、攻撃技のヒットごとに急所を判定する前に呼ぶ。stage は技・きあいだめ・とぎすますを
+   * 反映した急所ランク（0〜3。3 は必ず急所）。返した値は 0〜3 に収める
+   * @param holder この特性を持つ攻撃側のポケモン
+   * @param stage 今の急所ランク
+   * @returns 変更後の急所ランク、変更しない場合はundefined
+   */
+  modifyCritRatio?(
+    _holder: BattlePokemonStatus,
+    _stage: number,
+    _battleContext?: BattleContext,
+  ): number | undefined;
+
+  /**
+   * 防御側: 急所に当たらない特性かどうか（例: カブトアーマー、シェルアーマー）
+   * MoveExecutorService が急所を判定するときに参照する。かたやぶりで無視される
+   */
+  readonly preventsCriticalHit?: boolean;
 }

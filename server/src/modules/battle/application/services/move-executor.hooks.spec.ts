@@ -31,6 +31,7 @@ import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interfac
 import { MoldBreakerEffect } from '@/modules/pokemon/domain/abilities/effects/mold-breaker-effect';
 import { DoubleEdgeEffect } from '@/modules/pokemon/domain/moves/effects/double-edge-effect';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
+import { NO_CRITICAL_HIT_RANDOM } from '../__tests__/battle-engine-harness';
 
 describe('MoveExecutorService - ダメージ前後のフック', () => {
   const ATTACKER_ID = 1;
@@ -190,6 +191,7 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       trainedPokemonRepository,
       moveRepository,
       typeEffectivenessRepository,
+      NO_CRITICAL_HIT_RANDOM,
     );
     const battle = new Battle(
       1,

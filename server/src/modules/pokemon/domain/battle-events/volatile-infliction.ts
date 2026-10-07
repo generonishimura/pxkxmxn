@@ -46,6 +46,8 @@ export const VOLATILE_KIND_KEYS = {
   imprison: 'imprison', // ふういん
   snatch: 'snatch', // よこどり
   laserFocus: 'laserFocusTurns', // とぎすます
+  // 急所ランク・まもる系の仕組み（Issue #107 #111 一部）
+  focusEnergy: 'critStageBoost', // きあいだめ
 } as const satisfies Readonly<Record<string, keyof VolatileState>>;
 
 /**

@@ -24,6 +24,8 @@ import {
   screenDamageModifier,
   swapDefensesInWonderRoom,
 } from './field-modifiers';
+// 急所ランクの仕組み（Issue #111 #135 一部）
+import { CRITICAL_HIT_DAMAGE_MULTIPLIER } from './critical-hit';
 
 /**
  * Moveの情報
@@ -103,6 +105,8 @@ export interface DamageCalculationParams {
  *   タールショット・でんじふゆう・テレキネシスの相性、じゅうでんの威力、隠れている相手への 2 倍
  * - 場の状態（sideState）: 壁（最後に掛ける）、ワンダールーム、フィールド・どろあそび・みずあそびの威力、
  *   じゅうりょく（ひこう・ふゆうにじめん技が当たる）、らんきりゅう（ひこうタイプの弱点を等倍）
+ * - 急所（battleContext.isCriticalHit）: 基礎ダメージを 1.5 倍（切り捨て）。攻撃側の下がったランクと
+ *   防御側の上がったランクを 0 として扱う。壁は効かない（本家の getDamage / modifyDamage と同じ）
  */
 export class DamageCalculator {
   /**
@@ -220,17 +224,21 @@ export class DamageCalculator {
 
     const ignoredAttackerRanks = params.battleContext?.ignoredAttackerRanks;
     const ignoredDefenderRanks = params.battleContext?.ignoredDefenderRanks;
+    // 急所: 攻撃側の下がったランクと、防御側の上がったランクを 0 として扱う
+    const isCriticalHit = params.battleContext?.isCriticalHit === true;
 
     // 攻撃側のステータス（物理/特殊で分岐、イカサマなどは参照先を変更）
     const attackStatType =
       params.attackStatOverride?.stat ??
       (move.category === 'Physical' ? 'attack' : 'specialAttack');
     const attackSourceIsDefender = params.attackStatOverride?.source === 'defender';
+    const attackSource = attackSourceIsDefender ? defender : attacker;
     const attackStat = this.getEffectiveStat(
-      attackSourceIsDefender ? defender : attacker,
+      attackSource,
       attackStatType,
       attackSourceIsDefender ? params.defenderStats : params.attackerStats,
-      ignoredAttackerRanks?.has(attackStatType) ?? false,
+      (ignoredAttackerRanks?.has(attackStatType) ?? false) ||
+        (isCriticalHit && attackSource.getStatRank(attackStatType) < 0),
     );
 
     // やけどによる物理攻撃補正
@@ -245,7 +253,8 @@ export class DamageCalculator {
       defender,
       defenseStatType,
       params.defenderStats,
-      ignoredDefenderRanks?.has(defenseStatType) ?? false,
+      (ignoredDefenderRanks?.has(defenseStatType) ?? false) ||
+        (isCriticalHit && defender.getStatRank(defenseStatType) > 0),
     );
 
     // 基本ダメージ計算: floor((floor((2 * level / 5 + 2) * power * A / D) / 50) + 2)
@@ -261,10 +270,14 @@ export class DamageCalculator {
         DamageCalculator.BASE_DAMAGE_OFFSET,
     );
     // おやこあいの2回目などの倍率（本家の modifyDamage と同じく、+2 のあとに掛ける）
-    const baseDamage =
+    const ratioDamage =
       params.baseDamageRatio === undefined
         ? formulaDamage
         : modifyByFixedPoint(formulaDamage, params.baseDamageRatio, 1);
+    // 急所の 1.5 倍（本家と同じく補正ではなく、基礎ダメージに掛けて切り捨てる）
+    const baseDamage = isCriticalHit
+      ? Math.floor(ratioDamage * CRITICAL_HIT_DAMAGE_MULTIPLIER)
+      : ratioDamage;
     // 倍率で0になった場合は、ほかの補正を掛けても0（特性の補正の倍率を 0 で割らないよう、ここで返す）
     if (baseDamage <= 0) {
       return 0;

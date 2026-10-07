@@ -28,6 +28,7 @@ import {
 } from '@/modules/pokemon/domain/entities/ability.entity';
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
+import { NO_CRITICAL_HIT_RANDOM } from '../../__tests__/battle-engine-harness';
 
 /**
  * MoveExecutorService のイベントフックのテスト用セットアップ
@@ -238,6 +239,7 @@ export const setupMoveExecutor = (options: MoveExecutorSetupOptions = {}) => {
     trainedPokemonRepository,
     moveRepository,
     typeEffectivenessRepository,
+    NO_CRITICAL_HIT_RANDOM,
   );
   const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
   const execute = () =>

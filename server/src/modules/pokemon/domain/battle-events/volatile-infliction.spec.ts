@@ -52,6 +52,20 @@ describe('一時的な状態の付与（canApplyVolatile / tryApplyVolatile）',
     expect(get(2).volatileState.tauntTurns).toBe(1);
   });
 
+  it('きあいだめ（focusEnergy）は、critStageBoost があれば付与しない', async () => {
+    // Arrange
+    const { context, get } = createInMemoryBattle(
+      {},
+      { status: { volatileState: { critStageBoost: 2 } } },
+    );
+
+    // Act
+    const applied = await tryApplyVolatile(get(2), 'focusEnergy', { critStageBoost: 2 }, context());
+
+    // Assert
+    expect(applied).toBe(false);
+  });
+
   it('ひんしのポケモンには付与しない', async () => {
     // Arrange
     const { context, get } = createInMemoryBattle({}, { status: { currentHp: 0 } });

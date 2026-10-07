@@ -147,7 +147,17 @@ export interface HarnessOptions {
   readonly weather?: Weather | null;
   readonly field?: Field | null;
   readonly sideState?: SideState;
+  /**
+   * 急所の乱数（0 以上 1 未満）。省略すると急所ランク 3 以上（必ず急所）のときだけ急所になる
+   */
+  readonly criticalHitRandom?: () => number;
 }
+
+/**
+ * 急所を出さない乱数（急所ランク 3 以上なら、乱数を引かずに急所になる）
+ * 既存のダメージのテストが、1/24 の急所で揺れないようにする
+ */
+export const NO_CRITICAL_HIT_RANDOM = (): number => 1;
 
 const toStatus = (base: BattlePokemonStatus, data: Partial<BattlePokemonStatus>) => {
   const merged = { ...base, ...data };
@@ -365,6 +375,7 @@ export const createBattleEngine = (options: HarnessOptions) => {
     trainedPokemonRepository,
     moveRepository,
     typeEffectivenessRepository,
+    options.criticalHitRandom ?? NO_CRITICAL_HIT_RANDOM,
   );
   const switcher = new PokemonSwitcherService(
     battleRepository,
