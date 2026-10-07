@@ -617,7 +617,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | しめりけ | `preventsMove`（両方の役割で、技名が だいばくはつ・じばく・ビックリヘッド・ミストバースト なら true） |
 | じょおうのいげん・ビビッドボディ・テイルアーマー | `preventsMove`（`role === 'defender'`、`effectivePriority > 0`、相手を対象にする技） |
 | おうごんのからだ | `isImmuneToMove`（`moveCategory === 'Status'`） |
-| シンクロ | `onStatusInflicted` + `tryInflictStatus(source.pokemon, ...)`（やけど・まひ・どく・もうどくだけ） |
+| シンクロ | `onStatusInflicted` + `tryInflictStatus(source.pokemon, ...)`（やけど・まひ・どく・もうどくだけ。どくびし `{ kind: 'other', name: 'どくびし' }` では発動しない） |
 | ふしょく | `bypassesStatusTypeImmunity`（どく・もうどく） |
 | どくくぐつ | `onInflictStatus` で、どく・もうどくにした相手に `tryInflictStatus(target, StatusCondition.Confusion, ...)`（こんらんは状態異常と同時に持てる） |
 | はやおき | `sleepTurnMultiplier = 2` |

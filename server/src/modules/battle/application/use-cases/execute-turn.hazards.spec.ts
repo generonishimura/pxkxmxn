@@ -111,6 +111,19 @@ describe('ExecuteTurnUseCase - 場に出たときの設置技', () => {
     expect(engine.status(3).statusCondition).toBe(StatusCondition.None);
   });
 
+  it('どくびしでどくになったシンクロのポケモンは、相手をどくにしない', async () => {
+    // Arrange
+    const engine = setup({ toxicSpikesLayers: 1 }, { ability: 'シンクロ' });
+
+    // Act
+    const result = await switchIn(engine);
+
+    // Assert
+    expect(engine.status(3).statusCondition).toBe(StatusCondition.Poison);
+    expect(engine.status(2).statusCondition).toBe(StatusCondition.None);
+    expect(result.actions[0].result).not.toContain('Synchronize activated!');
+  });
+
   it('ねばねばネットは、地面にいるポケモンの素早さを 1 段階下げる', async () => {
     // Arrange
     const engine = setup({ stickyWeb: true });
