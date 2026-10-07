@@ -20,7 +20,11 @@ export class RoostEffect extends BaseSelfHealEffect {
     battleContext: BattleContext,
   ): Promise<string | null> {
     const message = await super.onUse(attacker, defender, battleContext);
-    if (message === null || !battleContext.battleRepository) {
+    if (
+      message === null ||
+      message.startsWith('But it failed') ||
+      !battleContext.battleRepository
+    ) {
       return message;
     }
     await battleContext.battleRepository.patchVolatileState(attacker.id, { roosting: true });

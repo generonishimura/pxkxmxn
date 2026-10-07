@@ -26,7 +26,7 @@ export class PurifyEffect implements IMoveEffect {
     }
 
     if (!isMajorStatusCondition(defender.statusCondition)) {
-      return null;
+      return 'But it failed';
     }
 
     await battleContext.battleRepository.updateBattlePokemonStatus(defender.id, {

@@ -36,17 +36,17 @@ export class RestEffect implements IMoveEffect {
 
     // すでにねむっている（ぜったいねむりを含む）なら失敗
     if (isEffectivelyAsleep(attacker, battleContext)) {
-      return null;
+      return 'But it failed';
     }
 
     // HP が満タンなら失敗
     if (attacker.currentHp >= attacker.maxHp) {
-      return null;
+      return 'But it failed';
     }
 
     // ねむりになれない（特性・さわぐ）なら失敗
     if (!(await canFallAsleep(attacker, battleContext))) {
-      return null;
+      return 'But it failed';
     }
 
     await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {
