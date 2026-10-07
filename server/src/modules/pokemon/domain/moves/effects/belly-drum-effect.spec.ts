@@ -59,7 +59,7 @@ describe('BellyDrumEffect', () => {
 
     const result = await effect.onUse(attacker, defender, ctx);
 
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
@@ -71,7 +71,19 @@ describe('BellyDrumEffect', () => {
 
     const result = await effect.onUse(attacker, defender, ctx);
 
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
+  });
+
+  it('最大 HP が 1 なら失敗する（HP を払わずに能力が上がらない）', async () => {
+    const effect = new BellyDrumEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 1, maxHp: 1 });
+    const defender = createBattlePokemonStatus({ id: 2 });
+    const ctx = createBattleContext();
+
+    const result = await effect.onUse(attacker, defender, ctx);
+
+    expect(result).toBe('But it failed');
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 });

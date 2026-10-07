@@ -9,6 +9,7 @@ import { BattleContext } from '../../abilities/battle-context.interface';
  *
  * - 現在 HP が支払う HP 以下なら失敗（最大 HP が 1 なら、支払う HP も 1 なので失敗）
  * - 5 つの能力が全て既に +6 なら失敗
+ * - 失敗したときは 'But it failed' を返す（null はエンジンで成功として扱われるため）
  *
  * 支払う HP は、Bulbapedia などの資料の記載（最大 HP の 1/3、切り捨て）に合わせる。
  * Pokemon Showdown は最大 HP × 33 / 100 で計算するが、それでは最大 HP 300 で 99 になり 1/3 と一致しない
@@ -25,7 +26,7 @@ export class ClangorousSoulEffect implements IMoveEffect {
 
     const hpCost = Math.max(1, Math.floor(attacker.maxHp / 3));
     if (attacker.currentHp <= hpCost) {
-      return null;
+      return 'But it failed';
     }
 
     const clampUp = (current: number): number => Math.min(6, current + 1);
@@ -43,7 +44,7 @@ export class ClangorousSoulEffect implements IMoveEffect {
       newSpecialDefenseRank === attacker.specialDefenseRank &&
       newSpeedRank === attacker.speedRank
     ) {
-      return null;
+      return 'But it failed';
     }
 
     await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {

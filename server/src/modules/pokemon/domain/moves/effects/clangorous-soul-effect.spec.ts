@@ -69,7 +69,7 @@ describe('ClangorousSoulEffect', () => {
     const result = await effect.onUse(attacker, defender, ctx);
 
     // Assert
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
@@ -105,7 +105,7 @@ describe('ClangorousSoulEffect', () => {
     const result = await effect.onUse(attacker, defender, ctx);
 
     // Assert
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
@@ -162,7 +162,7 @@ describe('ClangorousSoulEffect', () => {
     const result = await effect.onUse(attacker, defender, ctx);
 
     // Assert
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
@@ -183,7 +183,7 @@ describe('ClangorousSoulEffect', () => {
     const result = await effect.onUse(attacker, defender, ctx);
 
     // Assert
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
