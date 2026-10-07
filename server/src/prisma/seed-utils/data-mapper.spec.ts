@@ -1,7 +1,12 @@
-import { createAbilitySeedData, createMoveSeedData } from '../../../prisma/seed-utils/data-mapper';
+import {
+  createAbilitySeedData,
+  createMoveSeedData,
+  isDefaultPokemon,
+} from '../../../prisma/seed-utils/data-mapper';
 import {
   PokeApiAbilityResponse,
   PokeApiMoveResponse,
+  PokeApiPokemonResponse,
 } from '../../../prisma/seed-utils/pokeapi-client';
 
 describe('data-mapper', () => {
@@ -42,6 +47,40 @@ describe('data-mapper', () => {
 
       // Assert
       expect(seed.name).toBe('あくしゅう');
+    });
+  });
+  describe('既定のすがた（isDefaultPokemon）', () => {
+    const pokemonOf = (name: string, isDefault: boolean): PokeApiPokemonResponse => ({
+      id: 1,
+      name,
+      is_default: isDefault,
+      species: { name: 'aegislash', url: 'https://pokeapi.co/api/v2/pokemon-species/681/' },
+      stats: [],
+      types: [],
+      abilities: [],
+      moves: [],
+    });
+
+    it('既定のすがた（ギルガルドのシールドフォルム）は入れる', () => {
+      // Arrange
+      const pokemon = pokemonOf('aegislash-shield', true);
+
+      // Act
+      const result = isDefaultPokemon(pokemon);
+
+      // Assert
+      expect(result).toBe(true);
+    });
+
+    it('別のすがた（ギルガルドのブレードフォルム）は入れない（全国図鑑の番号で上書きしないように）', () => {
+      // Arrange
+      const pokemon = pokemonOf('aegislash-blade', false);
+
+      // Act
+      const result = isDefaultPokemon(pokemon);
+
+      // Assert
+      expect(result).toBe(false);
     });
   });
 });

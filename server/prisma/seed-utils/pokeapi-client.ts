@@ -37,6 +37,8 @@ export interface PokeApiTypeResponse {
 export interface PokeApiPokemonResponse {
   id: number;
   name: string;
+  /** 種族の既定のすがたか（ギルガルドのブレードフォルムなどの別のすがたは false） */
+  is_default: boolean;
   names?: Array<{ language: PokeApiNamedResource; name: string }>;
   species: PokeApiNamedResource; // pokemon-speciesへのリンク
   stats: Array<{
