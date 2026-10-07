@@ -1568,7 +1568,7 @@ MoveBehaviors.has('フェイント', 'noProtect'); // true
 #### こらえる（protection: 'endure'）
 
 - `protection` が `'endure'` のポケモンは、そのターンに技のダメージで HP が 0 になるとき、HP が 1 残る（連続技はヒットごと）。メッセージに `The opponent endured the hit!` が付く
-- 技以外のダメージ（どく・すなあらしなど）と、こんらんの自傷では残らない（本家と同じ）
+- 技以外のダメージ（どく・すなあらしなど）では残らない（本家と同じ）。こんらんの自傷でも残らない。本家では残るが、シングルバトルではこらえるを使ったポケモンはそのターンもう動いているので、同じターンにこんらんの自傷を受けることはない
 
 ```ts
 export class EndureEffect implements IMoveEffect {
