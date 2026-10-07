@@ -1587,6 +1587,7 @@ export class MagicBounceEffect implements IAbilityEffect {
 - 注: まもる系を続けて使ったときの成功の判定と、たたみがえし・まもる系の「最後に動くなら失敗」は、`Math.random` と `isLastToMove` で判定する（呼ばれた技でも同じ）
 - 注: 決まったダメージを与える技（ちきゅうなげなど）を作るときは、本家と同じく急所にならないようにする必要がある（今のエンジンは、ダメージ計算をする攻撃技すべてで急所を引く）
 - 注: ドラゴンエールは味方が要るので、シングルバトルでは失敗する（今は NoOpEffect）。`critStageBoost` を書く技は、今はきあいだめだけ
+- 注: バトルスイッチ（ギルガルドのフォルムチェンジ）の仕組みはまだない。技の本体の前に `VolatileState.form` を切り替え（攻撃技で `'blade'`、キングシールドでシールドフォルム）、`statOverrides` で実数値を計算し直すフックが要る。キングシールドの技は先に作れるが、バトルスイッチは別に作る
 - 注: どくどくの必中は使用者のタイプ（`TrainedPokemon` のタイプ）で判定する。みずびたしなどの `typeOverride` は見ない
 
 ### 13.8 特性・技ごとに使うもの
@@ -1594,7 +1595,7 @@ export class MagicBounceEffect implements IAbilityEffect {
 | 特性・技 | 使うもの |
 | --- | --- |
 | まもる・みきり | `protection = { kind: 'protect' }` |
-| キングシールド | `protection = { kind: 'kingsShield' }`（攻撃技だけ防ぎ、接触で攻撃 -1）。ギルガルドのフォルムチェンジ（バトルスイッチ）は別の仕組み |
+| キングシールド | `protection = { kind: 'kingsShield' }`（攻撃技だけ防ぎ、接触で攻撃 -1）。技は今の仕組みで作れる。ギルガルドのフォルムチェンジ（バトルスイッチ）は、まだ仕組みがない（13.7） |
 | ニードルガード | `protection = { kind: 'spikyShield' }`（接触で 1/8） |
 | トーチカ | `protection = { kind: 'banefulBunker' }`（接触でどく） |
 | ブロッキング | `protection = { kind: 'obstruct' }`（接触で防御 -2） |
