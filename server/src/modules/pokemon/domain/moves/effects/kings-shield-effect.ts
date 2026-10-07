@@ -7,8 +7,8 @@ import { IMoveEffect } from '../move-effect.interface';
  *       続けて使うと成功率が 1/3 倍ずつになる（1、1/3、1/9、…。まもると同じ）。
  *       成功判定・守りの書き込み・相手の技を防ぐ処理・接触したときの効果は、技の protection を見てエンジンが行う
  *
- * 注: ギルガルドがキングシールドを使ったときにシールドフォルムに戻る効果（特性のバトルスイッチ）は、
- *     フォルムチェンジの仕組みがまだないため起きない
+ * ギルガルドがキングシールドを使ったときにシールドフォルムに戻る効果は、この技ではなく
+ * 特性のバトルスイッチ（StanceChangeEffect の onPrepareHit）が行う
  */
 export class KingsShieldEffect implements IMoveEffect {
   readonly protection = { kind: 'kingsShield' } as const;
