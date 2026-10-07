@@ -33,9 +33,9 @@ describe('CompoundEyesEffect', () => {
       expect(result).toBe(65); // 50 * 1.3 = 65
     });
 
-    it('命中率が100を超える場合は100に制限される', () => {
+    it('命中率が100を超えても上限を付けない（最終の 0〜100 の制限は命中判定で行う）', () => {
       const result = effect.modifyAccuracy(pokemon, 80, battleContext);
-      expect(result).toBe(100); // 80 * 1.3 = 104 → 100
+      expect(result).toBe(104); // 80 * 1.3 = 104
     });
 
     it('命中率が0の場合は0のまま', () => {
@@ -45,7 +45,7 @@ describe('CompoundEyesEffect', () => {
 
     it('命中率が77の場合は100になる', () => {
       const result = effect.modifyAccuracy(pokemon, 77, battleContext);
-      expect(result).toBe(100); // 77 * 1.3 = 100.1 → 100
+      expect(result).toBe(100); // 77 * 1.3 = 100.1 → 100（切り捨て）
     });
   });
 });

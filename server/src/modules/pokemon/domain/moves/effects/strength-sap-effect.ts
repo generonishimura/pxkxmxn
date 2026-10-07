@@ -37,7 +37,7 @@ export class StrengthSapEffect implements IMoveEffect {
     }
 
     if (defender.attackRank <= -6) {
-      return null;
+      return 'But it failed';
     }
 
     const defenderTrainedPokemon = await battleContext.trainedPokemonRepository.findById(

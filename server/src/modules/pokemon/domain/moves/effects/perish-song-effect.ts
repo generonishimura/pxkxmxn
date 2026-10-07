@@ -24,7 +24,7 @@ const PERISH_SONG_MOVE_NAME = 'ほろびのうた';
  * 場のポケモン全員（自分と相手）に、ほろびのうたのカウント（volatileState.perishCount）を 3 書く。
  * ひんしにするのはエンジン（使ったターンを含めて 4 回目のターン終了時）。交代するとカウントは消える。
  * - すでにカウントがあるポケモンは、カウントを変えない
- * - 相手の特性の isImmuneToMove（ぼうおんなど）で、相手には付かない。使い手のかたやぶりで無視される。
+ * - 相手の特性の isImmuneToMove（ぼうおんなど）で、相手には付かない。使い手のかたやぶり・きんしのちからで無視される。
  *   自分の特性では防がない（本家と同じく、自分のぼうおんでも自分には付く）
  * - そらをとぶなどで隠れている相手には付かない（ロックオン中は付く）
  * - 誰にも付かず、防いだポケモンもいなければ失敗する（両者にすでにカウントがあるときなど）
@@ -83,7 +83,8 @@ export class PerishSongEffect implements IMoveEffect {
 
     const targetAbilityName = await resolveAbilityName(target, battleContext);
     const attackerAbilityName = await resolveAbilityName(attacker, battleContext);
-    if (await isIgnoredByMoldBreaker(attackerAbilityName, targetAbilityName)) {
+    // 技のコンテキストを渡す（きんしのちからは、変化技のときだけ相手の特性を無視する）
+    if (await isIgnoredByMoldBreaker(attackerAbilityName, targetAbilityName, battleContext)) {
       return false;
     }
     const targetAbility = await getAbilityEffect(targetAbilityName);

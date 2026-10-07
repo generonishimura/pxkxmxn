@@ -33,7 +33,7 @@ describe('RestEffect（ねむる）', () => {
 
     // Assert
     expect(get(1).currentHp).toBe(40);
-    expect(message).toBeNull();
+    expect(message).toBe('But it failed');
   });
 
   it('ぜったいねむりのポケモンが使うと、失敗する', async () => {
@@ -47,7 +47,7 @@ describe('RestEffect（ねむる）', () => {
     // Assert
     expect(get(1).currentHp).toBe(40);
     expect(get(1).statusCondition).toBeNull();
-    expect(message).toBeNull();
+    expect(message).toBe('But it failed');
   });
 
   it('HP が満タンなら、失敗する', async () => {
@@ -59,7 +59,7 @@ describe('RestEffect（ねむる）', () => {
 
     // Assert
     expect(get(1).statusCondition).toBeNull();
-    expect(message).toBeNull();
+    expect(message).toBe('But it failed');
   });
 
   it.each(['ふみん', 'やるき'])('%s のポケモンが使うと、失敗する', async ability => {
@@ -72,7 +72,7 @@ describe('RestEffect（ねむる）', () => {
     // Assert
     expect(get(1).currentHp).toBe(40);
     expect(get(1).statusCondition).toBeNull();
-    expect(message).toBeNull();
+    expect(message).toBe('But it failed');
   });
 
   it('場の誰かがさわいでいると、失敗する', async () => {
@@ -92,7 +92,7 @@ describe('RestEffect（ねむる）', () => {
     // Assert
     expect(get(1).currentHp).toBe(40);
     expect(get(1).statusCondition).toBeNull();
-    expect(message).toBeNull();
+    expect(message).toBe('But it failed');
   });
 
   it('ほかの状態異常（やけど）があっても、ねむりに上書きして HP を全回復する', async () => {

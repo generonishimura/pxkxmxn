@@ -47,6 +47,7 @@ export const isMajorStatusCondition = (statusCondition: StatusCondition | null):
  * - 回復も状態異常の回復もできない場合（HP 満タンなど）は失敗する
  * - 回復する側がかいふくふうじ中なら HP は回復しない（いやしのはどうなどで、かいふくふうじ中の相手を回復しようとしたとき）
  * - 対象がひんしの場合は失敗する
+ * - 失敗したときは 'But it failed' を返す（null はエンジンで成功として扱われるため）
  */
 export abstract class BaseHealEffect implements IMoveEffect {
   /**
@@ -84,13 +85,13 @@ export abstract class BaseHealEffect implements IMoveEffect {
 
     const target = this.healTarget === 'self' ? attacker : defender;
     if (target.currentHp <= 0) {
-      return null;
+      return 'But it failed';
     }
 
     const canHeal = target.currentHp < target.maxHp && !isHealBlocked(target);
     const canCure = this.curesStatusCondition && isMajorStatusCondition(target.statusCondition);
     if (!canHeal && !canCure) {
-      return null;
+      return 'But it failed';
     }
 
     const healAmount = Math.max(1, this.computeHealAmount(target.maxHp, battleContext));

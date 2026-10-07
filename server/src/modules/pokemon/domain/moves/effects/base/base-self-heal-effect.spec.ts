@@ -97,7 +97,7 @@ describe('BaseSelfHealEffect', () => {
     const result = await effect.onUse(attacker, createDefender(), ctx);
 
     // Assert
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
@@ -111,7 +111,7 @@ describe('BaseSelfHealEffect', () => {
     const result = await effect.onUse(attacker, createDefender(), ctx);
 
     // Assert
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 

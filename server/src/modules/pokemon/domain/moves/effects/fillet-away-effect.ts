@@ -7,8 +7,9 @@ import { BattleContext } from '../../abilities/battle-context.interface';
  *
  * 効果: 最大 HP の 1/2 を支払い、攻撃・特攻・素早さを 2 段階ずつ上昇させる
  *
- * - HP が不足する場合は失敗
+ * - 現在 HP が最大 HP の 1/2 以下の場合は失敗（最大 HP が 1 なら、支払う HP を最低 1 にするので失敗）
  * - 攻撃/特攻/素早さが全て既に +6 の場合は失敗
+ * - 失敗したときは 'But it failed' を返す（null はエンジンで成功として扱われるため）
  */
 export class FilletAwayEffect implements IMoveEffect {
   async onUse(
@@ -20,9 +21,9 @@ export class FilletAwayEffect implements IMoveEffect {
       return null;
     }
 
-    const hpCost = Math.floor(attacker.maxHp / 2);
+    const hpCost = Math.max(1, Math.floor(attacker.maxHp / 2));
     if (attacker.currentHp <= hpCost) {
-      return null;
+      return 'But it failed';
     }
 
     const newAttackRank = Math.min(6, attacker.attackRank + 2);
@@ -34,7 +35,7 @@ export class FilletAwayEffect implements IMoveEffect {
       newSpecialAttackRank === attacker.specialAttackRank &&
       newSpeedRank === attacker.speedRank
     ) {
-      return null;
+      return 'But it failed';
     }
 
     await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {

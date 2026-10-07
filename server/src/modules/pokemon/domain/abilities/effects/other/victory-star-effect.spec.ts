@@ -27,14 +27,14 @@ describe('VictoryStarEffect', () => {
     expect(result).toBe(93); // 85 * 1.1 = 93.5 → 93
   });
 
-  it('100 を超える場合は 100 に制限する', () => {
+  it('100 を超えても上限を付けない（最終の 0〜100 の制限は命中判定で行う）', () => {
     // Arrange
-    const accuracy = 95;
+    const accuracy = 120;
 
     // Act
     const result = effect.modifyAccuracy(pokemon, accuracy);
 
     // Assert
-    expect(result).toBe(100);
+    expect(result).toBe(132);
   });
 });

@@ -26,7 +26,7 @@ describe('RoostEffect（はねやすめ）', () => {
     const message = await new RoostEffect().onUse(get(1), get(2), context());
 
     // Assert
-    expect(message).toBeNull();
+    expect(message).toBe('But it failed');
     expect(get(1).volatileState.roosting).toBeUndefined();
   });
 
@@ -41,7 +41,7 @@ describe('RoostEffect（はねやすめ）', () => {
     const message = await new RoostEffect().onUse(get(1), get(2), context());
 
     // Assert
-    expect(message).toBeNull();
+    expect(message).toBe('But it failed');
     expect(get(1).currentHp).toBe(10);
     expect(get(1).volatileState.roosting).toBeUndefined();
   });
