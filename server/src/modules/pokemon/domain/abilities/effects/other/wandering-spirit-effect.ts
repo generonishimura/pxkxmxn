@@ -18,6 +18,8 @@ const WANDERING_SPIRIT_ABILITY_NAME = 'さまようたましい';
  *   ひんしのポケモンに失敗する）
  * - 受け取った特性の onEntry は setAbility が呼ぶ（受け取ったいかくが発動する）
  * - かたやぶりでは無視されない（本家と同じ）
+ * - 自分の今の特性がさまようたましいでなければ何もしない（連続技の 2 発目以降。1 発目で入れ替えたあと）
+ * 注: 連続技の 2 発目以降に、受け取った特性の onDamagingHit は呼ばれない（エンジンが 1 発目の前に効果を決めるため）
  * 注: docs/battle-engine-hooks.md 14.13 の swapAbilities ではなく、本家の Wandering Spirit と同じく setAbility を 2 回使う
  */
 export class WanderingSpiritEffect implements IAbilityEffect {
@@ -28,6 +30,12 @@ export class WanderingSpiritEffect implements IAbilityEffect {
     battleContext?: BattleContext,
   ): Promise<string | null> {
     if (!battleContext || !hit.isContact) {
+      return null;
+    }
+    // 連続技では、エンジンが 1 発目の前に決めた効果を毎ヒット呼ぶ。入れ替えたあとは自分の特性がもう違うので何もしない
+    if (
+      (await resolveCurrentAbilityName(holder, battleContext)) !== WANDERING_SPIRIT_ABILITY_NAME
+    ) {
       return null;
     }
     const attackerAbilityName = await resolveCurrentAbilityName(attacker, battleContext);
