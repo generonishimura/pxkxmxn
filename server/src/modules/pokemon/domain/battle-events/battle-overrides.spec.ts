@@ -213,6 +213,20 @@ describe('タイプ・特性を書き換える補助関数', () => {
       // Assert
       expect(battle.get(1).volatileState).toEqual({ abilityOverride: 'ミイラ' });
     });
+
+    it('書き換えると、へんげんじざい・リベロを使った記録も消える（本家は特性ごとの状態を作り直す）', async () => {
+      // Arrange
+      const battle = createInMemoryBattle({
+        ability: 'ふみん',
+        status: { volatileState: { typeChangeAbilityUsed: true } },
+      });
+
+      // Act
+      await setAbility(battle.get(1), 'へんげんじざい', battle.context());
+
+      // Assert
+      expect(battle.get(1).volatileState).toEqual({ abilityOverride: 'へんげんじざい' });
+    });
   });
 
   describe('swapAbilities', () => {
@@ -230,6 +244,21 @@ describe('タイプ・特性を書き換える補助関数', () => {
       expect(swapped).toBe(true);
       expect(battle.get(1).volatileState.abilityOverride).toBe('たんじゅん');
       expect(battle.get(2).volatileState.abilityOverride).toBe('いかく');
+    });
+
+    it('入れ替えると、両方のへんげんじざい・リベロを使った記録も消える', async () => {
+      // Arrange
+      const battle = createInMemoryBattle(
+        { ability: 'へんげんじざい', status: { volatileState: { typeChangeAbilityUsed: true } } },
+        { ability: 'リベロ', status: { volatileState: { typeChangeAbilityUsed: true } } },
+      );
+
+      // Act
+      await swapAbilities(battle.get(1), battle.get(2), battle.context());
+
+      // Assert
+      expect(battle.get(1).volatileState).toEqual({ abilityOverride: 'リベロ' });
+      expect(battle.get(2).volatileState).toEqual({ abilityOverride: 'へんげんじざい' });
     });
 
     it('入れ替えられない特性（ふしぎなまもり）があれば失敗する', async () => {

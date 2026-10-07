@@ -8,7 +8,8 @@ import { setTypes } from '@/modules/pokemon/domain/battle-events/type-change';
 /**
  * リベロ（Libero）特性の効果
  * 技を出す直前（onPrepareHit）に、自分のタイプをその技のタイプ（タイプを変える効果のあと）だけにする。
- * 変化技・外れる技でも変わる。第 9 世代は場に出るたびに 1 回だけ（volatileState.typeChangeAbilityUsed）
+ * 変化技・外れる技でも変わる。第 9 世代は場に出るたびに 1 回だけ（volatileState.typeChangeAbilityUsed）。
+ * 特性を書き換えたとき（setAbility・swapAbilities）も記録が消え、取り戻すとまた 1 回使える
  * - 次のときは変わらず、回数も使わない: タイプなしの技、今のタイプがすでに技のタイプだけ、タイプを変えられない
  *   （アルセウス・シルヴァディ。setTypes が false）
  * - はね返した技・みらいよちが当たるとき・よこどりで奪った技・技を呼ぶ技そのものでは、エンジンが呼ばない
