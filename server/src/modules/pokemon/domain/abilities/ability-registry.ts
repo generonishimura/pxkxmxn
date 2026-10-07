@@ -292,6 +292,12 @@ import { ColorChangeEffect } from './effects/other/color-change-effect';
 import { ProteanEffect } from './effects/other/protean-effect';
 import { NormalizeEffect } from './effects/other/normalize-effect';
 import { RefrigerateEffect } from './effects/other/refrigerate-effect';
+// タイプを変える特性: -スキン系・リベロ・ぎたい（Issue #135 一部）
+import { PixilateEffect } from './effects/other/pixilate-effect';
+import { AerilateEffect } from './effects/other/aerilate-effect';
+import { GalvanizeEffect } from './effects/other/galvanize-effect';
+import { LiberoEffect } from './effects/other/libero-effect';
+import { MimicryEffect } from './effects/other/mimicry-effect';
 
 /**
  * 特性レジストリ
@@ -688,6 +694,12 @@ export class AbilityRegistry {
       this.registry.set('へんげんじざい', new ProteanEffect());
       this.registry.set('ノーマルスキン', new NormalizeEffect());
       this.registry.set('フリーズスキン', new RefrigerateEffect());
+      // タイプを変える特性: -スキン系・リベロ・ぎたい（Issue #135 一部）
+      this.registry.set('フェアリースキン', new PixilateEffect());
+      this.registry.set('スカイスキン', new AerilateEffect());
+      this.registry.set('エレキスキン', new GalvanizeEffect());
+      this.registry.set('リベロ', new LiberoEffect());
+      this.registry.set('ぎたい', new MimicryEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
