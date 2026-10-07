@@ -60,7 +60,7 @@ export interface LockedInMoveConfig {
 /**
  * まもる系の技の設定（エンジンが成功判定・状態の書き込み・相手の技を防ぐ処理を行う）
  * - kind: 自分を守る技（まもる・みきり = 'protect'、キングシールド = 'kingsShield'、こらえる = 'endure' など）。
- *   続けて使うと成功率が 1/3 ずつ下がる
+ *   続けて使うと成功率が 1/3 倍ずつになる（1、1/3、1/9、…）
  * - side: 陣営全体を守る技（ワイドガード・ファストガード・トリックガード・たたみがえし）
  */
 export type ProtectionMoveConfig =
