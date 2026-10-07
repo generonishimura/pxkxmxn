@@ -330,6 +330,12 @@ import { GravityEffect } from './effects/gravity-effect';
 import { TrickRoomEffect } from './effects/trick-room-effect';
 import { WonderRoomEffect } from './effects/wonder-room-effect';
 import { GrassyTerrainEffect } from './effects/grassy-terrain-effect';
+// 壁・どろあそび・みずあそび・コートチェンジ（Issue #103, #107 一部）
+import { ReflectEffect } from './effects/reflect-effect';
+import { LightScreenEffect } from './effects/light-screen-effect';
+import { MudSportEffect } from './effects/mud-sport-effect';
+import { WaterSportEffect } from './effects/water-sport-effect';
+import { CourtChangeEffect } from './effects/court-change-effect';
 
 /**
  * 技のレジストリ
@@ -770,6 +776,12 @@ export class MoveRegistry {
       this.registry.set('トリックルーム', new TrickRoomEffect());
       this.registry.set('ワンダールーム', new WonderRoomEffect());
       this.registry.set('グラスフィールド', new GrassyTerrainEffect());
+      // 壁・どろあそび・みずあそび・コートチェンジ（Issue #103, #107 一部）
+      this.registry.set('リフレクター', new ReflectEffect());
+      this.registry.set('ひかりのかべ', new LightScreenEffect());
+      this.registry.set('どろあそび', new MudSportEffect());
+      this.registry.set('みずあそび', new WaterSportEffect());
+      this.registry.set('コートチェンジ', new CourtChangeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
