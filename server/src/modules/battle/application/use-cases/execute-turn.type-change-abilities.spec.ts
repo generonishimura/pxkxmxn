@@ -157,6 +157,26 @@ describe('ExecuteTurnUseCase - タイプを変える特性', () => {
       // Assert
       expect(engine.status(1).volatileState.typeOverride).toEqual(['ノーマル']);
     });
+
+    it('引っ込めて出し直すと、また発動する', async () => {
+      // Arrange: ひのこでほのおタイプになってから、引っ込めて出し直す
+      const engine = setup(
+        { ability: 'リベロ', types: ['みず'] },
+        {},
+        { bench: { types: ['みず'] } },
+      );
+      await engine.runTurn({ moveId: EMBER.id }, { moveId: SPLASH.id });
+      await engine.runTurn({ switchPokemonId: 3 }, { moveId: SPLASH.id });
+      await engine.runTurn({ switchPokemonId: 1 }, { moveId: SPLASH.id });
+
+      // Act
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert: ノーマルタイプになり、たいあたりはタイプ一致
+      expect(engine.status(1).volatileState.typeOverride).toEqual(['ノーマル']);
+      expect(engine.status(1).volatileState.typeChangeAbilityUsed).toBe(true);
+      expect(engine.status(2).currentHp).toBe(160 - 36 - 36);
+    });
   });
 
   describe('ぎたい', () => {
@@ -185,6 +205,26 @@ describe('ExecuteTurnUseCase - タイプを変える特性', () => {
 
       // Act
       await engine.runTurn({ moveId: DEFOG.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.battle().field).toBe(Field.None);
+      expect(engine.status(2).volatileState.typeOverride).toBeUndefined();
+    });
+
+    it('ターン終了時にフィールドの時間が切れると、もとのタイプに戻る', async () => {
+      // Arrange
+      const engine = setup(
+        {},
+        {
+          ability: 'ぎたい',
+          types: ['じめん', 'はがね'],
+          volatileState: { typeOverride: ['でんき'] },
+        },
+        { field: Field.ElectricTerrain, terrainTurns: 1 },
+      );
+
+      // Act
+      await engine.runTurn({ moveId: SPLASH.id }, { moveId: SPLASH.id });
 
       // Assert
       expect(engine.battle().field).toBe(Field.None);
