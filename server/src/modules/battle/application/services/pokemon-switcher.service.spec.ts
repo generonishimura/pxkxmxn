@@ -43,6 +43,7 @@ describe('PokemonSwitcherService - 状態の片付け', () => {
     const incoming = createStatus(INCOMING_ID, 1, false);
     const opponent = createStatus(OPPONENT_ID, 2, true, options.opponent);
     const battleRepository = {
+      findById: jest.fn().mockResolvedValue(null),
       findActivePokemonByBattleIdAndTrainerId: jest.fn().mockResolvedValue(leaving),
       findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([leaving, incoming, opponent]),
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(incoming),

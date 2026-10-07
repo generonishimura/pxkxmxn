@@ -3,6 +3,7 @@ import { getGlobalFieldState } from '../../domain/state/side-state';
 import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
+import { BasePrimalWeatherEffect } from '@/modules/pokemon/domain/abilities/effects/base/base-primal-weather-effect';
 import { createBattleEngine, createTestMove } from '../__tests__/battle-engine-harness';
 
 /**
@@ -114,6 +115,93 @@ describe('ExecuteTurnUseCase - 天候とフィールドのターン', () => {
 
     // Assert
     expect(engine.status(2).currentHp).toBe(100);
+  });
+
+  describe('ゲンシ天候', () => {
+    class PrimordialSeaFixture extends BasePrimalWeatherEffect {
+      readonly primalWeather = 'heavyRain' as const;
+    }
+    const TACKLE = createTestMove(3, 'たいあたり', { power: 200 });
+
+    const setupPrimal = (options: { holderHp?: number; opponentAbility?: string } = {}) => {
+      AbilityRegistry.register('テストのうみ', new PrimordialSeaFixture());
+      return createBattleEngine({
+        moves: [...moves, TACKLE],
+        weather: Weather.Rain,
+        sideState: { global: { primalWeather: 'heavyRain', weatherSourceStatusId: 1 } },
+        pokemon: [
+          {
+            id: 1,
+            trainerId: 1,
+            active: true,
+            ability: 'テストのうみ',
+            moveIds: [1],
+            currentHp: options.holderHp,
+          },
+          { id: 3, trainerId: 1, moveIds: [1] },
+          {
+            id: 2,
+            trainerId: 2,
+            active: true,
+            moveIds: [1, 3],
+            ability: options.opponentAbility,
+          },
+        ],
+      });
+    };
+
+    it('ゲンシ天候を出したポケモンが交代で引っ込むと、天候が終わる', async () => {
+      // Arrange
+      const engine = setupPrimal();
+
+      // Act
+      await engine.runTurn({ switchPokemonId: 3 }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.battle().weather).toBe(Weather.None);
+      expect(getGlobalFieldState(engine.battle().sideState).primalWeather).toBeUndefined();
+      expect(getGlobalFieldState(engine.battle().sideState).weatherSourceStatusId).toBeUndefined();
+    });
+
+    it('ゲンシ天候を出したポケモンがひんしになると、天候が終わる', async () => {
+      // Arrange
+      const engine = setupPrimal({ holderHp: 1 });
+
+      // Act
+      await engine.runTurn({ moveId: SPLASH.id }, { moveId: TACKLE.id });
+
+      // Assert
+      expect(engine.status(1).isFainted()).toBe(true);
+      expect(engine.battle().weather).toBe(Weather.None);
+      expect(getGlobalFieldState(engine.battle().sideState).primalWeather).toBeUndefined();
+    });
+
+    it('場に同じゲンシ天候の特性のポケモンが残っていれば、そのポケモンに引き継ぐ', async () => {
+      // Arrange
+      const engine = setupPrimal({ opponentAbility: 'テストのうみ' });
+
+      // Act
+      await engine.runTurn({ switchPokemonId: 3 }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.battle().weather).toBe(Weather.Rain);
+      expect(getGlobalFieldState(engine.battle().sideState)).toMatchObject({
+        primalWeather: 'heavyRain',
+        weatherSourceStatusId: 2,
+      });
+    });
+
+    it('ゲンシ天候は残りターン数がないので、ターンの終わりにも終わらない', async () => {
+      // Arrange
+      const engine = setupPrimal();
+
+      // Act
+      await engine.runTurn({ moveId: SPLASH.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.battle().weather).toBe(Weather.Rain);
+      expect(getGlobalFieldState(engine.battle().sideState).primalWeather).toBe('heavyRain');
+    });
   });
 
   it('フィールドの残りが 1 のターンは、回復したあとにフィールドが終わる', async () => {

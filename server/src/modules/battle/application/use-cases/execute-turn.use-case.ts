@@ -503,13 +503,17 @@ export class ExecuteTurnUseCase {
 
   /**
    * 場でひんしになったポケモンを指している、ほかのポケモンの状態を消す
-   * 逃げられない状態・たこがため・メロメロ・バインド状態（releaseVolatileReferencesTo）。
+   * 逃げられない状態・たこがため・メロメロ・バインド状態（releaseVolatileReferencesTo）と、出したゲンシ天候。
    * ひんしのポケモンは交代で引っ込むまで場に残るので、交代の処理を待たずにここで消す（本家はひんしになったときに消す）
    */
   private async releaseReferencesToFainted(battleId: number): Promise<void> {
     const statuses =
       (await this.battleRepository.findBattlePokemonStatusByBattleId(battleId)) ?? [];
     const faintedIds = statuses.filter(s => s.isActive && s.isFainted()).map(s => s.id);
+    // ひんしのポケモンが出したゲンシ天候を終わらせる（同じ特性のポケモンが場にいれば引き継ぐ）
+    for (const faintedId of faintedIds) {
+      await this.pokemonSwitcher.releasePrimalWeather(battleId, faintedId);
+    }
     for (const status of statuses) {
       let released = status.volatileState;
       for (const faintedId of faintedIds) {

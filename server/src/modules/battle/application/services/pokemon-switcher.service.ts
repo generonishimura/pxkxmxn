@@ -23,6 +23,8 @@ import { StatusConditionHandler } from '../../domain/logic/status-condition-hand
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { NotFoundException } from '@/shared/domain/exceptions';
+// 場の状態・設置技・交代の仕組み（Issue #102 #103 #108 #110 #135 一部）
+import { PrimalWeatherReleaser } from './primal-weather-releaser';
 
 /**
  * 交代のオプション
@@ -55,12 +57,27 @@ const BATON_PASS_RANK_KEYS = [
  */
 @Injectable()
 export class PokemonSwitcherService {
+  private readonly primalWeatherReleaser: PrimalWeatherReleaser;
+
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
     @Inject(TRAINED_POKEMON_REPOSITORY_TOKEN)
     private readonly trainedPokemonRepository: ITrainedPokemonRepository,
-  ) {}
+  ) {
+    this.primalWeatherReleaser = new PrimalWeatherReleaser(
+      battleRepository,
+      trainedPokemonRepository,
+    );
+  }
+
+  /**
+   * 場を離れた・ひんしになったポケモンが出したゲンシ天候を終わらせる（同じ特性のポケモンが場にいれば引き継ぐ）
+   * 交代では executeSwitch が呼ぶ。ひんしでは ExecuteTurnUseCase が呼ぶ
+   */
+  async releasePrimalWeather(battleId: number, leavingStatusId: number): Promise<void> {
+    await this.primalWeatherReleaser.release(battleId, leavingStatusId);
+  }
 
   /**
    * 交代できない理由を返す（交代できるなら undefined）
@@ -160,9 +177,10 @@ export class PokemonSwitcherService {
     // 新しいポケモンをアクティブにする
     const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
 
-    // 引っ込んだポケモンによる、ほかのポケモンの逃げられない状態・メロメロを消す
+    // 引っ込んだポケモンによる、ほかのポケモンの逃げられない状態・メロメロを消し、出したゲンシ天候を終わらせる
     if (currentActive) {
       await this.releaseReferencesTo(currentActive.id, battleStatuses);
+      await this.releasePrimalWeather(battle.id, currentActive.id);
     }
 
     const targetStatus = battleStatuses.find(

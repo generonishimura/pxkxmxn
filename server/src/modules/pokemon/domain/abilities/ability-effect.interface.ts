@@ -7,6 +7,8 @@ import type { HitResult } from '../battle-events/hit-result';
 import type { EffectSource } from '../battle-events/effect-source';
 import type { StatChange } from '../battle-events/stat-change';
 import type { VolatileKind } from '../battle-events/volatile-infliction';
+// 場の状態・設置技・交代の仕組み（Issue #102 #103 #135 一部）
+import type { PrimalWeather } from '@/modules/battle/domain/state/side-state';
 
 /**
  * 特性効果のインターフェース
@@ -631,7 +633,8 @@ export interface IAbilityEffect {
   readonly locksMoveChoice?: boolean;
 
   /**
-   * 攻撃側: 相手のみがわりを無視して技を当てる特性かどうか（例: すりぬけ）
+   * 攻撃側: 相手のみがわり・壁（リフレクター・ひかりのかべ・オーロラベール）・しんぴのまもり・しろいきりを
+   * 無視して技を当てる特性かどうか（例: すりぬけ）
    */
   readonly infiltrates?: boolean;
 
@@ -650,4 +653,12 @@ export interface IAbilityEffect {
     _user: BattlePokemonStatus,
     _battleContext?: BattleContext,
   ): Promise<string | null>;
+  // ---- 場の状態・設置技・交代の仕組み（Issue #102 #103 #135 一部） ----
+
+  /**
+   * この特性が出すゲンシ天候（はじまりのうみ・おわりのだいち・デルタストリーム。BasePrimalWeatherEffect が持つ）
+   * ゲンシ天候を出したポケモンが場を離れたとき、場に同じゲンシ天候の特性のポケモンがいれば、
+   * エンジンがそのポケモンに天候を引き継ぐ（いなければ天候が終わる）
+   */
+  readonly primalWeather?: PrimalWeather;
 }

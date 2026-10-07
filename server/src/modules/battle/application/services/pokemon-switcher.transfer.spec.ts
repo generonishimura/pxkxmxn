@@ -68,6 +68,7 @@ describe('PokemonSwitcherService - バトンタッチ・しっぽきりの引き
     // 逃げられなくした相手（ID 3）は場にいる
     const trapper = createStatus(3, true);
     const battleRepository = {
+      findById: jest.fn().mockResolvedValue(null),
       findActivePokemonByBattleIdAndTrainerId: jest.fn().mockResolvedValue(leaving),
       findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([leaving, incoming]),
       findBattlePokemonStatusById: jest.fn((id: number) =>
