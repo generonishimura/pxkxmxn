@@ -263,6 +263,7 @@ import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 import { SkillSwapEffect } from './effects/skill-swap-effect';
 import { DoodleEffect } from './effects/doodle-effect';
 import { RolePlayEffect } from './effects/role-play-effect';
+import { GastroAcidEffect } from './effects/gastro-acid-effect';
 
 /**
  * 技のレジストリ
@@ -634,6 +635,7 @@ export class MoveRegistry {
       this.registry.set('スキルスワップ', new SkillSwapEffect());
       this.registry.set('うつしえ', new DoodleEffect());
       this.registry.set('なりきり', new RolePlayEffect());
+      this.registry.set('いえき', new GastroAcidEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
