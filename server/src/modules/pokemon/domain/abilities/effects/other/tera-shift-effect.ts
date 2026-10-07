@@ -10,7 +10,7 @@ import { changeForm } from '../../../battle-events/form-change';
  * HP の種族値が 90 から 95 になり（減った HP は保つ）、特性がテラスシェルになる（changeForm が表の abilityName を使う）。
  * スキルスワップなどで受け取ったときは呼ばれない（SWITCH_IN_ONLY_ABILITY_NAMES）。
  * テラパゴス（全国図鑑 1024）でないとき・すでにテラスタルフォルム・へんしん中・ひんしは変えない（changeForm が false を返す）
- * 注: バトル開始時は、素早さの高い相手の先発の onEntry のあとに変わることがある（本家は onSwitchInPriority 2 で先に変わる）
+ * バトル開始時は、ほかの特性の先発より先に変わる（StartBattleUseCase。本家の onSwitchInPriority 2）
  */
 export class TeraShiftEffect implements IAbilityEffect {
   private static readonly TERAPAGOS_NATIONAL_DEX = 1024;

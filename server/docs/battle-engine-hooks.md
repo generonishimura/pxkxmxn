@@ -1727,7 +1727,7 @@ return (await setAbility(attacker, name, ctx)).changed ? `copied ${name}!` : 'Bu
 
 - 特性名が `'かがくへんかガス'`（`NEUTRALIZING_GAS_ABILITY_NAME`）のポケモンが場にいて（控えは数えない。引っ込んだかがくへんかガスのみらいよちが当たるときも、相手の特性は消えない）、ひんし・いえき・へんしん中でなければ、ほかの場のポケモンの特性は効かない（実効の特性が undefined になる。消せない特性とかがくへんかガス自身は残る）。エンジンが実効の特性を求めるときに判定するので、特性の効果は要らない（`AbilityRegistry` に登録しなくても効く）
 - 場に出たときのメッセージを出したいときだけ、`onEntry` を持つ効果を登録する
-- バトル開始時は、かがくへんかガスの先発の `onEntry` を先に呼ぶ（本家の onSwitchInPriority 2）。相手の先発の特性は消えているので、ゲンシ天候・いかくなどは始まらない
+- バトル開始時は、かがくへんかガス・テラスチェンジの先発の `onEntry` を、ほかの特性より先に呼ぶ（本家の onSwitchInPriority 2）。相手の先発の特性は消えているので、ゲンシ天候・いかくなどは始まらない。イリュージョンの先発は、それよりさらに先に呼ぶ（14.8）
 - ゲンシ天候を出したポケモンの特性が消えたら、エンジンが行動のあとに天候を終わらせる（`PrimalWeatherReleaser.releaseIfAbilityLost`）
 - 注: かがくへんかガスが場を離れたとき、ほかのポケモンの特性の `onEntry` を呼び直さない（本家は呼び直すので、いかくが発動する）。場に出たときに、相手のイリュージョンを解かない
 
@@ -1773,7 +1773,7 @@ async onUse(attacker: BattlePokemonStatus, defender: BattlePokemonStatus, ctx: B
 - 化ける先: 同じトレーナーの手持ちを ID の大きい方から見て、自分以外の、ひんしでない最初のポケモン（本家の onBeforeSwitchIn。本家は場に出たポケモンを手持ちの先頭に入れ替えてから後ろを探すので、候補は自分以外の全員）。そのようなポケモンがいなければ化けない
 - 特性の `onEntry` で `illusionStatusId` を書き、`onDamagingHit` で消す（ダメージを受けたら解ける）。特性を書き換える・消すと補助関数が消す。へんしんはイリュージョンの相手・使用者に失敗する
 - 注: API はポケモンの名前・見た目を返さないので、化けた先を見せることはできない（`docs/battle-state.md` の 8 章）
-- 注: 先発どうしでは `onEntry` が素早さの順なので、かわりものの方が速いと、化ける前にへんしんされる（本家は先発全員の BeforeSwitchIn がどの SwitchIn よりも先）
+- バトル開始時は、イリュージョンの先発の `onEntry` をどの先発よりも先に呼ぶ（本家は先発全員の BeforeSwitchIn がどの SwitchIn よりも先）。そのため、相手の先発のかわりものは、素早さに関係なくへんしんに失敗する
 
 ```ts
 const statuses = await ctx.battleRepository!.findBattlePokemonStatusByBattleId(holder.battleId);
