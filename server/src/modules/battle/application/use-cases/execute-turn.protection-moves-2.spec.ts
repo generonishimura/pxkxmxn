@@ -163,7 +163,8 @@ describe('ExecuteTurnUseCase - トリックガード・ニードルガード・�
     it('出てから最初の行動なら、相手の攻撃技を防ぐ', async () => {
       // Arrange
       // たたみがえしは優先度 0 なので、相手より先に動くよう相手を遅くする
-      const engine = setup({ attackerSpeed: 50 });
+      // 最初から場にいる（switchedInTurn: 0）ポケモンの 1 ターン目は、出てから最初の行動
+      const engine = setup({ turn: 1, guardVolatile: { switchedInTurn: 0 }, attackerSpeed: 50 });
 
       // Act
       const result = await engine.runTurn({ moveId: TACKLE.id }, { moveId: MAT_BLOCK.id });
@@ -178,7 +179,7 @@ describe('ExecuteTurnUseCase - トリックガード・ニードルガード・�
 
     it('相手の変化技は防がない', async () => {
       // Arrange
-      const engine = setup({ attackerSpeed: 50 });
+      const engine = setup({ turn: 1, guardVolatile: { switchedInTurn: 0 }, attackerSpeed: 50 });
 
       // Act
       await engine.runTurn({ moveId: THUNDER_WAVE.id }, { moveId: MAT_BLOCK.id });
@@ -215,7 +216,12 @@ describe('ExecuteTurnUseCase - トリックガード・ニードルガード・�
 
     it('接触技は相手のたたみがえしを通り抜ける', async () => {
       // Arrange
-      const engine = setup({ attackerAbility: 'ふかしのこぶし', attackerSpeed: 50 });
+      const engine = setup({
+        attackerAbility: 'ふかしのこぶし',
+        turn: 1,
+        guardVolatile: { switchedInTurn: 0 },
+        attackerSpeed: 50,
+      });
 
       // Act
       await engine.runTurn({ moveId: TACKLE.id }, { moveId: MAT_BLOCK.id });

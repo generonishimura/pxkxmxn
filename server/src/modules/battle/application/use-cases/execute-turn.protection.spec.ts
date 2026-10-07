@@ -308,8 +308,10 @@ describe('ExecuteTurnUseCase - まもる系', () => {
     it('たたみがえしは、出てから最初の行動なら攻撃技を防ぎ、変化技は通す', async () => {
       // Arrange
       // たたみがえしは優先度 0 なので、相手より先に動くよう相手を遅くする
-      const attack = setup({ attackerSpeed: 50 });
-      const status = setup({ attackerSpeed: 50 });
+      // 最初から場にいる（switchedInTurn: 0）ポケモンの 1 ターン目は、出てから最初の行動
+      const firstAction = { turn: 1, guardVolatile: { switchedInTurn: 0 }, attackerSpeed: 50 };
+      const attack = setup(firstAction);
+      const status = setup(firstAction);
 
       // Act
       await attack.runTurn({ moveId: TACKLE.id }, { moveId: guardId('テストのたたみがえし') });
