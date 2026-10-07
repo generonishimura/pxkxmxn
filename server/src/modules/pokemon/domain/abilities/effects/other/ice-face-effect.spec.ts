@@ -1,6 +1,7 @@
 import { IceFaceEffect } from './ice-face-effect';
 import { createInMemoryBattle } from '../../../battle-events/__tests__/in-memory-battle';
 import { Weather } from '@/modules/battle/domain/entities/battle.entity';
+import { AbilityRegistry } from '../../ability-registry';
 
 describe('IceFaceEffect（アイスフェイス）', () => {
   const EISCUE = 875;
@@ -144,11 +145,45 @@ describe('IceFaceEffect（アイスフェイス）', () => {
   });
 
   describe('onEntry', () => {
+    beforeEach(() => {
+      AbilityRegistry.initialize();
+    });
+
     it('あられの場に出たら、アイスフェイスに戻る', async () => {
       // Arrange
       const { context, get, battleRepository } = createInMemoryBattle(
         { ability: 'アイスフェイス', nationalDex: EISCUE, status: { persistentState: broken } },
         {},
+      );
+      await battleRepository.update(1, { weather: Weather.Hail });
+
+      // Act
+      await new IceFaceEffect().onEntry(get(1), context());
+
+      // Assert
+      expect(get(1).persistentState).toEqual({});
+    });
+
+    it('相手がノーてんきで天候が消えているあられの場に出ても、戻らない', async () => {
+      // Arrange
+      const { context, get, battleRepository } = createInMemoryBattle(
+        { ability: 'アイスフェイス', nationalDex: EISCUE, status: { persistentState: broken } },
+        { ability: 'ノーてんき' },
+      );
+      await battleRepository.update(1, { weather: Weather.Hail });
+
+      // Act
+      await new IceFaceEffect().onEntry(get(1), context());
+
+      // Assert
+      expect(get(1).persistentState).toEqual(broken);
+    });
+
+    it('ノーてんきのポケモンが控えにいるだけなら、あられの場に出たら戻る', async () => {
+      // Arrange
+      const { context, get, battleRepository } = createInMemoryBattle(
+        { ability: 'アイスフェイス', nationalDex: EISCUE, status: { persistentState: broken } },
+        { ability: 'ノーてんき', status: { isActive: false } },
       );
       await battleRepository.update(1, { weather: Weather.Hail });
 
