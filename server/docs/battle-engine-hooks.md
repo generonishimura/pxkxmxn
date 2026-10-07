@@ -1683,7 +1683,7 @@ const name = await resolveAbilityName(target, ctx);                 // いえき
 ```ts
 const types = await resolveTypeNames(defender, ctx);
 if (types.join() === 'みず' || !(await setTypes(defender, ['みず'], ctx))) return 'But it failed';
-return 'transformed into the Water type!'; // みずびたし
+return 'transformed into the みず type!'; // みずびたし
 ```
 
 ### 14.3 技のタイプを変える（modifyMoveType の順・プラズマシャワー・そうでん・lastMoveTypeName）

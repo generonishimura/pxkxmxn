@@ -32,6 +32,6 @@ export class MagicPowderEffect implements IMoveEffect {
     ) {
       return 'But it failed';
     }
-    return 'The target transformed into the Psychic type!';
+    return 'The target transformed into the エスパー type!';
   }
 }

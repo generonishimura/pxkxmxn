@@ -10,7 +10,7 @@ describe('SoakEffect（みずびたし）', () => {
     const message = await new SoakEffect().onUse(get(1), get(2), context());
 
     // Assert
-    expect(message).toBe('transformed into the Water type!');
+    expect(message).toBe('transformed into the みず type!');
     expect(get(2).volatileState.typeOverride).toEqual(['みず']);
   });
 
@@ -37,7 +37,7 @@ describe('SoakEffect（みずびたし）', () => {
     const message = await new SoakEffect().onUse(get(1), get(2), context());
 
     // Assert
-    expect(message).toBe('transformed into the Water type!');
+    expect(message).toBe('transformed into the みず type!');
     expect(get(2).volatileState.typeOverride).toEqual(['みず']);
     expect(get(2).volatileState.addedType).toBeUndefined();
   });

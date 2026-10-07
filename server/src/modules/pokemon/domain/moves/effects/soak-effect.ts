@@ -21,6 +21,6 @@ export class SoakEffect implements IMoveEffect {
     if (types.join() === 'みず' || !(await setTypes(defender, ['みず'], battleContext))) {
       return 'But it failed';
     }
-    return 'transformed into the Water type!';
+    return 'transformed into the みず type!';
   }
 }
