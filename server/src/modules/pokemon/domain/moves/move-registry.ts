@@ -388,6 +388,13 @@ import { EntrainmentEffect } from './effects/entrainment-effect';
 import { DiveEffect } from './effects/dive-effect';
 // 相手の姿を写す技（Issue #112 一部）
 import { TransformEffect } from './effects/transform-effect';
+// タイプを書き換える技（Issue #103 一部）
+import { ReflectTypeEffect } from './effects/reflect-type-effect';
+import { MagicPowderEffect } from './effects/magic-powder-effect';
+import { TrickOrTreatEffect } from './effects/trick-or-treat-effect';
+import { ForestsCurseEffect } from './effects/forests-curse-effect';
+// 技のタイプを変える場の状態（Issue #107 一部）
+import { IonDelugeEffect } from './effects/ion-deluge-effect';
 
 /**
  * 技のレジストリ
@@ -886,6 +893,13 @@ export class MoveRegistry {
       this.registry.set('ダイビング', new DiveEffect());
       // 相手の姿を写す技（Issue #112 一部）
       this.registry.set('へんしん', new TransformEffect());
+      // タイプを書き換える技（Issue #103 一部）
+      this.registry.set('ミラータイプ', new ReflectTypeEffect());
+      this.registry.set('まほうのこな', new MagicPowderEffect());
+      this.registry.set('ハロウィン', new TrickOrTreatEffect());
+      this.registry.set('もりののろい', new ForestsCurseEffect());
+      // 技のタイプを変える場の状態（Issue #107 一部）
+      this.registry.set('プラズマシャワー', new IonDelugeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
