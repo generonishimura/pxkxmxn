@@ -204,6 +204,8 @@ import { ContraryEffect } from './effects/stat-change/contrary-effect';
 import { MirrorArmorEffect } from './effects/stat-change/mirror-armor-effect';
 import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
+// 急所に当たらない特性（Issue #135 一部）
+import { BattleArmorEffect } from './effects/other/battle-armor-effect';
 
 /**
  * 特性レジストリ
@@ -506,6 +508,11 @@ export class AbilityRegistry {
       this.registry.set('ミラーアーマー', new MirrorArmorEffect());
       this.registry.set('ばんけん', new GuardDogEffect());
       this.registry.set('びんじょう', new OpportunistEffect());
+      // 急所に当たらない特性（Issue #135 一部）
+      // シェルアーマーはカブトアーマーと同効果のため BattleArmorEffect を共有
+      const battleArmor = new BattleArmorEffect();
+      this.registry.set('カブトアーマー', battleArmor);
+      this.registry.set('シェルアーマー', battleArmor);
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
