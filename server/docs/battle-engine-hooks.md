@@ -1700,6 +1700,7 @@ return (await setAbility(attacker, name, ctx)).changed ? `copied ${name}!` : 'Bu
 
 - 特性名が `'かがくへんかガス'`（`NEUTRALIZING_GAS_ABILITY_NAME`）のポケモンが場にいて、ひんし・いえき・へんしん中でなければ、ほかの場のポケモンの特性は効かない（実効の特性が undefined になる。消せない特性とかがくへんかガス自身は残る）。エンジンが実効の特性を求めるときに判定するので、特性の効果は要らない（`AbilityRegistry` に登録しなくても効く）
 - 場に出たときのメッセージを出したいときだけ、`onEntry` を持つ効果を登録する
+- バトル開始時は、かがくへんかガスの先発の `onEntry` を先に呼ぶ（本家の onSwitchInPriority 2）。相手の先発の特性は消えているので、ゲンシ天候・いかくなどは始まらない
 - ゲンシ天候を出したポケモンの特性が消えたら、エンジンが行動のあとに天候を終わらせる（`PrimalWeatherReleaser.releaseIfAbilityLost`）
 - 注: かがくへんかガスが場を離れたとき、ほかのポケモンの特性の `onEntry` を呼び直さない（本家は呼び直すので、いかくが発動する）。場に出たときに、相手のイリュージョンを解かない
 

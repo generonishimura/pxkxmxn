@@ -30,6 +30,11 @@ import {
   AbilityTrigger,
 } from '@/modules/pokemon/domain/entities/ability.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
+import { transformInto } from '@/modules/pokemon/domain/battle-events/transform';
+import { setPrimalWeather } from '@/modules/pokemon/domain/battle-events/field-state';
+import { findIllusionTarget } from '@/modules/pokemon/domain/battle-events/illusion';
+import { Weather } from '../../domain/entities/battle.entity';
 import { typeOf } from '../__tests__/battle-engine-harness';
 import { StartBattleUseCase } from './start-battle.use-case';
 
@@ -296,5 +301,130 @@ describe('StartBattleUseCase - 先発の場に出たときの処理', () => {
     // Assert: floor((2 * 108 + 31) * 50 / 100) + 50 + 10 = 183
     expect(engine.statusOf(1).maxHp).toBe(183);
     expect(engine.statusOf(1).currentHp).toBe(183);
+  });
+
+  /**
+   * 相手の場のポケモン（onEntry の中で引く）
+   */
+  const opponentOf = async (holder: BattlePokemonStatus, ctx: BattleContext) =>
+    (await ctx.battleRepository!.findBattlePokemonStatusByBattleId(holder.battleId)).find(
+      status => status.trainerId !== holder.trainerId && status.isActive,
+    );
+
+  it('トレーナー 1 の先発の onEntry から、トレーナー 2 の先発が見える（かわりもの）', async () => {
+    // Arrange
+    AbilityRegistry.register('テストのかわりもの', {
+      onEntry: async (holder, ctx) => {
+        const opponent = ctx ? await opponentOf(holder, ctx) : undefined;
+        if (ctx && opponent) {
+          await transformInto(holder, opponent, ctx);
+        }
+      },
+    });
+    const engine = createStartBattle([
+      { id: 1, trainerId: 1, position: 1, ability: 'テストのかわりもの' },
+      { id: 2, trainerId: 2, position: 1 },
+    ]);
+
+    // Act
+    await engine.start();
+
+    // Assert
+    expect(engine.statusOf(1).volatileState.transformedIntoStatusId).toBe(engine.statusOf(2).id);
+  });
+
+  it('先発のイリュージョンは、あとに作る手持ちのポケモンに化けられる', async () => {
+    // Arrange
+    AbilityRegistry.register('テストのイリュージョン', {
+      onEntry: async (holder, ctx) => {
+        const statuses = await ctx!.battleRepository!.findBattlePokemonStatusByBattleId(
+          holder.battleId,
+        );
+        const target = findIllusionTarget(statuses, holder);
+        if (target) {
+          await ctx!.battleRepository!.patchVolatileState(holder.id, {
+            illusionStatusId: target.id,
+          });
+        }
+      },
+    });
+    const engine = createStartBattle([
+      { id: 1, trainerId: 1, position: 1, ability: 'テストのイリュージョン' },
+      { id: 3, trainerId: 1, position: 2 },
+      { id: 2, trainerId: 2, position: 1 },
+    ]);
+
+    // Act
+    await engine.start();
+
+    // Assert
+    expect(engine.statusOf(1).volatileState.illusionStatusId).toBe(engine.statusOf(3).id);
+  });
+
+  it('先発の onEntry は、素早さの高い方から呼ぶ', async () => {
+    // Arrange
+    const order: number[] = [];
+    AbilityRegistry.register('テストのいかく', {
+      onEntry: holder => {
+        order.push(holder.trainedPokemonId);
+      },
+    });
+    const engine = createStartBattle([
+      {
+        id: 1,
+        trainerId: 1,
+        position: 1,
+        ability: 'テストのいかく',
+        baseStats: [100, 100, 100, 100, 100, 50],
+      },
+      {
+        id: 2,
+        trainerId: 2,
+        position: 1,
+        ability: 'テストのいかく',
+        baseStats: [100, 100, 100, 100, 100, 150],
+      },
+    ]);
+
+    // Act
+    await engine.start();
+
+    // Assert
+    expect(order).toEqual([2, 1]);
+  });
+
+  it('相手の先発がかがくへんかガスなら、素早い先発のゲンシ天候は始まらない', async () => {
+    // Arrange
+    AbilityRegistry.register('テストのはじまりのうみ', {
+      primalWeather: 'heavyRain',
+      onEntry: async (holder, ctx) => {
+        if (ctx) {
+          await setPrimalWeather(ctx, holder, 'heavyRain');
+        }
+      },
+    });
+    const engine = createStartBattle([
+      {
+        id: 1,
+        trainerId: 1,
+        position: 1,
+        ability: 'テストのはじまりのうみ',
+        baseStats: [100, 100, 100, 100, 100, 150],
+      },
+      {
+        id: 2,
+        trainerId: 2,
+        position: 1,
+        ability: 'かがくへんかガス',
+        baseStats: [100, 100, 100, 100, 100, 50],
+      },
+    ]);
+
+    // Act
+    await engine.start();
+
+    // Assert
+    expect(engine.battle().weather ?? Weather.None).toBe(Weather.None);
+    expect(engine.battle().sideState.global?.primalWeather).toBeUndefined();
   });
 });
