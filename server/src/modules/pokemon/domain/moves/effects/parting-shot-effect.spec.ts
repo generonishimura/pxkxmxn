@@ -90,4 +90,38 @@ describe('PartingShotEffect（すてゼリフ）', () => {
     expect(get(1).specialAttackRank).toBe(-1);
     expect(ctx.selfSwitchCancelled).toBeUndefined();
   });
+
+  it('ミラーアーマーの相手の攻撃と特攻がどちらも -6 でも交代する', async () => {
+    // Arrange
+    const { context, get } = createInMemoryBattle(
+      {},
+      { ability: 'ミラーアーマー', status: { attackRank: -6, specialAttackRank: -6 } },
+    );
+    const ctx = context();
+
+    // Act
+    await new PartingShotEffect().onUse(get(1), get(2), ctx);
+
+    // Assert
+    expect(get(1).attackRank).toBe(0);
+    expect(get(1).specialAttackRank).toBe(0);
+    expect(ctx.selfSwitchCancelled).toBeUndefined();
+  });
+
+  it('かたやぶりの使い手でも、ミラーアーマーの相手の攻撃と特攻がどちらも -6 なら交代する', async () => {
+    // Arrange
+    const { context, get } = createInMemoryBattle(
+      { ability: 'かたやぶり' },
+      { ability: 'ミラーアーマー', status: { attackRank: -6, specialAttackRank: -6 } },
+    );
+    const ctx = context();
+
+    // Act
+    await new PartingShotEffect().onUse(get(1), get(2), ctx);
+
+    // Assert
+    expect(get(2).attackRank).toBe(-6);
+    expect(get(2).specialAttackRank).toBe(-6);
+    expect(ctx.selfSwitchCancelled).toBeUndefined();
+  });
 });
