@@ -821,7 +821,7 @@ shouldFail(attacker: BattlePokemonStatus): boolean {
 - 使う技: 今は使う技はない（`protection` で足りる）。`protection` を持たないのに `protectCount` を残す技を作るときだけ使う
 
 ```ts
-export class ProtectEffect implements IMoveEffect {
+export class ExampleStallKeeperEffect implements IMoveEffect { // 例（protection を持たずに protectCount を残す技）
   readonly isProtectionMove = true;
 }
 ```
