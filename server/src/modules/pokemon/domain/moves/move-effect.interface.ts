@@ -228,7 +228,8 @@ export interface IMoveEffect {
    * テレポート・さむいギャグ = true、バトンタッチ = 'batonPass'、しっぽきり = 'shedTail'）
    * エンジンが技のあとに使用者の陣営の pendingChoice を書き、行動のすぐあとに交代させる。
    * 使用者がひんし・控えがいない・技が外れた/失敗した/効果がなかったときは交代しない。
-   * 技の効果で交代をやめるときは battleContext.selfSwitchCancelled = true にする（すてゼリフで能力が下がらなかったとき）
+   * 変化技の onUse が 'But it failed' で始まるメッセージを返したときも交代しない（エンジンが selfSwitchCancelled を立てる）。
+   * それ以外で交代をやめるときは battleContext.selfSwitchCancelled = true にする（すてゼリフで能力が下がらなかったとき）
    */
   readonly selfSwitch?: true | 'batonPass' | 'shedTail';
 

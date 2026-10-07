@@ -971,6 +971,10 @@ export class MoveExecutorService {
       if (moveEffect?.onUse) {
         moveEffectMessage = await moveEffect.onUse(attacker, defender, battleContext);
       }
+      // onUse が失敗を返したら、とんぼがえり系の交代もしない（本家も技が失敗したら selfSwitch しない）
+      if (moveEffectMessage?.startsWith('But it failed') === true) {
+        battleContext.selfSwitchCancelled = true;
+      }
       await this.scheduleSwitchesAfterMove({
         battle,
         moveEffect,

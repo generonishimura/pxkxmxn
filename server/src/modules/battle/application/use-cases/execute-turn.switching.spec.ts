@@ -24,7 +24,20 @@ describe('ExecuteTurnUseCase - 技・特性による交代', () => {
   const REVIVAL = createTestMove(6, 'テストのさいきのいのり', { category: MoveCategory.Status });
   const SPLASH = createTestMove(7, 'はねる', { category: MoveCategory.Status });
   const PARTING = createTestMove(8, 'テストのすてゼリフ', { category: MoveCategory.Status });
-  const moves = [TACKLE, U_TURN, ROAR, DRAGON_TAIL, BATON_PASS, REVIVAL, SPLASH, PARTING];
+  const FAILED_SHED_TAIL = createTestMove(9, 'テストの失敗するしっぽきり', {
+    category: MoveCategory.Status,
+  });
+  const moves = [
+    TACKLE,
+    U_TURN,
+    ROAR,
+    DRAGON_TAIL,
+    BATON_PASS,
+    REVIVAL,
+    SPLASH,
+    PARTING,
+    FAILED_SHED_TAIL,
+  ];
   const allMoveIds = moves.map(m => m.id);
 
   const effects: Record<string, IMoveEffect> = {
@@ -44,6 +57,10 @@ describe('ExecuteTurnUseCase - 技・特性による交代', () => {
         ctx.selfSwitchCancelled = true;
         return 'But it failed';
       },
+    },
+    テストの失敗するしっぽきり: {
+      selfSwitch: 'shedTail',
+      onUse: async () => 'But it failed',
     },
   };
 
@@ -146,6 +163,19 @@ describe('ExecuteTurnUseCase - 技・特性による交代', () => {
 
       // Assert
       expect(engine.active(1)?.id).toBe(1);
+    });
+
+    it('変化技の onUse が But it failed を返すと交代せず、みがわりも引き継がない', async () => {
+      // Arrange
+      const engine = setup({ p1: { volatileState: { substituteHp: 40 } } });
+
+      // Act
+      const result = await engine.runTurn({ moveId: FAILED_SHED_TAIL.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.active(1)?.id).toBe(1);
+      expect(engine.status(3).volatileState.substituteHp).toBeUndefined();
+      expect(result.actions.filter(a => a.trainerId === 1).map(a => a.action)).toEqual(['move']);
     });
   });
 

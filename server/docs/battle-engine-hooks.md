@@ -1151,9 +1151,9 @@ await clearSideConditions(ctx, ctx.battle.trainer2Id, SCREEN_KEYS);
 #### selfSwitch（技のプロパティ）
 
 - 型: `readonly selfSwitch?: true | 'batonPass' | 'shedTail'`（`IMoveEffect`）
-- 参照する場所: `MoveExecutorService` の技の本体の最後（変化技は `onUse` のあと、攻撃技はダメージを与えた・みがわりに当たったとき）。使用者がひんしでなく、控えがいて、`ctx.selfSwitchCancelled` でなく、相手のききかいひが発動していなければ、使用者の陣営に `pendingChoice` を書く
+- 参照する場所: `MoveExecutorService` の技の本体の最後（変化技は `onUse` のあと、攻撃技はダメージを与えた・みがわりに当たったとき）。使用者がひんしでなく、控えがいて、`ctx.selfSwitchCancelled` でなく、相手のききかいひが発動していなければ、使用者の陣営に `pendingChoice` を書く。変化技の `onUse` が `But it failed` で始まるメッセージを返したら、エンジンが `ctx.selfSwitchCancelled = true` にする（本家も技が失敗したら交代しない）
 - `'batonPass'` は能力ランクと `BATON_PASS_KEYS`、`'shedTail'` は `substituteHp` を次のポケモンに引き継ぐ
-- 控えがいないときに失敗する技（テレポート・バトンタッチ・しっぽきり）は、`onUse` で `hasSwitchTarget` を見て `But it failed` を返す（エンジンは交代しないだけで、失敗にはしない）
+- 控えがいないときに失敗する技（テレポート・バトンタッチ・しっぽきり）は、`onUse` で `hasSwitchTarget` を見て `But it failed` を返す（エンジンは交代しないだけで、失敗にはしない）。`But it failed` 以外のメッセージで失敗を表すときは、`ctx.selfSwitchCancelled = true` も立てる
 - 使う技: とんぼがえり・ボルトチェンジ・クイックターン（攻撃技）、すてゼリフ・テレポート・さむいギャグ（`true`）、バトンタッチ（`'batonPass'`）、しっぽきり（`'shedTail'`。HP を払ってみがわりを書くのは `onUse`）
 
 ```ts
@@ -1277,7 +1277,7 @@ return grounded; // ありじごく（trapsOpponent では target.grounded が�
 | どろあそび・みずあそび | `mudSportTurns` / `waterSportTurns: 5`（11.3） |
 | コートチェンジ | `swapSideConditions(ctx)`（11.4） |
 | さいきのいのり | `hasFaintedPartyMember` で失敗判定と `requestSwitch(ctx, attacker.trainerId, 'revivalBlessing')`（11.5） |
-| しっぽきり | `selfSwitch = 'shedTail'`。`onUse` で、控えなし・HP が最大 HP の半分以下・みがわりがあれば失敗、`Math.ceil(maxHp / 2)` を払い `substituteHp: Math.floor(maxHp / 4)` を書く |
+| しっぽきり | `selfSwitch = 'shedTail'`。`onUse` で、控えなし・みがわりがある・`attacker.currentHp <= Math.ceil(attacker.maxHp / 2)` なら `But it failed` を返す（エンジンが交代を止める。ほかのメッセージで失敗するなら `ctx.selfSwitchCancelled = true` も立てる）。成功なら `Math.ceil(maxHp / 2)` を払い `substituteHp: Math.floor(maxHp / 4)` を書く |
 | さむいギャグ | `selfSwitch = true` と `setWeather(ctx, Weather.Hail)`（ゆきがないので近似。7 章） |
 | ひかりのかべ | `BaseSideConditionMoveEffect`（`lightScreenTurns`, 5） |
 | おいかぜ | `BaseSideConditionMoveEffect`（`tailwindTurns`, 4） |
