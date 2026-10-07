@@ -259,6 +259,10 @@ import { FoulPlayEffect } from './effects/foul-play-effect';
 import { ChipAwayEffect } from './effects/chip-away-effect';
 // 相手のランクを奪う技（Issue #129 一部）
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
+// まもる系の技（トリックガード・ニードルガード・たたみがえし）（Issue #120 一部）
+import { CraftyShieldEffect } from './effects/crafty-shield-effect';
+import { SpikyShieldEffect } from './effects/spiky-shield-effect';
+import { MatBlockEffect } from './effects/mat-block-effect';
 
 /**
  * 技のレジストリ
@@ -626,6 +630,10 @@ export class MoveRegistry {
       this.registry.set('ＤＤラリアット', chipAwayEffect);
       // 相手のランクを奪う技（Issue #129 一部）
       this.registry.set('シャドースチール', new SpectralThiefEffect());
+      // まもる系の技（トリックガード・ニードルガード・たたみがえし）（Issue #120 一部）
+      this.registry.set('トリックガード', new CraftyShieldEffect());
+      this.registry.set('ニードルガード', new SpikyShieldEffect());
+      this.registry.set('たたみがえし', new MatBlockEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
