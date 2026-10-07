@@ -17,7 +17,8 @@ import { MoveBehaviors } from '../../../moves/move-behaviors';
  *   注: 本家は、おどりこで出した技でも、おどりこのポケモンがこのターンまだ行動していなければ（queue.willMove）
  *       1 引いて 4 にする。エンジンが呼ばれた技に「使用者がこのあと行動するか」を渡さないので、ここでは常に 5 にしている
  * - 次のときは発動しない: 相手がすでにかなしばりを受けている、わるあがき・みらいよち・はめつのねがい、
- *   最後に出した技が技の欄にない・PP が 0、アロマベールなどで防がれる（tryApplyVolatile が判定する）
+ *   最後に出した技の PP が 0、アロマベールなどで防がれる（tryApplyVolatile が判定する）。
+ *   最後に出した技が技の欄にない（ものまねで変わったなど）ときは、本家と同じく発動する
  * - 確率は追加効果ではないので、てんのめぐみ・りんぷんの影響を受けない（本家と同じ）
  */
 export class CursedBodyEffect implements IAbilityEffect {
@@ -58,7 +59,8 @@ export class CursedBodyEffect implements IAbilityEffect {
         attacker.id,
       );
     const slot = findMoveSlot(resolveMoveSlots(moves, attacker.volatileState), moveId);
-    if (!slot || slot.currentPp <= 0) {
+    // 本家のかなしばりの onStart と同じく、欄の PP が 0 のときだけ失敗する（欄がないときは止めない）
+    if (slot !== undefined && slot.currentPp <= 0) {
       return null;
     }
 

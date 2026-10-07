@@ -113,6 +113,20 @@ describe('CursedBodyEffect（のろわれボディ）', () => {
     expect(message).toBeNull();
   });
 
+  it('相手が最後に出した技が技の欄になくても（ものまねで変わったなど）、かなしばりにする（本家と同じ）', async () => {
+    // Arrange
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    const MIMICKED_ID = 50;
+    const battle = setup({ lastMoveId: MIMICKED_ID });
+
+    // Act
+    const message = await trigger(battle);
+
+    // Assert
+    expect(battle.get(1).volatileState.disable).toEqual({ moveId: MIMICKED_ID, turns: 4 });
+    expect(message).toBe('のろわれボディ activated! was disabled!');
+  });
+
   it('相手が最後に出した技がなければ、かなしばりにしない', async () => {
     // Arrange
     jest.spyOn(Math, 'random').mockReturnValue(0);
