@@ -157,13 +157,27 @@ describe('ExecuteTurnUseCase - トリックガード・ニードルガード・�
       expect(result.actions[0].result).toBe('Used ニードルガード but it failed');
       expect(engine.status(2).currentHp).toBe(124);
     });
+
+    it('続けて使っても、乱数が 1/3 より小さければ成功する', async () => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(0.33);
+      const engine = setup({ guardVolatile: { protectCount: 1 } });
+
+      // Act
+      const result = await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPIKY_SHIELD.id });
+
+      // Assert
+      expect(result.actions[0].result).toBe('Used ニードルガード protected itself!');
+      expect(engine.status(2).currentHp).toBe(160);
+    });
   });
 
   describe('たたみがえし', () => {
     it('出てから最初の行動なら、相手の攻撃技を防ぐ', async () => {
       // Arrange
       // たたみがえしは優先度 0 なので、相手より先に動くよう相手を遅くする
-      const engine = setup({ attackerSpeed: 50 });
+      // 最初から場にいる（switchedInTurn: 0）ポケモンの 1 ターン目は、出てから最初の行動
+      const engine = setup({ turn: 1, guardVolatile: { switchedInTurn: 0 }, attackerSpeed: 50 });
 
       // Act
       const result = await engine.runTurn({ moveId: TACKLE.id }, { moveId: MAT_BLOCK.id });
@@ -178,7 +192,7 @@ describe('ExecuteTurnUseCase - トリックガード・ニードルガード・�
 
     it('相手の変化技は防がない', async () => {
       // Arrange
-      const engine = setup({ attackerSpeed: 50 });
+      const engine = setup({ turn: 1, guardVolatile: { switchedInTurn: 0 }, attackerSpeed: 50 });
 
       // Act
       await engine.runTurn({ moveId: THUNDER_WAVE.id }, { moveId: MAT_BLOCK.id });
@@ -215,7 +229,12 @@ describe('ExecuteTurnUseCase - トリックガード・ニードルガード・�
 
     it('接触技は相手のたたみがえしを通り抜ける', async () => {
       // Arrange
-      const engine = setup({ attackerAbility: 'ふかしのこぶし', attackerSpeed: 50 });
+      const engine = setup({
+        attackerAbility: 'ふかしのこぶし',
+        turn: 1,
+        guardVolatile: { switchedInTurn: 0 },
+        attackerSpeed: 50,
+      });
 
       // Act
       await engine.runTurn({ moveId: TACKLE.id }, { moveId: MAT_BLOCK.id });

@@ -826,7 +826,7 @@ shouldFail(attacker: BattlePokemonStatus): boolean {
 - 使う技: 今は使う技はない（`protection` で足りる）。`protection` を持たないのに `protectCount` を残す技を作るときだけ使う
 
 ```ts
-export class ProtectEffect implements IMoveEffect {
+export class ExampleStallKeeperEffect implements IMoveEffect { // 例（protection を持たずに protectCount を残す技）
   readonly isProtectionMove = true;
 }
 ```
@@ -1479,7 +1479,7 @@ export class NoGuardEffect implements IAbilityEffect {
 
 - シグネチャ: `modifyFractionalPriority?(holder, battleContext?): number | undefined`
 - 呼ばれる場所: `ActionOrderDeterminerService`（と `ActionOrderDeterminer`）。`modifyPriority` のあとの優先度に足す。-1 より大きく 1 より小さい値を返すので、優先度の違いは越えない（本家の onFractionalPriority）。`battleContext.moveCategory` などは行動するポケモンが選んだ技。技の実行中の `effectivePriority` には入らない
-- 使う特性: きんしのちから（変化技なら -0.1）、あとだし（-0.1。`StallEffect` は乗せ換え済み）、クイックドロウ（攻撃技で 30% なら +0.1）
+- 使う特性: きんしのちから（変化技なら -0.1）、あとだし（-0.1。`StallEffect` は乗せ換え済み）、クイックドロウ（攻撃技で 30% なら +0.1。`QuickDrawEffect` は乗せ換え済み）
 - 素早さを変えないので、トリックルームの間も順番は逆にならない（本家と同じ）。同じ優先度の中で先・後に動かす特性は、`modifySpeed` ではなくこのフックで作る
 
 ```ts
@@ -1578,7 +1578,7 @@ MoveBehaviors.has('フェイント', 'noProtect'); // true
 #### こらえる（protection: 'endure'）
 
 - `protection` が `'endure'` のポケモンは、そのターンに技のダメージで HP が 0 になるとき、HP が 1 残る（連続技はヒットごと）。メッセージに `The opponent endured the hit!` が付く
-- 技以外のダメージ（どく・すなあらしなど）と、こんらんの自傷では残らない（本家と同じ）
+- 技以外のダメージ（どく・すなあらしなど）では残らない（本家と同じ）。こんらんの自傷でも残らない。本家では残るが、シングルバトルではこらえるを使ったポケモンはそのターンもう動いているので、同じターンにこんらんの自傷を受けることはない
 
 ```ts
 export class EndureEffect implements IMoveEffect {

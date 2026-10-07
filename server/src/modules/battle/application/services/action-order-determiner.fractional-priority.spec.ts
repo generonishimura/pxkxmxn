@@ -204,4 +204,39 @@ describe.each([
       expect(order).toEqual([1, 2]);
     });
   });
+
+  describe('クイックドロウ', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('発動すると、遅くても同じ優先度の中で先に動く', async () => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+
+      // Act
+      const order = await determineOrder(PHYSICAL_MOVE, PHYSICAL_MOVE, {
+        second: 'クイックドロウ',
+      });
+
+      // Assert
+      expect(order).toEqual([2, 1]);
+    });
+
+    it('トリックルームの間も、発動すれば同じ優先度の中で先に動く（速くても後にならない）', async () => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+
+      // Act
+      const order = await determineOrder(
+        PHYSICAL_MOVE,
+        PHYSICAL_MOVE,
+        { first: 'クイックドロウ' },
+        trickRoomBattle,
+      );
+
+      // Assert
+      expect(order).toEqual([1, 2]);
+    });
+  });
 });
