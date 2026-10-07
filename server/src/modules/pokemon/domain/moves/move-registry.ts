@@ -287,6 +287,12 @@ import { BeakBlastEffect } from './effects/beak-blast-effect';
 // PP を減らす技（Issue #103, #107 一部）
 import { SpiteEffect } from './effects/spite-effect';
 import { GrudgeEffect } from './effects/grudge-effect';
+// 一時的な状態を付与する変化技（Issue #103 一部）
+import { LockOnEffect } from './effects/lock-on-effect';
+import { ForesightEffect } from './effects/foresight-effect';
+import { AttractEffect } from './effects/attract-effect';
+import { TormentEffect } from './effects/torment-effect';
+import { ImprisonEffect } from './effects/imprison-effect';
 
 /**
  * 技のレジストリ
@@ -682,6 +688,14 @@ export class MoveRegistry {
       // PP を減らす技（Issue #103, #107 一部）
       this.registry.set('うらみ', new SpiteEffect());
       this.registry.set('おんねん', new GrudgeEffect());
+      // 一時的な状態を付与する変化技（Issue #103 一部）
+      const lockOnEffect = new LockOnEffect();
+      this.registry.set('こころのめ', lockOnEffect);
+      this.registry.set('ロックオン', lockOnEffect);
+      this.registry.set('みやぶる', new ForesightEffect());
+      this.registry.set('メロメロ', new AttractEffect());
+      this.registry.set('いちゃもん', new TormentEffect());
+      this.registry.set('ふういん', new ImprisonEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
