@@ -284,6 +284,9 @@ import { GulpMissileEffect } from './effects/other/gulp-missile-effect';
 import { HungerSwitchEffect } from './effects/other/hunger-switch-effect';
 import { ZeroToHeroEffect } from './effects/other/zero-to-hero-effect';
 import { TeraShiftEffect } from './effects/other/tera-shift-effect';
+// 姿を写す・化ける特性（Issue #135 一部）
+import { ImposterEffect } from './effects/other/imposter-effect';
+import { IllusionEffect } from './effects/other/illusion-effect';
 
 /**
  * 特性レジストリ
@@ -672,6 +675,9 @@ export class AbilityRegistry {
       this.registry.set('はらぺこスイッチ', new HungerSwitchEffect());
       this.registry.set('マイティチェンジ', new ZeroToHeroEffect());
       this.registry.set('テラスチェンジ', new TeraShiftEffect());
+      // 姿を写す・化ける特性（Issue #135 一部）
+      this.registry.set('かわりもの', new ImposterEffect());
+      this.registry.set('イリュージョン', new IllusionEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

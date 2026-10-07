@@ -1770,9 +1770,10 @@ async onUse(attacker: BattlePokemonStatus, defender: BattlePokemonStatus, ctx: B
 ### 14.8 イリュージョン（findIllusionTarget / illusionStatusId）
 
 - シグネチャ: `findIllusionTarget(statuses, holder): BattlePokemonStatus | undefined`（`illusion.ts`）
-- 化ける先: 同じトレーナーの手持ちを ID の大きい方から見て、自分より後ろにいる、ひんしでない最初のポケモン（本家の onBeforeSwitchIn）。自分が最後なら化けない
+- 化ける先: 同じトレーナーの手持ちを ID の大きい方から見て、自分以外の、ひんしでない最初のポケモン（本家の onBeforeSwitchIn。本家は場に出たポケモンを手持ちの先頭に入れ替えてから後ろを探すので、候補は自分以外の全員）。そのようなポケモンがいなければ化けない
 - 特性の `onEntry` で `illusionStatusId` を書き、`onDamagingHit` で消す（ダメージを受けたら解ける）。特性を書き換える・消すと補助関数が消す。へんしんはイリュージョンの相手・使用者に失敗する
 - 注: API はポケモンの名前・見た目を返さないので、化けた先を見せることはできない（`docs/battle-state.md` の 8 章）
+- 注: 先発どうしでは `onEntry` が素早さの順なので、かわりものの方が速いと、化ける前にへんしんされる（本家は先発全員の BeforeSwitchIn がどの SwitchIn よりも先）
 
 ```ts
 const statuses = await ctx.battleRepository!.findBattlePokemonStatusByBattleId(holder.battleId);

@@ -295,7 +295,7 @@ describe('タイプ・特性を書き換える補助関数', () => {
         null,
       );
 
-    it('手持ちの最後の、ひんしでないポケモンに化ける（本家と同じく、自分より後ろだけ）', () => {
+    it('手持ちの最後の、ひんしでないポケモンに化ける', () => {
       // Arrange
       const statuses = [status(1, 1), status(2, 2), status(3, 1), status(5, 1, 0), status(4, 1)];
 
@@ -306,12 +306,23 @@ describe('タイプ・特性を書き換える補助関数', () => {
       expect(target?.id).toBe(4);
     });
 
-    it('自分が手持ちの最後なら、化けない', () => {
+    it('自分が手持ちの最後なら、自分より前の、ひんしでないポケモンに化ける', () => {
       // Arrange
       const statuses = [status(1, 1), status(3, 1)];
 
       // Act
       const target = findIllusionTarget(statuses, statuses[1]);
+
+      // Assert
+      expect(target?.id).toBe(1);
+    });
+
+    it('自分以外の手持ちがすべてひんしなら、化けない', () => {
+      // Arrange
+      const statuses = [status(1, 1, 0), status(2, 2), status(3, 1)];
+
+      // Act
+      const target = findIllusionTarget(statuses, statuses[2]);
 
       // Assert
       expect(target).toBeUndefined();
