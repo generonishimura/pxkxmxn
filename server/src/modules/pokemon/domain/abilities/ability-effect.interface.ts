@@ -831,4 +831,18 @@ export interface IAbilityEffect {
    * 注: メッセージは出せない
    */
   onTerrainChange?(_holder: BattlePokemonStatus, _battleContext?: BattleContext): Promise<void>;
+
+  /**
+   * 相手が交代で場に出たとき（例: トレース = 場に出たときに写せなかったら、写せる相手が出てきたときに写す）
+   * PokemonSwitcherService.executeSwitch が、場に出たポケモンの onEntry のあとに、相手の場のひんしでないポケモンの
+   * 実効の特性で呼ぶ（本家の Trace の onUpdate の seek）。場に出たポケモンが設置技でひんしになったら呼ばない
+   * 注: バトル開始時は呼ばない（先発の onEntry は、両方の先発が場に出てから呼ぶので、相手を見られる）。メッセージは出せない
+   * @param holder この特性を持つ、場のポケモン
+   * @param entered 場に出た相手（設置技・onEntry のあとの状態）
+   */
+  onFoeEntry?(
+    _holder: BattlePokemonStatus,
+    _entered: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<void>;
 }

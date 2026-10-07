@@ -1705,7 +1705,7 @@ modifyBasePower(_p: BattlePokemonStatus, power: number, ctx?: BattleContext): nu
 - `suppressAbility`: `abilitySuppressed` を書く。ひんし・`cantSuppress`・すでに消されているなら false
 - `resolveCurrentAbilityName`: 今の特性名（消されているかは見ない。本家の `pokemon.ability`）。なりきり・スキルスワップで写す特性や、ミイラで上書きできるかに使う
 - 技ごとの失敗（なりきりで同じ特性・`failRolePlay`、なかまづくりの `noEntrain`、なやみのタネのふみん・なまけ、シンプルビームのたんじゅん・なまけ）は呼ぶ側で判定する
-- 使う技・特性: スキルスワップ・さまようたましい（`swapAbilities`。さまようたましいは `onDamagingHit` で `hit.isContact` のとき）、なりきり（使用者に相手の特性）・なかまづくり（相手に使用者の特性）・なやみのタネ（ふみん。ねむっていれば起こす）・シンプルビーム（たんじゅん）・うつしえ（使用者に相手の特性）・トレース（`onEntry` で相手の特性。`noTrace` なら写さない）・ミイラ・とれないにおい（`onDamagingHit` で接触した相手に。相手が `cantSuppress` か同じ特性なら何もしない）、いえき（`suppressAbility`）・コアパニッシャー（相手がもう行動していて、このターンに交代で出たのでなければ `suppressAbility`。本家の newlySwitched）
+- 使う技・特性: スキルスワップ・さまようたましい（`swapAbilities`。さまようたましいは `onDamagingHit` で `hit.isContact` のとき）、なりきり（使用者に相手の特性）・なかまづくり（相手に使用者の特性）・なやみのタネ（ふみん。ねむっていれば起こす）・シンプルビーム（たんじゅん）・うつしえ（使用者に相手の特性）・トレース（`onEntry` で相手の特性。`noTrace` なら写さない。写せなかったら、今の特性がまだトレースの間、`onFoeEntry` で新しく出てきた相手の特性を写す。本家の onUpdate の seek）・ミイラ・とれないにおい（`onDamagingHit` で接触した相手に。相手が `cantSuppress` か同じ特性なら何もしない）、いえき（`suppressAbility`）・コアパニッシャー（相手がもう行動していて、このターンに交代で出たのでなければ `suppressAbility`。本家の newlySwitched）
 
 ```ts
 const name = await resolveCurrentAbilityName(defender, ctx);
@@ -1817,6 +1817,21 @@ const form = weather === Weather.Sun ? 'sunny' : weather === Weather.Rain ? 'rai
 if (ctx) await changeForm(holder, form, ctx); // てんきや（onWeatherChange と onEntry の中）
 ```
 
+### 14.11a onFoeEntry（特性、場に出た相手を見る）
+
+- シグネチャ: `onFoeEntry?(holder, entered, ctx?): Promise<void>`
+- 呼ばれる場所: `PokemonSwitcherService.executeSwitch`。交代で出たポケモンの `onEntry` のあとに、相手の場のひんしでないポケモンの実効の特性で呼ぶ。`entered` は設置技・`onEntry` のあとの状態。出たポケモンが設置技でひんしになったら呼ばない
+- バトル開始時は呼ばない（先発の `onEntry` は両方の先発が場に出てから呼ぶので、`onEntry` で相手を見られる）。メッセージは出せない
+- 使う特性: トレース（場に出たときに写せる相手がいなかったら、写せる相手が出てきたときに写す）
+
+```ts
+async onFoeEntry(holder: BattlePokemonStatus, entered: BattlePokemonStatus, ctx?: BattleContext) {
+  if (!ctx || (await resolveCurrentAbilityName(holder, ctx)) !== 'トレース') return; // もう写した
+  const name = await resolveCurrentAbilityName(entered, ctx);
+  if (name && !hasAbilityFlag(name, 'noTrace')) await setAbility(holder, name, ctx); // トレース
+}
+```
+
 ### 14.12 近似と注意
 
 - 注: `setAbility` は、書き換える前の特性の終わり（本家の End）を呼ばない。ゲンシ天候だけは、エンジンが行動のあとに終わらせる（`releaseIfAbilityLost`）
@@ -1839,7 +1854,7 @@ if (ctx) await changeForm(holder, form, ctx); // てんきや（onWeatherChange 
 | いえき | `suppressAbility(defender, ctx)`（14.4） |
 | コアパニッシャー | ダメージのあと、`ctx.defenderPendingMoveId` がなく（相手がもう行動した）、`defender.volatileState.switchedInTurn !== ctx.battle.turn`（このターンに交代で出たのではない）なら `suppressAbility`。このターンに交代で出た相手は消さない（本家の newlySwitched） |
 | うつしえ | 相手の今の特性（`failRolePlay` なら失敗）を `setAbility(attacker, ...)`。シングルバトルでは味方がいない |
-| トレース | `onEntry` で相手の今の特性（`noTrace` でなければ）を `setAbility` |
+| トレース | `onEntry` で相手の今の特性（`noTrace` でなければ）を `setAbility`。写せなかったときは `onFoeEntry`（14.11a）で、今の特性がまだトレースなら、出てきた相手の特性を写す |
 | ミイラ・とれないにおい | `onDamagingHit` で `hit.isContact` なら、相手が `cantSuppress` か同じ特性でなければ `setAbility(attacker, '<自分の特性名>', ctx)` |
 | さまようたましい | `onDamagingHit` で `hit.isContact` なら `swapAbilities(holder, attacker, ctx)` |
 | かがくへんかガス | 要らない（エンジンが判定する。14.5） |

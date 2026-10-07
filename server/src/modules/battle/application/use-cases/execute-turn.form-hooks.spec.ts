@@ -244,6 +244,62 @@ describe('ExecuteTurnUseCase - タイプ・フォルムを変える特性のフ�
     });
   });
 
+  describe('onFoeEntry', () => {
+    const switchSetup = (entering: Partial<HarnessPokemon> = {}) =>
+      createBattleEngine({
+        moves: MOVES,
+        pokemon: [
+          { id: 1, trainerId: 1, active: true, moveIds: ALL_MOVES, ability: 'テストのトレース' },
+          { id: 2, trainerId: 2, active: true, moveIds: ALL_MOVES, baseSpeed: 50 },
+          { id: 4, trainerId: 2, moveIds: ALL_MOVES, ability: 'テストのいかく', ...entering },
+        ],
+      });
+
+    it('相手が交代で出たら、その onEntry のあとに、場のポケモンの特性の onFoeEntry が呼ばれる（トレース）', async () => {
+      // Arrange
+      const calls: string[] = [];
+      AbilityRegistry.register('テストのいかく', {
+        onEntry: () => {
+          calls.push('onEntry');
+        },
+      });
+      AbilityRegistry.register('テストのトレース', {
+        onFoeEntry: async (holder, entered) => {
+          calls.push(`onFoeEntry ${holder.id} ${entered.id} ${entered.isActive}`);
+        },
+      });
+      const engine = switchSetup();
+
+      // Act
+      await engine.runTurn({ moveId: SPLASH.id }, { switchPokemonId: 4 });
+
+      // Assert
+      expect(calls).toEqual(['onEntry', 'onFoeEntry 1 4 true']);
+    });
+
+    it('交代で出たポケモンが設置技でひんしになったら、onFoeEntry は呼ばない', async () => {
+      // Arrange
+      const onFoeEntry = jest.fn().mockResolvedValue(undefined);
+      AbilityRegistry.register('テストのトレース', { onFoeEntry });
+      const engine = createBattleEngine({
+        moves: MOVES,
+        sideState: { sides: { '2': { stealthRock: true } } },
+        pokemon: [
+          { id: 1, trainerId: 1, active: true, moveIds: ALL_MOVES, ability: 'テストのトレース' },
+          { id: 2, trainerId: 2, active: true, moveIds: ALL_MOVES, baseSpeed: 50 },
+          { id: 4, trainerId: 2, moveIds: ALL_MOVES, currentHp: 1 },
+        ],
+      });
+
+      // Act
+      await engine.runTurn({ moveId: SPLASH.id }, { switchPokemonId: 4 });
+
+      // Assert
+      expect(engine.status(4).currentHp).toBe(0);
+      expect(onFoeEntry).not.toHaveBeenCalled();
+    });
+  });
+
   describe('onWeatherChange / onTerrainChange', () => {
     it('技で天候が変わると、場のポケモンの特性の onWeatherChange が呼ばれる', async () => {
       // Arrange

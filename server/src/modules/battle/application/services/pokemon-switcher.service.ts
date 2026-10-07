@@ -330,7 +330,34 @@ export class PokemonSwitcherService {
         trainedPokemonRepository: this.trainedPokemonRepository,
       });
     }
+    if (entered) {
+      await this.notifyFoeEntry(battle, entered.id);
+    }
     return entryMessages;
+  }
+
+  /**
+   * 場に出たポケモンの相手（場のひんしでないポケモン）の特性の onFoeEntry を呼ぶ（トレースが写せる相手を見つける）
+   * 場に出たポケモンの onEntry のあとに呼ぶ。場に出たポケモンは読み直した状態を渡す
+   */
+  private async notifyFoeEntry(battle: Battle, enteredStatusId: number): Promise<void> {
+    const statuses =
+      (await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id)) ?? [];
+    const entered = statuses.find(status => status.id === enteredStatusId);
+    if (!entered || entered.isFainted()) {
+      return;
+    }
+    for (const foe of statuses) {
+      if (foe.trainerId === entered.trainerId || !foe.isActive || foe.isFainted()) {
+        continue;
+      }
+      const effect = await this.abilityEffectOf(foe);
+      await effect?.onFoeEntry?.(foe, entered, {
+        battle: (await this.battleRepository.findById(battle.id)) ?? battle,
+        battleRepository: this.battleRepository,
+        trainedPokemonRepository: this.trainedPokemonRepository,
+      });
+    }
   }
 
   /**
