@@ -229,7 +229,7 @@ export class ActionOrderDeterminerService {
       }
     }
 
-    // 同じ優先度の中での順番（きんしのちから・あとだし。本家の onFractionalPriority）
+    // 同じ優先度の中での順番（きんしのちから・あとだし・クイックドロウ。本家の onFractionalPriority）
     const trainer1FractionalPriority = trainer1AbilityEffect?.modifyFractionalPriority?.(
       trainer1Active,
       trainer1Context,

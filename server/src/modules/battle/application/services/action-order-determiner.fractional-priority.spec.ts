@@ -204,4 +204,39 @@ describe.each([
       expect(order).toEqual([1, 2]);
     });
   });
+
+  describe('クイックドロウ', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('発動すると、トリックルームの間も同じ優先度の中で先に動く（速くても後にならない）', async () => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+
+      // Act
+      const order = await determineOrder(
+        PHYSICAL_MOVE,
+        PHYSICAL_MOVE,
+        { first: 'クイックドロウ' },
+        trickRoomBattle,
+      );
+
+      // Assert
+      expect(order).toEqual([1, 2]);
+    });
+
+    it('発動しても、優先度の高い相手の技より先には動かない', async () => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+
+      // Act
+      const order = await determineOrder(PHYSICAL_MOVE, PRIORITY_STATUS_MOVE, {
+        first: 'クイックドロウ',
+      });
+
+      // Assert
+      expect(order).toEqual([2, 1]);
+    });
+  });
 });
