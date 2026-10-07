@@ -1,7 +1,4 @@
-import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
-import { StatePatch } from '@/modules/battle/domain/state/state-field-parser';
-import { VolatileState } from '@/modules/battle/domain/state/volatile-state';
-import { BaseVolatileMoveEffect } from './base/base-volatile-move-effect';
+import { BaseIdentifyEffect } from './base/base-identify-effect';
 
 /**
  * みやぶる（Foresight）技の効果
@@ -11,20 +8,8 @@ import { BaseVolatileMoveEffect } from './base/base-volatile-move-effect';
  * - ゴーストタイプの相手にノーマル・かくとう技が等倍で当たる
  *
  * 相手がすでに見破られているか、ミラクルアイを受けていれば失敗する（本家の onTryHit）。
+ * かぎわけるも同じ状態を書く（本家でも同じ技として扱う）。
  */
-export class ForesightEffect extends BaseVolatileMoveEffect {
+export class ForesightEffect extends BaseIdentifyEffect {
   protected readonly kind = 'foresight';
-  protected readonly appliesTo = 'target';
-  protected readonly successMessage = 'was identified!';
-
-  protected createPatch(): StatePatch<VolatileState> {
-    return { foresight: true };
-  }
-
-  protected failsBeforeApply(
-    _attacker: BattlePokemonStatus,
-    defender: BattlePokemonStatus,
-  ): boolean {
-    return defender.volatileState.miracleEye === true;
-  }
 }
