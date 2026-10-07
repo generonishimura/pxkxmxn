@@ -16,6 +16,7 @@ import { findIllusionTarget } from '../../../battle-events/illusion';
  * - みがわりが受けたヒットでは解けない。かたやぶりでも解ける（本家と同じ）
  * 注: API はポケモンの名前・見た目を返さないので、化けた先を相手に見せることはできない。
  * 化けている先（illusionStatusId）は応答から外している（docs/battle-state.md の 8 章）
+ * 注: 先発どうしでは onEntry が素早さの順なので、かわりものの方が速いと、化ける前にへんしんされる（本家は先発全員の BeforeSwitchIn が先）
  */
 export class IllusionEffect implements IAbilityEffect {
   async onEntry(holder: BattlePokemonStatus, battleContext?: BattleContext): Promise<void> {
