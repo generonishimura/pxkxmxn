@@ -24,6 +24,8 @@ import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-
 import { reducePp } from '@/modules/pokemon/domain/battle-events/pp';
 import { resolveAbilityName } from '@/modules/pokemon/domain/battle-events/ability-lookup';
 import { getContextWeather } from '@/modules/pokemon/domain/abilities/context-weather';
+// まもる系の仕組み（Issue #102 #103 #107 #108 #120 一部）
+import { keepsProtectCount } from '../../domain/logic/protection';
 
 /**
  * 技を出した結果（技を出したあとの片付けに使う）
@@ -170,7 +172,7 @@ export class MoveLifecycle {
     ) {
       patch.choiceLockedMoveId = move.id;
     }
-    if (state.protectCount !== undefined && params.moveEffect?.isProtectionMove !== true) {
+    if (state.protectCount !== undefined && !keepsProtectCount(params.moveEffect)) {
       patch.protectCount = null;
     }
     if (isEmptyObject(patch)) {

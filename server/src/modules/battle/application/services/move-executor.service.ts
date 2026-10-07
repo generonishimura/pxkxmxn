@@ -68,6 +68,19 @@ import {
   rollCriticalHit,
 } from '../../domain/logic/critical-hit';
 import { preventsCriticalHit } from '../../domain/logic/field-modifiers';
+// まもる系の仕組み（Issue #102 #103 #107 #108 #120 #135 一部）
+import {
+  BlockingGuard,
+  GUARD_MOVE_NAMES,
+  PROTECTION_CONTACT_EFFECTS,
+  findBlockingGuard,
+  hasBreakableProtection,
+  protectSuccessChance,
+} from '../../domain/logic/protection';
+import { ProtectionMoveConfig } from '@/modules/pokemon/domain/moves/move-effect.interface';
+import { applyStatChanges } from '@/modules/pokemon/domain/battle-events/stat-change';
+import { joinStatChangeMessages } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
+import { fractionOfMaxHp } from '@/modules/pokemon/domain/battle-events/heal';
 
 /**
  * 急所の乱数（RandomSource）を差し替えるときの DI トークン。省略すると Math.random を使う
@@ -942,6 +955,21 @@ export class MoveExecutorService {
       return { message: `Used ${move.name} but it failed (Psychic Terrain)`, outcome: 'failed' };
     }
 
+    // まもる系（まもる・キングシールド・ワイドガードなど）。特性の無効化より先に判定する（本家の onTryHit の優先度）
+    if (targetsOpponent) {
+      const blocked = await this.blockByProtection({
+        battle,
+        move,
+        attacker,
+        defender,
+        attackerAbilityEffect,
+        battleContext,
+      });
+      if (blocked) {
+        return blocked;
+      }
+    }
+
     // 技そのものの無効化（ぼうおん・ぼうだんなど）。変化技も含め、命中判定の前に判定する
     if (
       MoveFlags.targetsOpponent(move.name) &&
@@ -998,6 +1026,14 @@ export class MoveExecutorService {
       }
     }
 
+    // フェイント・シャドーダイブなど（breaksProtect）: 当たったら相手の守りを解く（本家の hitStepBreakProtect）
+    const protectionBrokenMessage =
+      targetsOpponent &&
+      MoveBehaviors.has(move.name, 'breaksProtect') &&
+      (await this.breakProtection(battle, defender))
+        ? ' It broke through the protection!'
+        : '';
+
     // みがわりがあると、相手を対象にする変化技は失敗する（音技など bypassSubstitute の技とすりぬけを除く）
     const bypassesSubstitute =
       !targetsOpponent ||
@@ -1014,10 +1050,27 @@ export class MoveExecutorService {
       if (forcesOut && !(await this.canForceOut(battle, defender, defenderAbilityEffect))) {
         return { message: `Used ${move.name} but it failed`, outcome: 'failed' };
       }
+      // まもる系の技: 成功の判定と、守りの書き込み（失敗したら onUse は呼ばない）
+      let protectionMessage: string | null = null;
+      if (moveEffect?.protection) {
+        protectionMessage = await this.startProtection({
+          battle,
+          attacker,
+          protection: moveEffect.protection,
+          options,
+        });
+        if (protectionMessage === null) {
+          return { message: `Used ${move.name} but it failed`, outcome: 'failed' };
+        }
+      }
       // 変化技の特殊効果（onUse）を呼び出す
-      let moveEffectMessage: string | null = null;
+      let moveEffectMessage: string | null = protectionMessage;
       if (moveEffect?.onUse) {
-        moveEffectMessage = await moveEffect.onUse(attacker, defender, battleContext);
+        const useMessage = await moveEffect.onUse(attacker, defender, battleContext);
+        moveEffectMessage =
+          protectionMessage && useMessage
+            ? `${protectionMessage} ${useMessage}`
+            : (useMessage ?? protectionMessage);
       }
       // onUse が失敗を返したら、とんぼがえり系の交代もしない（本家も技が失敗したら selfSwitch しない）
       if (moveEffectMessage?.startsWith('But it failed') === true) {
@@ -1143,6 +1196,7 @@ export class MoveExecutorService {
     let substituteBroke = false;
     let hitCount = 0;
     let criticalHitCount = 0;
+    let endured = false;
     const hpBeforeMove = updatedDefender.currentHp;
     const hitEventMessages: string[] = [];
     const createHitResult = (
@@ -1199,9 +1253,12 @@ export class MoveExecutorService {
         continue;
       }
 
-      // ダメージを適用
+      // ダメージを適用（こらえるのターンは、ひんしになるダメージでも HP が 1 残る）
       const hpBeforeHit = updatedDefender.currentHp;
-      const newHp = Math.max(0, hpBeforeHit - hitDamage);
+      const endures =
+        updatedDefender.volatileState.protection === 'endure' && hitDamage >= hpBeforeHit;
+      endured = endured || endures;
+      const newHp = endures ? Math.min(hpBeforeHit, 1) : Math.max(0, hpBeforeHit - hitDamage);
       const dealtDamage = hpBeforeHit - newHp;
       await this.battleRepository.updateBattlePokemonStatus(defender.id, {
         currentHp: newHp,
@@ -1293,7 +1350,7 @@ export class MoveExecutorService {
         battleContext,
       });
       return {
-        message: `Used ${move.name} and hit the substitute (${substituteDamage} damage)${substituteCriticalMessage}${brokeMessage}${afterMessage}`,
+        message: `Used ${move.name} and hit the substitute (${substituteDamage} damage)${substituteCriticalMessage}${protectionBrokenMessage}${brokeMessage}${afterMessage}`,
         outcome: 'hit',
         moveTypeName: moveType.name,
       };
@@ -1431,15 +1488,179 @@ export class MoveExecutorService {
 
     const hitCountMessage = hitCount > 1 ? ` (hit ${hitCount} times)` : '';
     const criticalHitMessage = criticalHitCount > 0 ? ' A critical hit!' : '';
+    const enduredMessage = endured ? ' The opponent endured the hit!' : '';
     const eventMessage = hitEventMessages.map(message => ` ${message}`).join('');
     const afterMoveMessage = [...afterMoveMessages, ...faintMessages]
       .map(message => ` ${message}`)
       .join('');
     return {
-      message: `Used ${move.name} and dealt ${damage} damage${hitCountMessage}${criticalHitMessage}${contactEffectMessage}${eventMessage}${moveEffectMessage}${afterMoveMessage}`,
+      message: `Used ${move.name} and dealt ${damage} damage${hitCountMessage}${criticalHitMessage}${protectionBrokenMessage}${enduredMessage}${contactEffectMessage}${eventMessage}${moveEffectMessage}${afterMoveMessage}`,
       outcome: damage > 0 ? 'hit' : 'failed',
       moveTypeName: moveType.name,
     };
+  }
+
+  /**
+   * まもる系の技を使う（技の protection）。成功したらメッセージ、失敗したら null を返す
+   * - このターン最後に動くなら失敗する（本家の queue.willAct）
+   * - たたみがえしは、出てから最初の行動でなければ失敗する
+   * - 自分を守る技（kind）は、続けて成功させた回数（protectCount）から 1/3^n で成功を引く。
+   *   成功したら protection と protectCount + 1 を書き、失敗したら protectCount を消す
+   * - 陣営の守り（side）は陣営に書く。ワイドガード・ファストガードは protectCount も 1 増やす（本家の stall）
+   */
+  private async startProtection(params: {
+    battle: Battle;
+    attacker: BattlePokemonStatus;
+    protection: ProtectionMoveConfig;
+    options: ExecuteMoveOptions;
+  }): Promise<string | null> {
+    const { battle, attacker, protection, options } = params;
+    const count = attacker.volatileState.protectCount ?? 0;
+    const fail = async (): Promise<null> => {
+      if (attacker.volatileState.protectCount !== undefined) {
+        await this.battleRepository.patchVolatileState(attacker.id, { protectCount: null });
+      }
+      return null;
+    };
+    if (options.isLastToMove === true) {
+      return fail();
+    }
+    if (protection.kind !== undefined) {
+      if (Math.random() >= protectSuccessChance(count)) {
+        return fail();
+      }
+      await this.battleRepository.patchVolatileState(attacker.id, {
+        protection: protection.kind,
+        protectCount: count + 1,
+      });
+      return protection.kind === 'endure' ? 'braced itself!' : 'protected itself!';
+    }
+    const switchedInTurn = attacker.volatileState.switchedInTurn;
+    if (
+      protection.side === 'matBlock' &&
+      switchedInTurn !== undefined &&
+      battle.turn !== switchedInTurn + 1
+    ) {
+      return fail();
+    }
+    await this.battleRepository.patchSideConditions(battle.id, attacker.trainerId, {
+      [protection.side]: true,
+    });
+    if (protection.side === 'wideGuard' || protection.side === 'quickGuard') {
+      await this.battleRepository.patchVolatileState(attacker.id, { protectCount: count + 1 });
+    }
+    return 'protected its team!';
+  }
+
+  /**
+   * 相手のまもる系で技が防がれるかを判定し、防がれたら結果を返す（本家の onTryHit）
+   * 接触した技なら、守りの効果（キングシールドの攻撃 -1・ニードルガードのダメージ・トーチカのどくなど）を使用者に与える
+   * 使用者の特性の bypassesProtection（ふかしのこぶし）が true なら通り抜ける
+   * @returns 防がれたときの結果。防がれなければ undefined
+   */
+  private async blockByProtection(params: {
+    battle: Battle;
+    move: Move;
+    attacker: BattlePokemonStatus;
+    defender: BattlePokemonStatus;
+    attackerAbilityEffect: IAbilityEffect | undefined;
+    battleContext: BattleContext;
+  }): Promise<MoveUseResult | undefined> {
+    const { battle, move, attacker, defender, battleContext } = params;
+    const guard = findBlockingGuard({
+      protection: defender.volatileState.protection,
+      side: getSideConditions(battle.sideState, defender.trainerId),
+      move: {
+        moveName: move.name,
+        category: move.category,
+        effectivePriority: battleContext.effectivePriority ?? move.priority,
+        bypassesProtect:
+          params.attackerAbilityEffect?.bypassesProtection?.(attacker, battleContext) === true,
+      },
+    });
+    if (guard === undefined) {
+      return undefined;
+    }
+    const contactMessage = isContactMove(battleContext)
+      ? await this.applyProtectionContactEffect(guard, attacker, defender, battleContext)
+      : null;
+    const blockedMessage = `Used ${move.name} but it was blocked (${GUARD_MOVE_NAMES[guard]})`;
+    return {
+      message: contactMessage ? `${blockedMessage} ${contactMessage}` : blockedMessage,
+      outcome: 'failed',
+    };
+  }
+
+  /**
+   * 接触した使用者への守りの効果（PROTECTION_CONTACT_EFFECTS）を与える
+   * 能力ランクの低下・状態異常は守ったポケモンが起こしたもの（kind: 'other'）として、特性・しろいきり・
+   * しんぴのまもりで防げる。ダメージは技以外のダメージ（マジックガードで防げる）
+   * @returns メッセージ（効果がなければ null）
+   */
+  private async applyProtectionContactEffect(
+    guard: BlockingGuard,
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): Promise<string | null> {
+    const effect = PROTECTION_CONTACT_EFFECTS[guard];
+    if (!effect) {
+      return null;
+    }
+    const source = { pokemon: defender, kind: 'other' as const, name: GUARD_MOVE_NAMES[guard] };
+    switch (effect.type) {
+      case 'stat': {
+        const result = await applyStatChanges(
+          attacker,
+          [{ statType: effect.statType, rankChange: effect.rankChange }],
+          battleContext,
+          { source },
+        );
+        return joinStatChangeMessages(result);
+      }
+      case 'damage': {
+        const dealt = await applyIndirectDamage(
+          attacker,
+          fractionOfMaxHp(attacker, effect.divisor),
+          battleContext,
+        );
+        return dealt > 0 ? `was hurt by ${GUARD_MOVE_NAMES[guard]}! (${dealt} damage)` : null;
+      }
+      case 'status': {
+        const { inflicted } = await tryInflictStatus(attacker, effect.status, battleContext, {
+          source,
+        });
+        if (!inflicted) {
+          return null;
+        }
+        return effect.status === StatusCondition.Burn ? 'was burned!' : 'was poisoned!';
+      }
+    }
+  }
+
+  /**
+   * 相手の守り（こらえるを除く自分を守る技と、陣営の守り）を解く（フェイントなど。本家の hitStepBreakProtect）
+   * 解いたら、相手のまもる系を続けた回数（protectCount）も消す
+   * @returns 解いたら true
+   */
+  private async breakProtection(battle: Battle, defender: BattlePokemonStatus): Promise<boolean> {
+    const protection = defender.volatileState.protection;
+    if (
+      !hasBreakableProtection(protection, getSideConditions(battle.sideState, defender.trainerId))
+    ) {
+      return false;
+    }
+    await this.battleRepository.patchVolatileState(defender.id, {
+      protection: protection === 'endure' ? protection : null,
+      protectCount: null,
+    });
+    await this.battleRepository.patchSideConditions(battle.id, defender.trainerId, {
+      wideGuard: null,
+      quickGuard: null,
+      craftyShield: null,
+      matBlock: null,
+    });
+    return true;
   }
 
   /**

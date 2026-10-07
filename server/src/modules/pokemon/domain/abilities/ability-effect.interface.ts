@@ -758,4 +758,17 @@ export interface IAbilityEffect {
    * @returns 相手の特性を無視するなら true
    */
   breaksMoldFor?(_battleContext?: BattleContext): boolean | undefined;
+  // ---- まもる系（Issue #135 一部） ----
+
+  /**
+   * 攻撃側: 相手のまもる系（まもる・キングシールド・ワイドガード・ファストガード・たたみがえしなど）を
+   * 通り抜ける効果（例: ふかしのこぶし = 接触技なら true）
+   * MoveExecutorService が、相手を対象にする技で守りを判定するときに呼ぶ。トリックガードは通り抜けない
+   * （本家のふかしのこぶしは技の protect フラグを外すだけで、トリックガードは protect フラグを見ないため）
+   * @returns 通り抜けるなら true
+   */
+  bypassesProtection?(
+    _holder: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): boolean | undefined;
 }

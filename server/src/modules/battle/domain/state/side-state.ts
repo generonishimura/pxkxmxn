@@ -432,6 +432,11 @@ export const SIDE_TURN_SCOPED_FLAGS = [
 ] as const satisfies ReadonlyArray<keyof SideConditions>;
 
 /**
+ * 陣営全体の、このターンだけの守り（ワイドガード・ファストガード・トリックガード・たたみがえし）
+ */
+export type SideGuardKind = (typeof SIDE_TURN_SCOPED_FLAGS)[number];
+
+/**
  * 両陣営にかかる、ターン終了時に 1 減らし、0 になったら消す残りターン数
  * weatherTurns・terrainTurns が切れたときに Battle.weather / Battle.field を戻すのは、tick の前に値が 1 かどうかで判定する
  */

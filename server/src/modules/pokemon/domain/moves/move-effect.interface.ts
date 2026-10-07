@@ -2,6 +2,9 @@ import { BattleContext } from '../abilities/battle-context.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { Move } from '../entities/move.entity';
 import type { StatType } from './effects/base/base-stat-change-effect';
+// まもる系の仕組み（Issue #102 #103 #107 #108 #120 一部）
+import type { ProtectionKind } from '@/modules/battle/domain/state/volatile-state';
+import type { SideGuardKind } from '@/modules/battle/domain/state/side-state';
 
 /**
  * 攻撃に使う能力の参照先（イカサマ、ボディプレスなど）
@@ -53,6 +56,16 @@ export interface LockedInMoveConfig {
   /** 外れたら終わるか（ころがる・アイスボール） */
   readonly endsOnMiss?: boolean;
 }
+
+/**
+ * まもる系の技の設定（エンジンが成功判定・状態の書き込み・相手の技を防ぐ処理を行う）
+ * - kind: 自分を守る技（まもる・みきり = 'protect'、キングシールド = 'kingsShield'、こらえる = 'endure' など）。
+ *   続けて使うと成功率が 1/3 ずつ下がる
+ * - side: 陣営全体を守る技（ワイドガード・ファストガード・トリックガード・たたみがえし）
+ */
+export type ProtectionMoveConfig =
+  | { readonly kind: ProtectionKind; readonly side?: undefined }
+  | { readonly side: SideGuardKind; readonly kind?: undefined };
 
 /**
  * 技の特殊効果のインターフェース
@@ -240,4 +253,14 @@ export interface IMoveEffect {
    * 攻撃技は、ダメージを与えたときだけ入れ替える（みがわりに当たったときは入れ替えない）
    */
   readonly forceSwitch?: boolean;
+  // ---- まもる系の仕組み（Issue #102 #103 #107 #108 #120 一部） ----
+
+  /**
+   * まもる系の技の設定（まもる = { kind: 'protect' }、ワイドガード = { side: 'wideGuard' } など）
+   * 変化技のとき、MoveExecutorService が onUse の前に、成功の判定（このターン最後に動くなら失敗、
+   * 続けて使ったときの 1/3^n、たたみがえしは出てから最初の行動だけ）と、volatileState.protection・
+   * SideConditions・protectCount の書き込みを行う。失敗したら onUse は呼ばない。
+   * 相手の技を防ぐ処理・接触したときの効果（キングシールドの攻撃 -1 など）もエンジンが行う
+   */
+  readonly protection?: ProtectionMoveConfig;
 }
