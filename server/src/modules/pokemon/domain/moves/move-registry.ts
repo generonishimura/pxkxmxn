@@ -324,6 +324,12 @@ import { SpikesEffect } from './effects/spikes-effect';
 import { StealthRockEffect } from './effects/stealth-rock-effect';
 import { StickyWebEffect } from './effects/sticky-web-effect';
 import { ToxicSpikesEffect } from './effects/toxic-spikes-effect';
+// 場の状態を変える技・ひんしの手持ちを復活させる技（Issue #103, #107, #110 一部）
+import { RevivalBlessingEffect } from './effects/revival-blessing-effect';
+import { GravityEffect } from './effects/gravity-effect';
+import { TrickRoomEffect } from './effects/trick-room-effect';
+import { WonderRoomEffect } from './effects/wonder-room-effect';
+import { GrassyTerrainEffect } from './effects/grassy-terrain-effect';
 
 /**
  * 技のレジストリ
@@ -758,6 +764,12 @@ export class MoveRegistry {
       this.registry.set('ステルスロック', new StealthRockEffect());
       this.registry.set('ねばねばネット', new StickyWebEffect());
       this.registry.set('どくびし', new ToxicSpikesEffect());
+      // 場の状態を変える技・ひんしの手持ちを復活させる技（Issue #103, #107, #110 一部）
+      this.registry.set('さいきのいのり', new RevivalBlessingEffect());
+      this.registry.set('じゅうりょく', new GravityEffect());
+      this.registry.set('トリックルーム', new TrickRoomEffect());
+      this.registry.set('ワンダールーム', new WonderRoomEffect());
+      this.registry.set('グラスフィールド', new GrassyTerrainEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
