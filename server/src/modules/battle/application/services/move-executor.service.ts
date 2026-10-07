@@ -1534,7 +1534,7 @@ export class MoveExecutorService {
   /**
    * 技をはね返すもの（マジックコート・マジックミラー）を探す
    * はね返せる技（MoveBehaviors の reflectable。相手の陣営に置く技を含む）で、相手が自分ではなく、
-   * はね返した技でなく、相手が隠れていない（そらをとぶなど）とき、相手の volatileState.magicCoat か、
+   * はね返した技でなく、相手がひんしでも隠れてもいない（そらをとぶなど）とき、相手の volatileState.magicCoat か、
    * 相手の特性の bouncesMoves（かたやぶりで無視された特性なら見ない）があれば、その名前を返す
    */
   private findMoveReflector(params: {
@@ -1549,6 +1549,7 @@ export class MoveExecutorService {
       !MoveBehaviors.has(move.name, 'reflectable') ||
       attacker.id === defender.id ||
       params.called?.bounced === true ||
+      defender.isFainted() ||
       defender.volatileState.semiInvulnerable !== undefined
     ) {
       return undefined;

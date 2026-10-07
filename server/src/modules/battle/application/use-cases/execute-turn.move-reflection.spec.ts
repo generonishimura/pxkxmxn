@@ -30,6 +30,7 @@ describe('ExecuteTurnUseCase - 技をはね返す', () => {
       attackerAbility?: string;
       defenderAbility?: string;
       defenderVolatile?: VolatileState;
+      defenderHp?: number;
     } = {},
   ) =>
     createBattleEngine({
@@ -49,6 +50,7 @@ describe('ExecuteTurnUseCase - 技をはね返す', () => {
           active: true,
           ability: options.defenderAbility,
           volatileState: options.defenderVolatile,
+          currentHp: options.defenderHp,
           moveIds: [1, 5],
         },
       ],
@@ -158,5 +160,18 @@ describe('ExecuteTurnUseCase - 技をはね返す', () => {
     // Assert
     expect(result.actions[0].result).toBe('Used でんじは but it missed');
     expect(engine.status(1).statusCondition).toBe(StatusCondition.None);
+  });
+
+  it('ひんしの相手は、技をはね返さない（まきびしは相手の陣営に置かれる）', async () => {
+    // Arrange
+    const engine = setup({ defenderAbility: 'テストのマジックミラー', defenderHp: 0 });
+
+    // Act
+    const result = await engine.runTurn({ moveId: SPIKES.id }, { moveId: SPLASH.id });
+
+    // Assert
+    expect(result.actions[0].result).not.toContain('bounced back');
+    expect(getSideConditions(engine.battle().sideState, 2).spikesLayers).toBe(1);
+    expect(getSideConditions(engine.battle().sideState, 1).spikesLayers).toBeUndefined();
   });
 });

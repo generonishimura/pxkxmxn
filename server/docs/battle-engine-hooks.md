@@ -1561,7 +1561,7 @@ keepsProtectCount({ protection: { side: 'craftyShield' } }); // false
 - 判定: `MoveExecutorService.runMoveBody`。まもる系の判定のあと、`isImmuneToMove` の前（本家の onTryHit の優先度）。はね返せる技（`MoveBehaviors` の `reflectable`。まきびしなど相手の陣営に置く技を含む）で、相手が次のどれかを持つとき、相手が使用者に同じ技を出し直す（`callMove` と同じ流れ。PP は減らない）
   - `volatileState.magicCoat`（マジックコート。このターンだけ）
   - 特性の `bouncesMoves`（マジックミラー。かたやぶりで無視される）
-- はね返した技は、もう一度はね返さない（両方がマジックミラーでも 1 回で止まる）。相手が隠れている（そらをとぶなど）ときは、はね返さない
+- はね返した技は、もう一度はね返さない（両方がマジックミラーでも 1 回で止まる）。相手がひんし（同じターンに先にひんしになったときなど）か、隠れている（そらをとぶなど）ときは、はね返さない
 - 元の技のメッセージは `Used <技> but it was bounced back (<マジックコート|マジックミラー>)! <はね返した技のメッセージ>`（outcome は `failed`）
 - マジックコートの技は `tryApplyVolatile(attacker, 'magicCoat', { magicCoat: true }, ctx)` を書くだけ（ターン終了時にエンジンが消す）
 
