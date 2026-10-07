@@ -2296,8 +2296,14 @@ export class MoveExecutorService {
     const typeName =
       moveEffect?.modifyMoveType?.(attacker, defender, battleContext) ?? move.type.name;
     battleContext.moveTypeName = typeName;
-    const abilityTypeName =
-      attackerAbilityEffect?.modifyMoveType?.(attacker, typeName, battleContext) ?? typeName;
+    const abilityResult = attackerAbilityEffect?.modifyMoveType?.(
+      attacker,
+      typeName,
+      battleContext,
+    );
+    // -スキン系の 1.2 倍の判定に使う（本家の typeChangerBoosted。プラズマシャワー・そうでんでは変わらない）
+    battleContext.moveTypeChangedByAbility = abilityResult !== undefined;
+    const abilityTypeName = abilityResult ?? typeName;
     if (attacker.volatileState.electrified === true) {
       return MoveExecutorService.ELECTRIC_TYPE_NAME;
     }

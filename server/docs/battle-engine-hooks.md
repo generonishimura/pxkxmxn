@@ -1669,13 +1669,16 @@ return 'transformed into the Water type!'; // みずびたし
   2. 攻撃側特性の `modifyMoveType`（-スキン・ノーマルスキン・うるおいボイス）
   3. `GlobalFieldState.ionDeluge`（プラズマシャワー）: ノーマル技をでんき技にする（変化技も）
   4. 使用者の `volatileState.electrified`（そうでん）: どのタイプの技もでんき技にする（わるあがきを除く）
-- 決まったタイプが、タイプ一致・タイプ相性・天候補正・ふんじん・ゲンシ天候の判定・`hit.moveTypeName`・`ctx.moveTypeName` に使われる。-スキン系の 1.2 倍は `modifyBasePower` で `ctx.baseMoveTypeName === 'ノーマル'` と `ctx.moveTypeName` が変わったかで判定する（そうでんでさらに変わっても 1.2 倍のまま。本家と同じ）
+- 決まったタイプが、タイプ一致・タイプ相性・天候補正・ふんじん・ゲンシ天候の判定・`hit.moveTypeName`・`ctx.moveTypeName` に使われる。-スキン系・ノーマルスキンの 1.2 倍は、`modifyBasePower` で `ctx.moveTypeChangedByAbility === true` のときだけ掛ける（攻撃側特性の `modifyMoveType` が undefined 以外を返したときに、エンジンが true にする。本家の `typeChangerBoosted`）。プラズマシャワー・そうでんでさらに変わっても 1.2 倍のまま。技が先にタイプを変えた（晴れ・雨のウェザーボールなど）ときや、プラズマシャワー・そうでんだけで変わったときは false。`ctx.baseMoveTypeName` で判定しない（これらの技まで 1.2 倍になる）
 - `lastMoveTypeName`: 技を出した記録（`recordMoveUse`）のとき、決まったタイプを書く（エンジンが書く。呼ばれた技では書かない。タイプなしの技なら消す）
-- 使う技・特性: プラズマシャワー（`patchGlobalFieldState(battle.id, { ionDeluge: true })`。ターン終了時に消える）、そうでん（相手がこのターンにまだ行動していない（`ctx.defenderPendingMoveId` がある）なら `patchVolatileState(defender.id, { electrified: true })`、もう行動していれば失敗）、ノーマルスキン（すべての技を `'ノーマル'` に。ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・だいちのはどう・めざめるパワーは変えない）、フェアリースキン・フリーズスキン・スカイスキン・エレキスキン（ノーマル技だけ変える）
+- 使う技・特性: プラズマシャワー（`patchGlobalFieldState(battle.id, { ionDeluge: true })`。ターン終了時に消える）、そうでん（相手がこのターンにまだ行動していない（`ctx.defenderPendingMoveId` がある）なら `patchVolatileState(defender.id, { electrified: true })`、もう行動していれば失敗）、ノーマルスキン（すべての技を `'ノーマル'` に。もとからノーマル技でも `'ノーマル'` を返すので 1.2 倍になる。ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・だいちのはどう・めざめるパワーは変えない）、フェアリースキン・フリーズスキン・スカイスキン・エレキスキン（ノーマル技だけ変える。同じく、ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・だいちのはどうは変えない）
 
 ```ts
 modifyMoveType(_p: BattlePokemonStatus, typeName: string): string | undefined {
   return typeName === 'ノーマル' ? 'こおり' : undefined; // フリーズスキン
+}
+modifyBasePower(_p: BattlePokemonStatus, power: number, ctx?: BattleContext): number | undefined {
+  return ctx?.moveTypeChangedByAbility === true ? modifyByFixedPoint(power, 4915) : undefined; // 1.2 倍
 }
 ```
 
@@ -1837,7 +1840,7 @@ if (ctx) await changeForm(holder, form, ctx); // てんきや（onWeatherChange 
 | へんしょく | `onAfterMoveHit` で、ひんしでなく、`hit.moveTypeName` を持っていなければ `setTypes(holder, [type], ctx)` |
 | へんげんじざい・リベロ | `onPrepareHit`（14.9） |
 | ぎたい | `onEntry`・`onTerrainChange`（14.11） |
-| ノーマルスキン・フェアリースキン・フリーズスキン・スカイスキン・エレキスキン | `modifyMoveType`（14.3）と `modifyBasePower`（1.2 倍） |
+| ノーマルスキン・フェアリースキン・フリーズスキン・スカイスキン・エレキスキン | `modifyMoveType`（14.3）と `modifyBasePower`（`ctx.moveTypeChangedByAbility` なら 1.2 倍） |
 | へんしん・かわりもの | `transformInto`（14.7） |
 | イリュージョン | `onEntry` で `findIllusionTarget`、`onDamagingHit` で `illusionStatusId: null`（14.8） |
 | バトルスイッチ・うのミサイル | `onPrepareHit` と `changeForm`（14.9）。うのミサイルの反撃は `onDamagingHit` |

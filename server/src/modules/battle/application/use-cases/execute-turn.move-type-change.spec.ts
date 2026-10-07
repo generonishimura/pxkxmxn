@@ -114,4 +114,86 @@ describe('ExecuteTurnUseCase - 技のタイプの変更', () => {
     // Assert
     expect(engine.status(1).volatileState.lastMoveTypeName).toBe('ほのお');
   });
+
+  describe('-スキンの 1.2 倍（ctx.moveTypeChangedByAbility）', () => {
+    const WEATHER_BALL = createTestMove(4, 'テストのウェザーボール');
+    const TECHNO_BLAST = createTestMove(5, 'テストのテクノバスター');
+    const SKIN_MOVES = [...MOVES, WEATHER_BALL, TECHNO_BLAST];
+
+    /**
+     * ノーマル技をフェアリー技にし（テクノバスターは変えない）、特性が技のタイプを変えたときだけ威力を 1.2 倍にする
+     * 相手はノーマルタイプ（どのタイプも等倍）。威力 50 なら 24、1.2 倍の 60 なら 28 ダメージ
+     */
+    const setupSkin = (sideState?: SideState) => {
+      AbilityRegistry.register('テストのフェアリースキン', {
+        modifyMoveType: (_pokemon, typeName, ctx) =>
+          typeName === 'ノーマル' && ctx?.moveName !== TECHNO_BLAST.name ? 'フェアリー' : undefined,
+        modifyBasePower: (_pokemon, power, ctx) =>
+          ctx?.moveTypeChangedByAbility === true ? Math.floor(power * 1.2) : undefined,
+      });
+      return createBattleEngine({
+        moves: SKIN_MOVES,
+        sideState,
+        pokemon: [
+          {
+            id: 1,
+            trainerId: 1,
+            active: true,
+            moveIds: SKIN_MOVES.map(move => move.id),
+            types: ['みず'],
+            ability: 'テストのフェアリースキン',
+          },
+          { id: 2, trainerId: 2, active: true, moveIds: [1], baseSpeed: 50 },
+        ],
+      });
+    };
+
+    it('特性がノーマル技のタイプを変えたら、1.2 倍になる', async () => {
+      // Arrange
+      const engine = setupSkin();
+
+      // Act
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(2).currentHp).toBe(160 - 28);
+    });
+
+    it('技が先にタイプを変えた（晴れのウェザーボール）ときは、特性は変えず 1.2 倍にならない', async () => {
+      // Arrange
+      MoveRegistry.register(WEATHER_BALL.name, { modifyMoveType: () => 'ほのお' });
+      const engine = setupSkin();
+
+      // Act
+      await engine.runTurn({ moveId: WEATHER_BALL.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(1).volatileState.lastMoveTypeName).toBe('ほのお');
+      expect(engine.status(2).currentHp).toBe(160 - 24);
+    });
+
+    it('特性が変えず、プラズマシャワーでだけタイプが変わった技は、1.2 倍にならない', async () => {
+      // Arrange
+      const engine = setupSkin({ global: { ionDeluge: true } });
+
+      // Act
+      await engine.runTurn({ moveId: TECHNO_BLAST.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(1).volatileState.lastMoveTypeName).toBe('でんき');
+      expect(engine.status(2).currentHp).toBe(160 - 24);
+    });
+
+    it('特性が変えた技は、プラズマシャワーの間も 1.2 倍になる', async () => {
+      // Arrange
+      const engine = setupSkin({ global: { ionDeluge: true } });
+
+      // Act
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(1).volatileState.lastMoveTypeName).toBe('フェアリー');
+      expect(engine.status(2).currentHp).toBe(160 - 28);
+    });
+  });
 });

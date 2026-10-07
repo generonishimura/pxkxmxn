@@ -75,6 +75,13 @@ export interface BattleContext {
   baseMoveTypeName?: string;
 
   /**
+   * 攻撃側特性の modifyMoveType が、この技のタイプを決めたか（undefined 以外を返したか。本家の move.typeChangerBoosted）
+   * -スキン系・ノーマルスキンの 1.2 倍は、これが true のときだけ掛ける（技が先に変えたウェザーボール・
+   * プラズマシャワーやそうでんだけで変わった技は false）
+   */
+  moveTypeChangedByAbility?: boolean;
+
+  /**
    * 連続攻撃技の攻撃回数
    * BaseMultiHitEffectで設定される
    */
