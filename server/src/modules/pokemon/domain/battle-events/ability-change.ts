@@ -179,7 +179,8 @@ export const swapAbilities = async (
 /**
  * 特性を消す（いえき・コアパニッシャー。volatileState.abilitySuppressed を書く）
  * 次のときは消さずに false を返す: ひんし・消せない特性（cantSuppress）・すでに消されている
- * コアパニッシャーの「相手がもう行動したときだけ」は呼ぶ側で判定する（battleContext.defenderPendingMoveId がない）
+ * コアパニッシャーの「相手がもう行動していて、このターンに交代で出たのでもないときだけ」は呼ぶ側で判定する
+ * （battleContext.defenderPendingMoveId がなく、volatileState.switchedInTurn がこのターンでない。本家の newlySwitched）
  */
 export const suppressAbility = async (
   target: BattlePokemonStatus,
