@@ -250,6 +250,8 @@ import { ShadowTagEffect } from './effects/other/shadow-tag-effect';
 import { MagnetPullEffect } from './effects/other/magnet-pull-effect';
 import { ArenaTrapEffect } from './effects/other/arena-trap-effect';
 import { EmergencyExitEffect } from './effects/other/emergency-exit-effect';
+// 急所に当たらない特性（Issue #135 一部）
+import { BattleArmorEffect } from './effects/other/battle-armor-effect';
 
 /**
  * 特性レジストリ
@@ -601,6 +603,11 @@ export class AbilityRegistry {
       this.registry.set('ありじごく', new ArenaTrapEffect());
       this.registry.set('にげごし', emergencyExit);
       this.registry.set('ききかいひ', emergencyExit);
+      // 急所に当たらない特性（Issue #135 一部）
+      // シェルアーマーはカブトアーマーと同効果のため BattleArmorEffect を共有
+      const battleArmor = new BattleArmorEffect();
+      this.registry.set('カブトアーマー', battleArmor);
+      this.registry.set('シェルアーマー', battleArmor);
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

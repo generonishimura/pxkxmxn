@@ -354,6 +354,9 @@ import { SpiderWebEffect } from './effects/spider-web-effect';
 import { ShedTailEffect } from './effects/shed-tail-effect';
 import { ChillyReceptionEffect } from './effects/chilly-reception-effect';
 import { LunarDanceEffect } from './effects/lunar-dance-effect';
+// 急所ランクを上げる技（Issue #111 一部）
+import { FocusEnergyEffect } from './effects/focus-energy-effect';
+import { LaserFocusEffect } from './effects/laser-focus-effect';
 
 /**
  * 技のレジストリ
@@ -818,6 +821,9 @@ export class MoveRegistry {
       this.registry.set('しっぽきり', new ShedTailEffect());
       this.registry.set('さむいギャグ', new ChillyReceptionEffect());
       this.registry.set('みかづきのまい', new LunarDanceEffect());
+      // 急所ランクを上げる技（Issue #111 一部）
+      this.registry.set('きあいだめ', new FocusEnergyEffect());
+      this.registry.set('とぎすます', new LaserFocusEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
