@@ -64,7 +64,7 @@ export const battleTypeNamesOf = (
 export const abilityHolderOf = (ref: BattlePokemonRef): AbilityHolder => ({
   baseAbilityName: ref.trainedPokemon.ability?.name,
   volatileState: ref.status.volatileState,
-  fainted: ref.status.isFainted(),
+  fainted: ref.status.currentHp <= 0,
 });
 
 /**

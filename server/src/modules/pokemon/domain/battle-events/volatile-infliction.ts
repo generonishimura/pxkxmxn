@@ -8,6 +8,8 @@ import { EffectSource } from './effect-source';
 import { getAbilityEffect, isIgnoredByMoldBreaker, resolveAbilityName } from './ability-lookup';
 // 場の状態・設置技・交代の仕組み（Issue #110 #135 一部）
 import { isProtectedBySafeguard, isYawnPreventedByTerrain } from './field-protection';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #114 #119 #135 一部）
+import { battleTypeNamesOf } from '@/modules/battle/domain/logic/battle-pokemon-traits';
 
 /**
  * 技・特性で付与する一時的な状態の種類と、その状態を表す VolatileState のキー
@@ -99,10 +101,9 @@ export const canApplyVolatile = async (
   const trainedPokemon = await battleContext.trainedPokemonRepository?.findById(
     target.trainedPokemonId,
   );
-  const targetTypes = [
-    trainedPokemon?.pokemon.primaryType.name,
-    trainedPokemon?.pokemon.secondaryType?.name,
-  ];
+  // 実効のタイプと特性（みずびたし・いえき・かがくへんかガスなどを反映）
+  const targetTypes = trainedPokemon ? battleTypeNamesOf(trainedPokemon, target) : [];
+  const targetAbilityName = await resolveAbilityName(target, battleContext);
   if (kind === 'leechSeed' && targetTypes.includes(LEECH_SEED_IMMUNE_TYPE)) {
     return false;
   }
@@ -113,19 +114,12 @@ export const canApplyVolatile = async (
   if (
     kind === 'yawn' &&
     ((await isProtectedBySafeguard(target, options.source, battleContext)) ||
-      isYawnPreventedByTerrain(
-        target,
-        targetTypes.filter((name): name is string => name !== undefined),
-        trainedPokemon?.ability?.name,
-        battleContext,
-      ))
+      isYawnPreventedByTerrain(target, targetTypes, targetAbilityName, battleContext))
   ) {
     return false;
   }
 
   const source = options.source;
-  const targetAbilityName =
-    trainedPokemon?.ability?.name ?? (await resolveAbilityName(target, battleContext));
   const byOpponentMove = source?.kind === 'move' && source.pokemon?.id !== target.id;
   if (byOpponentMove) {
     const sourceAbilityName =

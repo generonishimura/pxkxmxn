@@ -10,6 +10,8 @@ import {
 } from '@/modules/battle/domain/logic/volatile-status-condition';
 // 場の状態・設置技・交代の仕組み（Issue #103 #110 #135 一部）
 import { isProtectedBySafeguard, isStatusPreventedByTerrain } from './field-protection';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #114 #119 #135 一部）
+import { battleTypeNamesOf } from '@/modules/battle/domain/logic/battle-pokemon-traits';
 
 /**
  * 状態異常ごとの、付与できないタイプ（本家と同じ）
@@ -86,10 +88,9 @@ export const canInflictStatus = async (
   }
 
   const source = options.source;
-  const typeNames = [
-    trainedPokemon.pokemon.primaryType.name,
-    trainedPokemon.pokemon.secondaryType?.name,
-  ].filter((typeName): typeName is string => typeName !== undefined);
+  // 実効のタイプと特性（みずびたし・いえき・かがくへんかガスなどを反映）
+  const typeNames = battleTypeNamesOf(trainedPokemon, target);
+  const targetAbilityName = await resolveAbilityName(target, battleContext);
   if (
     statusCondition !== StatusCondition.Flinch &&
     (await isProtectedBySafeguard(target, source, battleContext))
@@ -97,13 +98,7 @@ export const canInflictStatus = async (
     return false;
   }
   if (
-    isStatusPreventedByTerrain(
-      target,
-      statusCondition,
-      typeNames,
-      trainedPokemon.ability?.name,
-      battleContext,
-    )
+    isStatusPreventedByTerrain(target, statusCondition, typeNames, targetAbilityName, battleContext)
   ) {
     return false;
   }
@@ -144,7 +139,6 @@ export const canInflictStatus = async (
   }
 
   // 対象の特性による無効化（技で付与するときは、かたやぶりで無視される）
-  const targetAbilityName = trainedPokemon.ability?.name;
   const targetAbility = await getAbilityEffect(targetAbilityName);
   if (!targetAbility?.canReceiveStatusCondition) {
     return true;

@@ -1,6 +1,7 @@
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
 import { BaseSelfMultiStatChangeMoveEffect } from './base-self-multi-stat-change-move-effect';
+import { resolveAbilityName } from '@/modules/pokemon/domain/battle-events/ability-lookup';
 
 /**
  * 特性が「プラス」または「マイナス」のポケモンの能力ランクを上げる変化技の基底クラス
@@ -32,10 +33,8 @@ export abstract class BasePlusMinusSelfStatBoostEffect extends BaseSelfMultiStat
     if (!battleContext.trainedPokemonRepository) {
       return false;
     }
-    const trainedPokemon = await battleContext.trainedPokemonRepository.findById(
-      attacker.trainedPokemonId,
-    );
-    const abilityName = trainedPokemon?.ability?.name;
+    // 実効の特性（特性の上書き・いえき・かがくへんかガスを反映）
+    const abilityName = await resolveAbilityName(attacker, battleContext);
     return (
       abilityName !== undefined &&
       BasePlusMinusSelfStatBoostEffect.TARGET_ABILITY_NAMES.includes(abilityName)
