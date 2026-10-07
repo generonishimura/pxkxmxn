@@ -1705,7 +1705,7 @@ modifyBasePower(_p: BattlePokemonStatus, power: number, ctx?: BattleContext): nu
 - `suppressAbility`: `abilitySuppressed` を書く。ひんし・`cantSuppress`・すでに消されているなら false
 - `resolveCurrentAbilityName`: 今の特性名（消されているかは見ない。本家の `pokemon.ability`）。なりきり・スキルスワップで写す特性や、ミイラで上書きできるかに使う
 - 技ごとの失敗（なりきりで同じ特性・`failRolePlay`、なかまづくりの `noEntrain`、なやみのタネのふみん・なまけ、シンプルビームのたんじゅん・なまけ）は呼ぶ側で判定する
-- 使う技・特性: スキルスワップ・さまようたましい（`swapAbilities`。さまようたましいは `onDamagingHit` で `hit.isContact` のとき）、なりきり（使用者に相手の特性）・なかまづくり（相手に使用者の特性）・なやみのタネ（ふみん。ねむっていれば起こす）・シンプルビーム（たんじゅん）・うつしえ（使用者に相手の特性）・トレース（`onEntry` で相手の特性。`noTrace` なら写さない。写せなかったら、今の特性がまだトレースの間、`onFoeEntry` で新しく出てきた相手の特性を写す。本家の onUpdate の seek）・ミイラ・とれないにおい（`onDamagingHit` で接触した相手に。相手が `cantSuppress` か同じ特性なら何もしない）、いえき（`suppressAbility`）・コアパニッシャー（相手がもう行動していて、このターンに交代で出たのでなければ `suppressAbility`。本家の newlySwitched）
+- 使う技・特性: スキルスワップ（`swapAbilities`）、さまようたましい（`onDamagingHit` で `hit.isContact` のとき、本家と同じく `setAbility(attacker)` → `setAbility(holder)` の順。自分がひんしなら相手だけが変わる）、なりきり（使用者に相手の特性）・なかまづくり（相手に使用者の特性）・なやみのタネ（ふみん。ねむっていれば起こす）・シンプルビーム（たんじゅん）・うつしえ（使用者に相手の特性）・トレース（`onEntry` で相手の特性。`noTrace` なら写さない。写せなかったら、今の特性がまだトレースの間、`onFoeEntry` で新しく出てきた相手の特性を写す。本家の onUpdate の seek）・ミイラ・とれないにおい（`onDamagingHit` で接触した相手に。相手が `cantSuppress` か同じ特性なら何もしない）、いえき（`suppressAbility`）・コアパニッシャー（相手がもう行動していて、このターンに交代で出たのでなければ `suppressAbility`。本家の newlySwitched）
 
 ```ts
 const name = await resolveCurrentAbilityName(defender, ctx);
@@ -1856,7 +1856,7 @@ async onFoeEntry(holder: BattlePokemonStatus, entered: BattlePokemonStatus, ctx?
 | うつしえ | 相手の今の特性（`failRolePlay` なら失敗）を `setAbility(attacker, ...)`。シングルバトルでは味方がいない |
 | トレース | `onEntry` で相手の今の特性（`noTrace` でなければ）を `setAbility`。写せなかったときは `onFoeEntry`（14.11a）で、今の特性がまだトレースなら、出てきた相手の特性を写す |
 | ミイラ・とれないにおい | `onDamagingHit` で `hit.isContact` なら、相手が `cantSuppress` か同じ特性でなければ `setAbility(attacker, '<自分の特性名>', ctx)` |
-| さまようたましい | `onDamagingHit` で `hit.isContact` なら `swapAbilities(holder, attacker, ctx)` |
+| さまようたましい | `onDamagingHit` で `hit.isContact`、自分の今の特性がまださまようたましい（連続技の 2 発目以降は入れ替えない）、相手が `failSkillSwap` でなければ、`setAbility(attacker, 'さまようたましい', ctx)`（相手が `cantSuppress` なら失敗）→ 成功したら `setAbility(holder, <相手のもとの特性>, ctx)`。自分がひんしなら 2 つめは失敗し、相手だけが変わる（本家と同じ） |
 | かがくへんかガス | 要らない（エンジンが判定する。14.5） |
 | レシーバー・かがくのちから・しれいとう | シングルバトルでは何もしない（14.12） |
 | みずびたし・まほうのこな | `setTypes(defender, ['みず'] / ['エスパー'], ctx)`（すでにそのタイプだけなら失敗） |

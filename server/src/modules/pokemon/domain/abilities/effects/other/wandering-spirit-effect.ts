@@ -20,7 +20,7 @@ const WANDERING_SPIRIT_ABILITY_NAME = 'さまようたましい';
  * - かたやぶりでは無視されない（本家と同じ）
  * - 自分の今の特性がさまようたましいでなければ何もしない（連続技の 2 発目以降。1 発目で入れ替えたあと）
  * 注: 連続技の 2 発目以降に、受け取った特性の onDamagingHit は呼ばれない（エンジンが 1 発目の前に効果を決めるため）
- * 注: docs/battle-engine-hooks.md 14.13 の swapAbilities ではなく、本家の Wandering Spirit と同じく setAbility を 2 回使う
+ * - swapAbilities ではなく、本家の Wandering Spirit と同じく setAbility を 2 回使う（docs/battle-engine-hooks.md 14.13）
  */
 export class WanderingSpiritEffect implements IAbilityEffect {
   async onDamagingHit(
