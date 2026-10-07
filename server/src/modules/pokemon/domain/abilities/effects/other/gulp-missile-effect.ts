@@ -69,7 +69,8 @@ export const changeToGulpMissileForm = async (
  *   ダイビングで隠れているときは吐き出さず、フォルムもそのまま（本家と同じ）
  * - 消せない特性で、かたやぶりで無視されない。へんしん中は効かない（エンジンの noTransform の判定）
  * 注: 本家のなみのりは命中・まもる系のあと、ダメージの前（onSourceTryPrimaryHit）にくわえる。
- *     ここではダメージを与えたヒットのあとなので、ダメージを与えなかったヒット（みがわり・ばけのかわなど）ではくわえない
+ *     ここではダメージを与えたヒットのあとなので、みがわりに当たったヒットではくわえない
+ *     （ばけのかわなどで防がれたヒットではくわえる）
  */
 export class GulpMissileEffect implements IAbilityEffect {
   async onSourceDamagingHit(
