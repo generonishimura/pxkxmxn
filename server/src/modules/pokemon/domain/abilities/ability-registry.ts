@@ -212,6 +212,8 @@ import { DownloadEffect } from './effects/stat-change/download-effect';
 import { GutsAttackBoostEffect } from './effects/damage-modify/guts-attack-boost-effect';
 import { QuickDrawEffect } from './effects/other/quick-draw-effect';
 import { TeraShellEffect } from './effects/damage-modify/tera-shell-effect';
+// 接触技で両者をほろびのうた状態にする特性（Issue #135 一部）
+import { PerishBodyEffect } from './effects/other/perish-body-effect';
 
 /**
  * 特性レジストリ
@@ -522,6 +524,8 @@ export class AbilityRegistry {
       this.registry.set('こんじょう', new GutsAttackBoostEffect());
       this.registry.set('クイックドロウ', new QuickDrawEffect());
       this.registry.set('テラスシェル', new TeraShellEffect());
+      // 接触技で両者をほろびのうた状態にする特性（Issue #135 一部）
+      this.registry.set('ほろびのボディ', new PerishBodyEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
