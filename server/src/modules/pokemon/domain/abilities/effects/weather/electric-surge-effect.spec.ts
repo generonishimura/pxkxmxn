@@ -15,6 +15,8 @@ describe('ElectricSurgeEffect', () => {
     const mockBattleRepository = {
       update: jest.fn().mockResolvedValue(undefined),
       findById: jest.fn().mockResolvedValue(null),
+      // 天候・フィールドが変わったことを場のポケモンに知らせるときに引く
+      findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([]),
       patchGlobalFieldState: jest.fn(),
     };
     return {

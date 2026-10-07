@@ -8,6 +8,7 @@ import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context
 import { applyHeal, fractionOfMaxHp } from '@/modules/pokemon/domain/battle-events/heal';
 // タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #110 #114 #119 #135 一部）
 import { resolveBattlePokemonTraits } from '@/modules/pokemon/domain/battle-events/battle-traits';
+import { notifyFieldChange } from '@/modules/pokemon/domain/battle-events/field-change';
 
 /**
  * FieldResidualProcessor
@@ -38,7 +39,22 @@ export class FieldResidualProcessor {
       return battle;
     }
     await this.battleRepository.update(battle.id, { weather: Weather.None });
-    return this.battleRepository.patchGlobalFieldState(battle.id, { weatherTurns: null });
+    const ended = await this.battleRepository.patchGlobalFieldState(battle.id, {
+      weatherTurns: null,
+    });
+    await notifyFieldChange(this.contextOf(ended), 'weather');
+    return (await this.battleRepository.findById(battle.id)) ?? ended;
+  }
+
+  /**
+   * 天候・フィールドが終わったことを特性に知らせるときのコンテキスト
+   */
+  private contextOf(battle: Battle): BattleContext {
+    return {
+      battle,
+      battleRepository: this.battleRepository,
+      trainedPokemonRepository: this.trainedPokemonRepository,
+    };
   }
 
   /**
@@ -50,7 +66,10 @@ export class FieldResidualProcessor {
       return;
     }
     await this.battleRepository.update(latest.id, { field: Field.None });
-    await this.battleRepository.patchGlobalFieldState(latest.id, { terrainTurns: null });
+    const ended = await this.battleRepository.patchGlobalFieldState(latest.id, {
+      terrainTurns: null,
+    });
+    await notifyFieldChange(this.contextOf(ended), 'terrain');
   }
 
   /**

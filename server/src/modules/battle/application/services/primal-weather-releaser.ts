@@ -6,6 +6,7 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 // タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #119 #135 一部）
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { resolveBattlePokemonTraits } from '@/modules/pokemon/domain/battle-events/battle-traits';
+import { notifyFieldChange } from '@/modules/pokemon/domain/battle-events/field-change';
 
 /**
  * PrimalWeatherReleaser
@@ -50,10 +51,18 @@ export class PrimalWeatherReleaser {
       }
     }
     await this.battleRepository.update(battleId, { weather: Weather.None });
-    await this.battleRepository.patchGlobalFieldState(battleId, {
+    const ended = await this.battleRepository.patchGlobalFieldState(battleId, {
       primalWeather: null,
       weatherSourceStatusId: null,
     });
+    await notifyFieldChange(
+      {
+        battle: ended,
+        battleRepository: this.battleRepository,
+        trainedPokemonRepository: this.trainedPokemonRepository,
+      },
+      'weather',
+    );
   }
 
   /**

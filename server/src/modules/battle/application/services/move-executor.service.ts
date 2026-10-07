@@ -154,6 +154,8 @@ interface MoveUseParams {
   readonly called?: CalledMoveInfo;
   /** 最後に出し始めた技の記録（みらいよちが当たるときは渡さない） */
   readonly trace?: MoveTrace;
+  /** 使用者の特性の onPrepareHit を呼び終えた（呼び直さない） */
+  readonly prepared?: boolean;
 }
 
 /**
@@ -198,6 +200,22 @@ export class MoveExecutorService {
    * ふんじんで爆発するときのダメージ（最大 HP の 1/4。四捨五入、最低 1）
    */
   private static readonly POWDER_DAMAGE_DIVISOR = 4;
+
+  /** よこどり（奪った技では onPrepareHit を呼ばない） */
+  private static readonly SNATCH_MOVE_NAME = 'よこどり';
+
+  /**
+   * 別の技を呼ぶ技（本家の callsMove。この技そのものでは onPrepareHit を呼ばない）
+   */
+  private static readonly CALLS_MOVE_NAMES: readonly string[] = [
+    'ゆびをふる',
+    'ねごと',
+    'ねこのて',
+    'まねっこ',
+    'オウムがえし',
+    'さきどり',
+    'しぜんのちから',
+  ];
 
   /** プラズマシャワー・そうでんで変わるタイプ */
   private static readonly NORMAL_TYPE_NAME = 'ノーマル';
@@ -989,6 +1007,39 @@ export class MoveExecutorService {
       };
     }
 
+    // 技を出す直前の使用者の特性（へんげんじざい・リベロ・バトルスイッチ。本家の onPrepareHit）。
+    // タイプ・フォルムが変わるので、使用者を読み直して技の本体をやり直す（preventsMove とこの判定はしない）
+    if (
+      !params.prepared &&
+      attackerAbilityEffect?.onPrepareHit &&
+      this.runsPrepareHit(move, called)
+    ) {
+      battleContext.moveTypeName =
+        moveEffect?.typeless === true
+          ? undefined
+          : this.resolveMoveTypeName(
+              move,
+              moveEffect,
+              attacker,
+              defender,
+              attackerAbilityEffect,
+              battleContext,
+            );
+      const prepareMessage = await attackerAbilityEffect.onPrepareHit(
+        attacker,
+        defender,
+        battleContext,
+      );
+      const preparedAttacker =
+        (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? attacker;
+      const body = await this.runMoveBody({
+        ...params,
+        attacker: preparedAttacker,
+        prepared: true,
+      });
+      return prepareMessage ? { ...body, message: `${prepareMessage} ${body.message}` } : body;
+    }
+
     // サイコフィールド: 地面にいる相手への優先度の高い技（いたずらごころなどの補正を含む）は失敗する
     if (
       targetsOpponent &&
@@ -1266,6 +1317,7 @@ export class MoveExecutorService {
     let substituteBroke = false;
     let hitCount = 0;
     let criticalHitCount = 0;
+    let blockedHitCount = 0;
     let endured = false;
     const hpBeforeMove = updatedDefender.currentHp;
     const hitEventMessages: string[] = [];
@@ -1302,13 +1354,38 @@ export class MoveExecutorService {
         !criticalHitBlocked && rollCriticalHit(criticalHitStage, this.criticalHitRandom);
       battleContext.isCriticalHit = isCriticalHit;
       const hitDamage = await DamageCalculator.calculate(createDamageParams(power, hitDamageRatio));
-      if (isCriticalHit && hitDamage > 0) {
-        criticalHitCount += 1;
-      }
 
       // みがわりがあれば、HP の代わりにみがわりにダメージを与える（追加効果・接触時の特性は起きない）
       const substituteHp = updatedDefender.volatileState.substituteHp;
-      if (substituteHp !== undefined && !bypassesSubstitute && hitDamage > 0) {
+      const hitsSubstitute = substituteHp !== undefined && !bypassesSubstitute && hitDamage > 0;
+
+      // ばけのかわ・アイスフェイス（防御側特性の blockDamagingHit。かたやぶりで無視される）: このヒットのダメージを 0 にする。
+      // 防いだヒットも当たったものとして扱い、急所にはならない（本家の onDamage が 0 を返す・onCriticalHit が false）
+      const blockMessage =
+        !hitsSubstitute && hitDamage > 0 && defenderAbilityEffect?.blockDamagingHit
+          ? await defenderAbilityEffect.blockDamagingHit(
+              updatedDefender,
+              currentAttacker,
+              battleContext,
+            )
+          : null;
+      if (isCriticalHit && hitDamage > 0 && !blockMessage) {
+        criticalHitCount += 1;
+      }
+      if (blockMessage) {
+        hitEventMessages.push(blockMessage);
+        blockedHitCount += 1;
+        hitCount += 1;
+        // 特性が書いた状態（ばけのかわの 1/8 のダメージなど）を読み直す
+        currentAttacker =
+          (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? currentAttacker;
+        updatedDefender =
+          (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? updatedDefender;
+        battleContext.attacker = currentAttacker;
+        battleContext.defender = updatedDefender;
+      }
+
+      if (hitsSubstitute && substituteHp !== undefined) {
         const dealtToSubstitute = Math.min(substituteHp, hitDamage);
         const remaining = substituteHp - dealtToSubstitute;
         await this.battleRepository.patchVolatileState(defender.id, {
@@ -1323,30 +1400,34 @@ export class MoveExecutorService {
         continue;
       }
 
-      // ダメージを適用（こらえるのターンは、ひんしになるダメージでも HP が 1 残る）
+      // ダメージを適用（こらえるのターンは、ひんしになるダメージでも HP が 1 残る）。防いだヒットは HP を変えない
       const hpBeforeHit = updatedDefender.currentHp;
-      const endures =
-        updatedDefender.volatileState.protection === 'endure' && hitDamage >= hpBeforeHit;
-      endured = endured || endures;
-      const newHp = endures ? Math.min(hpBeforeHit, 1) : Math.max(0, hpBeforeHit - hitDamage);
-      const dealtDamage = hpBeforeHit - newHp;
-      await this.battleRepository.updateBattlePokemonStatus(defender.id, {
-        currentHp: newHp,
-      });
+      let dealtDamage = 0;
+      if (!blockMessage) {
+        const endures =
+          updatedDefender.volatileState.protection === 'endure' && hitDamage >= hpBeforeHit;
+        endured = endured || endures;
+        const newHp = endures ? Math.min(hpBeforeHit, 1) : Math.max(0, hpBeforeHit - hitDamage);
+        dealtDamage = hpBeforeHit - newHp;
+        await this.battleRepository.updateBattlePokemonStatus(defender.id, {
+          currentHp: newHp,
+        });
 
-      // 更新後のdefenderを取得（次のヒットと状態異常付与のために最新の状態を取得）
-      const latestDefender = await this.battleRepository.findBattlePokemonStatusById(defender.id);
-      if (!latestDefender) {
-        throw new NotFoundException('Defender BattlePokemonStatus', defender.id);
+        // 更新後のdefenderを取得（次のヒットと状態異常付与のために最新の状態を取得）
+        const latestDefender = await this.battleRepository.findBattlePokemonStatusById(defender.id);
+        if (!latestDefender) {
+          throw new NotFoundException('Defender BattlePokemonStatus', defender.id);
+        }
+        updatedDefender = latestDefender;
+        battleContext.defender = latestDefender;
+        damage += dealtDamage;
+        hitCount += 1;
       }
-      updatedDefender = latestDefender;
-      battleContext.defender = latestDefender;
-      damage += dealtDamage;
-      hitCount += 1;
 
-      // ヒットごとの特性（防御側の onDamagingHit → 攻撃側の onSourceDamagingHit）
+      // ヒットごとの特性（防御側の onDamagingHit → 攻撃側の onSourceDamagingHit）。
+      // 防いだヒットでも呼ぶ（hit.damage は 0。本家の DamagingHit もダメージ 0 で呼ばれる）
       if (
-        dealtDamage > 0 &&
+        (dealtDamage > 0 || blockMessage) &&
         (defenderEventEffect?.onDamagingHit || attackerAbilityEffect?.onSourceDamagingHit)
       ) {
         // 特性で能力ランク・HP・状態異常が変わるため、そのたびに両者の状態を取り直す
@@ -1388,11 +1469,17 @@ export class MoveExecutorService {
         );
       }
 
-      // 無効化された・どちらかがひんしになった場合は残りのヒットをしない
-      if (hitDamage === 0 || updatedDefender.isFainted() || currentAttacker.isFainted()) {
+      // 無効化された・どちらかがひんしになった場合は残りのヒットをしない（防いだヒットのあとは次のヒットに進む）
+      if (
+        (hitDamage === 0 && !blockMessage) ||
+        updatedDefender.isFainted() ||
+        currentAttacker.isFainted()
+      ) {
         break;
       }
     }
+    // 1 回でも当たったか（ダメージを与えたか、ばけのかわなどで防がれたか）。追加効果・接触時の特性・交代の判定に使う
+    const landed = damage > 0 || blockedHitCount > 0;
 
     // みがわりにだけ当たったときは、反動・吸収（afterDamage）だけを起こす（本家と同じ）
     if (damage === 0 && substituteDamage > 0) {
@@ -1442,7 +1529,7 @@ export class MoveExecutorService {
     // 技の追加効果に渡すポケモンの状態（接触時の特性で変わった場合は取得し直す）
     let attackerForMoveEffect = currentAttacker;
     let defenderForMoveEffect = updatedDefender;
-    if (damage > 0 && defenderEventEffect?.applyContactStatusCondition) {
+    if (landed && defenderEventEffect?.applyContactStatusCondition) {
       const applied = await defenderEventEffect.applyContactStatusCondition(
         updatedDefender,
         currentAttacker,
@@ -1461,7 +1548,7 @@ export class MoveExecutorService {
 
     // くちばしキャノンをためている相手に接触技を当てると、やけどになる
     if (
-      damage > 0 &&
+      landed &&
       isContactMove(battleContext) &&
       defenderForMoveEffect.volatileState.beakBlast === true
     ) {
@@ -1530,9 +1617,9 @@ export class MoveExecutorService {
           })
         : [];
 
-    // 交代（とんぼがえり・ドラゴンテール・ききかいひ）。ダメージを与えたときだけ。
+    // 交代（とんぼがえり・ドラゴンテール・ききかいひ）。当たったとき（ばけのかわで防がれたときを含む）だけ。
     // ドラゴンテールの強制交代が先に決まり、そのときききかいひは発動しない（本家の forceSwitchFlag）
-    if (damage > 0) {
+    if (landed) {
       const latestDefender = await this.battleRepository.findBattlePokemonStatusById(defender.id);
       const forced =
         moveEffect?.forceSwitch === true &&
@@ -1562,9 +1649,22 @@ export class MoveExecutorService {
       .join('');
     return {
       message: `Used ${move.name} and dealt ${damage} damage${hitCountMessage}${criticalHitMessage}${protectionBrokenMessage}${enduredMessage}${contactEffectMessage}${eventMessage}${moveEffectMessage}${afterMoveMessage}`,
-      outcome: damage > 0 ? 'hit' : 'failed',
+      outcome: landed ? 'hit' : 'failed',
       moveTypeName: moveType.name,
     };
+  }
+
+  /**
+   * 使用者の特性の onPrepareHit を呼ぶ技か（本家の protean と同じ条件）
+   * はね返した技・みらいよちが当たるとき・よこどりで奪った技・技を呼ぶ技（ゆびをふるなど。呼ばれた技では呼ぶ）では呼ばない
+   */
+  private runsPrepareHit(move: Move, called: CalledMoveInfo | undefined): boolean {
+    return (
+      called?.bounced !== true &&
+      called?.isFutureAttack !== true &&
+      called?.calledBy !== MoveExecutorService.SNATCH_MOVE_NAME &&
+      !MoveExecutorService.CALLS_MOVE_NAMES.includes(move.name)
+    );
   }
 
   /**

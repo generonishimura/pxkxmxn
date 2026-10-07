@@ -9,6 +9,8 @@ import {
 } from '@/modules/battle/domain/state/side-state';
 import { MutableStatePatch, markRemoved } from '@/modules/battle/domain/state/state-field-parser';
 import { BattleContext } from '../abilities/battle-context.interface';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #135 一部）
+import { notifyFieldChange } from './field-change';
 
 /**
  * 場の状態を書く補助関数（天候・フィールド・設置技・陣営の状態の消去と入れ替え）
@@ -39,6 +41,7 @@ const latestBattle = async (battleContext: BattleContext): Promise<Battle> =>
 /**
  * ふつうの天候（あめ・はれ・すなあらし・あられ）を出す（あまごい・あめふらしなど）
  * - すでに同じ天候、またはゲンシ天候の間は何もしない（ゲンシ天候はふつうの天候で上書きできない）
+ * - 変えたら、場のポケモンの特性の onWeatherChange を呼ぶ（notifyFieldChange）
  * - GlobalFieldState.weatherTurns に turns を書く。ターン終了時に減らし、1 のターン終了時に天候を戻すのはエンジン
  * @param turns 残りターン数（既定 5。持ち物で 8 にするときなどに渡す）
  * @returns 天候を変えたら true
@@ -58,6 +61,7 @@ export const setWeather = async (
   }
   await repository.update(battle.id, { weather });
   await repository.patchGlobalFieldState(battle.id, { weatherTurns: turns });
+  await notifyFieldChange(battleContext, 'weather');
   return true;
 };
 
@@ -88,12 +92,14 @@ export const setPrimalWeather = async (
     weatherSourceStatusId: holder.id,
     weatherTurns: null,
   });
+  await notifyFieldChange(battleContext, 'weather');
   return true;
 };
 
 /**
  * フィールドを出す（エレキフィールド・エレキメイカーなど）
  * - すでに同じフィールドなら何もしない
+ * - 変えたら、場のポケモンの特性の onTerrainChange を呼ぶ（notifyFieldChange）
  * - GlobalFieldState.terrainTurns に turns を書く。ターン終了時に減らし、1 のターン終了時にフィールドを戻すのはエンジン
  * @returns フィールドを変えたら true
  */
@@ -112,6 +118,7 @@ export const setTerrain = async (
   }
   await repository.update(battle.id, { field });
   await repository.patchGlobalFieldState(battle.id, { terrainTurns: turns });
+  await notifyFieldChange(battleContext, 'terrain');
   return true;
 };
 

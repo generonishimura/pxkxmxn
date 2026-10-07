@@ -779,4 +779,56 @@ export interface IAbilityEffect {
    * 返した技は、この特性を持つポケモンが元の使用者に出す（はね返した技は、もう一度はね返されない）
    */
   readonly bouncesMoves?: boolean;
+  // ---- タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #135 一部） ----
+
+  /**
+   * 攻撃側: 技を出す直前の効果（例: へんげんじざい・リベロ = 技のタイプにタイプを変える、バトルスイッチ = フォルムを変える）
+   * MoveExecutorService が、特性の preventsMove（しめりけなど）を通ったあと、まもる系・命中判定の前に 1 回呼ぶ
+   * （本家の onPrepareHit。変化技・外れる技でも呼ぶ）。battleContext.moveTypeName はタイプを変える効果のあとのタイプ。
+   * 次の技では呼ばない（本家と同じ）: はね返した技、みらいよちが当たるとき、よこどりで奪った技、技を呼ぶ技
+   * （ゆびをふる・ねごと・ねこのて・まねっこ・オウムがえし・さきどり・しぜんのちから。呼ばれた技では呼ぶ）
+   * 呼んだあと、エンジンは使用者を読み直し、タイプ・実数値・特性を求め直してから技を続ける
+   * @param holder この特性を持つ、技の使用者
+   * @param target 技の相手
+   * @returns メッセージ（技のメッセージの前に付く）。何もしなければ null
+   */
+  onPrepareHit?(
+    _holder: BattlePokemonStatus,
+    _target: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 防御側: 攻撃技のヒットを防ぎ、ダメージを 0 にする効果（例: ばけのかわ、アイスフェイス = 物理技だけ）
+   * MoveExecutorService が、ダメージ技のヒットごとに、ダメージを与える前に呼ぶ（みがわりに当たるヒットでは呼ばない）。
+   * かたやぶりで無視される。メッセージを返すと、そのヒットのダメージを 0 にする（本家の onDamage が 0 を返すのと同じ）。
+   * 防いだヒットも当たったものとして、技の追加効果（onHit）・接触時の特性・onDamagingHit（hit.damage は 0）・
+   * 交代（とんぼがえりなど）は起きる。急所にはならない。連続技は次のヒットに進む
+   * 防いだ状態（persistentState.disguiseBusted など）・フォルム・自分へのダメージ（1/8）は、このフックの中で書く
+   * @param holder この特性を持つ、技を受けるポケモン
+   * @param attacker 技の使用者
+   * @returns 防いだならメッセージ、防がなければ null
+   */
+  blockDamagingHit?(
+    _holder: BattlePokemonStatus,
+    _attacker: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 天候が変わったとき（例: てんきや・フラワーギフト = フォルムを変える、アイスフェイス = ゆき（あられ）で戻る）
+   * setWeather / setPrimalWeather で変えたあと、天候がターン終了時に終わったあと、ゲンシ天候が終わったあとに、
+   * 場のひんしでないポケモンの特性ごとに呼ぶ（notifyFieldChange）。battleContext.weather は効果のある天候
+   * （ノーてんき・エアロックが場にいれば None）。場に出たときは呼ばないので、onEntry でも同じ判定をする
+   * 注: ノーてんき・エアロックが場に出入りしたときは呼ばない。メッセージは出せない
+   */
+  onWeatherChange?(_holder: BattlePokemonStatus, _battleContext?: BattleContext): Promise<void>;
+
+  /**
+   * フィールドが変わったとき（例: ぎたい = フィールドのタイプに変える）
+   * setTerrain で変えたあと、フィールドがターン終了時に終わったあとに、場のひんしでないポケモンの特性ごとに呼ぶ
+   * （notifyFieldChange）。battleContext.field は今のフィールド。場に出たときは呼ばないので、onEntry でも同じ判定をする
+   * 注: メッセージは出せない
+   */
+  onTerrainChange?(_holder: BattlePokemonStatus, _battleContext?: BattleContext): Promise<void>;
 }
