@@ -365,6 +365,12 @@ import { KingsShieldEffect } from './effects/kings-shield-effect';
 import { ObstructEffect } from './effects/obstruct-effect';
 import { SilkTrapEffect } from './effects/silk-trap-effect';
 import { BurningBulwarkEffect } from './effects/burning-bulwark-effect';
+// まもる系の技（Issue #107, #108 一部）
+import { DetectEffect } from './effects/detect-effect';
+import { WideGuardEffect } from './effects/wide-guard-effect';
+import { QuickGuardEffect } from './effects/quick-guard-effect';
+import { EndureEffect } from './effects/endure-effect';
+import { BanefulBunkerEffect } from './effects/baneful-bunker-effect';
 
 /**
  * 技のレジストリ
@@ -840,6 +846,12 @@ export class MoveRegistry {
       this.registry.set('ブロッキング', new ObstructEffect());
       this.registry.set('スレッドトラップ', new SilkTrapEffect());
       this.registry.set('かえんのまもり', new BurningBulwarkEffect());
+      // まもる系の技（Issue #107, #108 一部）
+      this.registry.set('みきり', new DetectEffect());
+      this.registry.set('ワイドガード', new WideGuardEffect());
+      this.registry.set('ファストガード', new QuickGuardEffect());
+      this.registry.set('こらえる', new EndureEffect());
+      this.registry.set('トーチカ', new BanefulBunkerEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
