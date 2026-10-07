@@ -57,6 +57,18 @@ describe('ZeroToHeroEffect（マイティチェンジ）', () => {
     expect(battle.get(1).persistentState.form).toBeUndefined();
   });
 
+  it('ひんしで引っ込むときはフォルムを変えない', async () => {
+    // Arrange
+    const battle = createInMemoryBattle({ nationalDex: PALAFIN, status: { currentHp: 0 } });
+
+    // Act
+    await effect.onSwitchOut(battle.get(1), battle.context());
+
+    // Assert
+    expect(battle.get(1).persistentState.form).toBeUndefined();
+    expect(battle.battleRepository.patchPersistentState).not.toHaveBeenCalled();
+  });
+
   it('コンテキストがなければ何もしない', async () => {
     // Arrange
     const battle = createInMemoryBattle({ nationalDex: PALAFIN });
