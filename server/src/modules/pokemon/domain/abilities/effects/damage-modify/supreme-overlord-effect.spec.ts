@@ -21,16 +21,19 @@ describe('SupremeOverlordEffect', () => {
       [5, 6144, 150],
     ])(
       'ひんしの仲間が %i 匹なら威力に %i/4096 を掛ける（威力100 → %i）',
-      (count, _modifier, expected) => {
+      (count, modifier, expected) => {
         // Act
         const result = new SupremeOverlordEffect().modifyBasePower(
           pokemon,
           100,
           contextWith(count),
         );
+        // 威力 4096 に掛けると、掛けた 4096 分率の値そのものになる
+        const raw = new SupremeOverlordEffect().modifyBasePower(pokemon, 4096, contextWith(count));
 
         // Assert
         expect(result).toBe(expected);
+        expect(raw).toBe(modifier);
       },
     );
 
@@ -48,6 +51,14 @@ describe('SupremeOverlordEffect', () => {
 
       // Assert
       expect(result).toBe(88);
+    });
+
+    it('ちょうど .5 になったら切り捨てる（威力25・5匹 → 37.5 は 37）', () => {
+      // Act
+      const result = new SupremeOverlordEffect().modifyBasePower(pokemon, 25, contextWith(5));
+
+      // Assert
+      expect(result).toBe(37);
     });
 
     it('ひんしの仲間がいなければ補正しない', () => {
