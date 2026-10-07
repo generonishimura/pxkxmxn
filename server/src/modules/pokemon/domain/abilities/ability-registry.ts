@@ -207,6 +207,8 @@ import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 // フォルムチェンジの特性（Issue #135 一部）
 import { DisguiseEffect } from './effects/other/disguise-effect';
 import { IceFaceEffect } from './effects/other/ice-face-effect';
+import { PowerConstructEffect } from './effects/other/power-construct-effect';
+import { BattleBondEffect } from './effects/stat-change/battle-bond-effect';
 
 /**
  * 特性レジストリ
@@ -512,6 +514,8 @@ export class AbilityRegistry {
       // フォルムチェンジの特性（Issue #135 一部）
       this.registry.set('ばけのかわ', new DisguiseEffect());
       this.registry.set('アイスフェイス', new IceFaceEffect());
+      this.registry.set('スワームチェンジ', new PowerConstructEffect());
+      this.registry.set('きずなへんげ', new BattleBondEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
