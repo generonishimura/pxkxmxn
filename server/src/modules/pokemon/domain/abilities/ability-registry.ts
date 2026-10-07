@@ -206,6 +206,7 @@ import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 // 姿を写す・化ける特性（Issue #135 一部）
 import { ImposterEffect } from './effects/other/imposter-effect';
+import { IllusionEffect } from './effects/other/illusion-effect';
 
 /**
  * 特性レジストリ
@@ -510,6 +511,7 @@ export class AbilityRegistry {
       this.registry.set('びんじょう', new OpportunistEffect());
       // 姿を写す・化ける特性（Issue #135 一部）
       this.registry.set('かわりもの', new ImposterEffect());
+      this.registry.set('イリュージョン', new IllusionEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
