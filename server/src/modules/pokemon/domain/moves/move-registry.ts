@@ -359,6 +359,12 @@ import { FocusEnergyEffect } from './effects/focus-energy-effect';
 import { LaserFocusEffect } from './effects/laser-focus-effect';
 // 技をはね返す技（Issue #107 一部）
 import { MagicCoatEffect } from './effects/magic-coat-effect';
+// まもる系の技（Issue #102, #103, #107 一部）
+import { ProtectEffect } from './effects/protect-effect';
+import { KingsShieldEffect } from './effects/kings-shield-effect';
+import { ObstructEffect } from './effects/obstruct-effect';
+import { SilkTrapEffect } from './effects/silk-trap-effect';
+import { BurningBulwarkEffect } from './effects/burning-bulwark-effect';
 
 /**
  * 技のレジストリ
@@ -828,6 +834,12 @@ export class MoveRegistry {
       this.registry.set('とぎすます', new LaserFocusEffect());
       // 技をはね返す技（Issue #107 一部）
       this.registry.set('マジックコート', new MagicCoatEffect());
+      // まもる系の技（Issue #102, #103, #107 一部）
+      this.registry.set('まもる', new ProtectEffect());
+      this.registry.set('キングシールド', new KingsShieldEffect());
+      this.registry.set('ブロッキング', new ObstructEffect());
+      this.registry.set('スレッドトラップ', new SilkTrapEffect());
+      this.registry.set('かえんのまもり', new BurningBulwarkEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
