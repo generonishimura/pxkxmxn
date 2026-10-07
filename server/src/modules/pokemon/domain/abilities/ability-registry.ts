@@ -280,6 +280,10 @@ import { IceFaceEffect } from './effects/other/ice-face-effect';
 import { PowerConstructEffect } from './effects/other/power-construct-effect';
 import { BattleBondEffect } from './effects/stat-change/battle-bond-effect';
 import { GulpMissileEffect } from './effects/other/gulp-missile-effect';
+// フォルムを変える特性: はらぺこスイッチ・マイティチェンジ・テラスチェンジ（Issue #135 一部）
+import { HungerSwitchEffect } from './effects/other/hunger-switch-effect';
+import { ZeroToHeroEffect } from './effects/other/zero-to-hero-effect';
+import { TeraShiftEffect } from './effects/other/tera-shift-effect';
 
 /**
  * 特性レジストリ
@@ -664,6 +668,10 @@ export class AbilityRegistry {
       this.registry.set('スワームチェンジ', new PowerConstructEffect());
       this.registry.set('きずなへんげ', new BattleBondEffect());
       this.registry.set('うのミサイル', new GulpMissileEffect());
+      // フォルムを変える特性: はらぺこスイッチ・マイティチェンジ・テラスチェンジ（Issue #135 一部）
+      this.registry.set('はらぺこスイッチ', new HungerSwitchEffect());
+      this.registry.set('マイティチェンジ', new ZeroToHeroEffect());
+      this.registry.set('テラスチェンジ', new TeraShiftEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
