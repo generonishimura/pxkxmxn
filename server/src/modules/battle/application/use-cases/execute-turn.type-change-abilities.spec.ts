@@ -21,7 +21,10 @@ describe('ExecuteTurnUseCase - タイプを変える特性', () => {
   const setup = (attacker: Partial<HarnessPokemon> = {}, defender: Partial<HarnessPokemon> = {}) =>
     createBattleEngine({
       moves: MOVES,
-      typeChart: [['ほのお', 'くさ', 2]],
+      typeChart: [
+        ['ほのお', 'くさ', 2],
+        ['こおり', 'くさ', 2],
+      ],
       pokemon: [
         { id: 1, trainerId: 1, active: true, moveIds: MOVE_IDS, ...attacker },
         { id: 2, trainerId: 2, active: true, moveIds: MOVE_IDS, baseSpeed: 50, ...defender },
@@ -77,6 +80,19 @@ describe('ExecuteTurnUseCase - タイプを変える特性', () => {
 
       // Assert: ほのおの相性 2 倍がかからない
       expect(result.actions[0].result).toBe('Used ひのこ and dealt 42 damage');
+    });
+  });
+
+  describe('フリーズスキン', () => {
+    it('ノーマル技がこおり技になり、威力 1.2 倍で、こおりの相性が使われる', async () => {
+      // Arrange: 威力 50 → 60。基本ダメージ 28、使用者はノーマルタイプなのでタイプ一致なし、くさに 2 倍で 56
+      const engine = setup({ ability: 'フリーズスキン' }, { types: ['くさ'] });
+
+      // Act
+      const result = await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(result.actions[0].result).toBe('Used たいあたり and dealt 56 damage');
     });
   });
 });
