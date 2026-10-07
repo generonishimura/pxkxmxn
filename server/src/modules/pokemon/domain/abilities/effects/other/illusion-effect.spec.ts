@@ -52,9 +52,51 @@ describe('IllusionEffect（イリュージョン）', () => {
       expect(battle.get(1).volatileState.illusionStatusId).toBe(3);
     });
 
-    it('自分が手持ちの最後なら化けない', async () => {
+    it('手持ちの後ろの控えが元気なら、いちばん後ろの控えに化ける', async () => {
       // Arrange
       const battle = createInMemoryBattle({ ability: 'イリュージョン' });
+      battle.statuses.set(3, benched(3));
+      battle.statuses.set(4, benched(4));
+
+      // Act
+      await new IllusionEffect().onEntry(battle.get(1), battle.context());
+
+      // Assert
+      expect(battle.get(1).volatileState.illusionStatusId).toBe(4);
+    });
+
+    it('自分が手持ちの最後でも、ひんしでない控えに化ける', async () => {
+      // Arrange
+      const battle = createInMemoryBattle({ ability: 'イリュージョン' });
+      battle.statuses.set(3, benched(3));
+      battle.statuses.set(4, benched(4));
+      battle.statuses.set(5, benched(5));
+
+      // Act
+      await new IllusionEffect().onEntry(battle.get(5), battle.context());
+
+      // Assert
+      expect(battle.get(5).volatileState.illusionStatusId).toBe(4);
+    });
+
+    it('自分より後ろの控えがすべてひんしなら、前の控えに化ける', async () => {
+      // Arrange
+      const battle = createInMemoryBattle({ ability: 'イリュージョン' });
+      battle.statuses.set(3, benched(3));
+      battle.statuses.set(4, benched(4));
+      battle.statuses.set(5, benched(5, 0));
+
+      // Act
+      await new IllusionEffect().onEntry(battle.get(4), battle.context());
+
+      // Assert
+      expect(battle.get(4).volatileState.illusionStatusId).toBe(3);
+    });
+
+    it('自分以外の手持ちがすべてひんしなら化けない', async () => {
+      // Arrange
+      const battle = createInMemoryBattle({ ability: 'イリュージョン' });
+      battle.statuses.set(3, benched(3, 0));
 
       // Act
       await new IllusionEffect().onEntry(battle.get(1), battle.context());

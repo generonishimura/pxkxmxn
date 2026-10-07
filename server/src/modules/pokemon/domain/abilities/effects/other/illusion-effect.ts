@@ -9,8 +9,8 @@ import { findIllusionTarget } from '../../../battle-events/illusion';
  * 場に出るとき、手持ちの後ろにいるポケモンに化ける（本家の onBeforeSwitchIn）。
  * 技のダメージを受けると解ける（本家の onDamagingHit）
  *
- * - 化ける先: 同じトレーナーの手持ちを後ろから見て、自分より後ろにいる、ひんしでない最初のポケモン（findIllusionTarget）。
- *   自分が手持ちの最後なら化けない
+ * - 化ける先: 同じトレーナーの手持ちを後ろから見て、自分以外の、ひんしでない最初のポケモン（findIllusionTarget）。
+ *   そのようなポケモンがいなければ化けない
  * - 化けている間は、へんしん・かわりものが失敗する（transformInto が判定する）
  * - 特性を書き換える・消すと、化けている状態も消える（setAbility・suppressAbility が消す）
  * - みがわりが受けたヒットでは解けない。かたやぶりでも解ける（本家と同じ）
