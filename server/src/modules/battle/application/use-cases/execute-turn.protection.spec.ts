@@ -34,6 +34,7 @@ describe('ExecuteTurnUseCase - まもる系', () => {
   const HYPER_DRILL = createTestMove(8, 'ハイパードリル');
   const BIG_TACKLE = createTestMove(9, 'すてみタックル', { power: 300 });
   const HIGH_JUMP_KICK = createTestMove(10, 'とびひざげり', { type: 'かくとう', power: 130 });
+  const DOUBLE_HIT = createTestMove(11, 'ダブルアタック', { power: 200 });
 
   const GUARDS: ReadonlyArray<readonly [number, string, number, ProtectionMoveConfig]> = [
     [20, 'テストのまもる', 4, { kind: 'protect' }],
@@ -63,6 +64,7 @@ describe('ExecuteTurnUseCase - まもる系', () => {
     HYPER_DRILL,
     BIG_TACKLE,
     HIGH_JUMP_KICK,
+    DOUBLE_HIT,
     ...guardMoves,
   ];
 
@@ -72,6 +74,8 @@ describe('ExecuteTurnUseCase - まもる系', () => {
       guardVolatile?: VolatileState;
       turn?: number;
       attackerSpeed?: number;
+      /** ポケモン 1 の技（ポケモンごとに技は 10 個まで） */
+      attackerMoveIds?: readonly number[];
     } = {},
   ) =>
     createBattleEngine({
@@ -84,7 +88,7 @@ describe('ExecuteTurnUseCase - まもる系', () => {
           active: true,
           baseSpeed: options.attackerSpeed ?? 150,
           ability: options.attackerAbility,
-          moveIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+          moveIds: options.attackerMoveIds ?? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         },
         {
           id: 2,
@@ -322,12 +326,17 @@ describe('ExecuteTurnUseCase - まもる系', () => {
     it('まもるで防げない技（ハイパードリル）は通るが、守りは残る', async () => {
       // Arrange
       const engine = setup();
+      const patchVolatile = jest.spyOn(engine.battleRepository, 'patchVolatileState');
 
       // Act
       await engine.runTurn({ moveId: HYPER_DRILL.id }, { moveId: guardId('テストのまもる') });
 
       // Assert
       expect(engine.status(2).currentHp).toBeLessThan(160);
+      expect(patchVolatile).not.toHaveBeenCalledWith(
+        2,
+        expect.objectContaining({ protection: null }),
+      );
     });
 
     it('フェイントは守りを通り抜け、相手の守りを解く', async () => {
@@ -343,6 +352,57 @@ describe('ExecuteTurnUseCase - まもる系', () => {
       // Assert
       expect(engine.status(2).currentHp).toBeLessThan(160);
       expect(result.actions[1].result).toContain('broke through the protection!');
+    });
+
+    it('フェイントで守りを解くと、相手の protection と protectCount が消える', async () => {
+      // Arrange
+      const engine = setup();
+      const patchVolatile = jest.spyOn(engine.battleRepository, 'patchVolatileState');
+
+      // Act
+      await engine.runTurn({ moveId: FEINT.id }, { moveId: guardId('テストのまもる') });
+
+      // Assert
+      expect(patchVolatile).toHaveBeenCalledWith(2, { protection: null, protectCount: null });
+      expect(engine.status(2).volatileState.protection).toBeUndefined();
+      expect(engine.status(2).volatileState.protectCount).toBeUndefined();
+    });
+
+    it('フェイントは相手の陣営の守り（ワイドガード）も解き、protectCount を消す', async () => {
+      // Arrange
+      const engine = setup();
+      const patchSide = jest.spyOn(engine.battleRepository, 'patchSideConditions');
+
+      // Act
+      const result = await engine.runTurn(
+        { moveId: FEINT.id },
+        { moveId: guardId('テストのワイドガード') },
+      );
+
+      // Assert
+      expect(result.actions[1].result).toContain('broke through the protection!');
+      expect(patchSide).toHaveBeenCalledWith(
+        1,
+        2,
+        expect.objectContaining({ wideGuard: null, quickGuard: null }),
+      );
+      expect(getSideConditions(engine.battle().sideState, 2).wideGuard).toBeUndefined();
+      expect(engine.status(2).volatileState.protectCount).toBeUndefined();
+    });
+
+    it('ファストガードは、いたずらごころで優先度が上がった変化技も防ぐ', async () => {
+      // Arrange
+      const engine = setup({ attackerAbility: 'いたずらごころ' });
+
+      // Act
+      const result = await engine.runTurn(
+        { moveId: THUNDER_WAVE.id },
+        { moveId: guardId('テストのファストガード') },
+      );
+
+      // Assert
+      expect(engine.status(2).statusCondition).toBe(StatusCondition.None);
+      expect(result.actions[1].result).toBe('Used でんじは but it was blocked (ファストガード)');
     });
 
     it('使用者の特性の bypassesProtection（ふかしのこぶし）が true なら守りを通り抜ける', async () => {
@@ -425,6 +485,21 @@ describe('ExecuteTurnUseCase - まもる系', () => {
       // Act
       const result = await engine.runTurn(
         { moveId: BIG_TACKLE.id },
+        { moveId: guardId('テストのこらえる') },
+      );
+
+      // Assert
+      expect(engine.status(2).currentHp).toBe(1);
+      expect(result.actions[1].result).toContain('endured the hit!');
+    });
+
+    it('連続技は、ヒットごとにこらえるで HP が 1 残る', async () => {
+      // Arrange
+      const engine = setup({ attackerMoveIds: [DOUBLE_HIT.id] });
+
+      // Act
+      const result = await engine.runTurn(
+        { moveId: DOUBLE_HIT.id },
         { moveId: guardId('テストのこらえる') },
       );
 
