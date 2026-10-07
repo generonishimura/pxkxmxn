@@ -371,6 +371,10 @@ import { WideGuardEffect } from './effects/wide-guard-effect';
 import { QuickGuardEffect } from './effects/quick-guard-effect';
 import { EndureEffect } from './effects/endure-effect';
 import { BanefulBunkerEffect } from './effects/baneful-bunker-effect';
+// まもる系の技（トリックガード・ニードルガード・たたみがえし）（Issue #120 一部）
+import { CraftyShieldEffect } from './effects/crafty-shield-effect';
+import { SpikyShieldEffect } from './effects/spiky-shield-effect';
+import { MatBlockEffect } from './effects/mat-block-effect';
 
 /**
  * 技のレジストリ
@@ -852,6 +856,10 @@ export class MoveRegistry {
       this.registry.set('ファストガード', new QuickGuardEffect());
       this.registry.set('こらえる', new EndureEffect());
       this.registry.set('トーチカ', new BanefulBunkerEffect());
+      // まもる系の技（トリックガード・ニードルガード・たたみがえし）（Issue #120 一部）
+      this.registry.set('トリックガード', new CraftyShieldEffect());
+      this.registry.set('ニードルガード', new SpikyShieldEffect());
+      this.registry.set('たたみがえし', new MatBlockEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,

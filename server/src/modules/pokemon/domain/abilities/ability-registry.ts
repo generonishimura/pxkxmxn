@@ -260,6 +260,8 @@ import { AngerPointEffect } from './effects/stat-change/anger-point-effect';
 import { WonderSkinEffect } from './effects/other/wonder-skin-effect';
 import { MagicBounceEffect } from './effects/other/magic-bounce-effect';
 import { MyceliumMightEffect } from './effects/other/mycelium-might-effect';
+// まもる系を通り抜ける特性（Issue #135 一部）
+import { UnseenFistEffect } from './effects/other/unseen-fist-effect';
 
 /**
  * 特性レジストリ
@@ -624,6 +626,8 @@ export class AbilityRegistry {
       this.registry.set('ミラクルスキン', new WonderSkinEffect());
       this.registry.set('マジックミラー', new MagicBounceEffect());
       this.registry.set('きんしのちから', new MyceliumMightEffect());
+      // まもる系を通り抜ける特性（Issue #135 一部）
+      this.registry.set('ふかしのこぶし', new UnseenFistEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
