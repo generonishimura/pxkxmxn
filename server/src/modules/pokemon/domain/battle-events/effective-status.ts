@@ -12,7 +12,7 @@ import { getAbilityEffect, resolveAbilityName } from './ability-lookup';
  *    （エンジンが、特性の treatedAsStatusCondition から入れる。ぜったいねむりならねむり）
  * 3. どちらでもなければ null
  *
- * いびき・ねむる・あくむは、statusCondition ではなくこれで判定する（たたりめ・ゆめくいは特性名で判定する）
+ * いびき・ねむる・あくむ・ねごと・めざましビンタは、statusCondition ではなくこれで判定する（たたりめ・ゆめくいは特性名で判定する）
  */
 export const getEffectiveStatusCondition = (
   pokemon: BattlePokemonStatus,

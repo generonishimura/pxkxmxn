@@ -700,7 +700,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | `ActionOrderDeterminerService`（行動順） | 特性（`modifyPriority`・`modifyFractionalPriority`・`modifySpeed`）・素早さ |
 | `StatusConditionProcessorService`・`VolatileResidualProcessor`・`FieldResidualProcessor`（ターン終了時） | 特性（`onTurnEnd`・天候）・すなあらしとしおづけのタイプ・グラスフィールドの地面 |
 | `PokemonSwitcherService`・`EntryEffectProcessor`（交代・設置技） | 逃げられない状態のゴーストタイプ・相手の `trapsOpponent`・`onSwitchOut`・`onEntry`・ききかいひ・ステルスロックの相性・地面にいるか・どくびしのどくタイプ |
-| `StartBattleUseCase` | 先発の `onEntry`。両方の先発を場に出してから、実効の特性がかがくへんかガスの先発 → 素早さ（実数値）の高い順に呼ぶ（相手のかがくへんかガスで消えた特性は呼ばない）。最後に、効かなくなった特性のゲンシ天候を終わらせる（`releaseIfAbilityLost`） |
+| `StartBattleUseCase` | 先発の `onEntry`。両方の先発を場に出してから、実効の特性がイリュージョン → かがくへんかガス・テラスチェンジ（本家の onSwitchInPriority 2）→ 素早さ（実数値）の高い順に呼ぶ（相手のかがくへんかガスで消えた特性は呼ばない）。最後に、効かなくなった特性のゲンシ天候を終わらせる（`releaseIfAbilityLost`） |
 | `PrimalWeatherReleaser` | ゲンシ天候を出したポケモンの特性（書き換えられた・消されたら、行動のあとに天候を終わらせる） |
 | `canInflictStatus`・`canApplyVolatile` | 対象のタイプの免疫・特性 |
 

@@ -13,7 +13,8 @@ const KINGS_SHIELD_MOVE_NAME = 'キングシールド';
  * ギルガルドが攻撃技を出す直前にブレードフォルム（'blade'）に、キングシールドを出す直前にシールドフォルム（'shield'）になる
  * （onPrepareHit）。ほかの変化技ではフォルムは変わらない。へんしん中・ギルガルドでなければ何もしない
  * フォルムは交代で戻る（volatileState.form）。実数値はエンジンがフォルムの種族値で求め直す
- * 注: 本家は onModifyMove でフォルムを変えるので、ため技の 1 ターン目・技の onTryMove（もえつきるなど）や
+ * ため技の 1 ターン目でも変わる（エンジンがためるターンにも onPrepareHit を呼ぶ）
+ * 注: 本家は onModifyMove でフォルムを変えるので、技の onTryMove（もえつきるなど）や
  *     特性の preventsMove（しめりけなど）で失敗した技でも変わる。ここでは onPrepareHit なので、それらの技では変わらない
  */
 export class StanceChangeEffect implements IAbilityEffect {

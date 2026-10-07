@@ -58,7 +58,7 @@
 
 - シグネチャ: `modifyMovePower?(attacker, defender, battleContext): number | undefined`
 - 呼ばれる場所: `executeMove`。タイプ決定のあと、ダメージ計算の前に1回
-- 使う技: たたりめ、ベノムショック、からげんき、アシストパワー、つけあがる、おしおき、ウェザーボール
+- 使う技: たたりめ、ベノムショック、からげんき、アシストパワー、つけあがる、おしおき、ウェザーボール、めざましビンタ、きつけ
 - 戻り値は変更後の威力です。`battleContext.moveTypeName` は変更後のタイプ、`battleContext.weather` は効果のある天候です。
 - 威力が null の攻撃技（DB の威力が null のおしおきなど）は、`modifyMovePower` を持たせるとダメージ技として扱われ、命中判定とダメージ計算をします。`undefined` を返して威力が決まらない場合は、ダメージを与えずに終わります。
 
@@ -70,7 +70,7 @@ modifyMovePower(_attacker: BattlePokemonStatus, defender: BattlePokemonStatus): 
 }
 ```
 
-- `StatusCondition` にはひるみ（`Flinch`）・こんらん（`Confusion`）も入っています（付与するときの名前としてだけ使い、`statusCondition` には入りません）。たたりめ・からげんきのように「状態異常なら」と判定するときは、`statusCondition !== None` ではなく `isMajorStatus(status)` を使います。ぜったいねむりも「ねむり」として扱う技（たたりめ・ゆめくい・ねごと・いびき・めざましビンタ）は、`getEffectiveStatusCondition(pokemon, ctx)` を使います（9 章）。
+- `StatusCondition` にはひるみ（`Flinch`）・こんらん（`Confusion`）も入っています（付与するときの名前としてだけ使い、`statusCondition` には入りません）。たたりめ・からげんきのように「状態異常なら」と判定するときは、`statusCondition !== None` ではなく `isMajorStatus(status)` を使います。ぜったいねむりも「ねむり」として扱う技（ねごと・いびき・めざましビンタなど）は、`getEffectiveStatusCondition(pokemon, ctx)` を使います（9 章）。たたりめ・ゆめくいは、相手の特性名で判定します。
 
 ### modifyMoveType
 
@@ -300,7 +300,7 @@ preventsMove(_h: BattlePokemonStatus, role: 'attacker' | 'defender', ctx?: Battl
 }
 ```
 
-- おうごんのからだ（相手の変化技を無効）は `isImmuneToMove` で `ctx?.moveCategory === 'Status'` を返せば作れます（相手を対象にする技だけで呼ばれ、命中判定の前）。
+- おうごんのからだ（相手の変化技を無効）は `isImmuneToMove` で `ctx?.moveCategory === 'Status'` を返せば作れます（相手を対象にする技だけで呼ばれ、命中判定の前）。例外として、ほろびのうたは技の効果が自分で呼ぶので防ぎます（7 章）。
 
 ### onDamagingHit（防御側、ヒットごと）
 
@@ -617,8 +617,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - はりこみは、本家では攻撃・特攻を2倍にしますが、ここでは `modifyBasePower` で威力を2倍にします。ダメージ式では威力と攻撃を掛けるので、ほかの威力補正と重なったときの丸め以外は同じ結果になります。
 - はりこみは、ひんしになったポケモンの代わりに出てきたポケモンにも発動します。本家では発動しません（代わりはターンの終わりに出るため）。このエンジンは、ひんしの代わりを次のターンの交代の行動で出し、`switchedInTurn` にそのターンを書きます。交代の処理（`PokemonSwitcherService.executeSwitch`）が「自分で交代したか、ひんしの代わりか」を書かないため、特性からは見分けられません。
 - とうそうしんは、本家では威力に掛けますが、ここでは `modifyDamageDealt` でダメージに掛けます。`modifyBasePower` は同期の処理で、育成ポケモンの性別を引けないためです。ダメージ式の +2 や途中の切り捨てにも倍率が掛かるので、本家と1〜2違うことがあります。
-- バトル開始時は、トレーナー1の先発の `onEntry` が、トレーナー2の先発が場に出る前に呼ばれます（`StartBattleUseCase` がチームごとに順に作るため）。そのため、トレーナー1の先発のダウンロード・いかくは、相手がいないので発動しません。本家は両方の先発が場に出てから、素早さ順に発動します。直すには `StartBattleUseCase` で両方の先発を出してから `onEntry` を呼ぶ必要があります。
-- 両方が同時にひんしになったあとも、同じことが起きます。次のターンに、両方が交代の行動で代わりを出します。先に出た側の `onEntry` では、相手の場にはまだひんしのポケモンが残っています（`execute-turn` は、ひんしでも `isActive` を外さないため）。そのため、先に出た側のダウンロードは発動しません。いかくは、ひんしのポケモンのランクを下げるだけで、あとから出た相手には掛かりません。本家は両方の代わりが場に出てから特性が発動します。直すには、エンジンで両方の交代を済ませてから `onEntry` を呼ぶ必要があります。
+- 両方が同時にひんしになったあとは、次のターンに、両方が交代の行動で代わりを出します。先に出た側の `onEntry` では、相手の場にはまだひんしのポケモンが残っています（`execute-turn` は、ひんしでも `isActive` を外さないため）。そのため、先に出た側のダウンロードは発動しません。いかくは、ひんしのポケモンのランクを下げるだけで、あとから出た相手には掛かりません。本家は両方の代わりが場に出てから特性が発動します。直すには、エンジンで両方の交代を済ませてから `onEntry` を呼ぶ必要があります。
 - こんじょうは、本家では攻撃を1.5倍にしますが、ここでは `modifyBasePower` で威力を1.5倍にします。本家は攻撃の実数値を丸めるので、まれにダメージが1ずれます。また、このエンジンはやけどの半減を攻撃に掛けるので、やけどのときは威力を2倍にして打ち消します（からげんきは、もともと半減を受けないので打ち消さない）。
 - テラスシェルは、ヒットごとに HP が満タンかを見ます。そのため、連続技（ネズミざん・スケイルショットなど）では2回目から元の相性に戻ります。本家は1回目で発動すると、技が終わるまで0.5倍のままです。直すには、技を受ける前の HP（`MoveExecutorService` の `hpBeforeMove`）を `BattleContext` に入れる必要があります。
 - テラスシェルは防御側の `modifyDamage` で相性を変えるので、攻撃側のいろめがね・ブレインフォース（`modifyDamageDealt`。先に呼ばれる）は、変える前の相性で判定します。本家は変えたあとの相性（0.5倍）で判定するので、いろめがねは2倍になり、ブレインフォースは上がりません。
@@ -1803,7 +1802,7 @@ if (target) await ctx.battleRepository!.patchVolatileState(holder.id, { illusion
 ### 14.9 onPrepareHit（特性、攻撃側）
 
 - シグネチャ: `onPrepareHit?(holder, target, ctx?): Promise<string | null>`
-- 呼ばれる場所: `MoveExecutorService.runMoveBody`。特性の `preventsMove` を通ったあと、サイコフィールド・まもる系・命中判定の前に 1 回（本家の onPrepareHit。変化技・外れる技でも呼ぶ）。`ctx.moveTypeName` はタイプを変える効果のあとのタイプ。はね返した技・みらいよちが当たるとき・よこどりで奪った技・技を呼ぶ技（ゆびをふる・ねごと・ねこのて・まねっこ・オウムがえし・さきどり・しぜんのちから）では呼ばない（呼ばれた技では呼ぶ）
+- 呼ばれる場所: `MoveExecutorService.runMoveBody`。特性の `preventsMove` を通ったあと、サイコフィールド・まもる系・命中判定の前に 1 回（ため技の 1 ターン目は `useMove` からも呼ぶ。下を参照）（本家の onPrepareHit。変化技・外れる技でも呼ぶ）。`ctx.moveTypeName` はタイプを変える効果のあとのタイプ。はね返した技・みらいよちが当たるとき・よこどりで奪った技・技を呼ぶ技（ゆびをふる・ねごと・ねこのて・まねっこ・オウムがえし・さきどり・しぜんのちから）では呼ばない（呼ばれた技では呼ぶ）
 - 呼んだあと、エンジンは使用者を読み直し、タイプ・実数値・特性を求め直してから技を続ける。返したメッセージは技のメッセージの前に付く
 - 使う特性: へんげんじざい・リベロ（`typeChangeAbilityUsed` がなく、タイプなしの技でなく、今のタイプが技のタイプだけでなければ `setTypes` と `typeChangeAbilityUsed: true`）、バトルスイッチ（攻撃技で `'blade'`、キングシールドで `'shield'`。へんしん中は何もしない）
 - うのミサイルは onPrepareHit を使わない（本家は技が当たる直前・ため技の 1 ターン目に変わる）。なみのりは攻撃側の `onSourceDamagingHit`（ヒットのあと）で、ダイビングは技の効果の `chargeTurn.onCharge`（ため技の 1 ターン目。本家の Dive の onTryMove）で、使用者の実効の特性（`ctx.attackerAbilityName`）がうのミサイル・ウッウ（845）・へんしん中でなければ、HP が半分より上なら `'gulping'`、以下なら `'gorging'` にする。注: 本家のなみのりは onSourceTryPrimaryHit（命中・まもる系のあと、ダメージの前）で変わる。ここではヒットのあとなので、みがわりに当たったヒットでは変わらない（ばけのかわなどで防がれたヒットでは変わる）

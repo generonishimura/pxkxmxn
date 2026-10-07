@@ -27,7 +27,8 @@ const UNCHANGED_MOVE_NAMES: ReadonlySet<string> = new Set([
  *   だいちのはどう・めざめるパワーのタイプは変えず、1.2 倍にもならない
  * - 変化技のタイプもノーマルになる（エンジンは変化技にも modifyMoveType を呼ぶ。lastMoveTypeName・ふんじん・onPrepareHit に使う）
  * 注: 技の効果に書いた変化技の免疫（でんじはのじめんなど）は、変わったタイプを見ない。
- *   そのため、ノーマルスキンのでんじははじめんタイプに失敗する（本家はノーマルになるので効く）
+ *   そのため、ノーマルスキンのでんじははじめんタイプに失敗し、ゴーストタイプに効く
+ *   （本家はノーマルになるので、じめんタイプに効き、ゴーストタイプに効かない）
  */
 export class NormalizeEffect implements IAbilityEffect {
   modifyMoveType(
