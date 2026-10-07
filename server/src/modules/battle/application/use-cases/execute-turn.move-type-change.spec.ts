@@ -41,6 +41,8 @@ describe('ExecuteTurnUseCase - 技のタイプの変更', () => {
     AbilityRegistry.initialize();
     MoveRegistry.clear();
     MoveRegistry.initialize();
+    // ひのこの追加効果（10% のやけど）で、ターン終了時の HP が揺れないようにする
+    MoveRegistry.register('ひのこ', {});
   });
 
   it('プラズマシャワーの間は、ノーマル技がでんき技になる', async () => {

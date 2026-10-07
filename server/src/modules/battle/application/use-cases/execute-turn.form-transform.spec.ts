@@ -24,6 +24,8 @@ describe('ExecuteTurnUseCase - フォルムチェンジとへんしん', () => {
     AbilityRegistry.initialize();
     MoveRegistry.clear();
     MoveRegistry.initialize();
+    // ひのこの追加効果（10% のやけど）で、ターン終了時の HP が揺れないようにする
+    MoveRegistry.register('ひのこ', {});
   });
 
   describe('changeForm', () => {
