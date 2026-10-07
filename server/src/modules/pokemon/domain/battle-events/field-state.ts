@@ -123,6 +123,28 @@ export const setTerrain = async (
 };
 
 /**
+ * フィールドを消す（きりばらい・はがねのローラー・アイススピナーなど。本家の clearTerrain）
+ * - フィールドがなければ何もしない
+ * - Battle.field を None にし、GlobalFieldState.terrainTurns を消す
+ * - 消したら、場のポケモンの特性の onTerrainChange を呼ぶ（notifyFieldChange。ぎたいがもとのタイプに戻る）
+ * @returns フィールドを消したら true
+ */
+export const clearTerrain = async (battleContext: BattleContext): Promise<boolean> => {
+  const repository = battleContext.battleRepository;
+  if (!repository) {
+    return false;
+  }
+  const battle = await latestBattle(battleContext);
+  if (battle.field === null || battle.field === Field.None) {
+    return false;
+  }
+  await repository.update(battle.id, { field: Field.None });
+  await repository.patchGlobalFieldState(battle.id, { terrainTurns: null });
+  await notifyFieldChange(battleContext, 'terrain');
+  return true;
+};
+
+/**
  * 設置技の種類と、重ねられる上限
  */
 export type EntryHazard = 'spikes' | 'toxicSpikes' | 'stealthRock' | 'stickyWeb';

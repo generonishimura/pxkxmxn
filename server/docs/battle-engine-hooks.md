@@ -1785,9 +1785,10 @@ return 'Its disguise served it as a decoy!'; // ばけのかわ（blockDamagingH
 ### 14.11 onWeatherChange / onTerrainChange（特性、場の全員）と notifyFieldChange
 
 - シグネチャ: `onWeatherChange?(holder, ctx?): Promise<void>`、`onTerrainChange?(holder, ctx?): Promise<void>`、`notifyFieldChange(ctx, 'weather' | 'terrain'): Promise<void>`（`field-change.ts`）
-- 呼ばれる場所: `setWeather`・`setPrimalWeather`・`setTerrain` で変えたあと、天候・フィールドがターン終了時に終わったあと（`FieldResidualProcessor`）、ゲンシ天候が終わったあと（`PrimalWeatherReleaser`）。場のひんしでないポケモンの実効の特性ごとに、ID の順に呼ぶ。`ctx.battle` は読み直した最新のもの、`ctx.weather` は効果のある天候（ノーてんき・エアロックが場にいれば None）、`ctx.field` は今のフィールド
+- 呼ばれる場所: `setWeather`・`setPrimalWeather`・`setTerrain` で変えたあと、`clearTerrain`（きりばらい・はがねのローラー・アイススピナー）で消したあと、天候・フィールドがターン終了時に終わったあと（`FieldResidualProcessor`）、ゲンシ天候が終わったあと（`PrimalWeatherReleaser`）。場のひんしでないポケモンの実効の特性ごとに、ID の順に呼ぶ。`ctx.battle` は読み直した最新のもの、`ctx.weather` は効果のある天候（ノーてんき・エアロックが場にいれば None）、`ctx.field` は今のフィールド
 - 場に出たときは呼ばないので、`onEntry` でも同じ判定をする。メッセージは出せない
 - 使う特性: てんきや（晴れ→`'sunny'`、雨→`'rainy'`、あられ（ゆきの代わり）→`'snowy'`、ほか→`null`。へんしん中は何もしない）、フラワーギフト（晴れなら `'sunshine'`、ほか→`null`。攻撃・特防 1.5 倍は `modifyDamageDealt`・`modifyDamage` で近似する）、アイスフェイス（あられの間、`iceFaceBroken` なら消して `persistent` のフォルムを `null` に）、ぎたい（`onTerrainChange` でフィールドのタイプに `setTypes`、フィールドがなければ `typeOverride: null`）
+- フィールドを消す技・特性は、`Battle.field` を直接書かず `clearTerrain(ctx): Promise<boolean>`（`field-state.ts`）を使う
 - 注: ノーてんき・エアロックが場に出入りしたときは呼ばない
 
 ```ts

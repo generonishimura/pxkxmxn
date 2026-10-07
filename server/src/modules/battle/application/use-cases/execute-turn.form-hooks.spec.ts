@@ -29,7 +29,8 @@ describe('ExecuteTurnUseCase - タイプ・フォルムを変える特性のフ�
     category: MoveCategory.Status,
     type: 'でんき',
   });
-  const MOVES = [SPLASH, TACKLE, EMBER, METRONOME, DOUBLE_HIT, RAIN_DANCE, TERRAIN];
+  const DEFOG = createTestMove(8, 'きりばらい', { category: MoveCategory.Status, type: 'ひこう' });
+  const MOVES = [SPLASH, TACKLE, EMBER, METRONOME, DOUBLE_HIT, RAIN_DANCE, TERRAIN, DEFOG];
   const ALL_MOVES = MOVES.map(move => move.id);
 
   const setup = (
@@ -268,6 +269,40 @@ describe('ExecuteTurnUseCase - タイプ・フォルムを変える特性のフ�
 
       // Assert
       expect(fields).toEqual([Field.ElectricTerrain]);
+    });
+
+    it('きりばらいでフィールドが消えると、onTerrainChange が呼ばれる（ぎたいがもとのタイプに戻れる）', async () => {
+      // Arrange
+      const fields: Array<Field | null | undefined> = [];
+      AbilityRegistry.register('テストのぎたい', {
+        onTerrainChange: async (_holder, ctx) => {
+          fields.push(ctx?.field);
+        },
+      });
+      const engine = createBattleEngine({
+        moves: MOVES,
+        field: Field.ElectricTerrain,
+        sideState: { global: { terrainTurns: 3 } },
+        pokemon: [
+          { id: 1, trainerId: 1, active: true, moveIds: ALL_MOVES },
+          {
+            id: 2,
+            trainerId: 2,
+            active: true,
+            moveIds: ALL_MOVES,
+            baseSpeed: 50,
+            ability: 'テストのぎたい',
+          },
+        ],
+      });
+
+      // Act
+      await engine.runTurn({ moveId: DEFOG.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.battle().field).toBe(Field.None);
+      expect(engine.battle().sideState.global?.terrainTurns).toBeUndefined();
+      expect(fields).toEqual([Field.None]);
     });
   });
 });
