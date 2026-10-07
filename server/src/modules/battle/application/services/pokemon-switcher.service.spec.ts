@@ -44,6 +44,7 @@ describe('PokemonSwitcherService - 状態の片付け', () => {
     const opponent = createStatus(OPPONENT_ID, 2, true, options.opponent);
     const battleRepository = {
       findById: jest.fn().mockResolvedValue(null),
+      findBattlePokemonStatusById: jest.fn().mockResolvedValue(null),
       findActivePokemonByBattleIdAndTrainerId: jest.fn().mockResolvedValue(leaving),
       findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([leaving, incoming, opponent]),
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(incoming),
@@ -55,6 +56,10 @@ describe('PokemonSwitcherService - 状態の片付け', () => {
     const service = new PokemonSwitcherService(
       battleRepository as unknown as IBattleRepository,
       trainedPokemonRepository,
+      {
+        getTypeEffectivenessMap: jest.fn().mockResolvedValue(new Map()),
+        findTypeByName: jest.fn().mockResolvedValue(null),
+      },
     );
     const battle = new Battle(1, 1, 2, 1, 2, 4, null, null, BattleStatus.Active, null);
     return { service, battleRepository, battle };

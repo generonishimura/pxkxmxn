@@ -306,6 +306,25 @@ export const COURT_CHANGE_KEYS = [
   'stickyWeb',
 ] as const satisfies ReadonlyArray<keyof SideConditions>;
 
+/**
+ * 設置技のキー（こうそくスピン・きりばらいで消す）
+ */
+export const HAZARD_KEYS = [
+  'spikesLayers',
+  'toxicSpikesLayers',
+  'stealthRock',
+  'stickyWeb',
+] as const satisfies ReadonlyArray<keyof SideConditions>;
+
+/**
+ * 壁のキー（バリアフリー・かわらわり・きりばらいで消す）
+ */
+export const SCREEN_KEYS = [
+  'reflectTurns',
+  'lightScreenTurns',
+  'auroraVeilTurns',
+] as const satisfies ReadonlyArray<keyof SideConditions>;
+
 const copyKey = <K extends keyof SideConditions>(
   target: MutableStatePatch<SideConditions>,
   source: SideConditions,

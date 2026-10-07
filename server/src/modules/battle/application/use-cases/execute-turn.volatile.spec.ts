@@ -205,8 +205,11 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
     const processTurnEndAbilities = jest
       .spyOn(statusConditionProcessor, 'processTurnEndAbilities')
       .mockResolvedValue();
-    const pokemonSwitcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository);
-    const executeSwitch = jest.spyOn(pokemonSwitcher, 'executeSwitch').mockResolvedValue();
+    const pokemonSwitcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository, {
+      getTypeEffectivenessMap: jest.fn().mockResolvedValue(new Map()),
+      findTypeByName: jest.fn().mockResolvedValue(null),
+    });
+    const executeSwitch = jest.spyOn(pokemonSwitcher, 'executeSwitch').mockResolvedValue([]);
     const moveExecutor = new MoveExecutorService(
       battleRepository,
       trainedPokemonRepository,

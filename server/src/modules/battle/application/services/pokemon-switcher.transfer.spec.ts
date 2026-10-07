@@ -83,6 +83,10 @@ describe('PokemonSwitcherService - バトンタッチ・しっぽきりの引き
     const service = new PokemonSwitcherService(
       battleRepository as unknown as IBattleRepository,
       trainedPokemonRepository,
+      {
+        getTypeEffectivenessMap: jest.fn().mockResolvedValue(new Map()),
+        findTypeByName: jest.fn().mockResolvedValue(null),
+      },
     );
     const battle = new Battle(1, 1, 2, 1, 2, 4, null, null, BattleStatus.Active, null);
     const incomingWrite = () =>

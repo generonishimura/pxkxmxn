@@ -1,7 +1,15 @@
 import { Field, Weather } from '@/modules/battle/domain/entities/battle.entity';
 import { getGlobalFieldState } from '@/modules/battle/domain/state/side-state';
 import { AbilityRegistry } from '../abilities/ability-registry';
-import { setPrimalWeather, setTerrain, setWeather } from './field-state';
+import {
+  addEntryHazard,
+  clearSideConditions,
+  setPrimalWeather,
+  setTerrain,
+  setWeather,
+  swapSideConditions,
+} from './field-state';
+import { HAZARD_KEYS, getSideConditions } from '@/modules/battle/domain/state/side-state';
 import { createInMemoryBattle } from './__tests__/in-memory-battle';
 
 describe('天候・フィールドを出す', () => {
@@ -134,6 +142,96 @@ describe('天候・フィールドを出す', () => {
 
       // Assert
       expect(changed).toBe(false);
+    });
+  });
+
+  describe('addEntryHazard', () => {
+    it('まきびしは 3 層まで重ね、4 回目は失敗する', async () => {
+      // Arrange
+      const { context, battleRepository } = createInMemoryBattle();
+
+      // Act
+      const results = [];
+      for (let i = 0; i < 4; i++) {
+        results.push(await addEntryHazard(context(), 2, 'spikes'));
+      }
+
+      // Assert
+      const battle = (await battleRepository.findById(1))!;
+      expect(results).toEqual([true, true, true, false]);
+      expect(getSideConditions(battle.sideState, 2).spikesLayers).toBe(3);
+    });
+
+    it('どくびしは 2 層まで重ねる', async () => {
+      // Arrange
+      const { context, battleRepository } = createInMemoryBattle();
+
+      // Act
+      const results = [];
+      for (let i = 0; i < 3; i++) {
+        results.push(await addEntryHazard(context(), 2, 'toxicSpikes'));
+      }
+
+      // Assert
+      const battle = (await battleRepository.findById(1))!;
+      expect(results).toEqual([true, true, false]);
+      expect(getSideConditions(battle.sideState, 2).toxicSpikesLayers).toBe(2);
+    });
+
+    it('ステルスロックは 1 つだけ置ける', async () => {
+      // Arrange
+      const { context } = createInMemoryBattle();
+
+      // Act
+      const first = await addEntryHazard(context(), 2, 'stealthRock');
+      const second = await addEntryHazard(context(), 2, 'stealthRock');
+
+      // Assert
+      expect([first, second]).toEqual([true, false]);
+    });
+  });
+
+  describe('clearSideConditions', () => {
+    it('指定したキーのうち、あったものだけを消して返す', async () => {
+      // Arrange
+      const { context, battleRepository } = createInMemoryBattle();
+      await battleRepository.patchSideConditions(1, 1, {
+        spikesLayers: 2,
+        stickyWeb: true,
+        reflectTurns: 3,
+      });
+
+      // Act
+      const removed = await clearSideConditions(context(), 1, HAZARD_KEYS);
+
+      // Assert
+      const battle = (await battleRepository.findById(1))!;
+      expect(removed).toEqual(['spikesLayers', 'stickyWeb']);
+      expect(getSideConditions(battle.sideState, 1)).toEqual({ reflectTurns: 3 });
+    });
+  });
+
+  describe('swapSideConditions', () => {
+    it('壁・設置技を入れ替え、ねがいごとは元の陣営に残す', async () => {
+      // Arrange
+      const { context, battleRepository } = createInMemoryBattle();
+      await battleRepository.patchSideConditions(1, 1, {
+        reflectTurns: 3,
+        wish: { turns: 1, healAmount: 50 },
+      });
+      await battleRepository.patchSideConditions(1, 2, { stealthRock: true, tailwindTurns: 2 });
+
+      // Act
+      await swapSideConditions(context());
+
+      // Assert
+      const battle = (await battleRepository.findById(1))!;
+      expect(getSideConditions(battle.sideState, 1)).toEqual({
+        wish: { turns: 1, healAmount: 50 },
+        stealthRock: true,
+        tailwindTurns: 2,
+      });
+      expect(getSideConditions(battle.sideState, 2)).toEqual({ reflectTurns: 3 });
     });
   });
 });

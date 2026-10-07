@@ -255,7 +255,7 @@ export class ExecuteTurnUseCase {
           });
           continue;
         }
-        await this.pokemonSwitcher.executeSwitch(
+        const entryMessages = await this.pokemonSwitcher.executeSwitch(
           currentBattle,
           action.trainerId,
           action.switchPokemonId,
@@ -263,8 +263,15 @@ export class ExecuteTurnUseCase {
         actionResults.push({
           trainerId: action.trainerId,
           action: 'switch',
-          result: `Pokemon switched to ID: ${action.switchPokemonId}`,
+          result: [`Pokemon switched to ID: ${action.switchPokemonId}`, ...entryMessages].join(' '),
         });
+
+        // 設置技でひんしになったポケモンによる状態を消し、最後のポケモンなら勝敗を決める
+        await this.releaseReferencesToFainted(battle.id);
+        const completedBySwitch = await this.completeIfDecided(battle.id, actionResults);
+        if (completedBySwitch) {
+          return completedBySwitch;
+        }
       }
     }
 

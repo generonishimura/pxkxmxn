@@ -366,7 +366,11 @@ export const createBattleEngine = (options: HarnessOptions) => {
     moveRepository,
     typeEffectivenessRepository,
   );
-  const switcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository);
+  const switcher = new PokemonSwitcherService(
+    battleRepository,
+    trainedPokemonRepository,
+    typeEffectivenessRepository,
+  );
   const statusProcessor = new StatusConditionProcessorService(
     battleRepository,
     trainedPokemonRepository,

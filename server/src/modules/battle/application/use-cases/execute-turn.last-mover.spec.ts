@@ -69,8 +69,11 @@ describe('ExecuteTurnUseCase - 最後に行動するかどうか', () => {
       trainedPokemonRepository,
     );
     jest.spyOn(statusConditionProcessor, 'processTurnEndAbilities').mockResolvedValue();
-    const pokemonSwitcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository);
-    jest.spyOn(pokemonSwitcher, 'executeSwitch').mockResolvedValue();
+    const pokemonSwitcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository, {
+      getTypeEffectivenessMap: jest.fn().mockResolvedValue(new Map()),
+      findTypeByName: jest.fn().mockResolvedValue(null),
+    });
+    jest.spyOn(pokemonSwitcher, 'executeSwitch').mockResolvedValue([]);
     const moveExecutor = new MoveExecutorService(
       battleRepository,
       trainedPokemonRepository,

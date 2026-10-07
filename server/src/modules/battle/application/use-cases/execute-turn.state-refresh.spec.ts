@@ -136,12 +136,15 @@ describe('ExecuteTurnUseCase - ターン中の状態の読み書き', () => {
     const processTurnEnd = jest
       .spyOn(statusConditionProcessor, 'processTurnEndAbilities')
       .mockResolvedValue();
-    const pokemonSwitcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository);
+    const pokemonSwitcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository, {
+      getTypeEffectivenessMap: jest.fn().mockResolvedValue(new Map()),
+      findTypeByName: jest.fn().mockResolvedValue(null),
+    });
     // 交代: トレーナー2 の場のポケモンを ID 20 にする
     jest.spyOn(pokemonSwitcher, 'executeSwitch').mockImplementation(() => {
       statuses.set(2, createStatus(2, 2, false));
       statuses.set(20, createStatus(20, 2, true));
-      return Promise.resolve();
+      return Promise.resolve([]);
     });
     const moveExecutor = new MoveExecutorService(
       battleRepository,

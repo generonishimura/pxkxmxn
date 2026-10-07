@@ -25,6 +25,11 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { NotFoundException } from '@/shared/domain/exceptions';
 // 場の状態・設置技・交代の仕組み（Issue #102 #103 #108 #110 #135 一部）
 import { PrimalWeatherReleaser } from './primal-weather-releaser';
+import { EntryEffectProcessor } from './entry-effect-processor';
+import {
+  ITypeEffectivenessRepository,
+  TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
+} from '@/modules/pokemon/domain/pokemon.repository.interface';
 
 /**
  * 交代のオプション
@@ -58,16 +63,24 @@ const BATON_PASS_RANK_KEYS = [
 @Injectable()
 export class PokemonSwitcherService {
   private readonly primalWeatherReleaser: PrimalWeatherReleaser;
+  private readonly entryEffects: EntryEffectProcessor;
 
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
     @Inject(TRAINED_POKEMON_REPOSITORY_TOKEN)
     private readonly trainedPokemonRepository: ITrainedPokemonRepository,
+    @Inject(TYPE_EFFECTIVENESS_REPOSITORY_TOKEN)
+    typeEffectivenessRepository: ITypeEffectivenessRepository,
   ) {
     this.primalWeatherReleaser = new PrimalWeatherReleaser(
       battleRepository,
       trainedPokemonRepository,
+    );
+    this.entryEffects = new EntryEffectProcessor(
+      battleRepository,
+      trainedPokemonRepository,
+      typeEffectivenessRepository,
     );
   }
 
@@ -127,13 +140,17 @@ export class PokemonSwitcherService {
    * @param trainerId トレーナーID
    * @param trainedPokemonId 交代するポケモンのTrainedPokemonID
    * @param options バトンタッチ・しっぽきりで引き継ぐもの（引っ込む前の状態を読み、場に出たポケモンに書く）
+   * @returns 場に出たときのメッセージ（いやしのねがい・設置技）
+   *
+   * 場に出たポケモンには、いやしのねがい・みかづきのまい → 設置技（EntryEffectProcessor）→ 特性の onEntry の順に
+   * 効果を与える。設置技でひんしになったら onEntry は呼ばない
    */
   async executeSwitch(
     battle: Battle,
     trainerId: number,
     trainedPokemonId: number,
     options: SwitchOptions = {},
-  ): Promise<void> {
+  ): Promise<string[]> {
     // 現在のアクティブなポケモンを非アクティブにする
     const currentActive = await this.battleRepository.findActivePokemonByBattleIdAndTrainerId(
       battle.id,
@@ -207,6 +224,13 @@ export class PokemonSwitcherService {
       }),
     });
 
+    // いやしのねがい・みかづきのまいと設置技。ひんしになったら、場に出たときの特性は発動しない
+    const entryMessages = await this.entryEffects.apply(battle.id, targetStatus.id);
+    const entered = await this.battleRepository.findBattlePokemonStatusById(targetStatus.id);
+    if (entered?.isFainted()) {
+      return entryMessages;
+    }
+
     // 特性のOnEntry効果を発動
     const trainedPokemon = await this.trainedPokemonRepository.findById(trainedPokemonId);
 
@@ -221,6 +245,7 @@ export class PokemonSwitcherService {
         });
       }
     }
+    return entryMessages;
   }
 
   /**
