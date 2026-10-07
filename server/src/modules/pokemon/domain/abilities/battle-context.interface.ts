@@ -256,4 +256,10 @@ export interface BattleContext {
    * 技の onUse / onHit / afterDamage の中で true にする
    */
   selfSwitchCancelled?: boolean;
+
+  /**
+   * 攻撃側の、自分以外の手持ちがひんしになった延べ数（そうだいしょう。復活しても減らない）
+   * ダメージ技の実行（beforeDamage 以降）と、ダメージ計算の特性フック（modifyBasePower など）で入る
+   */
+  attackerFaintedAllyCount?: number;
 }

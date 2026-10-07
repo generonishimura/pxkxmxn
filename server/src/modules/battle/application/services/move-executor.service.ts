@@ -58,7 +58,7 @@ import {
   effectivePrimalWeather,
   primalWeatherBlocksMove,
 } from '../../domain/logic/field-modifiers';
-import { crossesHalfHp, findSwitchTargets } from '../../domain/logic/party';
+import { countFaintedAllies, crossesHalfHp, findSwitchTargets } from '../../domain/logic/party';
 
 /**
  * 技の実行オプション
@@ -991,6 +991,11 @@ export class MoveExecutorService {
       attackerAbilityEffect?.secondaryEffectChanceMultiplier;
     battleContext.secondaryEffectsSuppressed =
       defenderAbilityEffect?.blocksSecondaryEffects === true;
+    // 自分以外の手持ちがひんしになった延べ数（そうだいしょう）
+    battleContext.attackerFaintedAllyCount = countFaintedAllies(
+      (await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id)) ?? [],
+      attacker,
+    );
 
     let currentAttacker = attacker;
     let updatedDefender = defender;

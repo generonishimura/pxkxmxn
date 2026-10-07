@@ -8,6 +8,7 @@ import {
   DEFENDER_ID,
   MoveExecutorSetupOptions,
   createMove,
+  createStatus,
   createTrainedPokemon,
   setupMoveExecutor,
 } from './__tests__/move-executor-test-setup';
@@ -161,6 +162,30 @@ describe('MoveExecutorService - 場の状態', () => {
 
       // Assert
       expect(statuses.get(DEFENDER_ID)!.currentHp).toBe(90);
+    });
+  });
+
+  describe('ひんしの仲間の数（そうだいしょう）', () => {
+    it('ダメージ技のコンテキストに、自分以外の手持ちがひんしになった延べ数が入る', async () => {
+      // Arrange
+      const { execute, battleRepository, statuses, calculate } = setup({});
+      const fainted = createStatus(3, { trainerId: 1, isActive: false, currentHp: 0 });
+      const revived = createStatus(4, {
+        trainerId: 1,
+        isActive: false,
+        persistentState: { revivalCount: 1 },
+      });
+      battleRepository.findBattlePokemonStatusByBattleId.mockResolvedValue([
+        ...statuses.values(),
+        fainted,
+        revived,
+      ]);
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(calculate.mock.calls[0][0].battleContext?.attackerFaintedAllyCount).toBe(2);
     });
   });
 });
