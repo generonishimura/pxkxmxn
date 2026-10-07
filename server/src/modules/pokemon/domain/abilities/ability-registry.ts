@@ -252,6 +252,10 @@ import { ArenaTrapEffect } from './effects/other/arena-trap-effect';
 import { EmergencyExitEffect } from './effects/other/emergency-exit-effect';
 // 急所に当たらない特性（Issue #135 一部）
 import { BattleArmorEffect } from './effects/other/battle-armor-effect';
+// 急所に関わる特性（Issue #135 一部）
+import { SuperLuckEffect } from './effects/other/super-luck-effect';
+import { MercilessEffect } from './effects/other/merciless-effect';
+import { AngerPointEffect } from './effects/stat-change/anger-point-effect';
 
 /**
  * 特性レジストリ
@@ -608,6 +612,10 @@ export class AbilityRegistry {
       const battleArmor = new BattleArmorEffect();
       this.registry.set('カブトアーマー', battleArmor);
       this.registry.set('シェルアーマー', battleArmor);
+      // 急所に関わる特性（Issue #135 一部）
+      this.registry.set('きょううん', new SuperLuckEffect());
+      this.registry.set('ひとでなし', new MercilessEffect());
+      this.registry.set('いかりのつぼ', new AngerPointEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
