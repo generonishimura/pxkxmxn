@@ -1611,9 +1611,9 @@ export class MagicBounceEffect implements IAbilityEffect {
 | きあいだめ | `tryApplyVolatile(attacker, 'focusEnergy', { critStageBoost: 2 }, ctx)`（13.1） |
 | とぎすます | `applyVolatile(attacker, { laserFocusTurns: 2 }, ctx)`（13.1。もう一度使うと延びる） |
 | カブトアーマー・シェルアーマー | `preventsCriticalHit = true`（13.1） |
-| きょううん | `modifyCritRatio` で `stage + 1`（13.1） |
-| ひとでなし | `modifyCritRatio` で、`ctx.defender` がどく・もうどくなら `3`（13.1） |
-| いかりのつぼ | `onDamagingHit` で `hit.isCriticalHit && !hit.targetFainted` なら攻撃 +12（13.1） |
+| きょううん | 作成済み（`modifyCritRatio` で `stage + 1`。13.1） |
+| ひとでなし | 作成済み（`modifyCritRatio` で、`ctx.defender` がどく・もうどくなら `3`。13.1） |
+| いかりのつぼ | 作成済み（`onDamagingHit` で `hit.isCriticalHit && !hit.targetFainted` なら攻撃 +12。13.1） |
 | スナイパー | 作成済み（`modifyDamageDealt` で `ctx.isCriticalHit` を見る。急所が出るようになったので効く） |
 | ミラクルスキン | `modifyBaseAccuracy`（防御側で変化技なら 50。13.2） |
 | ノーガード | `ensuresMoveHit = true`（乗せ換え済み。13.2） |
