@@ -339,7 +339,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `transformedIntoStatusId` | ポケモン ID | へんしん・かわりもので姿を写した相手。へんしん中は、自分のフォルムを見ない・技の欄は `moveSlotOverrides` だけ・`noTransform` の特性が効かない | `transformInto` | へんしん・かわりもの |
 | `form` | フォルム名 | 交代で元に戻るフォルム（`pokemon-forms.ts` の表の `form`。`'blade'`・`'zen'`・`'core'` など）。表のタイプと種族値になる | `changeForm` | バトルスイッチ・ダルマモード・リミットシールド・ぎょぐん・うのミサイル・はらぺこスイッチ・てんきや・フラワーギフト |
 | `illusionStatusId` | ポケモン ID | イリュージョンで化けている先（`findIllusionTarget` で求める）。特性を書き換える・消すと消える | 特性が `patchVolatileState` で書く | イリュージョン |
-| `typeChangeAbilityUsed` | 真偽値 | へんげんじざい・リベロを、場に出てから使った | 特性が `patchVolatileState` で書く。特性を書き換えると `setAbility`・`swapAbilities` が消す（本家は特性ごとの状態を作り直す） | へんげんじざい・リベロ（第 9 世代は場に出るたびに 1 回） |
+| `typeChangeAbilityUsed` | 真偽値 | へんげんじざい・リベロを、場に出てから使った | 特性が `patchVolatileState` で書く。特性を書き換えると `setAbility`・`swapAbilities`・`transformInto` が消す（本家は特性ごとの状態を作り直す） | へんげんじざい・リベロ（第 9 世代は場に出るたびに 1 回） |
 
 交代しても戻らないフォルムは、`PersistentPokemonState.form` に置きます（6 章）。
 

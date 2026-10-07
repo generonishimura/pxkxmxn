@@ -36,6 +36,7 @@ const RANK_KEYS = [
  * - abilityOverride: 相手の今の特性（いえきで消されていても、もとの特性を写す）
  * - moveSlotOverrides: 相手の技の欄（PP と最大 PP は 5。もとの PP が 5 未満ならその値）。へんしん中は、この欄だけを使う
  * - critStageBoost・laserFocusTurns: 相手のきあいだめ・とぎすますを写す（使用者の分は消す）
+ * - typeChangeAbilityUsed: へんげんじざい・リベロを使った記録を消す（特性を書き換えたときと同じ）
  * 能力ランク（attackRank など 7 つ）も相手と同じにする。写した特性が効いていれば onEntry を呼ぶ（いかくなど）。
  * 今と同じ特性を写したときと、場に出たときだけ動く特性（かわりもの・イリュージョン）は呼ばない
  *
@@ -101,6 +102,10 @@ export const transformInto = async (
     moveSlotOverrides,
     critStageBoost: state.critStageBoost ?? null,
     laserFocusTurns: state.laserFocusTurns ?? null,
+    // 特性を写すと特性ごとの状態を作り直す（本家の setAbility）。へんげんじざい・リベロがまた 1 回使える
+    ...(user.volatileState.typeChangeAbilityUsed !== undefined
+      ? { typeChangeAbilityUsed: null }
+      : {}),
   });
   const ranks: Partial<Record<(typeof RANK_KEYS)[number], number>> = {};
   for (const key of RANK_KEYS) {

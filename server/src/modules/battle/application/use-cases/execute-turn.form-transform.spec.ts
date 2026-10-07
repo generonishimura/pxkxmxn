@@ -287,6 +287,19 @@ describe('ExecuteTurnUseCase - フォルムチェンジとへんしん', () => {
       ]);
     });
 
+    it('へんげんじざい・リベロを使った記録を消す（本家は特性を写すと特性ごとの状態を作り直す）', async () => {
+      // Arrange
+      const engine = setup();
+      await engine.battleRepository.patchVolatileState(1, { typeChangeAbilityUsed: true });
+
+      // Act
+      await engine.runTurn({ moveId: TRANSFORM.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(1).volatileState.transformedIntoStatusId).toBe(2);
+      expect(engine.status(1).volatileState.typeChangeAbilityUsed).toBeUndefined();
+    });
+
     it('みがわりの相手には、へんしんできない', async () => {
       // Arrange
       const engine = setup({ substitute: true });
