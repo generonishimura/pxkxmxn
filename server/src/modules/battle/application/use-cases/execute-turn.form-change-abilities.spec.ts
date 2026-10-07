@@ -104,4 +104,22 @@ describe('ExecuteTurnUseCase - フォルムを変える特性', () => {
     // Assert
     expect(engine.status(2).statusCondition).toBe(StatusCondition.None);
   });
+
+  it('ぎょぐんのヨワシは、交代で場に出たときに HP が 1/4 より上ならむれたすがたになる', async () => {
+    // Arrange
+    const engine = createBattleEngine({
+      moves: MOVES,
+      pokemon: [
+        { id: 1, trainerId: 1, active: true, moveIds: MOVE_IDS },
+        { id: 3, trainerId: 1, moveIds: MOVE_IDS, ability: 'ぎょぐん', nationalDex: 746 },
+        { id: 2, trainerId: 2, active: true, moveIds: MOVE_IDS, baseSpeed: 50 },
+      ],
+    });
+
+    // Act
+    await engine.runTurn({ switchPokemonId: 3 }, { moveId: SPLASH.id });
+
+    // Assert
+    expect(engine.status(3).volatileState.form).toBe('school');
+  });
 });
