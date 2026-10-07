@@ -3,6 +3,7 @@ import { StatePatch } from '@/modules/battle/domain/state/state-field-parser';
 import { VolatileState } from '@/modules/battle/domain/state/volatile-state';
 import { hasAbilityFlag } from '@/modules/battle/domain/logic/ability-flags';
 import { currentAbilityName } from '@/modules/battle/domain/logic/effective-traits';
+import { baseAbilityNameOf } from '@/modules/battle/domain/logic/battle-pokemon-traits';
 import { BattleContext } from '../abilities/battle-context.interface';
 import { getAbilityEffect } from './ability-lookup';
 import { resolveBattleAbilityName } from './battle-traits';
@@ -32,7 +33,7 @@ export const resolveCurrentAbilityName = async (
     pokemon.trainedPokemonId,
   );
   return currentAbilityName({
-    baseAbilityName: trainedPokemon?.ability?.name,
+    baseAbilityName: trainedPokemon ? baseAbilityNameOf(trainedPokemon, pokemon) : undefined,
     volatileState: pokemon.volatileState,
   });
 };

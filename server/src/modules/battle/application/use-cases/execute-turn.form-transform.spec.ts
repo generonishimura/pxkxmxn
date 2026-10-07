@@ -3,6 +3,9 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { changeForm } from '@/modules/pokemon/domain/battle-events/form-change';
 import { transformInto } from '@/modules/pokemon/domain/battle-events/transform';
+import { resolveBattleAbilityName } from '@/modules/pokemon/domain/battle-events/battle-traits';
+import { resolveCurrentAbilityName } from '@/modules/pokemon/domain/battle-events/ability-change';
+import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { createBattleEngine, createTestMove } from '../__tests__/battle-engine-harness';
 
 /**
@@ -94,6 +97,48 @@ describe('ExecuteTurnUseCase - フォルムチェンジとへんしん', () => {
       expect(engine.status(1).persistentState.form).toBe('complete');
       expect(engine.status(1).maxHp).toBe(291);
       expect(engine.status(1).currentHp).toBe(211);
+    });
+
+    it('特性を持つフォルムになると、その特性になる（テラスチェンジでテラスタルフォルムになり、テラスシェル）', async () => {
+      // Arrange
+      AbilityRegistry.register('テラスチェンジ', {
+        onEntry: async (holder, ctx) => {
+          if (ctx) {
+            await changeForm(holder, 'terastal', ctx, { persistent: true });
+          }
+        },
+      });
+      const engine = createBattleEngine({
+        moves: MOVES,
+        pokemon: [
+          { id: 1, trainerId: 1, active: true, moveIds: [1] },
+          {
+            id: 3,
+            trainerId: 1,
+            moveIds: [1],
+            nationalDex: 1024,
+            baseStats: [90, 65, 85, 65, 85, 60],
+            ability: 'テラスチェンジ',
+            maxHp: 165,
+          },
+          { id: 2, trainerId: 2, active: true, moveIds: [1] },
+        ],
+      });
+
+      // Act
+      await engine.runTurn({ switchPokemonId: 3 }, { moveId: SPLASH.id });
+
+      // Assert: HP の種族値が 90 → 95 になり、最大 HP は 165 → 170
+      const terapagos = engine.status(3);
+      const ctx: BattleContext = {
+        battle: engine.battle(),
+        battleRepository: engine.battleRepository,
+        trainedPokemonRepository: engine.trainedPokemonRepository,
+      };
+      expect(terapagos.persistentState.form).toBe('terastal');
+      expect(terapagos.maxHp).toBe(170);
+      expect(await resolveBattleAbilityName(terapagos, ctx)).toBe('テラスシェル');
+      expect(await resolveCurrentAbilityName(terapagos, ctx)).toBe('テラスシェル');
     });
 
     it('へんしん中はフォルムを変えない', async () => {

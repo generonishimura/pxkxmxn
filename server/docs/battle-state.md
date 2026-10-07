@@ -337,7 +337,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `addedType` | タイプ名 | 3 つめに加わったタイプ（すでに持つタイプなら足さない）。`setTypes` で消える | `addType`・`transformInto` | ハロウィン・もりののろい |
 | `statOverrides` | `{ attack?, defense?, specialAttack?, specialDefense?, speed? }` | 実数値の上書き（ランク補正の前の値）。`changeForm` で消える | 技（9.6）・`transformInto`（5 つとも書く） | パワートリック・パワーシフト・ガードシェア・パワーシェア・スピードスワップ・へんしん・かわりもの |
 | `transformedIntoStatusId` | ポケモン ID | へんしん・かわりもので姿を写した相手。へんしん中は、自分のフォルムを見ない・技の欄は `moveSlotOverrides` だけ・`noTransform` の特性が効かない | `transformInto` | へんしん・かわりもの |
-| `form` | フォルム名 | 交代で元に戻るフォルム（`pokemon-forms.ts` の表の `form`。`'blade'`・`'zen'`・`'meteor'` など）。表のタイプと種族値になる | `changeForm` | バトルスイッチ・ダルマモード・リミットシールド・ぎょぐん・うのミサイル・はらぺこスイッチ・てんきや・フラワーギフト |
+| `form` | フォルム名 | 交代で元に戻るフォルム（`pokemon-forms.ts` の表の `form`。`'blade'`・`'zen'`・`'core'` など）。表のタイプと種族値になる | `changeForm` | バトルスイッチ・ダルマモード・リミットシールド・ぎょぐん・うのミサイル・はらぺこスイッチ・てんきや・フラワーギフト |
 | `illusionStatusId` | ポケモン ID | イリュージョンで化けている先（`findIllusionTarget` で求める）。特性を書き換える・消すと消える | 特性が `patchVolatileState` で書く | イリュージョン |
 | `typeChangeAbilityUsed` | 真偽値 | へんげんじざい・リベロを、場に出てから使った | 特性が `patchVolatileState` で書く | へんげんじざい・リベロ（第 9 世代は場に出るたびに 1 回） |
 
@@ -382,7 +382,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | キー | 型 | 意味 | 使う技・特性 |
 | --- | --- | --- | --- |
 | `sleepTurns` | 0 以上の整数 | ねむりの残りターン数（交代しても続く） | ねむり・ねむる・はやおき（今はメモリ上で数えている。8 章） |
-| `form` | フォルム名 | 交代しても戻らないフォルム（`pokemon-forms.ts` の表の `form`。`'hero'`・`'complete'`・`'busted'`・`'noice'` など）。表のタイプと種族値になる。書くのは `changeForm(holder, form, ctx, { persistent: true })` | マイティチェンジ・スワームチェンジ・ばけのかわ・アイスフェイス |
+| `form` | フォルム名 | 交代しても戻らないフォルム（`pokemon-forms.ts` の表の `form`。`'hero'`・`'complete'`・`'busted'`・`'noice'`・`'terastal'` など）。表のタイプと種族値になる。表のフォルムが特性（`abilityName`）を持てば、それがもとの特性になる（`'terastal'` のテラスシェル）。書くのは `changeForm(holder, form, ctx, { persistent: true })` | マイティチェンジ・スワームチェンジ・ばけのかわ・アイスフェイス・テラスチェンジ |
 | `disguiseBusted` | 真偽値 | ばけのかわが破れた | ばけのかわ |
 | `iceFaceBroken` | 真偽値 | アイスフェイスが壊れた（ゆきで戻る） | アイスフェイス |
 | `oncePerBattleAbilityUsed` | 真偽値 | 1 バトルに 1 回だけの特性を使った | ふとうのけん・ふくつのたて・きずなへんげ |

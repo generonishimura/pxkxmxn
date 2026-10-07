@@ -1716,11 +1716,12 @@ const name = await resolveAbilityName(opponent, ctx); // undefined
 
 - シグネチャ: `changeForm(holder, form | null, ctx, { persistent? }): Promise<boolean>`（`form-change.ts`）、`findPokemonForm(nationalDex, form)`・`POKEMON_FORMS`（`battle/domain/logic/pokemon-forms.ts`）
 - `volatileState.form`（`persistent: true` なら `persistentState.form`）に書く。`null` で消す（もとのフォルムに戻す）。タイプと実数値は、エンジンが読むときに表のフォルムの値で求める。本家の setSpecies と同じく `typeOverride`・`addedType`・`statOverrides` を消す。HP の種族値が変わるフォルム（ジガルデのパーフェクトフォルム）は、最大 HP を変え、減った HP を保つ
-- ひんし・へんしん中・すでにそのフォルムなら false。特性は変えない
-- 表のフォルム名: ギルガルド 681（`'shield'`・`'blade'`）、ヒヒダルマ 555（`'standard'`・`'zen'`・`'galar-standard'`・`'galar-zen'`）、メテノ 774（`'core'`・`'meteor'`）、ヨワシ 746（`'solo'`・`'school'`）、ミミッキュ 778（`'disguised'`・`'busted'`）、コオリッポ 875（`'ice'`・`'noice'`）、モルペコ 877（`'full-belly'`・`'hangry'`）、ジガルデ 718（`'50'`・`'10'`・`'complete'`）、ウッウ 845（`'gulping'`・`'gorging'`）、ポワルン 351（`'normal'`・`'sunny'`・`'rainy'`・`'snowy'`）、チェリム 421（`'overcast'`・`'sunshine'`）、イルカマン 964（`'zero'`・`'hero'`）
+- ひんし・へんしん中・すでにそのフォルムなら false
+- 特性は、交代しても残るフォルム（`persistent: true`）が表の `abilityName` を持つときだけ変わる（テラパゴスのテラスタルフォルムのテラスシェル。本家の永続の formeChange が baseAbility を書き換える）。そのときは `abilityOverride` も消す。実効の特性・`resolveCurrentAbilityName` は、そのフォルムの特性をもとの特性として読む（`baseAbilityNameOf`）。ほかのフォルムでは特性は変えない
+- 表のフォルム名: ギルガルド 681（`'shield'`・`'blade'`）、ヒヒダルマ 555（`'standard'`・`'zen'`・`'galar-standard'`・`'galar-zen'`）、メテノ 774（`'core'`・`'meteor'`）、ヨワシ 746（`'solo'`・`'school'`）、ミミッキュ 778（`'disguised'`・`'busted'`）、コオリッポ 875（`'ice'`・`'noice'`）、モルペコ 877（`'full-belly'`・`'hangry'`）、ジガルデ 718（`'50'`・`'10'`・`'complete'`）、ウッウ 845（`'gulping'`・`'gorging'`）、ポワルン 351（`'normal'`・`'sunny'`・`'rainy'`・`'snowy'`）、チェリム 421（`'overcast'`・`'sunshine'`）、イルカマン 964（`'zero'`・`'hero'`）、テラパゴス 1024（`'normal'`・`'terastal'`。テラスタルフォルムの特性はテラスシェル）
 - ポケモンの種類は `TrainedPokemon.pokemon.nationalDex` で判定する（DB は全国図鑑の番号ごとに 1 行。`docs/battle-state.md` の 12 章の注）
 - フォルムを書いていない（`null` で戻した）ポケモンは、表の既定のフォルム（`isDefault`: ギルガルド `'shield'`・ヒヒダルマ `'standard'`・メテノ `'meteor'`・ヨワシ `'solo'`・ミミッキュ `'disguised'`・コオリッポ `'ice'`・モルペコ `'full-belly'`・ジガルデ `'50'`・ポワルン `'normal'`・チェリム `'overcast'`・イルカマン `'zero'`）のタイプと種族値になる。バトル開始時の最大 HP も既定のフォルムで計算する
-- 使う特性: バトルスイッチ（`onPrepareHit`。14.9）・ダルマモード（`onTurnEnd` で HP が半分以下なら `'zen'`、半分より上なら `null`。ガラルのすがたは DB にない（全国図鑑の番号ごとに既定のすがただけ）ので、`'galar-zen'` は使わない）・リミットシールド（`onEntry`・`onTurnEnd` で HP が半分以下なら `'core'`、半分より上なら `null`（既定のりゅうせいのすがた）。りゅうせいのすがた（`form` が `'core'` でない）の間は `canReceiveStatusCondition` と `canReceiveVolatile`（あくび）で防ぐ）・ぎょぐん（レベル 20 以上で、`onEntry`・`onTurnEnd` で HP が 1/4 より上なら `'school'`、以下なら `null`（既定のたんどくのすがた））・ばけのかわ（14.10）・アイスフェイス（14.10・14.11）・はらぺこスイッチ（`onTurnEnd` で `'hangry'` と `null` を交互に。オーラぐるまの `modifyMoveType` が `volatileState.form` を見る）・スワームチェンジ（`onTurnEnd` で半分以下なら `persistent` の `'complete'`）・うのミサイル（14.9）・てんきや・フラワーギフト（14.11）・マイティチェンジ（`onSwitchOut` で `persistent` の `'hero'`）
+- 使う特性: バトルスイッチ（`onPrepareHit`。14.9）・ダルマモード（`onTurnEnd` で HP が半分以下なら `'zen'`、半分より上なら `null`。ガラルのすがたは DB にない（全国図鑑の番号ごとに既定のすがただけ）ので、`'galar-zen'` は使わない）・リミットシールド（`onEntry`・`onTurnEnd` で HP が半分以下なら `'core'`、半分より上なら `null`（既定のりゅうせいのすがた）。りゅうせいのすがた（`form` が `'core'` でない）の間は `canReceiveStatusCondition` と `canReceiveVolatile`（あくび）で防ぐ）・ぎょぐん（レベル 20 以上で、`onEntry`・`onTurnEnd` で HP が 1/4 より上なら `'school'`、以下なら `null`（既定のたんどくのすがた））・ばけのかわ（14.10）・アイスフェイス（14.10・14.11）・はらぺこスイッチ（`onTurnEnd` で `'hangry'` と `null` を交互に。オーラぐるまの `modifyMoveType` が `volatileState.form` を見る）・スワームチェンジ（`onTurnEnd` で半分以下なら `persistent` の `'complete'`）・うのミサイル（14.9）・てんきや・フラワーギフト（14.11）・マイティチェンジ（`onSwitchOut` で `persistent` の `'hero'`）・テラスチェンジ（`onEntry` で `persistent` の `'terastal'`。HP の種族値が 90 → 95 になり、特性がテラスシェルになる）
 
 ```ts
 if (ctx && holder.currentHp > 0 && holder.currentHp <= holder.maxHp / 2) {
@@ -1808,7 +1809,7 @@ if (ctx) await changeForm(holder, form, ctx); // てんきや（onWeatherChange 
 - 注: ぎたいの状態でみずびたしを受け、そのあとフィールドが終わったとき、本家はもとのタイプに戻すが、`typeOverride: null` で戻すかは特性の実装しだい
 - 注: へんしんは重さ・性別を写さない。写した相手に特性がないときは、使用者のもとの特性が残る
 - 注: レシーバー・かがくのちから（味方がひんしになったとき）としれいとう（ダブルバトル）は、シングルバトルでは何もしない
-- 注: テラスタル（テラスチェンジ・テラスシェル・ゼロフォーミングのテラスタルの部分）は扱わない
+- 注: テラスタル（テラスシェルの効果に使うフック・ゼロフォーミングのテラスタルの部分・テラパゴスのステラフォルム）は扱わない。テラスチェンジのフォルムチェンジは扱う（14.6）
 
 ### 14.13 特性・技ごとに使うもの
 
@@ -1849,3 +1850,4 @@ if (ctx) await changeForm(holder, form, ctx); // てんきや（onWeatherChange 
 | てんきや・フラワーギフト | `onEntry`・`onWeatherChange` で `changeForm`（14.11） |
 | きずなへんげ | `onKnockOut` で `oncePerBattleAbilityUsed` がなければ、攻撃・特攻・素早さ +1（第 9 世代はフォルムを変えない） |
 | マイティチェンジ | `onSwitchOut` で `changeForm(holder, 'hero', ctx, { persistent: true })` |
+| テラスチェンジ | `onEntry` で、テラパゴス（1024）でへんしん中でなければ `changeForm(holder, 'terastal', ctx, { persistent: true })`。特性はテラスシェルになる（14.6） |

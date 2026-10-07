@@ -82,11 +82,12 @@ import { fractionOfMaxHp } from '@/modules/pokemon/domain/battle-events/heal';
 // タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #107 #110 #112 #114 #117 #119 #135 一部）
 import {
   BattlePokemonRef,
+  abilityHolderOf,
   battleAbilityNameOf,
   battleStatsOf,
   battleTypeNamesOf,
 } from '../../domain/logic/battle-pokemon-traits';
-import { TYPELESS_TYPE_NAME } from '../../domain/logic/effective-traits';
+import { TYPELESS_TYPE_NAME, currentAbilityName } from '../../domain/logic/effective-traits';
 
 /**
  * 急所の乱数（RandomSource）を差し替えるときの DI トークン。省略すると Math.random を使う
@@ -884,7 +885,11 @@ export class MoveExecutorService {
     const observer = await this.battleRepository.findBattlePokemonStatusById(params.observerId);
     // 特性を消す効果（いえき・かがくへんかガス）は特性を足さないので、今の特性が持たなければここで終わる
     const currentEffect = this.abilityEffectOf(
-      observer?.volatileState.abilityOverride ?? params.observerTrainedPokemon.ability?.name,
+      observer
+        ? currentAbilityName(
+            abilityHolderOf({ trainedPokemon: params.observerTrainedPokemon, status: observer }),
+          )
+        : params.observerTrainedPokemon.ability?.name,
     );
     if (!currentEffect?.onOpponentMoveUsed) {
       return [];

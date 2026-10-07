@@ -3,7 +3,7 @@ import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemo
 import type { BattleStatValues } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { StatCalculator } from './stat-calculator';
 import { applyStatOverrides } from './volatile-modifiers';
-import { BaseStatValues, PokemonForm, resolvePokemonForm } from './pokemon-forms';
+import { BaseStatValues, PokemonForm, findPokemonForm, resolvePokemonForm } from './pokemon-forms';
 import {
   AbilityHolder,
   EffectiveTypeParams,
@@ -59,10 +59,22 @@ export const battleTypeNamesOf = (
   });
 
 /**
+ * もとの特性名（上書きの前。本家の baseAbility）
+ * 交代しても残るフォルム（persistentState.form）が特性を持てば、その特性（テラパゴスのテラスタルフォルムのテラスシェル）。
+ * なければ育成ポケモンの特性
+ */
+export const baseAbilityNameOf = (
+  trainedPokemon: TrainedPokemon,
+  status: BattlePokemonStatus,
+): string | undefined =>
+  findPokemonForm(trainedPokemon.pokemon.nationalDex, status.persistentState.form)?.abilityName ??
+  trainedPokemon.ability?.name;
+
+/**
  * 実効の特性を求めるための、特性を持つポケモンの情報
  */
 export const abilityHolderOf = (ref: BattlePokemonRef): AbilityHolder => ({
-  baseAbilityName: ref.trainedPokemon.ability?.name,
+  baseAbilityName: baseAbilityNameOf(ref.trainedPokemon, ref.status),
   volatileState: ref.status.volatileState,
   fainted: ref.status.currentHp <= 0,
 });

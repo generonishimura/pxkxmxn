@@ -1,5 +1,6 @@
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { battleMaxHpOf } from '@/modules/battle/domain/logic/battle-pokemon-traits';
+import { findPokemonForm } from '@/modules/battle/domain/logic/pokemon-forms';
 import { BattleContext } from '../abilities/battle-context.interface';
 
 /**
@@ -13,7 +14,7 @@ export interface ChangeFormOptions {
 /**
  * フォルムを変える（本家の formeChange）
  * バトルスイッチ・ダルマモード・リミットシールド・ぎょぐん・ばけのかわ・アイスフェイス・はらぺこスイッチ・
- * スワームチェンジ・うのミサイル・てんきや・フラワーギフト・マイティチェンジ が使う
+ * スワームチェンジ・うのミサイル・てんきや・フラワーギフト・マイティチェンジ・テラスチェンジ が使う
  *
  * 1. volatileState.form（persistent なら persistentState.form）に書く。null なら消す（もとのフォルムに戻す）
  * 2. タイプと実数値は、pokemon-forms の表のフォルムの値になる（エンジンが読むときに求める）。
@@ -22,7 +23,8 @@ export interface ChangeFormOptions {
  *    減った HP を保つ（本家の updateMaxHp。ひんしでなければ最低 1）
  *
  * 次のときは変えずに false を返す: ひんし・へんしん中・すでにそのフォルム
- * 特性は変えない（表のフォルムはどれも同じ特性のまま）
+ * 特性は、交代しても残るフォルムが特性を持つときだけ変わる（表の abilityName。テラパゴスのテラスタルフォルムのテラスシェル）。
+ * そのときは本家の永続の formeChange と同じく、今の特性の上書き（abilityOverride）も消す。ほかのフォルムでは特性は変えない
  * @param form フォルム名（pokemon-forms の表の form。表にないフォルムは、タイプ・実数値を変えずに名前だけ書く）
  */
 export const changeForm = async (
@@ -43,19 +45,24 @@ export const changeForm = async (
   if ((current ?? null) === form) {
     return false;
   }
+  const trainedPokemon = await battleContext.trainedPokemonRepository?.findById(
+    holder.trainedPokemonId,
+  );
+  const formAbilityName =
+    options.persistent && form !== null && trainedPokemon
+      ? findPokemonForm(trainedPokemon.pokemon.nationalDex, form)?.abilityName
+      : undefined;
   if (options.persistent) {
     await repository.patchPersistentState(holder.id, { form });
   }
   await repository.patchVolatileState(holder.id, {
     ...(options.persistent ? {} : { form }),
+    ...(formAbilityName !== undefined ? { abilityOverride: null } : {}),
     typeOverride: null,
     addedType: null,
     statOverrides: null,
   });
 
-  const trainedPokemon = await battleContext.trainedPokemonRepository?.findById(
-    holder.trainedPokemonId,
-  );
   if (!trainedPokemon) {
     return true;
   }

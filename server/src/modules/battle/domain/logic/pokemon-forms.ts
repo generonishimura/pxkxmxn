@@ -26,6 +26,12 @@ export interface PokemonForm {
    * フォルムを書いていないポケモンは、このフォルムのタイプと種族値を使う
    */
   readonly isDefault?: boolean;
+  /**
+   * このフォルムの特性名（DB の Ability.name）。交代しても残るフォルム（persistentState.form）のときだけ、
+   * もとの特性の代わりになる（本家の永続の formeChange が baseAbility を書き換える。テラパゴスのテラスタルフォルム）
+   * 書いていないフォルムは、もとの特性のまま
+   */
+  readonly abilityName?: string;
 }
 
 const stats = (
@@ -212,6 +218,21 @@ export const POKEMON_FORMS: readonly PokemonForm[] = [
     baseStats: stats(100, 70, 72, 53, 62, 100),
   },
   { nationalDex: 964, form: 'hero', types: ['みず'], baseStats: stats(100, 160, 97, 106, 87, 100) },
+  // テラパゴス（テラスチェンジ）。テラスタルフォルムは交代しても残り、特性がテラスシェルになる
+  {
+    nationalDex: 1024,
+    form: 'normal',
+    isDefault: true,
+    types: ['ノーマル'],
+    baseStats: stats(90, 65, 85, 65, 85, 60),
+  },
+  {
+    nationalDex: 1024,
+    form: 'terastal',
+    types: ['ノーマル'],
+    baseStats: stats(95, 95, 110, 105, 110, 85),
+    abilityName: 'テラスシェル',
+  },
 ];
 
 /**
