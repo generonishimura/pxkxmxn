@@ -14,6 +14,8 @@ describe('ElectricSurgeEffect', () => {
   const createCtx = (field: Field): BattleContext => {
     const mockBattleRepository = {
       update: jest.fn().mockResolvedValue(undefined),
+      findById: jest.fn().mockResolvedValue(null),
+      patchGlobalFieldState: jest.fn(),
     };
     return {
       battle: new Battle(1, 1, 2, 1, 2, 1, Weather.None, field, BattleStatus.Active, null),
@@ -37,6 +39,19 @@ describe('ElectricSurgeEffect', () => {
     // Assert
     expect(ctx.battleRepository?.update).toHaveBeenCalledWith(1, {
       field: Field.ElectricTerrain,
+    });
+  });
+
+  it('場に出したフィールドの残りターン数 5 を書く', async () => {
+    // Arrange
+    const ctx = createCtx(Field.None);
+
+    // Act
+    await effect.onEntry(pokemon, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.patchGlobalFieldState).toHaveBeenCalledWith(1, {
+      terrainTurns: 5,
     });
   });
 

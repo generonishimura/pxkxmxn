@@ -18,6 +18,8 @@ import { isEmptyObject } from '../../domain/state/state-field-parser';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
 import { VolatileResidualProcessor } from './volatile-residual-processor';
+// 場の状態・設置技・交代の仕組み（Issue #110 #135 一部）
+import { FieldResidualProcessor } from './field-residual-processor';
 
 /**
  * StatusConditionProcessorService
@@ -31,6 +33,7 @@ export class StatusConditionProcessorService {
   private sleepTurnCounts: Map<number, Map<number, number>> = new Map();
 
   private readonly volatileResiduals: VolatileResidualProcessor;
+  private readonly fieldResiduals: FieldResidualProcessor;
 
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
@@ -42,17 +45,22 @@ export class StatusConditionProcessorService {
       battleRepository,
       trainedPokemonRepository,
     );
+    this.fieldResiduals = new FieldResidualProcessor(battleRepository, trainedPokemonRepository);
   }
 
   /**
    * ターン終了時の特性効果と状態異常を処理
    *
+   * 0. 残りが 1 の天候を終わらせる（そのターンはすなあらしのダメージを受けない）
    * 1. すなあらしのダメージ（場の全員）
    * 2. ねがいごと（陣営）
-   * 3. 場のポケモンごとに: アクアリング・ねをはる・やどりぎのタネ → 状態異常（ねむりの解除・どく・やけど）→
+   * 3. グラスフィールドの回復（地面にいるポケモン）
+   * 4. 場のポケモンごとに: アクアリング・ねをはる・やどりぎのタネ → 状態異常（ねむりの解除・どく・やけど）→
    *    あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた → 特性の onTurnEnd
+   * 5. 残りが 1 のフィールドを終わらせる
    */
-  async processTurnEndAbilities(battle: Battle): Promise<void> {
+  async processTurnEndAbilities(battleAtTurnEnd: Battle): Promise<void> {
+    const battle = await this.fieldResiduals.endExpiringWeather(battleAtTurnEnd);
     const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
     const activePokemon = battleStatuses.filter(s => s.isActive);
 
@@ -78,6 +86,7 @@ export class StatusConditionProcessorService {
     };
     await this.volatileResiduals.applyWeatherDamage(activePokemon, weather, fieldContext);
     await this.volatileResiduals.applyWish(battle, fieldContext);
+    await this.fieldResiduals.applyGrassyTerrainHeal(battle, activePokemon, fieldContext);
 
     for (const status of activePokemon) {
       const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
@@ -128,6 +137,8 @@ export class StatusConditionProcessorService {
         await abilityEffect.onTurnEnd(latestStatus, battleContext);
       }
     }
+
+    await this.fieldResiduals.endExpiringTerrain(battle);
   }
 
   /**
