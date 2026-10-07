@@ -511,4 +511,46 @@ describe('StartBattleUseCase - 先発の場に出たときの処理', () => {
     expect(engine.battle().weather ?? Weather.None).toBe(Weather.None);
     expect(engine.battle().sideState.global?.primalWeather).toBeUndefined();
   });
+
+  it('先発のかんろなミツは、相手の先発のクリアボディで回避ランクを下げられない', async () => {
+    // Arrange
+    const engine = createStartBattle([
+      { id: 1, trainerId: 1, position: 1, ability: 'かんろなミツ' },
+      { id: 2, trainerId: 2, position: 1, ability: 'クリアボディ' },
+    ]);
+
+    // Act
+    await engine.start();
+
+    // Assert
+    expect(engine.statusOf(2).evasionRank).toBe(0);
+  });
+
+  it('先発のいかくは、相手の先発のかいりきバサミで攻撃ランクを下げられない', async () => {
+    // Arrange
+    const engine = createStartBattle([
+      { id: 1, trainerId: 1, position: 1, ability: 'いかく' },
+      { id: 2, trainerId: 2, position: 1, ability: 'かいりきバサミ' },
+    ]);
+
+    // Act
+    await engine.start();
+
+    // Assert
+    expect(engine.statusOf(2).attackRank).toBe(0);
+  });
+
+  it('先発のかんろなミツは、特性で防がない相手の回避ランクを 1 下げる', async () => {
+    // Arrange
+    const engine = createStartBattle([
+      { id: 1, trainerId: 1, position: 1, ability: 'かんろなミツ' },
+      { id: 2, trainerId: 2, position: 1 },
+    ]);
+
+    // Act
+    await engine.start();
+
+    // Assert
+    expect(engine.statusOf(2).evasionRank).toBe(-1);
+  });
 });
