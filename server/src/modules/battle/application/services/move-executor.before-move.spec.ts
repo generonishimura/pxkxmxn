@@ -24,6 +24,7 @@ describe('MoveExecutorService - 技を出そうとしたときの状態の片付
     expect(statuses.get(ATTACKER_ID).volatileState).toEqual({
       leechSeed: true,
       lastMoveId: 1,
+      lastMoveTypeName: 'ノーマル',
       consecutiveMoveCount: 1,
     });
   });

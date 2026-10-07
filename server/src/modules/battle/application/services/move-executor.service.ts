@@ -199,6 +199,10 @@ export class MoveExecutorService {
    */
   private static readonly POWDER_DAMAGE_DIVISOR = 4;
 
+  /** プラズマシャワー・そうでんで変わるタイプ */
+  private static readonly NORMAL_TYPE_NAME = 'ノーマル';
+  private static readonly ELECTRIC_TYPE_NAME = 'でんき';
+
   private readonly beforeMoveChecker: BeforeMoveChecker;
   private readonly moveLifecycle: MoveLifecycle;
   /** 急所の判定に使う乱数 */
@@ -578,23 +582,8 @@ export class MoveExecutorService {
       });
     }
 
-    // 技を出した記録（みちづれ・おんねんの消去、lastMoveId、こだわり、まもるの回数）
-    // みらいよちが当たるときは、技を出したことにならないので書かない
-    if (called?.isFutureAttack !== true) {
-      if (params.trace) {
-        params.trace.activeMove = move;
-      }
-      attacker = await this.moveLifecycle.recordMoveUse({
-        attacker,
-        move,
-        moveEffect,
-        attackerAbilityEffect,
-        isCalled,
-      });
-    }
-
-    // ふんじん・ゲンシ天候は、タイプを変える効果（技の modifyMoveType → 攻撃側特性の modifyMoveType）を
-    // 反映したタイプで判定する（本家の onTryMove）
+    // ふんじん・ゲンシ天候は、タイプを変える効果（技の modifyMoveType → 攻撃側特性の modifyMoveType →
+    // プラズマシャワー・そうでん）を反映したタイプで判定する（本家の onTryMove）
     const triedTypeName =
       moveEffect?.typeless === true
         ? undefined
@@ -606,6 +595,22 @@ export class MoveExecutorService {
             attackerAbilityEffect,
             contextFor(attacker),
           );
+
+    // 技を出した記録（みちづれ・おんねんの消去、lastMoveId・lastMoveTypeName、こだわり、まもるの回数）
+    // みらいよちが当たるときは、技を出したことにならないので書かない
+    if (called?.isFutureAttack !== true) {
+      if (params.trace) {
+        params.trace.activeMove = move;
+      }
+      attacker = await this.moveLifecycle.recordMoveUse({
+        attacker,
+        move,
+        moveEffect,
+        attackerAbilityEffect,
+        isCalled,
+        moveTypeName: triedTypeName,
+      });
+    }
 
     // ゲンシ天候: おおあめのほのおの攻撃技・おおひでりのみずの攻撃技は失敗する（PP は減る。ノーてんきが場にいれば効かない）。
     // ふんじんより先に判定する（本家の onTryMovePriority はゲンシ天候 1・ふんじん -1）
@@ -2172,8 +2177,13 @@ export class MoveExecutorService {
   }
 
   /**
-   * 技のタイプ名を決定する（技の modifyMoveType → 攻撃側特性の modifyMoveType）
-   * 攻撃側特性には、技の効果で変わったあとのタイプを battleContext.moveTypeName で渡す
+   * 技のタイプ名を決定する（本家の onModifyType の優先度の順）
+   * 1. 技の modifyMoveType（ウェザーボールなど）
+   * 2. 攻撃側特性の modifyMoveType（-スキン・ノーマルスキン・うるおいボイス）。技の効果で変わったあとのタイプを
+   *    battleContext.moveTypeName で渡す
+   * 3. プラズマシャワー（GlobalFieldState.ionDeluge）: ノーマル技をでんき技にする
+   * 4. そうでん（使用者の volatileState.electrified）: どのタイプの技もでんき技にする
+   * 本家も技自身の onModifyType（singleEvent）を先に、特性・場の状態（runEvent）をあとに呼ぶ
    */
   private resolveMoveTypeName(
     move: Move,
@@ -2186,7 +2196,15 @@ export class MoveExecutorService {
     const typeName =
       moveEffect?.modifyMoveType?.(attacker, defender, battleContext) ?? move.type.name;
     battleContext.moveTypeName = typeName;
-    return attackerAbilityEffect?.modifyMoveType?.(attacker, typeName, battleContext) ?? typeName;
+    const abilityTypeName =
+      attackerAbilityEffect?.modifyMoveType?.(attacker, typeName, battleContext) ?? typeName;
+    if (attacker.volatileState.electrified === true) {
+      return MoveExecutorService.ELECTRIC_TYPE_NAME;
+    }
+    const ionDeluge = getGlobalFieldState(battleContext.battle.sideState).ionDeluge === true;
+    return ionDeluge && abilityTypeName === MoveExecutorService.NORMAL_TYPE_NAME
+      ? MoveExecutorService.ELECTRIC_TYPE_NAME
+      : abilityTypeName;
   }
 
   /**

@@ -78,7 +78,7 @@ export const FUTURE_ATTACK_TURNS = 3;
  * MoveLifecycle
  * 技を出すときと出したあとに、エンジンが書く状態をまとめて扱う
  * - PP を減らす（プレッシャー・ものまねの入れ替え）
- * - 技を出した記録（lastMoveId・こだわり・まもるの回数・みちづれとおんねんの消去）
+ * - 技を出した記録（lastMoveId・lastMoveTypeName・こだわり・まもるの回数・みちづれとおんねんの消去）
  * - ため技の 1 ターン目（chargingMoveId・semiInvulnerable）
  * - みらいよち・はめつのねがいを相手の陣営に置く（SideConditions.futureAttack）
  * - 技を出したあと（反動・出し続ける技・続けて出した回数・じゅうでんの消去・さわぐ）
@@ -145,6 +145,8 @@ export class MoveLifecycle {
     moveEffect: IMoveEffect | undefined;
     attackerAbilityEffect: IAbilityEffect | undefined;
     isCalled: boolean;
+    /** 技のタイプを変える効果を反映したタイプ（lastMoveTypeName に書く。タイプなしの技は undefined） */
+    moveTypeName?: string;
   }): Promise<BattlePokemonStatus> {
     const { attacker, move } = params;
     if (params.isCalled) {
@@ -164,6 +166,10 @@ export class MoveLifecycle {
       if (state.consecutiveMoveCount !== undefined) {
         patch.consecutiveMoveCount = null;
       }
+    }
+    // 最後に使った技のタイプ（テクスチャー２が読む）。タイプなしの技（わるあがき）は前の値を消す
+    if (state.lastMoveTypeName !== params.moveTypeName) {
+      patch.lastMoveTypeName = params.moveTypeName ?? null;
     }
     if (
       params.attackerAbilityEffect?.locksMoveChoice === true &&
