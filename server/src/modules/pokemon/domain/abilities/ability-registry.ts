@@ -203,6 +203,10 @@ import { ContraryEffect } from './effects/stat-change/contrary-effect';
 import { MirrorArmorEffect } from './effects/stat-change/mirror-armor-effect';
 import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
+// ゲンシ天候の特性・そうだいしょう（Issue #135 一部）
+import { PrimordialSeaEffect } from './effects/weather/primordial-sea-effect';
+import { DesolateLandEffect } from './effects/weather/desolate-land-effect';
+import { DeltaStreamEffect } from './effects/weather/delta-stream-effect';
 
 /**
  * 特性レジストリ
@@ -505,6 +509,10 @@ export class AbilityRegistry {
       this.registry.set('ミラーアーマー', new MirrorArmorEffect());
       this.registry.set('ばんけん', new GuardDogEffect());
       this.registry.set('びんじょう', new OpportunistEffect());
+      // ゲンシ天候の特性・そうだいしょう（Issue #135 一部）
+      this.registry.set('はじまりのうみ', new PrimordialSeaEffect());
+      this.registry.set('おわりのだいち', new DesolateLandEffect());
+      this.registry.set('デルタストリーム', new DeltaStreamEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
