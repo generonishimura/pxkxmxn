@@ -262,6 +262,12 @@ import { MagicBounceEffect } from './effects/other/magic-bounce-effect';
 import { MyceliumMightEffect } from './effects/other/mycelium-might-effect';
 // まもる系を通り抜ける特性（Issue #135 一部）
 import { UnseenFistEffect } from './effects/other/unseen-fist-effect';
+// 特性を書き換える・消す特性（Issue #135 一部）
+import { TraceEffect } from './effects/other/trace-effect';
+import { MummyEffect } from './effects/other/mummy-effect';
+import { LingeringAromaEffect } from './effects/other/lingering-aroma-effect';
+import { WanderingSpiritEffect } from './effects/other/wandering-spirit-effect';
+import { NeutralizingGasEffect } from './effects/other/neutralizing-gas-effect';
 
 /**
  * 特性レジストリ
@@ -628,6 +634,12 @@ export class AbilityRegistry {
       this.registry.set('きんしのちから', new MyceliumMightEffect());
       // まもる系を通り抜ける特性（Issue #135 一部）
       this.registry.set('ふかしのこぶし', new UnseenFistEffect());
+      // 特性を書き換える・消す特性（Issue #135 一部）
+      this.registry.set('トレース', new TraceEffect());
+      this.registry.set('ミイラ', new MummyEffect());
+      this.registry.set('とれないにおい', new LingeringAromaEffect());
+      this.registry.set('さまようたましい', new WanderingSpiritEffect());
+      this.registry.set('かがくへんかガス', new NeutralizingGasEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

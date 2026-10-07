@@ -382,6 +382,8 @@ import { RolePlayEffect } from './effects/role-play-effect';
 import { GastroAcidEffect } from './effects/gastro-acid-effect';
 import { WorrySeedEffect } from './effects/worry-seed-effect';
 import { SimpleBeamEffect } from './effects/simple-beam-effect';
+// 特性を書き換える技（Issue #119 一部）
+import { EntrainmentEffect } from './effects/entrainment-effect';
 
 /**
  * 技のレジストリ
@@ -874,6 +876,8 @@ export class MoveRegistry {
       this.registry.set('いえき', new GastroAcidEffect());
       this.registry.set('なやみのタネ', new WorrySeedEffect());
       this.registry.set('シンプルビーム', new SimpleBeamEffect());
+      // 特性を書き換える技（Issue #119 一部）
+      this.registry.set('なかまづくり', new EntrainmentEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
