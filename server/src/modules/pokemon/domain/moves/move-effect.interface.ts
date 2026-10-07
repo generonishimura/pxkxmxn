@@ -78,6 +78,7 @@ export type ProtectionMoveConfig =
 export interface IMoveEffect {
   /**
    * 技が命中したとき（ダメージ適用後）に発動する効果
+   * 技が相手に効かなかったとき（タイプ相性・ふしぎなまもりなどの特性で無効）は呼ばれない
    * @param attacker 攻撃側のポケモン
    * @param defender 防御側のポケモン
    * @param battleContext バトルコンテキスト
@@ -139,6 +140,7 @@ export interface IMoveEffect {
 
   /**
    * ダメージ適用後に発動する効果
+   * 技が相手に効かなかったとき（タイプ相性・ふしぎなまもりなどの特性で無効）は呼ばれない
    * @param attacker 攻撃側のポケモン
    * @param defender 防御側のポケモン
    * @param damage 与えたダメージ

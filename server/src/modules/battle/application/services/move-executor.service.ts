@@ -1528,6 +1528,10 @@ export class MoveExecutorService {
     }
     // 1 回でも当たったか（ダメージを与えたか、ばけのかわなどで防がれたか）。追加効果・接触時の特性・交代の判定に使う
     const landed = damage > 0 || blockedHitCount > 0;
+    // 技が相手に効かなかったか（タイプ相性、またはふしぎなまもり・ちくでんなど防御側特性の isImmuneToType で無効）。
+    // 本家では技そのものが失敗するので、技の追加効果（onHit）と使用者への効果（afterDamage）を起こさない。
+    // ダメージが 0 になった理由は、ダメージ計算の前に求めた技全体のタイプ相性（moveTypeEffectiveness）で判定する
+    const hadNoEffect = !landed && battleContext.moveTypeEffectiveness === 0;
 
     // みがわりにだけ当たったときは、反動・吸収（afterDamage）だけを起こす（本家と同じ）
     if (damage === 0 && substituteDamage > 0) {
@@ -1599,9 +1603,9 @@ export class MoveExecutorService {
       }
     }
 
-    // 技の特殊効果（onHit）を呼び出す
+    // 技の特殊効果（onHit）を呼び出す（技が相手に効かなかったときは呼ばない）
     let moveEffectMessage = '';
-    if (moveEffect?.onHit) {
+    if (moveEffect?.onHit && !hadNoEffect) {
       const hitMessage = await moveEffect.onHit(
         attackerForMoveEffect,
         defenderForMoveEffect,
@@ -1612,8 +1616,8 @@ export class MoveExecutorService {
       }
     }
 
-    // ダメージ適用後の技の効果（反動など）。全ヒットで実際に減らしたHPの合計を渡す
-    if (moveEffect?.afterDamage) {
+    // ダメージ適用後の技の効果（反動など）。全ヒットで実際に減らしたHPの合計を渡す（技が相手に効かなかったときは呼ばない）
+    if (moveEffect?.afterDamage && !hadNoEffect) {
       const afterDamageMessage = await moveEffect.afterDamage(
         attackerForMoveEffect,
         defenderForMoveEffect,

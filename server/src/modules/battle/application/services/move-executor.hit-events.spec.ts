@@ -318,6 +318,63 @@ describe('MoveExecutorService - ヒットとひんしのイベント', () => {
     });
   });
 
+  describe('技が相手に効かないとき（タイプ相性・ふしぎなまもりなどで無効）', () => {
+    it('ふしぎなまもりで無効にされたら、技の追加効果（onHit）と使用者への効果（afterDamage）を起こさない', async () => {
+      // Arrange
+      // テスト用の相性表は空なので、ほのおのパンチは等倍。ふしぎなまもりは効果ばつぐん以外を無効にする
+      const onHit = jest.fn().mockResolvedValue('was paralyzed!');
+      const afterDamage = jest.fn().mockResolvedValue("'s Sp. Atk fell!");
+      const { execute } = setupMoveExecutor({
+        defenderAbility: 'ふしぎなまもり',
+        moveEffect: { onHit, afterDamage },
+        damage: 0,
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(onHit).not.toHaveBeenCalled();
+      expect(afterDamage).not.toHaveBeenCalled();
+      expect(message).toBe('Used ほのおのパンチ and dealt 0 damage');
+    });
+
+    it('タイプ相性で無効なときも、技の追加効果（onHit）と使用者への効果（afterDamage）を起こさない', async () => {
+      // Arrange
+      const onHit = jest.fn().mockResolvedValue('was paralyzed!');
+      const afterDamage = jest.fn().mockResolvedValue(null);
+      const { execute, typeEffectivenessRepository } = setupMoveExecutor({
+        moveEffect: { onHit, afterDamage },
+        damage: 0,
+      });
+      // ノーマル（ID 1）の技は、ノーマル（ID 1）の相手に効かない（テスト用の相性表）
+      typeEffectivenessRepository.getTypeEffectivenessMap.mockResolvedValue(new Map([['1-1', 0]]));
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(onHit).not.toHaveBeenCalled();
+      expect(afterDamage).not.toHaveBeenCalled();
+    });
+
+    it('効果ばつぐんならふしぎなまもりでも無効にならず、追加効果を起こす', async () => {
+      // Arrange
+      const onHit = jest.fn().mockResolvedValue(null);
+      const { execute, typeEffectivenessRepository } = setupMoveExecutor({
+        defenderAbility: 'ふしぎなまもり',
+        moveEffect: { onHit },
+      });
+      typeEffectivenessRepository.getTypeEffectivenessMap.mockResolvedValue(new Map([['1-1', 2]]));
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(onHit).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('攻撃側特性の onSourceDamagingHit', () => {
     it('ダメージを与えたヒットごとに、防御側とヒットの情報を渡して呼ばれる', async () => {
       // Arrange
