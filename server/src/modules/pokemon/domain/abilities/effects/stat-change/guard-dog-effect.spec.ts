@@ -118,4 +118,12 @@ describe('GuardDogEffect（ばんけん）', () => {
       expect(get(1).attackRank).toBe(-1);
     });
   });
+
+  it('ほえるなどで交代させられない（preventsForcedSwitch）', () => {
+    // Act
+    const effect = new GuardDogEffect();
+
+    // Assert
+    expect(effect.preventsForcedSwitch).toBe(true);
+  });
 });
