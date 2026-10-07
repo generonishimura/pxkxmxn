@@ -264,6 +264,8 @@ import { SkillSwapEffect } from './effects/skill-swap-effect';
 import { DoodleEffect } from './effects/doodle-effect';
 import { RolePlayEffect } from './effects/role-play-effect';
 import { GastroAcidEffect } from './effects/gastro-acid-effect';
+import { WorrySeedEffect } from './effects/worry-seed-effect';
+import { SimpleBeamEffect } from './effects/simple-beam-effect';
 
 /**
  * 技のレジストリ
@@ -636,6 +638,8 @@ export class MoveRegistry {
       this.registry.set('うつしえ', new DoodleEffect());
       this.registry.set('なりきり', new RolePlayEffect());
       this.registry.set('いえき', new GastroAcidEffect());
+      this.registry.set('なやみのタネ', new WorrySeedEffect());
+      this.registry.set('シンプルビーム', new SimpleBeamEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
