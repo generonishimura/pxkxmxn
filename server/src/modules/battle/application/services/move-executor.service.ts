@@ -1008,16 +1008,19 @@ export class MoveExecutorService {
       attackerAbilityEffect?.modifyPriority?.(attacker, move.priority, battleContext) ??
       move.priority;
 
-    // 特性による技の失敗（しめりけ・じょおうのいげんなど）。両者の特性で、命中判定の前に判定する
-    const preventingAbilityName = this.findMovePreventingAbility({
-      attacker,
-      defender,
-      attackerAbilityName,
-      defenderAbilityName,
-      attackerAbilityEffect,
-      defenderAbilityEffect,
-      battleContext,
-    });
+    // 特性による技の失敗（しめりけ・じょおうのいげんなど）。両者の特性で、命中判定の前に判定する。
+    // onPrepareHit のあとのやり直し（prepared）では判定し直さない（本家の TryMove は PrepareHit より前に 1 回）
+    const preventingAbilityName = params.prepared
+      ? undefined
+      : this.findMovePreventingAbility({
+          attacker,
+          defender,
+          attackerAbilityName,
+          defenderAbilityName,
+          attackerAbilityEffect,
+          defenderAbilityEffect,
+          battleContext,
+        });
     if (preventingAbilityName) {
       return {
         message: `Used ${move.name} but it failed (${preventingAbilityName})`,
@@ -1026,7 +1029,7 @@ export class MoveExecutorService {
     }
 
     // 技を出す直前の使用者の特性（へんげんじざい・リベロ・バトルスイッチ。本家の onPrepareHit）。
-    // タイプ・フォルムが変わるので、使用者を読み直して技の本体をやり直す（preventsMove とこの判定はしない）
+    // タイプ・フォルムが変わるので、使用者を読み直して技の本体をやり直す（やり直しでは preventsMove と onPrepareHit を呼ばない）
     if (
       !params.prepared &&
       attackerAbilityEffect?.onPrepareHit &&

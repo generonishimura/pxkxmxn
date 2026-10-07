@@ -82,6 +82,25 @@ describe('ExecuteTurnUseCase - タイプ・フォルムを変える特性のフ�
       );
     });
 
+    it('onPrepareHit のあとの技の本体のやり直しでは、特性の preventsMove を判定し直さない', async () => {
+      // Arrange
+      const preventsMove = jest.fn().mockReturnValue(false);
+      AbilityRegistry.register('テストのしめりけ', { preventsMove });
+      AbilityRegistry.register('テストのへんげんじざい', {
+        onPrepareHit: async () => null,
+      });
+      const engine = setup({ ability: 'テストのへんげんじざい' }, { ability: 'テストのしめりけ' });
+
+      // Act
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert: 相手のはねるの分は数えない
+      const tackleCalls = preventsMove.mock.calls.filter(
+        ([, role]: [unknown, 'attacker' | 'defender']) => role === 'defender',
+      );
+      expect(tackleCalls).toHaveLength(1);
+    });
+
     it('技を呼ぶ技（ゆびをふる）では呼ばず、呼ばれた技で呼ぶ', async () => {
       // Arrange
       const seen: Array<string | undefined> = [];
