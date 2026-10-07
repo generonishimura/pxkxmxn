@@ -37,6 +37,59 @@ describe('MoveBehaviors', () => {
     expect(names).not.toContain('からてチョップ');
   });
 
+  describe('急所・まもる系・対象の範囲の性質', () => {
+    it.each([
+      ['つじぎり', 'highCritRatio'],
+      ['３ぼんのや', 'highCritRatio'],
+      ['こおりのいぶき', 'alwaysCrit'],
+      ['すいりゅうれんだ', 'alwaysCrit'],
+      ['フェイント', 'noProtect'],
+      ['ほえる', 'noProtect'],
+      ['フェイント', 'breaksProtect'],
+      ['ゴーストダイブ', 'breaksProtect'],
+      ['じしん', 'spread'],
+      ['なきごえ', 'spread'],
+    ] as const)('%s は %s を持つ', (moveName, behavior) => {
+      // Act
+      const result = MoveBehaviors.has(moveName, behavior);
+
+      // Assert
+      expect(result).toBe(true);
+    });
+
+    it.each([
+      ['たいあたり', 'highCritRatio'],
+      ['たいあたり', 'noProtect'],
+      ['でんじは', 'noProtect'],
+      ['たいあたり', 'spread'],
+      ['ハイパードリル', 'breaksProtect'],
+    ] as const)('%s は %s を持たない', (moveName, behavior) => {
+      // Act
+      const result = MoveBehaviors.has(moveName, behavior);
+
+      // Assert
+      expect(result).toBe(false);
+    });
+
+    it('namesWith で急所に当たりやすい技の一覧を引ける', () => {
+      // Act
+      const names = MoveBehaviors.namesWith('highCritRatio');
+
+      // Assert
+      expect(names).toContain('ストーンエッジ');
+      expect(names).not.toContain('たいあたり');
+    });
+
+    it('表から引いた性質も残る（ゴーストダイブは charge と breaksProtect の両方を持つ）', () => {
+      // Act
+      const behaviors = MoveBehaviors.get('ゴーストダイブ');
+
+      // Assert
+      expect(behaviors.has('charge')).toBe(true);
+      expect(behaviors.has('breaksProtect')).toBe(true);
+    });
+  });
+
   it('表にない技は性質を持たない', () => {
     // Act
     const behaviors = MoveBehaviors.get('存在しない技');

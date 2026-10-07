@@ -1,5 +1,7 @@
 import type { SemiInvulnerableKind } from '@/modules/battle/domain/state/volatile-state';
 import { MOVE_BEHAVIOR_TABLE } from './move-behavior-table';
+// 急所ランク・まもる系の仕組み（Issue #102 #103 #107 #108 #111 #120 #135 一部）
+import { EXTRA_MOVE_BEHAVIOR_TABLE } from './move-extra-behavior-table';
 
 /**
  * エンジンが使う技の性質（Showdown の flags などから作った表。move-behavior-table.ts）
@@ -21,6 +23,7 @@ import { MOVE_BEHAVIOR_TABLE } from './move-behavior-table';
  * - gravity: じゅうりょくの間は出せない
  * - defrost: 使用者のこおりを溶かして出せる
  * - sleepUsable: ねむっていても出せる（いびき・ねごと）
+ * - 急所・まもる系・対象の範囲（ExtraMoveBehavior。move-extra-behavior-table.ts）
  */
 export type MoveBehavior =
   | 'snatch'
@@ -45,12 +48,45 @@ export type MoveBehavior =
   | 'reflectable'
   | 'gravity'
   | 'defrost'
-  | 'sleepUsable';
+  | 'sleepUsable'
+  | ExtraMoveBehavior;
+
+/**
+ * 急所・まもる系・対象の範囲の性質（move-extra-behavior-table.ts）
+ * - highCritRatio: 急所ランク +1（つじぎり・ストーンエッジなど）
+ * - alwaysCrit: 必ず急所（こおりのいぶき・あんこくきょうだなど）
+ * - noProtect: 相手を対象にするが、まもる系で防げない（フェイント・ほえる・ゴーストダイブなど）
+ * - breaksProtect: 当たると相手のまもる系・ワイドガードなどを解く（フェイント・シャドーダイブなど）
+ * - spread: 相手全体・自分以外全体を対象にする（じしん・なみのり・なきごえなど。ワイドガードで防がれる）
+ */
+export type ExtraMoveBehavior =
+  | 'highCritRatio'
+  | 'alwaysCrit'
+  | 'noProtect'
+  | 'breaksProtect'
+  | 'spread';
 
 const EMPTY_BEHAVIORS: ReadonlySet<MoveBehavior> = new Set<MoveBehavior>();
 
+/**
+ * 技名ごとの性質の一覧（MOVE_BEHAVIOR_TABLE に EXTRA_MOVE_BEHAVIOR_TABLE を足したもの）
+ */
+const ALL_MOVE_BEHAVIORS: ReadonlyArray<readonly [string, readonly MoveBehavior[]]> = (() => {
+  const merged = new Map<string, MoveBehavior[]>(
+    MOVE_BEHAVIOR_TABLE.map(([moveName, behaviors]) => [moveName, [...behaviors]]),
+  );
+  for (const [behavior, moveNames] of Object.entries(EXTRA_MOVE_BEHAVIOR_TABLE) as Array<
+    [ExtraMoveBehavior, readonly string[]]
+  >) {
+    for (const moveName of moveNames) {
+      merged.set(moveName, [...(merged.get(moveName) ?? []), behavior]);
+    }
+  }
+  return [...merged.entries()];
+})();
+
 const BEHAVIORS_BY_MOVE_NAME: ReadonlyMap<string, ReadonlySet<MoveBehavior>> = new Map(
-  MOVE_BEHAVIOR_TABLE.map(([moveName, behaviors]) => [moveName, new Set(behaviors)]),
+  ALL_MOVE_BEHAVIORS.map(([moveName, behaviors]) => [moveName, new Set(behaviors)]),
 );
 
 /**
@@ -121,7 +157,7 @@ export class MoveBehaviors {
    * 指定の性質を持つ技名の一覧（ゆびをふるの候補など）
    */
   static namesWith(behavior: MoveBehavior): readonly string[] {
-    return MOVE_BEHAVIOR_TABLE.filter(([, behaviors]) => behaviors.includes(behavior)).map(
+    return ALL_MOVE_BEHAVIORS.filter(([, behaviors]) => behaviors.includes(behavior)).map(
       ([moveName]) => moveName,
     );
   }
