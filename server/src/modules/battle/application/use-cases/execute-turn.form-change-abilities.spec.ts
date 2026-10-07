@@ -25,6 +25,34 @@ describe('ExecuteTurnUseCase - フォルムを変える特性', () => {
     MoveRegistry.initialize();
   });
 
+  it('バトルスイッチのギルガルドは、攻撃技をブレードフォルムの攻撃で当てる', async () => {
+    // Arrange
+    const engine = createBattleEngine({
+      moves: MOVES,
+      pokemon: [
+        {
+          id: 1,
+          trainerId: 1,
+          active: true,
+          moveIds: MOVE_IDS,
+          ability: 'バトルスイッチ',
+          nationalDex: 681,
+          types: ['はがね', 'ゴースト'],
+          baseStats: [60, 50, 140, 50, 140, 60],
+        },
+        { id: 2, trainerId: 2, active: true, moveIds: MOVE_IDS, baseSpeed: 50 },
+      ],
+    });
+
+    // Act
+    const result = await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+    // Assert: ブレードフォルムの攻撃 160 → 31 ダメージ（シールドフォルムなら 14）
+    expect(engine.status(1).volatileState.form).toBe('blade');
+    expect(engine.status(2).currentHp).toBe(160 - 31);
+    expect(result.actions[0].result).toContain('changed to Blade Forme!');
+  });
+
   it('ダルマモードのヒヒダルマは、ターン終了時に HP が半分以下ならダルマモードになる', async () => {
     // Arrange
     const engine = createBattleEngine({
