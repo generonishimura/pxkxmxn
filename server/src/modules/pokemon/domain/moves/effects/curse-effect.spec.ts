@@ -55,6 +55,22 @@ describe('CurseEffect（のろい）', () => {
       expect(get(2).volatileState.cursed).toBe(true);
     });
 
+    it('最大 HP が 1 なら 1 を払い、ひんしになる（本家の directDamage は最低 1）', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({
+        types: ['むし', 'ゴースト'],
+        status: { currentHp: 1, maxHp: 1 },
+      });
+      const effect = new CurseEffect();
+
+      // Act
+      await effect.onUse(get(1), get(2), context());
+
+      // Assert
+      expect(get(1).currentHp).toBe(0);
+      expect(get(2).volatileState.cursed).toBe(true);
+    });
+
     it('マジックガードでも HP を払う', async () => {
       // Arrange
       const { context, get } = createInMemoryBattle({
