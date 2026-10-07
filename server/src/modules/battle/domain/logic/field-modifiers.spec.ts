@@ -6,6 +6,7 @@ import {
   isTrickRoomActive,
   movesBefore,
   primalWeatherBlocksMove,
+  preventsCriticalHit,
   screenDamageModifier,
   sideSpeedMultiplier,
   swapDefensesInWonderRoom,
@@ -281,6 +282,24 @@ describe('field-modifiers', () => {
       // Assert
       expect(active).toBeUndefined();
       expect(withoutCloudNine).toBe('strongWinds');
+    });
+  });
+
+  describe('preventsCriticalHit', () => {
+    it('おまじないの陣営のポケモンは急所に当たらない', () => {
+      // Act
+      const prevented = preventsCriticalHit({ luckyChantTurns: 3 });
+
+      // Assert
+      expect(prevented).toBe(true);
+    });
+
+    it('おまじないがなければ急所に当たる', () => {
+      // Act
+      const prevented = preventsCriticalHit({});
+
+      // Assert
+      expect(prevented).toBe(false);
     });
   });
 });

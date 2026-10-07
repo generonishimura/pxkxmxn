@@ -79,6 +79,15 @@ export const screenDamageModifier = (
 };
 
 /**
+ * 技を受けるポケモンの陣営の状態で、急所に当たらないか（おまじない）
+ * 注: 急所の仕組み（急所ランク・確率）はまだないので、エンジンはまだ呼ばない。急所を決める処理を作るときに、
+ *     防御側の陣営で true なら急所にしない
+ * @param defenderSide 技を受けるポケモンの陣営
+ */
+export const preventsCriticalHit = (defenderSide: SideConditions): boolean =>
+  defenderSide.luckyChantTurns !== undefined;
+
+/**
  * 陣営の状態による素早さの倍率（おいかぜなら 2 倍）
  */
 export const sideSpeedMultiplier = (side: SideConditions): number =>
