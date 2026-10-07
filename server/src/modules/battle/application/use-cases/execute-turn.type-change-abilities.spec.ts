@@ -104,4 +104,58 @@ describe('ExecuteTurnUseCase - タイプを変える特性', () => {
       expect(engine.status(2).currentHp).toBe(160 - 24);
     });
   });
+
+  describe('リベロ', () => {
+    it('技を出す直前に技のタイプになり、その技からタイプ一致になる', async () => {
+      // Arrange
+      const engine = setup({ ability: 'リベロ', types: ['みず'] });
+
+      // Act
+      const result = await engine.runTurn({ moveId: EMBER.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(1).volatileState.typeOverride).toEqual(['ほのお']);
+      expect(engine.status(1).volatileState.typeChangeAbilityUsed).toBe(true);
+      expect(engine.status(2).currentHp).toBe(160 - 36);
+      expect(result.actions[0].result).toBe(
+        'became the ほのお type! Used ひのこ and dealt 36 damage',
+      );
+    });
+
+    it('場に出ている間に 2 回目は発動しない', async () => {
+      // Arrange
+      const engine = setup({ ability: 'リベロ', types: ['みず'] });
+      await engine.runTurn({ moveId: EMBER.id }, { moveId: SPLASH.id });
+
+      // Act
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert: ほのおタイプのまま、たいあたりはタイプ一致なし
+      expect(engine.status(1).volatileState.typeOverride).toEqual(['ほのお']);
+      expect(engine.status(2).currentHp).toBe(160 - 36 - 24);
+    });
+
+    it('すでに技のタイプだけなら変わらず、回数も使わない', async () => {
+      // Arrange
+      const engine = setup({ ability: 'リベロ', types: ['ノーマル'] });
+
+      // Act
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(1).volatileState.typeOverride).toBeUndefined();
+      expect(engine.status(1).volatileState.typeChangeAbilityUsed).toBeUndefined();
+    });
+
+    it('変化技でも技のタイプになる', async () => {
+      // Arrange
+      const engine = setup({ ability: 'リベロ', types: ['みず'] });
+
+      // Act
+      await engine.runTurn({ moveId: SPLASH.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(1).volatileState.typeOverride).toEqual(['ノーマル']);
+    });
+  });
 });

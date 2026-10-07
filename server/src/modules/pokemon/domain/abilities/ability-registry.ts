@@ -208,6 +208,7 @@ import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 import { PixilateEffect } from './effects/other/pixilate-effect';
 import { AerilateEffect } from './effects/other/aerilate-effect';
 import { GalvanizeEffect } from './effects/other/galvanize-effect';
+import { LiberoEffect } from './effects/other/libero-effect';
 
 /**
  * 特性レジストリ
@@ -514,6 +515,7 @@ export class AbilityRegistry {
       this.registry.set('フェアリースキン', new PixilateEffect());
       this.registry.set('スカイスキン', new AerilateEffect());
       this.registry.set('エレキスキン', new GalvanizeEffect());
+      this.registry.set('リベロ', new LiberoEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
