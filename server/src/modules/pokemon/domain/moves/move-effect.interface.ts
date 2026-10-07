@@ -158,6 +158,20 @@ export interface IMoveEffect {
   ): boolean | undefined;
 
   /**
+   * 技を出そうとした時点で、技が失敗するかを判定する効果（本家の onTryMove。例: もえつきる・でんこうそうげきは
+   * 使用者がほのお・でんきタイプでなければ失敗）
+   * 技を出した記録（PP・lastMoveId）のあと、ゲンシ天候・ふんじん・ため技・特性の onPrepareHit より先に呼ばれる
+   * （失敗したら、へんげんじざい・リベロでタイプは変わらない）。呼ばれた技でも呼ばれる。みらいよちが当たるときは呼ばない
+   * battleContext.attackerTypeNames は、この時点の使用者の実効のタイプ
+   * @returns 失敗する場合はtrue
+   */
+  failsOnTryMove?(
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): boolean | undefined;
+
+  /**
    * ダメージ計算前に技のタイプを変更する効果（例: ウェザーボール）
    * 命中判定のあと、beforeDamage の前（攻撃側特性の modifyMoveType の前）に呼ばれる
    * @returns 変更後のタイプ名（日本語名、例: "ほのお"）、変更しない場合はundefined

@@ -631,6 +631,19 @@ export class MoveExecutorService {
       });
     }
 
+    // 技そのものの onTryMove（もえつきる・でんこうそうげき）。本家と同じく、ゲンシ天候・ふんじん（runEvent の
+    // TryMove）より先に、特性の onPrepareHit より前に判定する（失敗したら、へんげんじざいでタイプは変わらない）
+    if (
+      called?.isFutureAttack !== true &&
+      moveEffect?.failsOnTryMove?.(attacker, defender, contextFor(attacker)) === true
+    ) {
+      return {
+        message: `Used ${move.name} but it failed`,
+        outcome: 'failed',
+        moveTypeName: triedTypeName,
+      };
+    }
+
     // ゲンシ天候: おおあめのほのおの攻撃技・おおひでりのみずの攻撃技は失敗する（PP は減る。ノーてんきが場にいれば効かない）。
     // ふんじんより先に判定する（本家の onTryMovePriority はゲンシ天候 1・ふんじん -1）
     const primal = effectivePrimalWeather(battle.sideState, [

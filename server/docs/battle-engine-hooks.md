@@ -13,7 +13,7 @@
 `MoveExecutorService.executeMove`（`src/modules/battle/application/services/move-executor.service.ts`）は、まず次の 3 段で技を出します（9 章）。
 
 - 技を出す前の判定（`BeforeMoveChecker`）: 反動・ねむり・こおり・なまけ（`onBeforeMove`）・ひるみ（`onFlinch`）・技の制限・こんらん・メロメロ・まひ。止まったら PP も減らない
-- 技を使う（`useMove`）: PP（プレッシャーの `modifyOpponentPpDeduction`）→ 技を出した記録（`lastMoveId` など）→ ゲンシ天候 → ふんじん（おおあめで消えたほのお技では爆発しない）→ みらいよちの予約 → よこどり → ため技の 1 ターン目（`chargeTurn`）→ 技の本体（下の 1〜13）→ 反動・出し続ける技（`lockedIn`）・じゅうでんの消去
+- 技を使う（`useMove`）: PP（プレッシャーの `modifyOpponentPpDeduction`）→ 技を出した記録（`lastMoveId` など）→ 技の `failsOnTryMove`（もえつきるなど）→ ゲンシ天候 → ふんじん（おおあめで消えたほのお技では爆発しない）→ みらいよちの予約 → よこどり → ため技の 1 ターン目（`chargeTurn`）→ 技の本体（下の 1〜13）→ 反動・出し続ける技（`lockedIn`）・じゅうでんの消去
 - 相手の特性の `onOpponentMoveUsed`（おどりこ）
 
 技の本体は次の順で処理します。
@@ -161,6 +161,20 @@ shouldFail(_attacker: BattlePokemonStatus, defender: BattlePokemonStatus): boole
 ```
 
 - ゆめくいの回復は `afterDamage` で `applyDrainHeal(attacker, defender, calculateDrainAmount(damage, 0.5), ctx)` を呼びます（5章）。
+
+### failsOnTryMove
+
+- シグネチャ: `failsOnTryMove?(attacker, defender, battleContext): boolean | undefined`
+- 呼ばれる場所: `useMove`。技を出した記録（PP・`lastMoveId`・`lastMoveTypeName`）のあと、ゲンシ天候・ふんじん・ため技・特性の `onPrepareHit`（14.9）より先に 1 回（本家の技の onTryMove）。呼ばれた技でも呼ばれる。みらいよちが当たるときは呼ばない
+- `shouldFail` との違い: `shouldFail` は技の本体の中（まもる系・特性の無効化のあと）で呼ばれる。使用者の状態だけで決まる失敗で、へんげんじざい・リベロより先に判定したいもの（本家で onTryMove のもの）は `failsOnTryMove` に書く
+- 使う技: もえつきる・でんこうそうげき（`ctx.attackerTypeNames` にほのお・でんきがなければ失敗）
+- `true` を返すと `Used <技> but it failed` になります（PP は減っている）。
+
+```ts
+failsOnTryMove(_a: BattlePokemonStatus, _d: BattlePokemonStatus, ctx: BattleContext): boolean {
+  return !(ctx.attackerTypeNames ?? []).includes('ほのお'); // もえつきる
+}
+```
 
 ## 3. 特性のフック（IAbilityEffect）
 
@@ -1761,7 +1775,9 @@ if (target) await ctx.battleRepository!.patchVolatileState(holder.id, { illusion
 - シグネチャ: `onPrepareHit?(holder, target, ctx?): Promise<string | null>`
 - 呼ばれる場所: `MoveExecutorService.runMoveBody`。特性の `preventsMove` を通ったあと、サイコフィールド・まもる系・命中判定の前に 1 回（本家の onPrepareHit。変化技・外れる技でも呼ぶ）。`ctx.moveTypeName` はタイプを変える効果のあとのタイプ。はね返した技・みらいよちが当たるとき・よこどりで奪った技・技を呼ぶ技（ゆびをふる・ねごと・ねこのて・まねっこ・オウムがえし・さきどり・しぜんのちから）では呼ばない（呼ばれた技では呼ぶ）
 - 呼んだあと、エンジンは使用者を読み直し、タイプ・実数値・特性を求め直してから技を続ける。返したメッセージは技のメッセージの前に付く
-- 使う特性: へんげんじざい・リベロ（`typeChangeAbilityUsed` がなく、タイプなしの技でなく、今のタイプが技のタイプだけでなければ `setTypes` と `typeChangeAbilityUsed: true`）、バトルスイッチ（攻撃技で `'blade'`、キングシールドで `'shield'`。へんしん中は何もしない）、うのミサイル（なみのり・ダイビングで、HP が半分より上なら `'gulping'`、以下なら `'gorging'`）
+- 使う特性: へんげんじざい・リベロ（`typeChangeAbilityUsed` がなく、タイプなしの技でなく、今のタイプが技のタイプだけでなければ `setTypes` と `typeChangeAbilityUsed: true`）、バトルスイッチ（攻撃技で `'blade'`、キングシールドで `'shield'`。へんしん中は何もしない）
+- うのミサイルは onPrepareHit を使わない（本家は技が当たる直前・ため技の 1 ターン目に変わる）。なみのりは攻撃側の `onSourceDamagingHit`（ヒットのあと）で、ダイビングは技の効果の `chargeTurn.onCharge`（ため技の 1 ターン目。本家の Dive の onTryMove）で、使用者の実効の特性（`ctx.attackerAbilityName`）がうのミサイル・ウッウ（845）・へんしん中でなければ、HP が半分より上なら `'gulping'`、以下なら `'gorging'` にする。注: 本家のなみのりは onSourceTryPrimaryHit（命中・まもる系のあと、ダメージの前）で変わる。ダメージを与えなかったヒットでは、ここでは変わらない
+- onPrepareHit は、技の `failsOnTryMove`（もえつきる・でんこうそうげき。本家の onTryMove）で失敗した技・ため技の 1 ターン目では呼ばない
 
 ```ts
 const type = ctx?.moveTypeName;
@@ -1833,7 +1849,7 @@ if (ctx) await changeForm(holder, form, ctx); // てんきや（onWeatherChange 
 | テクスチャー２ | 相手の `lastMoveTypeName`（なければ失敗）を `findResistingTypeNames` に渡し、使用者が持つタイプを除いてランダムに `setTypes` |
 | ミラータイプ | 相手の `resolveTypeNames(defender, ctx, { excludeAddedType: true })`（`'???'` を除く）を `setTypes(attacker, ...)`、相手の `addedType` も書く |
 | ほごしょく | `battle.field` のタイプで `setTypes(attacker, ...)` |
-| もえつきる・でんこうそうげき | `shouldFail`（ほのお・でんきを持っていなければ）と `afterDamage` で、`resolveTypeNames(attacker, ctx, { excludeAddedType: true })` のそのタイプを `TYPELESS_TYPE_NAME` に変えて `setTypes` |
+| もえつきる・でんこうそうげき | `failsOnTryMove`（`ctx.attackerTypeNames` にほのお・でんきがなければ失敗。本家の onTryMove なので、へんげんじざい・リベロより先に判定する）と `afterDamage` で、`resolveTypeNames(attacker, ctx, { excludeAddedType: true })` のそのタイプを `TYPELESS_TYPE_NAME` に変えて `setTypes` |
 | はねやすめ | 回復と `patchVolatileState(attacker.id, { roosting: true })`。ひこうを失うのはエンジン |
 | ハロウィン・もりののろい | `hasType` で持っていれば失敗、`addType(defender, 'ゴースト' / 'くさ', ctx)` |
 | プラズマシャワー | `patchGlobalFieldState(battle.id, { ionDeluge: true })`（14.3） |
@@ -1844,7 +1860,8 @@ if (ctx) await changeForm(holder, form, ctx); // てんきや（onWeatherChange 
 | ノーマルスキン・フェアリースキン・フリーズスキン・スカイスキン・エレキスキン | `modifyMoveType`（14.3）と `modifyBasePower`（`ctx.moveTypeChangedByAbility` なら 1.2 倍） |
 | へんしん・かわりもの | `transformInto`（14.7） |
 | イリュージョン | `onEntry` で `findIllusionTarget`、`onDamagingHit` で `illusionStatusId: null`（14.8） |
-| バトルスイッチ・うのミサイル | `onPrepareHit` と `changeForm`（14.9）。うのミサイルの反撃は `onDamagingHit` |
+| バトルスイッチ | `onPrepareHit` と `changeForm`（14.9） |
+| うのミサイル | なみのりは `onSourceDamagingHit`、ダイビングはダイビングの `chargeTurn.onCharge` で `changeForm`（14.9）。反撃は `onDamagingHit` |
 | ダルマモード・リミットシールド・ぎょぐん・はらぺこスイッチ・スワームチェンジ | `onTurnEnd`（と `onEntry`）で `changeForm`（14.6） |
 | ばけのかわ・アイスフェイス | `blockDamagingHit`（14.10）。アイスフェイスの復活は `onWeatherChange`・`onEntry`（14.11） |
 | てんきや・フラワーギフト | `onEntry`・`onWeatherChange` で `changeForm`（14.11） |

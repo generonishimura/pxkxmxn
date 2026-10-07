@@ -126,6 +126,43 @@ describe('ExecuteTurnUseCase - タイプ・フォルムを変える特性のフ�
     });
   });
 
+  describe('failsOnTryMove（技を出す前の失敗。本家の onTryMove）', () => {
+    it('onTryMove で失敗する技（もえつきる）では、onPrepareHit が呼ばれず、タイプも変わらない', async () => {
+      // Arrange
+      const prepareHit = jest.fn().mockResolvedValue(null);
+      AbilityRegistry.register('テストのへんげんじざい', { onPrepareHit: prepareHit });
+      MoveRegistry.register('ひのこ', {
+        failsOnTryMove: (_attacker, _defender, ctx) =>
+          !(ctx.attackerTypeNames ?? []).includes('ほのお'),
+      });
+      const engine = setup({ ability: 'テストのへんげんじざい', types: ['みず'] });
+
+      // Act
+      const result = await engine.runTurn({ moveId: EMBER.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(prepareHit).not.toHaveBeenCalled();
+      expect(engine.status(1).volatileState.typeOverride).toBeUndefined();
+      expect(engine.status(2).currentHp).toBe(160);
+      expect(result.actions[0].result).toBe('Used ひのこ but it failed');
+    });
+
+    it('失敗しなければ、技はそのまま出る', async () => {
+      // Arrange
+      MoveRegistry.register('ひのこ', {
+        failsOnTryMove: (_attacker, _defender, ctx) =>
+          !(ctx.attackerTypeNames ?? []).includes('ほのお'),
+      });
+      const engine = setup({ types: ['ほのお'] });
+
+      // Act
+      await engine.runTurn({ moveId: EMBER.id }, { moveId: SPLASH.id });
+
+      // Assert: タイプ一致で 36
+      expect(engine.status(2).currentHp).toBe(160 - 36);
+    });
+  });
+
   describe('blockDamagingHit', () => {
     const DISGUISE = 'テストのばけのかわ';
     const registerDisguise = (onHit?: jest.Mock): void => {
