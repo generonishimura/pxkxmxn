@@ -930,7 +930,7 @@ export const MOVE_BEHAVIOR_TABLE: ReadonlyArray<readonly [string, readonly MoveB
   ['アクアステップ', ['dance', 'mirror', 'metronome']], // Aqua Step
   ['レイジングブル', ['mirror']], // Raging Bull
   ['ゴールドラッシュ', ['mirror']], // Make It Rain
-  ['サイコブレイド ', ['mirror', 'metronome']], // Psyblade
+  ['サイコブレイド', ['mirror', 'metronome']], // Psyblade
   ['ハイドロスチーム', ['mirror', 'defrost', 'metronome']], // Hydro Steam
   ['カタストロフィ', ['mirror']], // Ruination
   ['アクセルブレイク', ['mirror']], // Collision Course

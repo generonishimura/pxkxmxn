@@ -12,6 +12,8 @@ describe('MoveBehaviors', () => {
     ['ほろびのうた', 'bypassSubstitute'],
     ['デカハンマー', 'cantUseTwice'],
     ['かえんぐるま', 'defrost'],
+    // DB の技名は空白を取り除いて入る（PokeAPI は「サイコブレイド 」）
+    ['サイコブレイド', 'mirror'],
   ] as const)('%s は %s を持つ', (moveName, behavior) => {
     // Act
     const result = MoveBehaviors.has(moveName, behavior);
