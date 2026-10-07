@@ -30,6 +30,7 @@ import {
   ITypeEffectivenessRepository,
   TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
 } from '@/modules/pokemon/domain/pokemon.repository.interface';
+import { crossesHalfHp, findSwitchTargets } from '../../domain/logic/party';
 
 /**
  * 交代のオプション
@@ -230,6 +231,10 @@ export class PokemonSwitcherService {
     if (entered?.isFainted()) {
       return entryMessages;
     }
+    // 設置技で HP が半分以下になったききかいひ・にげごしは、すぐにまた交代する
+    if (entered) {
+      await this.scheduleEmergencyExits(battle.id, new Map([[entered.id, targetStatus.currentHp]]));
+    }
 
     // 特性のOnEntry効果を発動
     const trainedPokemon = await this.trainedPokemonRepository.findById(trainedPokemonId);
@@ -246,6 +251,37 @@ export class PokemonSwitcherService {
       }
     }
     return entryMessages;
+  }
+
+  /**
+   * ききかいひ・にげごし（特性の switchesOutBelowHalfHp）: 技以外のダメージ（設置技・ターン終了時）で HP が
+   * 最大 HP の半分より上から半分以下になった場のポケモンに、控えがいれば pendingChoice（emergencyExit）を書く
+   * 交代そのものは ExecuteTurnUseCase が行う
+   * @param hpBefore ダメージを受ける前の HP（BattlePokemonStatus の ID ごと）
+   */
+  async scheduleEmergencyExits(
+    battleId: number,
+    hpBefore: ReadonlyMap<number, number>,
+  ): Promise<void> {
+    const statuses =
+      (await this.battleRepository.findBattlePokemonStatusByBattleId(battleId)) ?? [];
+    for (const status of statuses) {
+      const before = hpBefore.get(status.id);
+      if (before === undefined || !status.isActive || !crossesHalfHp(status, before)) {
+        continue;
+      }
+      const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
+      const abilityName = trainedPokemon?.ability?.name;
+      if (!abilityName || AbilityRegistry.get(abilityName)?.switchesOutBelowHalfHp !== true) {
+        continue;
+      }
+      if (findSwitchTargets(statuses, status.trainerId).length === 0) {
+        continue;
+      }
+      await this.battleRepository.patchSideConditions(battleId, status.trainerId, {
+        pendingChoice: { reason: 'emergencyExit' },
+      });
+    }
   }
 
   /**

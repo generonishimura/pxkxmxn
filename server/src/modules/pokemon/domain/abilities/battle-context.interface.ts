@@ -249,4 +249,11 @@ export interface BattleContext {
    * 技の実行（MoveExecutorService）のコンテキストにだけ入る
    */
   moveRepository?: IMoveRepository;
+  // ---- 場の状態・設置技・交代の仕組み（Issue #103 #135 一部） ----
+
+  /**
+   * 技の効果で、技の selfSwitch（とんぼがえり・すてゼリフなど）の交代をやめる（すてゼリフで能力が下がらなかったとき）
+   * 技の onUse / onHit / afterDamage の中で true にする
+   */
+  selfSwitchCancelled?: boolean;
 }

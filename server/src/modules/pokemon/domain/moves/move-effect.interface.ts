@@ -221,4 +221,22 @@ export interface IMoveEffect {
     opponent: BattlePokemonStatus,
     battleContext: BattleContext,
   ): Promise<string | null>;
+  // ---- 場の状態・設置技・交代の仕組み（Issue #102 #103 #110 一部） ----
+
+  /**
+   * 技が当たったあと、使用者が控えと交代するか（とんぼがえり・ボルトチェンジ・クイックターン・すてゼリフ・
+   * テレポート・さむいギャグ = true、バトンタッチ = 'batonPass'、しっぽきり = 'shedTail'）
+   * エンジンが技のあとに使用者の陣営の pendingChoice を書き、行動のすぐあとに交代させる。
+   * 使用者がひんし・控えがいない・技が外れた/失敗した/効果がなかったときは交代しない。
+   * 技の効果で交代をやめるときは battleContext.selfSwitchCancelled = true にする（すてゼリフで能力が下がらなかったとき）
+   */
+  readonly selfSwitch?: true | 'batonPass' | 'shedTail';
+
+  /**
+   * 技が当たったあと、相手を控えとランダムに入れ替えるか（ほえる・ふきとばし・ドラゴンテール・ともえなげ）
+   * エンジンが技のあとに相手の陣営の forcedSwitch を書き、行動のすぐあとに入れ替える。
+   * 変化技は、相手に控えがいない・ねをはっている・特性の preventsForcedSwitch（きゅうばん・ばんけん）なら失敗する。
+   * 攻撃技は、ダメージを与えたときだけ入れ替える（みがわりに当たったときは入れ替えない）
+   */
+  readonly forceSwitch?: boolean;
 }

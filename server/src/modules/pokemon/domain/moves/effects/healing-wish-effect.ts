@@ -1,15 +1,15 @@
 import { IMoveEffect } from '../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
-import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { hasSwitchTarget } from '../../battle-events/switching';
 
 /**
- * 「いやしのねがい」の特殊効果実装（簡易実装）
+ * いやしのねがい（Healing Wish）技の効果
  *
- * 効果: 自分がひんしになり、交代ポケモンのHPと状態異常を回復
- * 注意: 現時点では、交代ポケモンの特定が難しいため、同じトレーナーのパーティ全体の
- *      HPと状態異常を回復する簡易実装となっています。
- *      本来は次に出てくる1体のポケモンのみを回復する技です。
+ * 自分がひんしになり、次に自分の陣営に出てきたポケモンの HP と状態異常を回復する。
+ * 陣営に healingWish を書き、出てきたときの回復はエンジン（EntryEffectProcessor）が行う。
+ * 回復するところがないポケモンが出てきたときは、使わずに残す（第 8 世代から）。
+ * 控えがいなければ失敗する（ひんしにならない）
  */
 export class HealingWishEffect implements IMoveEffect {
   /**
@@ -22,43 +22,21 @@ export class HealingWishEffect implements IMoveEffect {
     _defender: BattlePokemonStatus,
     battleContext: BattleContext,
   ): Promise<string | null> {
-    if (!battleContext.battleRepository) {
+    const repository = battleContext.battleRepository;
+    if (!repository) {
       return null;
     }
-
-    const battle = battleContext.battle;
-
-    // バトル中の全てのポケモンのステータスを取得
-    const allPokemon = await battleContext.battleRepository.findBattlePokemonStatusByBattleId(
-      battle.id,
-    );
-
-    // 同じトレーナーのポケモンの状態異常を回復
-    const partyPokemon = allPokemon.filter(p => p.trainerId === attacker.trainerId);
-
-    for (const pokemon of partyPokemon) {
-      if (pokemon.id !== attacker.id) {
-        // 交代ポケモンの状態異常を回復
-        if (pokemon.statusCondition && pokemon.statusCondition !== StatusCondition.None) {
-          await battleContext.battleRepository.updateBattlePokemonStatus(pokemon.id, {
-            statusCondition: StatusCondition.None,
-          });
-        }
-        // 交代ポケモンのHPを全回復
-        if (pokemon.currentHp < pokemon.maxHp) {
-          await battleContext.battleRepository.updateBattlePokemonStatus(pokemon.id, {
-            currentHp: pokemon.maxHp,
-          });
-        }
-      }
+    if (!(await hasSwitchTarget(battleContext, attacker.trainerId))) {
+      return 'But it failed';
     }
 
-    // 自分をひんしにする
-    await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {
+    await repository.patchSideConditions(battleContext.battle.id, attacker.trainerId, {
+      healingWish: 'healingWish',
+    });
+    await repository.updateBattlePokemonStatus(attacker.id, {
       currentHp: HealingWishEffect.FAINTED_HP,
     });
 
     return 'The user fainted! Its replacement will be healed!';
   }
 }
-

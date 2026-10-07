@@ -16,7 +16,15 @@ import {
   releaseVolatileReferencesTo,
   tickVolatileStateAtTurnEnd,
 } from '../../domain/state/volatile-state';
-import { getGlobalFieldState, tickSideStateAtTurnEnd } from '../../domain/state/side-state';
+import {
+  PendingChoice,
+  getGlobalFieldState,
+  getSideConditions,
+  tickSideStateAtTurnEnd,
+} from '../../domain/state/side-state';
+// 場の状態・設置技・交代の仕組み（Issue #102 #103 #110 #135 一部）
+import { findFaintedPartyMembers, findSwitchTargets } from '../../domain/logic/party';
+import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import {
   MoveSlot,
   STRUGGLE_MOVE_NAME,
@@ -57,7 +65,8 @@ export interface ExecuteTurnResult {
   actions: Array<{
     trainerId: number;
     // 'move' | 'switch' | 'turnStart'（ターンの初めの効果。くちばしキャノンの加熱など）|
-    // 'futureAttack'（みらいよち・はめつのねがいが当たった。trainerId は技を使ったポケモンのトレーナー）
+    // 'futureAttack'（みらいよち・はめつのねがいが当たった。trainerId は技を使ったポケモンのトレーナー）|
+    // 'revive'（さいきのいのりで手持ちが復活した）。技・特性による交代（とんぼがえり・ほえる・ききかいひ）も 'switch'
     action: string;
     result: string; // 行動結果の説明
   }>;
@@ -95,6 +104,11 @@ interface PlannedAction {
  */
 @Injectable()
 export class ExecuteTurnUseCase {
+  /**
+   * 交代の予約を続けて解決する回数の上限（設置技でききかいひが続けて発動したとき）
+   */
+  private static readonly MAX_PENDING_SWITCH_ROUNDS = 6;
+
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
@@ -147,6 +161,11 @@ export class ExecuteTurnUseCase {
       ],
     ]);
     const planOf = (trainerId: number): PlannedAction | undefined => plans.get(trainerId);
+    // 行動を決めたポケモン。とんぼがえり・ほえる・ききかいひなどで場から離れたら、そのターンの技は出さない
+    const plannedActorIds = new Map<number, number>([
+      [params.trainer1Action.trainerId, trainer1Active.id],
+      [params.trainer2Action.trainerId, trainer2Active.id],
+    ]);
 
     // 行動順を決定
     const actions = await this.actionOrderDeterminer.determine({
@@ -200,8 +219,9 @@ export class ExecuteTurnUseCase {
             : params.trainer1Action.trainerId;
         const attacker = await this.findActivePokemon(battle.id, action.trainerId);
         const defender = await this.findActivePokemon(battle.id, opponentTrainerId);
-        // 先に行動した相手に倒されたポケモン（交代するまで場に残る）は行動しない
-        if (attacker.isFainted()) {
+        // 先に行動した相手に倒されたポケモン（交代するまで場に残る）と、
+        // 技・特性で交代して出てきたポケモンは行動しない
+        if (attacker.isFainted() || attacker.id !== plannedActorIds.get(action.trainerId)) {
           continue;
         }
 
@@ -245,6 +265,15 @@ export class ExecuteTurnUseCase {
         if (completed) {
           return completed;
         }
+
+        // とんぼがえり・ほえる・ききかいひ・さいきのいのりなどの交代と復活
+        const completedByPendingSwitch = await this.resolvePendingSwitches(
+          battle.id,
+          actionResults,
+        );
+        if (completedByPendingSwitch) {
+          return completedByPendingSwitch;
+        }
       } else if (action.action === 'switch' && action.switchPokemonId) {
         const plan = planOf(action.trainerId);
         if (plan?.failure) {
@@ -272,6 +301,14 @@ export class ExecuteTurnUseCase {
         if (completedBySwitch) {
           return completedBySwitch;
         }
+        // 設置技で HP が半分以下になったききかいひ・にげごしの交代
+        const completedByPendingSwitch = await this.resolvePendingSwitches(
+          battle.id,
+          actionResults,
+        );
+        if (completedByPendingSwitch) {
+          return completedByPendingSwitch;
+        }
       }
     }
 
@@ -289,11 +326,22 @@ export class ExecuteTurnUseCase {
 
     // ターン終了時の特性効果を処理（行動で変わった天候なども見えるよう、読み直したバトルを渡す）
     const battleAtTurnEnd = await this.findBattle(battle.id);
+    const hpBeforeTurnEnd = new Map(
+      (await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id))
+        .filter(status => status.isActive)
+        .map(status => [status.id, status.currentHp] as const),
+    );
     await this.statusConditionProcessor.processTurnEndAbilities(battleAtTurnEnd);
     // ほろびのうた・やどりぎのタネ・のろい・バインドなどで最後のポケモンが倒れたら、ここで勝敗が決まる
     const completedAtTurnEnd = await this.completeIfDecided(battle.id, actionResults);
     if (completedAtTurnEnd) {
       return completedAtTurnEnd;
+    }
+    // ターン終了時のダメージで HP が半分以下になったききかいひ・にげごしの交代
+    await this.pokemonSwitcher.scheduleEmergencyExits(battle.id, hpBeforeTurnEnd);
+    const completedByTurnEndSwitch = await this.resolvePendingSwitches(battle.id, actionResults);
+    if (completedByTurnEndSwitch) {
+      return completedByTurnEndSwitch;
     }
 
     // 状態の残りターン数を減らし、このターンだけの状態を消す。
@@ -540,6 +588,135 @@ export class ExecuteTurnUseCase {
       }
       await this.battleRepository.patchVolatileState(status.id, patch);
     }
+  }
+
+  /**
+   * 技・特性が予約した交代と復活を行う（行動のすぐあとと、ターン終了時の処理のあとに呼ぶ）
+   *
+   * - forcedSwitch（ほえる・ふきとばし・ドラゴンテール・ともえなげ）: 場のポケモンを、控えからランダムに選んだ
+   *   ポケモンと入れ替える
+   * - pendingChoice の pivot・batonPass・shedTail・emergencyExit: 場のポケモンを、控えの先頭（ID の順）と交代させる。
+   *   batonPass・shedTail は引き継ぐものも渡す
+   * - pendingChoice の revivalBlessing: ひんしの手持ちの先頭を、最大 HP の半分（切り捨て、最低 1）で復活させる
+   *   （状態異常も治す。場には出さない）。persistentState.revivalCount を 1 増やす
+   * 場のポケモンがひんし・控えがいないときは、交代せずにキーだけを消す。出てきたポケモンが設置技で
+   * ききかいひを発動したときのため、予約がなくなるまでくり返す
+   * 注: 交代先・復活させるポケモンをプレイヤーが選ぶ API はまだないので、控えの先頭を選ぶ（docs/battle-state.md の 7 章）
+   * @returns 設置技で最後のポケモンが倒れて勝敗が決まったときの結果
+   */
+  private async resolvePendingSwitches(
+    battleId: number,
+    actionResults: ExecuteTurnResult['actions'],
+  ): Promise<ExecuteTurnResult | undefined> {
+    for (let round = 0; round < ExecuteTurnUseCase.MAX_PENDING_SWITCH_ROUNDS; round++) {
+      let resolved = false;
+      const battle = await this.findBattle(battleId);
+      for (const trainerId of [battle.trainer1Id, battle.trainer2Id]) {
+        const side = getSideConditions(battle.sideState, trainerId);
+        if (side.forcedSwitch === true) {
+          await this.battleRepository.patchSideConditions(battleId, trainerId, {
+            forcedSwitch: null,
+          });
+          resolved =
+            (await this.switchActive(battleId, trainerId, 'random', actionResults)) || resolved;
+        }
+        if (side.pendingChoice) {
+          await this.battleRepository.patchSideConditions(battleId, trainerId, {
+            pendingChoice: null,
+          });
+          resolved =
+            (await this.resolvePendingChoice(
+              battleId,
+              trainerId,
+              side.pendingChoice,
+              actionResults,
+            )) || resolved;
+        }
+      }
+      if (!resolved) {
+        return undefined;
+      }
+      await this.releaseReferencesToFainted(battleId);
+      const completed = await this.completeIfDecided(battleId, actionResults);
+      if (completed) {
+        return completed;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * pendingChoice を解決する（交代させるか、ひんしの手持ちを復活させる）
+   * @returns 何かしたら true
+   */
+  private async resolvePendingChoice(
+    battleId: number,
+    trainerId: number,
+    choice: PendingChoice,
+    actionResults: ExecuteTurnResult['actions'],
+  ): Promise<boolean> {
+    if (choice.reason !== 'revivalBlessing') {
+      return this.switchActive(battleId, trainerId, 'first', actionResults, choice.reason);
+    }
+    const statuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
+    const [revived] = findFaintedPartyMembers(statuses, trainerId);
+    if (!revived) {
+      return false;
+    }
+    await this.battleRepository.updateBattlePokemonStatus(revived.id, {
+      currentHp: Math.max(1, Math.floor(revived.maxHp / 2)),
+      statusCondition: StatusCondition.None,
+    });
+    await this.battleRepository.patchPersistentState(revived.id, {
+      revivalCount: (revived.persistentState.revivalCount ?? 0) + 1,
+    });
+    actionResults.push({
+      trainerId,
+      action: 'revive',
+      result: `Pokemon (ID: ${revived.trainedPokemonId}) was revived and is ready to fight again!`,
+    });
+    return true;
+  }
+
+  /**
+   * 場のポケモンを控えと交代させる（場のポケモンがひんし・控えがいなければ何もしない）
+   * @param pick 控えの選び方（random: ランダム、first: ID の順で先頭）
+   * @returns 交代したら true
+   */
+  private async switchActive(
+    battleId: number,
+    trainerId: number,
+    pick: 'random' | 'first',
+    actionResults: ExecuteTurnResult['actions'],
+    reason?: PendingChoice['reason'],
+  ): Promise<boolean> {
+    const active = await this.battleRepository.findActivePokemonByBattleIdAndTrainerId(
+      battleId,
+      trainerId,
+    );
+    const statuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
+    const targets = findSwitchTargets(statuses, trainerId);
+    if (!active || active.isFainted() || targets.length === 0) {
+      return false;
+    }
+    const target =
+      pick === 'random' ? targets[Math.floor(Math.random() * targets.length)] : targets[0];
+    const entryMessages = await this.pokemonSwitcher.executeSwitch(
+      await this.findBattle(battleId),
+      trainerId,
+      target.trainedPokemonId,
+      reason === 'batonPass' || reason === 'shedTail' ? { transfer: reason } : {},
+    );
+    actionResults.push({
+      trainerId,
+      action: 'switch',
+      result: [
+        ...(pick === 'random' ? ['Pokemon was dragged out!'] : []),
+        `Pokemon switched to ID: ${target.trainedPokemonId}`,
+        ...entryMessages,
+      ].join(' '),
+    });
+    return true;
   }
 
   /**

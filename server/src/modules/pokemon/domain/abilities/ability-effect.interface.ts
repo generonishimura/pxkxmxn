@@ -661,4 +661,17 @@ export interface IAbilityEffect {
    * エンジンがそのポケモンに天候を引き継ぐ（いなければ天候が終わる）
    */
   readonly primalWeather?: PrimalWeather;
+
+  /**
+   * 防御側: ほえる・ふきとばし・ドラゴンテール・ともえなげ（技の forceSwitch）で交代させられない（例: きゅうばん、ばんけん）
+   * 相手の技なので、かたやぶりで無視される
+   */
+  readonly preventsForcedSwitch?: boolean;
+
+  /**
+   * HP が最大 HP の半分以下になったとき、控えと交代する（例: ききかいひ、にげごし）
+   * エンジンが、相手の技のダメージ（技のあと）・設置技・ターン終了時のダメージで、HP が半分より上から
+   * 半分以下になったときに pendingChoice（emergencyExit）を書き、すぐに交代させる
+   */
+  readonly switchesOutBelowHalfHp?: boolean;
 }

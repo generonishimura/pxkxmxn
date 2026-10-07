@@ -58,6 +58,7 @@ import {
   effectivePrimalWeather,
   primalWeatherBlocksMove,
 } from '../../domain/logic/field-modifiers';
+import { crossesHalfHp, findSwitchTargets } from '../../domain/logic/party';
 
 /**
  * 技の実行オプション
@@ -960,11 +961,24 @@ export class MoveExecutorService {
       if (defender.volatileState.substituteHp !== undefined && !bypassesSubstitute) {
         return { message: `Used ${move.name} but it failed`, outcome: 'failed' };
       }
+      // ほえる・ふきとばし: 相手を交代させられなければ失敗する（控えがいない・ねをはる・きゅうばん）
+      const forcesOut = moveEffect?.forceSwitch === true && targetsOpponent;
+      if (forcesOut && !(await this.canForceOut(battle, defender, defenderAbilityEffect))) {
+        return { message: `Used ${move.name} but it failed`, outcome: 'failed' };
+      }
       // 変化技の特殊効果（onUse）を呼び出す
       let moveEffectMessage: string | null = null;
       if (moveEffect?.onUse) {
         moveEffectMessage = await moveEffect.onUse(attacker, defender, battleContext);
       }
+      await this.scheduleSwitchesAfterMove({
+        battle,
+        moveEffect,
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        forcesOut,
+        battleContext,
+      });
 
       return {
         message: moveEffectMessage ? `Used ${move.name} ${moveEffectMessage}` : `Used ${move.name}`,
@@ -1187,6 +1201,15 @@ export class MoveExecutorService {
         : null;
       const brokeMessage = substituteBroke ? ' The substitute broke!' : '';
       const afterMessage = afterSubstituteMessage ? ` ${afterSubstituteMessage}` : '';
+      // みがわりに当たったとんぼがえりは交代する（相手を交代させる技は、みがわりに当たったら入れ替えない）
+      await this.scheduleSwitchesAfterMove({
+        battle,
+        moveEffect,
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        forcesOut: false,
+        battleContext,
+      });
       return {
         message: `Used ${move.name} and hit the substitute (${substituteDamage} damage)${brokeMessage}${afterMessage}`,
         outcome: 'hit',
@@ -1300,6 +1323,26 @@ export class MoveExecutorService {
           })
         : [];
 
+    // 交代（とんぼがえり・ドラゴンテール・ききかいひ）。ダメージを与えたときだけ
+    if (damage > 0) {
+      const exited = await this.scheduleEmergencyExit(
+        battle,
+        defender.id,
+        hpBeforeMove,
+        defenderEventEffect,
+      );
+      await this.scheduleSwitchesAfterMove({
+        battle,
+        moveEffect,
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        forcesOut: moveEffect?.forceSwitch === true && !exited,
+        battleContext,
+        selfSwitchBlocked: exited,
+        defenderAbilityEffect,
+      });
+    }
+
     const hitCountMessage = hitCount > 1 ? ` (hit ${hitCount} times)` : '';
     const eventMessage = hitEventMessages.map(message => ` ${message}`).join('');
     const afterMoveMessage = [...afterMoveMessages, ...faintMessages]
@@ -1310,6 +1353,113 @@ export class MoveExecutorService {
       outcome: damage > 0 ? 'hit' : 'failed',
       moveTypeName: moveType.name,
     };
+  }
+
+  /**
+   * 相手を交代させられるか（ほえる・ふきとばし・ドラゴンテール・ともえなげ）
+   * 相手がひんしでなく、控えがいて、ねをはっておらず、特性の preventsForcedSwitch（きゅうばん・ばんけん）がない
+   * @param defenderAbilityEffect かたやぶりで無視された特性なら undefined
+   */
+  private async canForceOut(
+    battle: Battle,
+    defender: BattlePokemonStatus,
+    defenderAbilityEffect: IAbilityEffect | undefined,
+  ): Promise<boolean> {
+    if (
+      defender.isFainted() ||
+      defender.volatileState.ingrain === true ||
+      defenderAbilityEffect?.preventsForcedSwitch === true
+    ) {
+      return false;
+    }
+    return this.hasSwitchTarget(battle.id, defender.trainerId);
+  }
+
+  /**
+   * トレーナーに交代先（控えにいて、ひんしでないポケモン）がいるか
+   */
+  private async hasSwitchTarget(battleId: number, trainerId: number): Promise<boolean> {
+    const statuses =
+      (await this.battleRepository.findBattlePokemonStatusByBattleId(battleId)) ?? [];
+    return findSwitchTargets(statuses, trainerId).length > 0;
+  }
+
+  /**
+   * 技のあとの交代を予約する（交代そのものは、行動のすぐあとに ExecuteTurnUseCase が行う）
+   * - 技の selfSwitch: 使用者がひんしでなく、控えがいて、技の効果が selfSwitchCancelled を立てていなければ、
+   *   使用者の陣営に pendingChoice を書く（バトンタッチ = batonPass、しっぽきり = shedTail、ほかは pivot）
+   * - forcesOut: 相手を交代させられれば、相手の陣営に forcedSwitch を書く
+   */
+  private async scheduleSwitchesAfterMove(params: {
+    battle: Battle;
+    moveEffect: IMoveEffect | undefined;
+    attackerId: number;
+    defenderId: number;
+    forcesOut: boolean;
+    battleContext: BattleContext;
+    /** ききかいひで相手が交代するとき（とんぼがえりの使用者は交代しない） */
+    selfSwitchBlocked?: boolean;
+    /** 攻撃技で相手を交代させるときの、防御側の特性（かたやぶりで無視された特性なら undefined） */
+    defenderAbilityEffect?: IAbilityEffect;
+  }): Promise<void> {
+    const { battle, moveEffect, battleContext } = params;
+    const defender = await this.battleRepository.findBattlePokemonStatusById(params.defenderId);
+    if (
+      params.forcesOut &&
+      defender &&
+      (await this.canForceOut(battle, defender, params.defenderAbilityEffect))
+    ) {
+      await this.battleRepository.patchSideConditions(battle.id, defender.trainerId, {
+        forcedSwitch: true,
+      });
+    }
+    const selfSwitch = moveEffect?.selfSwitch;
+    if (
+      selfSwitch === undefined ||
+      params.selfSwitchBlocked === true ||
+      battleContext.selfSwitchCancelled === true
+    ) {
+      return;
+    }
+    const attacker = await this.battleRepository.findBattlePokemonStatusById(params.attackerId);
+    if (!attacker || attacker.isFainted() || !attacker.isActive) {
+      return;
+    }
+    if (!(await this.hasSwitchTarget(battle.id, attacker.trainerId))) {
+      return;
+    }
+    await this.battleRepository.patchSideConditions(battle.id, attacker.trainerId, {
+      pendingChoice: { reason: selfSwitch === true ? 'pivot' : selfSwitch },
+    });
+  }
+
+  /**
+   * ききかいひ・にげごし（特性の switchesOutBelowHalfHp）: 相手の技で HP が最大 HP の半分より上から
+   * 半分以下（ひんしを除く）になり、控えがいれば、防御側の陣営に pendingChoice（emergencyExit）を書く
+   * かたやぶりでは無視されない
+   * 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
+   * @returns 書いたら true
+   */
+  private async scheduleEmergencyExit(
+    battle: Battle,
+    defenderId: number,
+    hpBefore: number,
+    defenderEventEffect: IAbilityEffect | undefined,
+  ): Promise<boolean> {
+    if (defenderEventEffect?.switchesOutBelowHalfHp !== true) {
+      return false;
+    }
+    const defender = await this.battleRepository.findBattlePokemonStatusById(defenderId);
+    if (!defender || !crossesHalfHp(defender, hpBefore)) {
+      return false;
+    }
+    if (!(await this.hasSwitchTarget(battle.id, defender.trainerId))) {
+      return false;
+    }
+    await this.battleRepository.patchSideConditions(battle.id, defender.trainerId, {
+      pendingChoice: { reason: 'emergencyExit' },
+    });
+    return true;
   }
 
   /**
