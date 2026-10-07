@@ -214,6 +214,9 @@ import { QuickDrawEffect } from './effects/other/quick-draw-effect';
 import { TeraShellEffect } from './effects/damage-modify/tera-shell-effect';
 // 接触技で両者をほろびのうた状態にする特性（Issue #135 一部）
 import { PerishBodyEffect } from './effects/other/perish-body-effect';
+// ひるみ・ねむりとして扱う特性（Issue #135 一部）
+import { SteadfastEffect } from './effects/stat-change/steadfast-effect';
+import { ComatoseEffect } from './effects/immunity/comatose-effect';
 
 /**
  * 特性レジストリ
@@ -526,6 +529,9 @@ export class AbilityRegistry {
       this.registry.set('テラスシェル', new TeraShellEffect());
       // 接触技で両者をほろびのうた状態にする特性（Issue #135 一部）
       this.registry.set('ほろびのボディ', new PerishBodyEffect());
+      // ひるみ・ねむりとして扱う特性（Issue #135 一部）
+      this.registry.set('ふくつのこころ', new SteadfastEffect());
+      this.registry.set('ぜったいねむり', new ComatoseEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

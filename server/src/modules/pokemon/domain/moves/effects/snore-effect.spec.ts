@@ -65,6 +65,30 @@ describe('SnoreEffect', () => {
     jest.restoreAllMocks();
   });
 
+  it('ぜったいねむりの使用者（状態異常なし）でも、30%でひるみを付与する', async () => {
+    // Arrange
+    const effect = new SnoreEffect();
+    const attacker = createBattlePokemonStatus({ statusCondition: StatusCondition.None });
+    const defender = createBattlePokemonStatus({ id: 2 });
+    const ctx: BattleContext = {
+      ...createBattleContext(),
+      attacker,
+      attackerEffectiveStatus: StatusCondition.Sleep,
+    };
+    jest.spyOn(Math, 'random').mockReturnValue(0.1);
+
+    // Act
+    const result = await effect.onHit(attacker, defender, ctx);
+
+    // Assert
+    expect(result).toBe('flinched!');
+    expect(ctx.battleRepository?.patchVolatileState).toHaveBeenCalledWith(defender.id, {
+      flinched: true,
+    });
+
+    jest.restoreAllMocks();
+  });
+
   it.each([
     ['null', null],
     ['やけど', StatusCondition.Burn],

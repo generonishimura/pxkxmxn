@@ -263,6 +263,10 @@ import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 import { YawnEffect } from './effects/yawn-effect';
 import { PerishSongEffect } from './effects/perish-song-effect';
 import { WishEffect } from './effects/wish-effect';
+// 実数値を分け合う・入れ替える技（Issue #103 一部）
+import { GuardSplitEffect } from './effects/guard-split-effect';
+import { PowerSplitEffect } from './effects/power-split-effect';
+import { SpeedSwapEffect } from './effects/speed-swap-effect';
 
 /**
  * 技のレジストリ
@@ -634,6 +638,10 @@ export class MoveRegistry {
       this.registry.set('あくび', new YawnEffect());
       this.registry.set('ほろびのうた', new PerishSongEffect());
       this.registry.set('ねがいごと', new WishEffect());
+      // 実数値を分け合う・入れ替える技（Issue #103 一部）
+      this.registry.set('ガードシェア', new GuardSplitEffect());
+      this.registry.set('パワーシェア', new PowerSplitEffect());
+      this.registry.set('スピードスワップ', new SpeedSwapEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
