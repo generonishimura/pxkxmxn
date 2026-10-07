@@ -223,6 +223,11 @@ import { DancerEffect } from './effects/other/dancer-effect';
 import { TruantEffect } from './effects/other/truant-effect';
 // 相手の技の PP を余分に減らす特性（Issue #135 一部）
 import { PressureEffect } from './effects/other/pressure-effect';
+// 相手を一時的な状態にする特性（Issue #135 一部）
+import { CuteCharmEffect } from './effects/other/cute-charm-effect';
+import { CursedBodyEffect } from './effects/other/cursed-body-effect';
+// 場に出てからのターン数で変わる特性（Issue #135 一部）
+import { SlowStartEffect } from './effects/other/slow-start-effect';
 
 /**
  * 特性レジストリ
@@ -544,6 +549,11 @@ export class AbilityRegistry {
       this.registry.set('なまけ', new TruantEffect());
       // 相手の技の PP を余分に減らす特性（Issue #135 一部）
       this.registry.set('プレッシャー', new PressureEffect());
+      // 相手を一時的な状態にする特性（Issue #135 一部）
+      this.registry.set('メロメロボディ', new CuteCharmEffect());
+      this.registry.set('のろわれボディ', new CursedBodyEffect());
+      // 場に出てからのターン数で変わる特性（Issue #135 一部）
+      this.registry.set('スロースタート', new SlowStartEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
