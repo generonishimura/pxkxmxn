@@ -1670,7 +1670,7 @@ return 'transformed into the Water type!'; // みずびたし
   3. `GlobalFieldState.ionDeluge`（プラズマシャワー）: ノーマル技をでんき技にする（変化技も）
   4. 使用者の `volatileState.electrified`（そうでん）: どのタイプの技もでんき技にする（わるあがきを除く）
 - 決まったタイプが、タイプ一致・タイプ相性・天候補正・ふんじん・ゲンシ天候の判定・`hit.moveTypeName`・`ctx.moveTypeName` に使われる。-スキン系・ノーマルスキンの 1.2 倍は、`modifyBasePower` で `ctx.moveTypeChangedByAbility === true` のときだけ掛ける（攻撃側特性の `modifyMoveType` が undefined 以外を返したときに、エンジンが true にする。本家の `typeChangerBoosted`）。プラズマシャワー・そうでんでさらに変わっても 1.2 倍のまま。技が先にタイプを変えた（晴れ・雨のウェザーボールなど）ときや、プラズマシャワー・そうでんだけで変わったときは false。`ctx.baseMoveTypeName` で判定しない（これらの技まで 1.2 倍になる）
-- `lastMoveTypeName`: 技を出した記録（`recordMoveUse`）のとき、決まったタイプを書く（エンジンが書く。呼ばれた技では書かない。タイプなしの技なら消す）
+- `lastMoveTypeName`: 技を出した記録（`recordMoveUse`）のとき、決まったタイプを書く（エンジンが書く。呼ばれた技でも、呼ばれた技のタイプを書く（本家の lastMoveUsed）。タイプなしの技なら消す。みらいよちが当たるときは書かない）
 - 使う技・特性: プラズマシャワー（`patchGlobalFieldState(battle.id, { ionDeluge: true })`。ターン終了時に消える）、そうでん（相手がこのターンにまだ行動していない（`ctx.defenderPendingMoveId` がある）なら `patchVolatileState(defender.id, { electrified: true })`、もう行動していれば失敗）、ノーマルスキン（すべての技を `'ノーマル'` に。もとからノーマル技でも `'ノーマル'` を返すので 1.2 倍になる。ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・だいちのはどう・めざめるパワーは変えない）、フェアリースキン・フリーズスキン・スカイスキン・エレキスキン（ノーマル技だけ変える。同じく、ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・だいちのはどうは変えない）
 
 ```ts

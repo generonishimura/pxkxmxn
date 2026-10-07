@@ -133,8 +133,9 @@ export class MoveLifecycle {
 
   /**
    * 技を出したことを記録する（技を出す前の判定を通ったあと、技の処理の前）
-   * - 使用者: みちづれ・おんねんを消す、lastMoveId（変わったら consecutiveMoveCount も消す）、こだわり（locksMoveChoice の特性）、まもるの回数を消す
-   * 呼ばれた技（isCalled）では、使用者の記録は呼んだ技のままにする
+   * - 使用者: みちづれ・おんねんを消す、lastMoveId（変わったら consecutiveMoveCount も消す）、lastMoveTypeName、こだわり（locksMoveChoice の特性）、まもるの回数を消す
+   * 呼ばれた技（isCalled）では、lastMoveTypeName だけを書き、ほかの記録は呼んだ技のままにする
+   * （本家は呼ばれた技も lastMoveUsed にする。テクスチャー２が読む。lastMoveId は本家の lastMove で、呼んだ技のまま）
    * バトル全体の GlobalFieldState.lastMoveId は、技を出し終えたあとに MoveExecutorService.executeMove が書く
    * （技の処理の中では、まだ前の技のまま。まねっこが読む）
    * @returns 書き込んだあとの使用者
@@ -149,12 +150,16 @@ export class MoveLifecycle {
     moveTypeName?: string;
   }): Promise<BattlePokemonStatus> {
     const { attacker, move } = params;
-    if (params.isCalled) {
-      return attacker;
-    }
-
     const state = attacker.volatileState;
     const patch: MutableStatePatch<VolatileState> = {};
+    // 最後に使った技のタイプ（テクスチャー２が読む）。タイプなしの技（わるあがき）は前の値を消す
+    if (state.lastMoveTypeName !== params.moveTypeName) {
+      patch.lastMoveTypeName = params.moveTypeName ?? null;
+    }
+    if (params.isCalled) {
+      return this.applyMoveRecord(attacker, patch);
+    }
+
     if (clearVolatileOnBeforeMove(state) !== state) {
       for (const key of VOLATILE_UNTIL_NEXT_MOVE_FLAGS) {
         patch[key] = null;
@@ -167,10 +172,6 @@ export class MoveLifecycle {
         patch.consecutiveMoveCount = null;
       }
     }
-    // 最後に使った技のタイプ（テクスチャー２が読む）。タイプなしの技（わるあがき）は前の値を消す
-    if (state.lastMoveTypeName !== params.moveTypeName) {
-      patch.lastMoveTypeName = params.moveTypeName ?? null;
-    }
     if (
       params.attackerAbilityEffect?.locksMoveChoice === true &&
       state.choiceLockedMoveId === undefined &&
@@ -181,6 +182,16 @@ export class MoveLifecycle {
     if (state.protectCount !== undefined && !keepsProtectCount(params.moveEffect)) {
       patch.protectCount = null;
     }
+    return this.applyMoveRecord(attacker, patch);
+  }
+
+  /**
+   * 技を出した記録を書き、書いたあとの使用者を返す（書くものがなければそのまま）
+   */
+  private async applyMoveRecord(
+    attacker: BattlePokemonStatus,
+    patch: MutableStatePatch<VolatileState>,
+  ): Promise<BattlePokemonStatus> {
     if (isEmptyObject(patch)) {
       return attacker;
     }
