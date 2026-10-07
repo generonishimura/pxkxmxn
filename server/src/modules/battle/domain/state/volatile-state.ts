@@ -96,7 +96,11 @@ export type MoveSlotOverride = {
 };
 
 /**
- * たくわえるで実際に上がったランク（のみこむ・はきだすで、この分だけ下げる）
+ * たくわえるでランクが変わった回数（能力ごと）
+ *
+ * - 1 回のたくわえるで 1 と数える。たんじゅんで 2 上がっても、あまのじゃくで下がっても 1
+ * - +6 で上がらなければ数えない
+ * - ランクの差ではない。はきだす・のみこむは rankChange: -値 を applyStatChanges に渡して戻す（ランクを直接引かない）
  */
 export type StockpileBoosts = {
   readonly defense: number;

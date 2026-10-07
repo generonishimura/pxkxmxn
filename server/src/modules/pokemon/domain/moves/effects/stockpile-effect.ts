@@ -14,7 +14,8 @@ const MAX_STOCKPILE_COUNT = 3;
  *
  * たくわえた回数（volatileState.stockpileCount）を 1 増やし、自分の防御・特防を 1 段階ずつ上げる。
  * すでに 3 回たくわえていると失敗する。
- * 上がった分は stockpileBoosts に数える。はきだす・のみこむは、この分だけ防御・特防を下げる。
+ * ランクが変わった能力は stockpileBoosts に 1 回につき 1 と数える（ランクの差ではない）。
+ * はきだす・のみこむは rankChange: -値 を applyStatChanges に渡して戻す（ランクを直接引かない）。
  * 交代で引っ込むと、たくわえた回数もランクも消える（エンジンが volatileState を消す）。
  *
  * 注: 本家と同じく、ランクが変わった能力を 1 回につき 1 と数える（たんじゅんで 2 上がっても 1、
