@@ -7,7 +7,10 @@ import type { MoveFlag } from '../moves/move-flags';
 import type { StatType } from '../moves/effects/base/base-stat-change-effect';
 import type { CallMove } from '../battle-events/called-move';
 import type { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
-import type { IMoveRepository } from '../pokemon.repository.interface';
+import type {
+  IMoveRepository,
+  ITypeEffectivenessRepository,
+} from '../pokemon.repository.interface';
 
 /**
  * ランク補正前の実数値（種族値・個体値・努力値・性格補正を反映済み）
@@ -263,4 +266,18 @@ export interface BattleContext {
    * ダメージ技の実行（beforeDamage 以降）と、ダメージ計算の特性フック（modifyBasePower など）で入る
    */
   attackerFaintedAllyCount?: number;
+  // ---- タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #112 #114 #119 #135 一部） ----
+
+  /**
+   * 攻撃側・防御側の実効のタイプ名（みずびたし・はねやすめ・ハロウィン・フォルムなどを反映。resolveEffectiveTypeNames）
+   * 技の実行（MoveExecutorService）のコンテキストに入る。タイプなし（'???'）を含むことがある
+   */
+  attackerTypeNames?: readonly string[];
+  defenderTypeNames?: readonly string[];
+
+  /**
+   * タイプ相性表のリポジトリ（テクスチャー２が、技を半減以下にするタイプを探す）
+   * 技の実行（MoveExecutorService）のコンテキストに入る
+   */
+  typeEffectivenessRepository?: ITypeEffectivenessRepository;
 }

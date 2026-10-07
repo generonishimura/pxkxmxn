@@ -38,6 +38,22 @@ export interface MoveInfo {
 }
 
 /**
+ * ポケモンのタイプ（主・副の 2 つか、タイプの一覧）
+ * 一覧はタイプの上書き（みずびたし）・3 つめのタイプ（ハロウィン）・タイプなし（もえつきる）を表せる
+ */
+export type PokemonTypes = { primary: Type; secondary: Type | null } | readonly Type[];
+
+/**
+ * タイプの一覧にする
+ */
+export const typeListOf = (types: PokemonTypes): readonly Type[] =>
+  'primary' in types
+    ? types.secondary
+      ? [types.primary, types.secondary]
+      : [types.primary]
+    : types;
+
+/**
  * ダメージ計算の入力パラメータ
  */
 export interface DamageCalculationParams {
@@ -45,8 +61,8 @@ export interface DamageCalculationParams {
   defender: BattlePokemonStatus;
   move: MoveInfo;
   moveType: Type; // 技のタイプ（天候補正などで使用）
-  attackerTypes: { primary: Type; secondary: Type | null }; // 攻撃側のポケモンのタイプ
-  defenderTypes: { primary: Type; secondary: Type | null }; // 防御側のポケモンのタイプ
+  attackerTypes: PokemonTypes; // 攻撃側のポケモンの実効のタイプ
+  defenderTypes: PokemonTypes; // 防御側のポケモンの実効のタイプ
   typeEffectiveness: Map<string, number>; // タイプ相性マップ (key: "typeFromId-typeToId", value: effectiveness)
   weather: Weather | null;
   field: Field | null;
@@ -389,13 +405,11 @@ export class DamageCalculator {
   private static isPokemonGrounded(
     params: DamageCalculationParams,
     pokemon: BattlePokemonStatus,
-    types: { primary: Type; secondary: Type | null },
+    types: PokemonTypes,
     abilityName: string | undefined,
   ): boolean {
     return isGrounded({
-      typeNames: [types.primary.name, types.secondary?.name].filter(
-        (name): name is string => name !== undefined,
-      ),
+      typeNames: typeListOf(types).map(type => type.name),
       abilityName,
       volatileState: pokemon.volatileState,
       sideState: this.sideStateOf(params),
@@ -699,17 +713,14 @@ export class DamageCalculator {
    * タイプ一致（STAB: Same Type Attack Bonus）を計算
    * 技のタイプとポケモンのタイプが一致する場合、1.5倍
    */
-  private static calculateStab(
-    moveTypeId: number,
-    attackerTypes: { primary: Type; secondary: Type | null },
-  ): number {
-    if (attackerTypes.primary.id === moveTypeId) {
-      return DamageCalculator.STAB_MULTIPLIER;
+  private static calculateStab(moveTypeId: number, attackerTypes: PokemonTypes): number {
+    // タイプなしの技（ID が 1 未満。わるあがき）は、タイプなし（???）のポケモンでもタイプ一致にならない（本家と同じ）
+    if (moveTypeId < 1) {
+      return DamageCalculator.NO_STAB_MULTIPLIER;
     }
-    if (attackerTypes.secondary?.id === moveTypeId) {
-      return DamageCalculator.STAB_MULTIPLIER;
-    }
-    return DamageCalculator.NO_STAB_MULTIPLIER;
+    return typeListOf(attackerTypes).some(type => type.id === moveTypeId)
+      ? DamageCalculator.STAB_MULTIPLIER
+      : DamageCalculator.NO_STAB_MULTIPLIER;
   }
 
   /**
@@ -718,17 +729,14 @@ export class DamageCalculator {
    */
   private static calculateTypeEffectiveness(
     moveTypeId: number,
-    defenderTypes: { primary: Type; secondary: Type | null },
+    defenderTypes: PokemonTypes,
     typeEffectiveness: Map<string, number>,
     ignoresImmunity: (defenderType: Type) => boolean = () => false,
     adjust: (defenderType: Type, multiplier: number) => number = (_type, multiplier) => multiplier,
   ): number {
     let effectiveness = DamageCalculator.DEFAULT_TYPE_EFFECTIVENESS;
 
-    const defenderTypeList = defenderTypes.secondary
-      ? [defenderTypes.primary, defenderTypes.secondary]
-      : [defenderTypes.primary];
-    for (const defenderType of defenderTypeList) {
+    for (const defenderType of typeListOf(defenderTypes)) {
       const typeMultiplier = typeEffectiveness.get(`${moveTypeId}-${defenderType.id}`);
       if (typeMultiplier === undefined) {
         continue;

@@ -575,6 +575,8 @@ export class ExecuteTurnUseCase {
     for (const faintedId of faintedIds) {
       await this.pokemonSwitcher.releasePrimalWeather(battleId, faintedId);
     }
+    // 特性を書き換えられた・消された（スキルスワップ・いえき・かがくへんかガス）ポケモンのゲンシ天候も終わらせる
+    await this.pokemonSwitcher.releasePrimalWeatherIfAbilityLost(battleId);
     for (const status of statuses) {
       let released = status.volatileState;
       for (const faintedId of faintedIds) {

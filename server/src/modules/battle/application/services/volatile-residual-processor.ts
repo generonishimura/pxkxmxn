@@ -12,6 +12,11 @@ import { applyStatChanges } from '@/modules/pokemon/domain/battle-events/stat-ch
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { resolveEffectiveStatusCondition } from '@/modules/pokemon/domain/battle-events/effective-status';
 import { resolveAbilityName } from '@/modules/pokemon/domain/battle-events/ability-lookup';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #110 #114 #119 #135 一部）
+import {
+  resolveBattlePokemonTraits,
+  resolveTypeNames,
+} from '@/modules/pokemon/domain/battle-events/battle-traits';
 
 /**
  * すなあらしのダメージを受けないタイプ
@@ -84,15 +89,12 @@ export class VolatileResidualProcessor {
       if (hidden === 'underground' || hidden === 'underwater') {
         continue;
       }
-      const trainedPokemon = await this.trainedPokemonRepository.findById(latest.trainedPokemonId);
-      const typeNames = [
-        trainedPokemon?.pokemon.primaryType.name,
-        trainedPokemon?.pokemon.secondaryType?.name,
-      ];
-      if (typeNames.some(name => name !== undefined && SANDSTORM_IMMUNE_TYPES.includes(name))) {
+      // 実効のタイプと特性（みずびたし・いえき・かがくへんかガスなどを反映）
+      const traits = await resolveBattlePokemonTraits(latest, battleContext);
+      if (traits?.typeNames.some(name => SANDSTORM_IMMUNE_TYPES.includes(name))) {
         continue;
       }
-      if (SANDSTORM_IMMUNE_ABILITIES.includes(trainedPokemon?.ability?.name ?? '')) {
+      if (SANDSTORM_IMMUNE_ABILITIES.includes(traits?.abilityName ?? '')) {
         continue;
       }
       await applyIndirectDamage(latest, fractionOfMaxHp(latest, 16), battleContext);
@@ -207,11 +209,9 @@ export class VolatileResidualProcessor {
 
     // しおづけ: 1/8（みず・はがねタイプは 1/4）
     if (latest.volatileState.saltCure === true) {
-      const trainedPokemon = await this.trainedPokemonRepository.findById(latest.trainedPokemonId);
-      const weak = [
-        trainedPokemon?.pokemon.primaryType.name,
-        trainedPokemon?.pokemon.secondaryType?.name,
-      ].some(name => name !== undefined && SALT_CURE_WEAK_TYPES.includes(name));
+      const weak = (await resolveTypeNames(latest, battleContext)).some(name =>
+        SALT_CURE_WEAK_TYPES.includes(name),
+      );
       await damage(weak ? 4 : 8);
     }
 

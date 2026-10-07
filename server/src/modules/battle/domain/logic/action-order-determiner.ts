@@ -4,13 +4,13 @@ import { StatusCondition } from '../entities/status-condition.enum';
 import { IMoveRepository } from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
-import { StatCalculator } from './stat-calculator';
-import { createMoveOrderContext, calculateBattleStats } from './move-order-context';
+import { createMoveOrderContext } from './move-order-context';
 import { NotFoundException } from '@/shared/domain/exceptions';
-import { applyStatOverrides } from './volatile-modifiers';
 // 場の状態・設置技・交代の仕組み（Issue #107 一部）
 import { getSideConditions } from '../state/side-state';
 import { isTrickRoomActive, movesBefore, sideSpeedMultiplier } from './field-modifiers';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #119 #135 一部）
+import { BattlePokemonRef, battleAbilityNameOf, battleStatsOf } from './battle-pokemon-traits';
 
 /**
  * 行動順決定の入力パラメータ
@@ -144,8 +144,27 @@ export class ActionOrderDeterminer {
     );
 
     // 行動するポケモンごとのコンテキスト（技の情報・効果のある天候・実数値を含む）
-    const trainer1AbilityName = trainer1TrainedPokemon?.ability?.name;
-    const trainer2AbilityName = trainer2TrainedPokemon?.ability?.name;
+    // 実効の特性（特性の上書き・いえき・かがくへんかガスを反映）と、フォルム・実数値の上書きを反映した実数値
+    const refs = [
+      trainer1TrainedPokemon
+        ? { trainedPokemon: trainer1TrainedPokemon, status: trainer1Active }
+        : null,
+      trainer2TrainedPokemon
+        ? { trainedPokemon: trainer2TrainedPokemon, status: trainer2Active }
+        : null,
+    ].filter((ref): ref is BattlePokemonRef => ref !== null);
+    const trainer1AbilityName = trainer1TrainedPokemon
+      ? battleAbilityNameOf(trainer1TrainedPokemon, trainer1Active, refs)
+      : undefined;
+    const trainer2AbilityName = trainer2TrainedPokemon
+      ? battleAbilityNameOf(trainer2TrainedPokemon, trainer2Active, refs)
+      : undefined;
+    const trainer1AbilityEffect = trainer1AbilityName
+      ? AbilityRegistry.get(trainer1AbilityName)
+      : undefined;
+    const trainer2AbilityEffect = trainer2AbilityName
+      ? AbilityRegistry.get(trainer2AbilityName)
+      : undefined;
     const trainer1Context = createMoveOrderContext({
       battle,
       move: trainer1Move,
@@ -153,10 +172,7 @@ export class ActionOrderDeterminer {
       abilityName: trainer1AbilityName,
       opponentAbilityName: trainer2AbilityName,
       stats: trainer1TrainedPokemon
-        ? applyStatOverrides(
-            calculateBattleStats(trainer1TrainedPokemon),
-            trainer1Active.volatileState,
-          )
+        ? battleStatsOf(trainer1TrainedPokemon, trainer1Active)
         : undefined,
     });
     const trainer2Context = createMoveOrderContext({
@@ -166,57 +182,44 @@ export class ActionOrderDeterminer {
       abilityName: trainer2AbilityName,
       opponentAbilityName: trainer1AbilityName,
       stats: trainer2TrainedPokemon
-        ? applyStatOverrides(
-            calculateBattleStats(trainer2TrainedPokemon),
-            trainer2Active.volatileState,
-          )
+        ? battleStatsOf(trainer2TrainedPokemon, trainer2Active)
         : undefined,
     });
 
     let trainer1Priority = trainer1Move.priority;
     let trainer2Priority = trainer2Move.priority;
 
-    if (trainer1TrainedPokemon?.ability) {
-      const abilityEffect = AbilityRegistry.get(trainer1TrainedPokemon.ability.name);
-      if (abilityEffect?.modifyPriority) {
-        const modifiedPriority = abilityEffect.modifyPriority(
-          trainer1Active,
-          trainer1Move.priority,
-          trainer1Context,
-        );
-        if (modifiedPriority !== undefined) {
-          trainer1Priority = modifiedPriority;
-        }
+    if (trainer1AbilityEffect?.modifyPriority) {
+      const modifiedPriority = trainer1AbilityEffect.modifyPriority(
+        trainer1Active,
+        trainer1Move.priority,
+        trainer1Context,
+      );
+      if (modifiedPriority !== undefined) {
+        trainer1Priority = modifiedPriority;
       }
     }
 
-    if (trainer2TrainedPokemon?.ability) {
-      const abilityEffect = AbilityRegistry.get(trainer2TrainedPokemon.ability.name);
-      if (abilityEffect?.modifyPriority) {
-        const modifiedPriority = abilityEffect.modifyPriority(
-          trainer2Active,
-          trainer2Move.priority,
-          trainer2Context,
-        );
-        if (modifiedPriority !== undefined) {
-          trainer2Priority = modifiedPriority;
-        }
+    if (trainer2AbilityEffect?.modifyPriority) {
+      const modifiedPriority = trainer2AbilityEffect.modifyPriority(
+        trainer2Active,
+        trainer2Move.priority,
+        trainer2Context,
+      );
+      if (modifiedPriority !== undefined) {
+        trainer2Priority = modifiedPriority;
       }
     }
 
     // 同じ優先度の中での順番（きんしのちから・あとだし。本家の onFractionalPriority）
-    const trainer1FractionalPriority = trainer1TrainedPokemon?.ability
-      ? AbilityRegistry.get(trainer1TrainedPokemon.ability.name)?.modifyFractionalPriority?.(
-          trainer1Active,
-          trainer1Context,
-        )
-      : undefined;
-    const trainer2FractionalPriority = trainer2TrainedPokemon?.ability
-      ? AbilityRegistry.get(trainer2TrainedPokemon.ability.name)?.modifyFractionalPriority?.(
-          trainer2Active,
-          trainer2Context,
-        )
-      : undefined;
+    const trainer1FractionalPriority = trainer1AbilityEffect?.modifyFractionalPriority?.(
+      trainer1Active,
+      trainer1Context,
+    );
+    const trainer2FractionalPriority = trainer2AbilityEffect?.modifyFractionalPriority?.(
+      trainer2Active,
+      trainer2Context,
+    );
     trainer1Priority += trainer1FractionalPriority ?? 0;
     trainer2Priority += trainer2FractionalPriority ?? 0;
 
@@ -268,31 +271,25 @@ export class ActionOrderDeterminer {
       let finalTrainer2Speed = trainer2Speed * trainer2SpeedMultiplier;
 
       // 特性による速度補正を適用
-      if (trainer1TrainedPokemon?.ability) {
-        const abilityEffect = AbilityRegistry.get(trainer1TrainedPokemon.ability.name);
-        if (abilityEffect?.modifySpeed) {
-          const modifiedSpeed = abilityEffect.modifySpeed(
-            trainer1Active,
-            finalTrainer1Speed,
-            trainer1Context,
-          );
-          if (modifiedSpeed !== undefined) {
-            finalTrainer1Speed = modifiedSpeed;
-          }
+      if (trainer1AbilityEffect?.modifySpeed) {
+        const modifiedSpeed = trainer1AbilityEffect.modifySpeed(
+          trainer1Active,
+          finalTrainer1Speed,
+          trainer1Context,
+        );
+        if (modifiedSpeed !== undefined) {
+          finalTrainer1Speed = modifiedSpeed;
         }
       }
 
-      if (trainer2TrainedPokemon?.ability) {
-        const abilityEffect = AbilityRegistry.get(trainer2TrainedPokemon.ability.name);
-        if (abilityEffect?.modifySpeed) {
-          const modifiedSpeed = abilityEffect.modifySpeed(
-            trainer2Active,
-            finalTrainer2Speed,
-            trainer2Context,
-          );
-          if (modifiedSpeed !== undefined) {
-            finalTrainer2Speed = modifiedSpeed;
-          }
+      if (trainer2AbilityEffect?.modifySpeed) {
+        const modifiedSpeed = trainer2AbilityEffect.modifySpeed(
+          trainer2Active,
+          finalTrainer2Speed,
+          trainer2Context,
+        );
+        if (modifiedSpeed !== undefined) {
+          finalTrainer2Speed = modifiedSpeed;
         }
       }
 
@@ -348,32 +345,8 @@ export class ActionOrderDeterminer {
       throw new NotFoundException('TrainedPokemon', status.trainedPokemonId);
     }
 
-    // ステータスを計算
-    const stats = StatCalculator.calculate({
-      baseHp: trainedPokemon.pokemon.baseHp,
-      baseAttack: trainedPokemon.pokemon.baseAttack,
-      baseDefense: trainedPokemon.pokemon.baseDefense,
-      baseSpecialAttack: trainedPokemon.pokemon.baseSpecialAttack,
-      baseSpecialDefense: trainedPokemon.pokemon.baseSpecialDefense,
-      baseSpeed: trainedPokemon.pokemon.baseSpeed,
-      level: trainedPokemon.level,
-      ivHp: trainedPokemon.ivHp,
-      ivAttack: trainedPokemon.ivAttack,
-      ivDefense: trainedPokemon.ivDefense,
-      ivSpecialAttack: trainedPokemon.ivSpecialAttack,
-      ivSpecialDefense: trainedPokemon.ivSpecialDefense,
-      ivSpeed: trainedPokemon.ivSpeed,
-      evHp: trainedPokemon.evHp,
-      evAttack: trainedPokemon.evAttack,
-      evDefense: trainedPokemon.evDefense,
-      evSpecialAttack: trainedPokemon.evSpecialAttack,
-      evSpecialDefense: trainedPokemon.evSpecialDefense,
-      evSpeed: trainedPokemon.evSpeed,
-      nature: trainedPokemon.nature,
-    });
-
-    // スピードスワップなどの実数値の上書き → ランク補正の順に適用
-    const speed = status.volatileState.statOverrides?.speed ?? stats.speed;
+    // フォルムの種族値で計算し、スピードスワップ・へんしんなどの実数値の上書き → ランク補正の順に適用
+    const speed = battleStatsOf(trainedPokemon, status).speed;
     const multiplier = status.getStatMultiplier('speed');
     return Math.floor(speed * multiplier);
   }

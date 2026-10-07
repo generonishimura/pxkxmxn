@@ -18,6 +18,8 @@ import { StatCalculator, TrainedPokemonStats } from '../../domain/logic/stat-cal
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 import { updateVolatileState } from '../../domain/state/volatile-state';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #119 #135 一部）
+import { battleAbilityNameOf } from '../../domain/logic/battle-pokemon-traits';
 
 /**
  * StartBattleUseCase
@@ -73,6 +75,13 @@ export class StartBattleUseCase {
     // 2. 両チームのポケモン情報を取得
     const team1Members = await this.teamRepository.findMembersByTeamId(team1Id);
     const team2Members = await this.teamRepository.findMembersByTeamId(team2Id);
+    // 場に出たときの特性で、場のポケモンの実効の特性（かがくへんかガス）を求めるのに使う
+    const trainedPokemons = new Map(
+      [...team1Members, ...team2Members].map(member => [
+        member.trainedPokemon.id,
+        member.trainedPokemon,
+      ]),
+    );
 
     // 3. 各ポケモンのBattlePokemonStatusを作成
     for (const member of team1Members) {
@@ -105,7 +114,7 @@ export class StartBattleUseCase {
 
         // 特性のOnEntry効果を発動
         if (trainedPokemon.ability) {
-          await this.triggerAbilityOnEntry(battleStatus.id, trainedPokemon.ability.name, battle);
+          await this.triggerAbilityOnEntry(battleStatus.id, trainedPokemons, battle);
         }
       }
     }
@@ -140,7 +149,7 @@ export class StartBattleUseCase {
 
         // 特性のOnEntry効果を発動
         if (trainedPokemon.ability) {
-          await this.triggerAbilityOnEntry(battleStatus.id, trainedPokemon.ability.name, battle);
+          await this.triggerAbilityOnEntry(battleStatus.id, trainedPokemons, battle);
         }
       }
     }
@@ -178,22 +187,31 @@ export class StartBattleUseCase {
 
   /**
    * 特性のOnEntry効果を発動
+   * 特性は、先に場に出ている相手のかがくへんかガスで消えていれば発動しない（実効の特性）
+   * @param trainedPokemons 両チームの育成ポケモン（TrainedPokemon の ID ごと）
    */
   private async triggerAbilityOnEntry(
     battleStatusId: number,
-    abilityName: string,
+    trainedPokemons: ReadonlyMap<number, TrainedPokemon>,
     battle: Battle,
   ): Promise<void> {
-    const abilityEffect = AbilityRegistry.get(abilityName);
-    if (!abilityEffect?.onEntry) {
-      return;
-    }
-
     // BattlePokemonStatusを取得
     const battleStatus = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
     const status = battleStatus.find(s => s.id === battleStatusId);
+    const trainedPokemon = status ? trainedPokemons.get(status.trainedPokemonId) : undefined;
 
-    if (!status) {
+    if (!status || !trainedPokemon) {
+      return;
+    }
+    const others = battleStatus.flatMap(other => {
+      const otherTrainedPokemon = trainedPokemons.get(other.trainedPokemonId);
+      return other.isActive && other.id !== status.id && otherTrainedPokemon
+        ? [{ trainedPokemon: otherTrainedPokemon, status: other }]
+        : [];
+    });
+    const abilityName = battleAbilityNameOf(trainedPokemon, status, others);
+    const abilityEffect = abilityName ? AbilityRegistry.get(abilityName) : undefined;
+    if (!abilityEffect?.onEntry) {
       return;
     }
 

@@ -138,6 +138,10 @@ export interface HarnessPokemon {
   readonly persistentState?: PersistentPokemonState;
   /** 覚えている技の ID（PP は 10） */
   readonly moveIds?: readonly number[];
+  /** 全国図鑑の番号（フォルムの表を引く。省略すると id） */
+  readonly nationalDex?: number;
+  /** 種族値 [HP, 攻撃, 防御, 特攻, 特防, 素早さ]（省略するとすべて 100。素早さは baseSpeed が優先） */
+  readonly baseStats?: readonly [number, number, number, number, number, number];
 }
 
 export interface HarnessOptions {
@@ -151,6 +155,8 @@ export interface HarnessOptions {
    * 急所の乱数（0 以上 1 未満）。省略すると急所ランク 3 以上（必ず急所）のときだけ急所になる
    */
   readonly criticalHitRandom?: () => number;
+  /** 既定の表に足すタイプ相性（[技のタイプ, 相手のタイプ, 倍率]） */
+  readonly typeChart?: ReadonlyArray<readonly [string, string, number]>;
 }
 
 /**
@@ -184,22 +190,25 @@ const toStatus = (base: BattlePokemonStatus, data: Partial<BattlePokemonStatus>)
 
 const toTrainedPokemon = (pokemon: HarnessPokemon): TrainedPokemon => {
   const [primary, secondary] = (pokemon.types ?? ['ノーマル']).map(typeOf);
+  const [hp, attack, defense, specialAttack, specialDefense, speed] = pokemon.baseStats ?? [
+    100, 100, 100, 100, 100, 100,
+  ];
   return new TrainedPokemon(
     pokemon.id,
     pokemon.trainerId,
     new Pokemon(
       pokemon.id,
-      pokemon.id,
+      pokemon.nationalDex ?? pokemon.id,
       'テスト',
       'Test',
       primary,
       secondary ?? null,
-      100,
-      100,
-      100,
-      100,
-      100,
-      pokemon.baseSpeed ?? 100,
+      hp,
+      attack,
+      defense,
+      specialAttack,
+      specialDefense,
+      pokemon.baseSpeed ?? speed,
     ),
     null,
     50,
@@ -363,7 +372,10 @@ export const createBattleEngine = (options: HarnessOptions) => {
     findByName: name => Promise.resolve(options.moves.find(m => m.name === name) ?? null),
   };
   const typeChart = new Map<string, number>(
-    DEFAULT_TYPE_CHART.map(([from, to, value]) => [`${typeOf(from).id}-${typeOf(to).id}`, value]),
+    [...DEFAULT_TYPE_CHART, ...(options.typeChart ?? [])].map(([from, to, value]) => [
+      `${typeOf(from).id}-${typeOf(to).id}`,
+      value,
+    ]),
   );
   const typeEffectivenessRepository: ITypeEffectivenessRepository = {
     getTypeEffectivenessMap: () => Promise.resolve(typeChart),

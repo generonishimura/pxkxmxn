@@ -20,6 +20,8 @@ import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indi
 import { VolatileResidualProcessor } from './volatile-residual-processor';
 // 場の状態・設置技・交代の仕組み（Issue #110 #135 一部）
 import { FieldResidualProcessor } from './field-residual-processor';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #119 #135 一部）
+import { resolveBattlePokemonTraits } from '@/modules/pokemon/domain/battle-events/battle-traits';
 
 /**
  * StatusConditionProcessorService
@@ -66,16 +68,18 @@ export class StatusConditionProcessorService {
 
     // 場の特性を考慮した天候（ノーてんき・エアロックが場にいれば天候なし）
     // ひんしのポケモンの特性は天候を消さない（本家の suppressingWeather と同じ）
-    const activeAbilityNames = await Promise.all(
-      activePokemon
-        .filter(status => !status.isFainted())
-        .map(async status => {
-          const trainedPokemon = await this.trainedPokemonRepository.findById(
-            status.trainedPokemonId,
-          );
-          return trainedPokemon?.ability?.name;
-        }),
-    );
+    // 実効の特性（特性の上書き・いえき・かがくへんかガスを反映）
+    const effectiveAbilityNames = new Map<number, string | undefined>();
+    for (const status of activePokemon) {
+      const traits = await resolveBattlePokemonTraits(status, {
+        battleRepository: this.battleRepository,
+        trainedPokemonRepository: this.trainedPokemonRepository,
+      });
+      effectiveAbilityNames.set(status.id, traits?.abilityName);
+    }
+    const activeAbilityNames = activePokemon
+      .filter(status => !status.isFainted())
+      .map(status => effectiveAbilityNames.get(status.id));
     const weather = resolveEffectiveWeather(battle.weather, activeAbilityNames);
     const fieldContext: BattleContext = {
       battle,
@@ -89,10 +93,8 @@ export class StatusConditionProcessorService {
     await this.fieldResiduals.applyGrassyTerrainHeal(battle, activePokemon, fieldContext);
 
     for (const status of activePokemon) {
-      const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
-      const abilityEffect = trainedPokemon?.ability
-        ? AbilityRegistry.get(trainedPokemon.ability.name)
-        : undefined;
+      const abilityName = effectiveAbilityNames.get(status.id);
+      const abilityEffect = abilityName ? AbilityRegistry.get(abilityName) : undefined;
       const battleContext: BattleContext = {
         battle,
         battleRepository: this.battleRepository,

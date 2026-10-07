@@ -34,6 +34,8 @@ import {
 import { crossesHalfHp, findSwitchTargets } from '../../domain/logic/party';
 import { isGrounded } from '../../domain/logic/grounded';
 import { getGlobalFieldState } from '../../domain/state/side-state';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #110 #114 #119 #135 一部）
+import { resolveBattlePokemonTraits } from '@/modules/pokemon/domain/battle-events/battle-traits';
 
 /**
  * 交代のオプション
@@ -97,6 +99,14 @@ export class PokemonSwitcherService {
   }
 
   /**
+   * ゲンシ天候を出したポケモンの特性が書き換えられた・消された（スキルスワップ・いえき・かがくへんかガス）なら、
+   * 場を離れたときと同じに天候を終わらせる。ExecuteTurnUseCase が行動のたびに呼ぶ
+   */
+  async releasePrimalWeatherIfAbilityLost(battleId: number): Promise<void> {
+    await this.primalWeatherReleaser.releaseIfAbilityLost(battleId);
+  }
+
+  /**
    * 交代できない理由を返す（交代できるなら undefined）
    * ねをはる・逃げられない状態・バインド状態・相手の特性（trapsOpponent）・フェアリーロックを見る。
    * ゴーストタイプは、どれでも交代できる。かけたポケモンがひんし・場にいない、逃げられない状態とバインド状態は見ない。
@@ -126,12 +136,10 @@ export class PokemonSwitcherService {
     ) {
       return undefined;
     }
-    const trainedPokemon = await this.trainedPokemonRepository.findById(active.trainedPokemonId);
-    const typeNames = [
-      trainedPokemon?.pokemon.primaryType.name,
-      trainedPokemon?.pokemon.secondaryType?.name,
-    ].filter((name): name is string => name !== undefined);
-    const abilityName = trainedPokemon?.ability?.name;
+    // 実効のタイプと特性（みずびたしのゴーストタイプ・いえきなどを反映）
+    const traits = await resolveBattlePokemonTraits(active, this.traitsDeps());
+    const typeNames = [...(traits?.typeNames ?? [])];
+    const abilityName = traits?.abilityName;
     const trappedByAbility =
       opponent !== undefined &&
       opponentAbility?.trapsOpponent?.(
@@ -163,18 +171,34 @@ export class PokemonSwitcherService {
 
   /**
    * 相手の場のポケモンの、逃げられなくする特性（trapsOpponent を持つ特性）
-   * 相手がいない・ひんし・特性が消されている（いえき）ときは undefined
+   * 相手がいない・ひんし・特性が効いていない（いえき・かがくへんかガス）ときは undefined
    */
   private async findTrappingAbility(
     opponent: BattlePokemonStatus | undefined,
   ): Promise<IAbilityEffect | undefined> {
-    if (!opponent || opponent.isFainted() || opponent.volatileState.abilitySuppressed === true) {
+    if (!opponent || opponent.isFainted()) {
       return undefined;
     }
-    const trainedPokemon = await this.trainedPokemonRepository.findById(opponent.trainedPokemonId);
-    const abilityName = trainedPokemon?.ability?.name;
-    const effect = abilityName ? AbilityRegistry.get(abilityName) : undefined;
+    const effect = await this.abilityEffectOf(opponent);
     return effect?.trapsOpponent ? effect : undefined;
+  }
+
+  /**
+   * 実効の特性の効果（特性の上書き・いえき・かがくへんかガスを反映。効いていなければ undefined）
+   */
+  private async abilityEffectOf(status: BattlePokemonStatus): Promise<IAbilityEffect | undefined> {
+    const abilityName = (await resolveBattlePokemonTraits(status, this.traitsDeps()))?.abilityName;
+    return abilityName ? AbilityRegistry.get(abilityName) : undefined;
+  }
+
+  /**
+   * 実効のタイプ・特性を引くリポジトリ
+   */
+  private traitsDeps() {
+    return {
+      battleRepository: this.battleRepository,
+      trainedPokemonRepository: this.trainedPokemonRepository,
+    };
   }
 
   /**
@@ -220,18 +244,14 @@ export class PokemonSwitcherService {
     );
 
     if (currentActive) {
-      // 特性のOnSwitchOut効果を発動（状態異常解除前に実行）
-      const currentTrainedPokemon = await this.trainedPokemonRepository.findById(
-        currentActive.trainedPokemonId,
-      );
-      if (currentTrainedPokemon?.ability) {
-        const abilityEffect = AbilityRegistry.get(currentTrainedPokemon.ability.name);
-        if (abilityEffect?.onSwitchOut) {
-          await abilityEffect.onSwitchOut(currentActive, {
-            battle,
-            battleRepository: this.battleRepository,
-          });
-        }
+      // 特性のOnSwitchOut効果を発動（状態異常解除前に実行。特性の上書き・いえきを反映した実効の特性）
+      const abilityEffect = await this.abilityEffectOf(currentActive);
+      if (abilityEffect?.onSwitchOut) {
+        await abilityEffect.onSwitchOut(currentActive, {
+          battle,
+          battleRepository: this.battleRepository,
+          trainedPokemonRepository: this.trainedPokemonRepository,
+        });
       }
 
       // 状態異常を解除（交代時に解除されるもの）
@@ -299,19 +319,15 @@ export class PokemonSwitcherService {
       await this.scheduleEmergencyExits(battle.id, new Map([[entered.id, targetStatus.currentHp]]));
     }
 
-    // 特性のOnEntry効果を発動
-    const trainedPokemon = await this.trainedPokemonRepository.findById(trainedPokemonId);
-
-    if (trainedPokemon?.ability) {
-      const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
-      if (abilityEffect?.onEntry) {
-        // 相手の特性（クリアボディ・ばんけんなど）を調べられるよう、育成ポケモンリポジトリも渡す
-        await abilityEffect.onEntry(targetStatus, {
-          battle,
-          battleRepository: this.battleRepository,
-          trainedPokemonRepository: this.trainedPokemonRepository,
-        });
-      }
+    // 特性のOnEntry効果を発動（相手のかがくへんかガスで消えていれば発動しない）
+    const abilityEffect = entered ? await this.abilityEffectOf(entered) : undefined;
+    if (abilityEffect?.onEntry) {
+      // 相手の特性（クリアボディ・ばんけんなど）を調べられるよう、育成ポケモンリポジトリも渡す
+      await abilityEffect.onEntry(targetStatus, {
+        battle,
+        battleRepository: this.battleRepository,
+        trainedPokemonRepository: this.trainedPokemonRepository,
+      });
     }
     return entryMessages;
   }
@@ -333,9 +349,7 @@ export class PokemonSwitcherService {
       if (before === undefined || !status.isActive || !crossesHalfHp(status, before)) {
         continue;
       }
-      const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
-      const abilityName = trainedPokemon?.ability?.name;
-      if (!abilityName || AbilityRegistry.get(abilityName)?.switchesOutBelowHalfHp !== true) {
+      if ((await this.abilityEffectOf(status))?.switchesOutBelowHalfHp !== true) {
         continue;
       }
       if (findSwitchTargets(statuses, status.trainerId).length === 0) {

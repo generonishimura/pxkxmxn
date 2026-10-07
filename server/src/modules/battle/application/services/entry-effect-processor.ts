@@ -12,7 +12,9 @@ import {
   toxicSpikesOutcome,
 } from '../../domain/logic/entry-hazards';
 import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
-import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #110 #114 #135 一部）
+import { resolveBattlePokemonTraits } from '@/modules/pokemon/domain/battle-events/battle-traits';
+import { TYPELESS_TYPE_NAME } from '../../domain/logic/effective-traits';
 import { ITypeEffectivenessRepository } from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
@@ -67,8 +69,12 @@ export class EntryEffectProcessor {
     ) {
       return [];
     }
-    const trainedPokemon = await this.trainedPokemonRepository.findById(target.trainedPokemonId);
-    if (!trainedPokemon) {
+    // 実効のタイプと特性（交代しても残るフォルム・相手のかがくへんかガスを反映）
+    const traits = await resolveBattlePokemonTraits(target, {
+      battleRepository: this.battleRepository,
+      trainedPokemonRepository: this.trainedPokemonRepository,
+    });
+    if (!traits) {
       return [];
     }
     const context = this.createContext(battle);
@@ -80,20 +86,17 @@ export class EntryEffectProcessor {
       target = (await this.refresh(target)) ?? target;
     }
 
-    const typeNames = [
-      trainedPokemon.pokemon.primaryType.name,
-      trainedPokemon.pokemon.secondaryType?.name,
-    ].filter((name): name is string => name !== undefined);
+    const typeNames = [...traits.typeNames];
     const grounded = isGrounded({
       typeNames,
-      abilityName: trainedPokemon.ability?.name,
+      abilityName: traits.abilityName,
       volatileState: target.volatileState,
       sideState: battle.sideState,
     });
     const opponent = await this.findOpponent(battle, target.trainerId);
 
     if (side.stealthRock === true && !target.isFainted()) {
-      const effectiveness = await this.rockEffectiveness(trainedPokemon);
+      const effectiveness = await this.rockEffectiveness(typeNames);
       const dealt = await applyIndirectDamage(
         target,
         stealthRockDamage(target.maxHp, effectiveness),
@@ -200,17 +203,23 @@ export class EntryEffectProcessor {
   }
 
   /**
-   * いわタイプの技の、育成ポケモンのタイプへの相性（0.25〜4）
+   * いわタイプの技の、実効のタイプへの相性（0.25〜4）。タイプなし（???）は等倍
    */
-  private async rockEffectiveness(trainedPokemon: TrainedPokemon): Promise<number> {
+  private async rockEffectiveness(typeNames: readonly string[]): Promise<number> {
     const rock = await this.typeEffectivenessRepository.findTypeByName(STEALTH_ROCK_TYPE_NAME);
     if (!rock) {
       return 1;
     }
     const chart = await this.typeEffectivenessRepository.getTypeEffectivenessMap();
-    return [trainedPokemon.pokemon.primaryType, trainedPokemon.pokemon.secondaryType]
-      .filter(type => type !== null)
-      .reduce((product, type) => product * (chart.get(`${rock.id}-${type.id}`) ?? 1), 1);
+    let product = 1;
+    for (const typeName of typeNames) {
+      if (typeName === TYPELESS_TYPE_NAME) {
+        continue;
+      }
+      const type = await this.typeEffectivenessRepository.findTypeByName(typeName);
+      product *= type ? (chart.get(`${rock.id}-${type.id}`) ?? 1) : 1;
+    }
+    return product;
   }
 
   /**

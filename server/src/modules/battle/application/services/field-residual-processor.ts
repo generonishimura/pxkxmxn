@@ -6,6 +6,8 @@ import { isGrounded } from '../../domain/logic/grounded';
 import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { applyHeal, fractionOfMaxHp } from '@/modules/pokemon/domain/battle-events/heal';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #110 #114 #119 #135 一部）
+import { resolveBattlePokemonTraits } from '@/modules/pokemon/domain/battle-events/battle-traits';
 
 /**
  * FieldResidualProcessor
@@ -68,13 +70,11 @@ export class FieldResidualProcessor {
       if (latest.isFainted() || latest.volatileState.semiInvulnerable !== undefined) {
         continue;
       }
-      const trainedPokemon = await this.trainedPokemonRepository.findById(latest.trainedPokemonId);
+      // 実効のタイプと特性（みずびたし・はねやすめ・いえきなどを反映）
+      const traits = await resolveBattlePokemonTraits(latest, battleContext);
       const grounded = isGrounded({
-        typeNames: [
-          trainedPokemon?.pokemon.primaryType.name,
-          trainedPokemon?.pokemon.secondaryType?.name,
-        ].filter((name): name is string => name !== undefined),
-        abilityName: trainedPokemon?.ability?.name,
+        typeNames: traits?.typeNames ?? [],
+        abilityName: traits?.abilityName,
         volatileState: latest.volatileState,
         sideState: battle.sideState,
       });

@@ -22,7 +22,6 @@ import {
   MoveInfo,
 } from '../../domain/logic/damage-calculator';
 import { AccuracyCalculator } from '../../domain/logic/accuracy-calculator';
-import { StatCalculator } from '../../domain/logic/stat-calculator';
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
@@ -37,7 +36,6 @@ import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
 import { modifyByFixedPoint } from '../../domain/logic/fixed-point-modifier';
 import { isMajorStatus } from '../../domain/logic/major-status';
-import { applyStatOverrides } from '../../domain/logic/volatile-modifiers';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
 import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called-move';
@@ -81,6 +79,14 @@ import { ProtectionMoveConfig } from '@/modules/pokemon/domain/moves/move-effect
 import { applyStatChanges } from '@/modules/pokemon/domain/battle-events/stat-change';
 import { joinStatChangeMessages } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { fractionOfMaxHp } from '@/modules/pokemon/domain/battle-events/heal';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #107 #110 #112 #114 #117 #119 #135 一部）
+import {
+  BattlePokemonRef,
+  battleAbilityNameOf,
+  battleStatsOf,
+  battleTypeNamesOf,
+} from '../../domain/logic/battle-pokemon-traits';
+import { TYPELESS_TYPE_NAME } from '../../domain/logic/effective-traits';
 
 /**
  * 急所の乱数（RandomSource）を差し替えるときの DI トークン。省略すると Math.random を使う
@@ -288,9 +294,12 @@ export class MoveExecutorService {
     }
 
     // 技を出す前の判定（本家の onBeforeMove の順）
-    const attackerAbilityEffect = attackerTrainedPokemon.ability
-      ? AbilityRegistry.get(attackerTrainedPokemon.ability.name)
-      : undefined;
+    const attackerAbilityEffect = this.abilityEffectOf(
+      this.abilityNameOf(
+        { trainedPokemon: attackerTrainedPokemon, status: attacker },
+        { trainedPokemon: defenderTrainedPokemon, status: defender },
+      ),
+    );
     const beforeMove = await this.beforeMoveChecker.check({
       battle,
       move,
@@ -533,15 +542,13 @@ export class MoveExecutorService {
       (previousState.chargingMoveId === move.id || previousState.lockedInMove?.moveId === move.id);
 
     const moveEffect = MoveRegistry.get(move.name);
-    const attackerAbilityName = attackerTrainedPokemon.ability?.name;
-    const defenderAbilityName = defenderTrainedPokemon.ability?.name;
-    const attackerAbilityEffect = attackerAbilityName
-      ? AbilityRegistry.get(attackerAbilityName)
-      : undefined;
+    const { attackerAbilityName, defenderAbilityName } = this.abilityNamesOf(
+      { trainedPokemon: attackerTrainedPokemon, status: attacker },
+      { trainedPokemon: defenderTrainedPokemon, status: defender },
+    );
+    const attackerAbilityEffect = this.abilityEffectOf(attackerAbilityName);
     // ヒットの前後で呼ぶ防御側特性は、かたやぶりでも無視しない（じきゅうりょく・さめはだ・プレッシャーなど）
-    const defenderEventEffect = defenderAbilityName
-      ? AbilityRegistry.get(defenderAbilityName)
-      : undefined;
+    const defenderEventEffect = this.abilityEffectOf(defenderAbilityName);
 
     const contextFor = (current: BattlePokemonStatus): BattleContext =>
       this.createHitContext({
@@ -753,9 +760,12 @@ export class MoveExecutorService {
     let actingUser = user;
     let prefix = '';
     if (request.runBeforeMoveChecks === true) {
-      const userAbilityEffect = userTrainedPokemon.ability
-        ? AbilityRegistry.get(userTrainedPokemon.ability.name)
-        : undefined;
+      const userAbilityEffect = this.abilityEffectOf(
+        this.abilityNameOf(
+          { trainedPokemon: userTrainedPokemon, status: user },
+          { trainedPokemon: targetTrainedPokemon, status: target },
+        ),
+      );
       const beforeMove = await this.beforeMoveChecker.check({
         battle: latestBattle,
         move,
@@ -845,12 +855,17 @@ export class MoveExecutorService {
     observerTrainedPokemon: TrainedPokemon;
     options: ExecuteMoveOptions;
   }): Promise<string[]> {
-    const abilityName = params.observerTrainedPokemon.ability?.name;
-    const abilityEffect = abilityName ? AbilityRegistry.get(abilityName) : undefined;
-    if (!abilityEffect?.onOpponentMoveUsed || params.outcome !== 'hit') {
+    if (params.outcome !== 'hit') {
       return [];
     }
     const observer = await this.battleRepository.findBattlePokemonStatusById(params.observerId);
+    // 特性を消す効果（いえき・かがくへんかガス）は特性を足さないので、今の特性が持たなければここで終わる
+    const currentEffect = this.abilityEffectOf(
+      observer?.volatileState.abilityOverride ?? params.observerTrainedPokemon.ability?.name,
+    );
+    if (!currentEffect?.onOpponentMoveUsed) {
+      return [];
+    }
     const user = await this.battleRepository.findBattlePokemonStatusById(params.userId);
     if (
       !observer ||
@@ -862,6 +877,15 @@ export class MoveExecutorService {
     }
     const userTrainedPokemon = await this.trainedPokemonRepository.findById(user.trainedPokemonId);
     if (!userTrainedPokemon) {
+      return [];
+    }
+    const abilityEffect = this.abilityEffectOf(
+      this.abilityNameOf(
+        { trainedPokemon: params.observerTrainedPokemon, status: observer },
+        { trainedPokemon: userTrainedPokemon, status: user },
+      ),
+    );
+    if (!abilityEffect?.onOpponentMoveUsed) {
       return [];
     }
     const latestBattle = (await this.battleRepository.findById(params.battle.id)) ?? params.battle;
@@ -896,11 +920,11 @@ export class MoveExecutorService {
     const attacker = params.attacker;
 
     const moveEffect = MoveRegistry.get(move.name);
-    const attackerAbilityName = attackerTrainedPokemon.ability?.name;
-    const defenderAbilityName = defenderTrainedPokemon.ability?.name;
-    const attackerAbilityEffect = attackerAbilityName
-      ? AbilityRegistry.get(attackerAbilityName)
-      : undefined;
+    const { attackerAbilityName, defenderAbilityName } = this.abilityNamesOf(
+      { trainedPokemon: attackerTrainedPokemon, status: attacker },
+      { trainedPokemon: defenderTrainedPokemon, status: defender },
+    );
+    const attackerAbilityEffect = this.abilityEffectOf(attackerAbilityName);
     // かたやぶり系の特性を持つ場合、防御側の特性効果は無視する（きんしのちからは変化技のときだけ）
     const defenderAbilityEffect =
       defenderAbilityName &&
@@ -912,9 +936,7 @@ export class MoveExecutorService {
         ? AbilityRegistry.get(defenderAbilityName)
         : undefined;
     // ヒットの前後で呼ぶ防御側特性は、かたやぶりでも無視しない（じきゅうりょく・さめはだなど）
-    const defenderEventEffect = defenderAbilityName
-      ? AbilityRegistry.get(defenderAbilityName)
-      : undefined;
+    const defenderEventEffect = this.abilityEffectOf(defenderAbilityName);
 
     // バトルコンテキストを作成（技の特殊効果・特性のフック用）
     const battleContext = this.createHitContext({
@@ -1039,7 +1061,7 @@ export class MoveExecutorService {
     // 技の側の理由で必ず当たるか（どくタイプが使うどくどく）。隠れている相手にも当たる
     const ensuresHit = AccuracyCalculator.alwaysHitsByMoveUser(
       move.name,
-      this.typeNamesOf(attackerTrainedPokemon),
+      battleTypeNamesOf(attackerTrainedPokemon, attacker),
     );
 
     // そらをとぶ・あなをほるなどで隠れている相手には、決まった技しか当たらない（ロックオン中・ノーガードは当たる）
@@ -1164,6 +1186,9 @@ export class MoveExecutorService {
 
     // ダメージ計算の入力（攻撃側・防御側はその時点の最新の状態を使う）
     const typeEffectiveness = await this.typeEffectivenessRepository.getTypeEffectivenessMap();
+    // タイプ一致・相性に使う実効のタイプ（みずびたし・はねやすめ・ハロウィン・フォルムなどを反映）
+    const attackerTypes = await this.typesOf(attackerTrainedPokemon, attacker);
+    const defenderTypes = await this.typesOf(defenderTrainedPokemon, defender);
     const createDamageParams = (
       power: number | null,
       baseDamageRatio?: number,
@@ -1172,14 +1197,8 @@ export class MoveExecutorService {
       defender: updatedDefender,
       move: { power, typeId: moveType.id, category: move.category, accuracy: move.accuracy },
       moveType,
-      attackerTypes: {
-        primary: attackerTrainedPokemon.pokemon.primaryType,
-        secondary: attackerTrainedPokemon.pokemon.secondaryType,
-      },
-      defenderTypes: {
-        primary: defenderTrainedPokemon.pokemon.primaryType,
-        secondary: defenderTrainedPokemon.pokemon.secondaryType,
-      },
+      attackerTypes,
+      defenderTypes,
       typeEffectiveness,
       weather: battleContext.weather ?? null,
       field: battle.field,
@@ -1403,12 +1422,9 @@ export class MoveExecutorService {
     }
 
     // タイプ無効化が発動した場合（ダメージが0の場合）、HP回復などの効果を処理
-    if (damage === 0 && defenderTrainedPokemon?.ability) {
-      const abilityEffect = AbilityRegistry.get(defenderTrainedPokemon.ability.name);
-      if (abilityEffect?.onAfterTakingDamage) {
-        // タイプ無効化が発動したことを示すために、元のダメージとして0を渡す
-        await abilityEffect.onAfterTakingDamage(updatedDefender, 0, battleContext);
-      }
+    if (damage === 0 && defenderEventEffect?.onAfterTakingDamage) {
+      // タイプ無効化が発動したことを示すために、元のダメージとして0を渡す
+      await defenderEventEffect.onAfterTakingDamage(updatedDefender, 0, battleContext);
     }
 
     // 受けた技を記録する（テクスチャー２が読む）
@@ -1862,21 +1878,62 @@ export class MoveExecutorService {
       return false;
     }
     return isGrounded({
-      typeNames: this.typeNamesOf(defenderTrainedPokemon),
-      abilityName: defenderTrainedPokemon.ability?.name,
+      typeNames: battleTypeNamesOf(defenderTrainedPokemon, defender),
+      abilityName: battleContext.defenderAbilityName,
       volatileState: defender.volatileState,
       sideState: battle.sideState,
     });
   }
 
   /**
-   * 育成ポケモンのタイプ名
+   * 実効の特性名（場にいるほかのポケモンのかがくへんかガスも見る）
+   * @param other 場にいるほかのポケモン（シングルバトルでは相手）
    */
-  private typeNamesOf(trainedPokemon: TrainedPokemon): string[] {
-    return [
-      trainedPokemon.pokemon.primaryType.name,
-      trainedPokemon.pokemon.secondaryType?.name,
-    ].filter((name): name is string => name !== undefined);
+  private abilityNameOf(self: BattlePokemonRef, other?: BattlePokemonRef): string | undefined {
+    return battleAbilityNameOf(self.trainedPokemon, self.status, other ? [other] : []);
+  }
+
+  /**
+   * 攻撃側と防御側の実効の特性名
+   */
+  private abilityNamesOf(
+    attacker: BattlePokemonRef,
+    defender: BattlePokemonRef,
+  ): { attackerAbilityName: string | undefined; defenderAbilityName: string | undefined } {
+    return {
+      attackerAbilityName: this.abilityNameOf(attacker, defender),
+      defenderAbilityName: this.abilityNameOf(defender, attacker),
+    };
+  }
+
+  /**
+   * 特性名から特性の効果を引く（特性がなければ undefined）
+   */
+  private abilityEffectOf(abilityName: string | undefined): IAbilityEffect | undefined {
+    return abilityName ? AbilityRegistry.get(abilityName) : undefined;
+  }
+
+  /**
+   * タイプ一致・相性に使う、実効のタイプ（Type）の一覧
+   * もとのタイプと同じ名前ならそのタイプを、ほかはリポジトリから引く。タイプなし（???）はタイプなしのタイプにする
+   */
+  private async typesOf(
+    trainedPokemon: TrainedPokemon,
+    status: BattlePokemonStatus,
+  ): Promise<Type[]> {
+    const baseTypes = [trainedPokemon.pokemon.primaryType, trainedPokemon.pokemon.secondaryType];
+    const types: Type[] = [];
+    for (const name of battleTypeNamesOf(trainedPokemon, status)) {
+      const type =
+        name === TYPELESS_TYPE_NAME
+          ? MoveExecutorService.createTypelessType()
+          : (baseTypes.find(base => base?.name === name) ??
+            (await this.typeEffectivenessRepository.findTypeByName(name)));
+      if (type) {
+        types.push(type);
+      }
+    }
+    return types;
   }
 
   /**
@@ -1986,8 +2043,10 @@ export class MoveExecutorService {
     trace?: MoveTrace;
   }): BattleContext {
     const { battle, move, attacker, defender } = params;
-    const attackerAbilityName = params.attackerTrainedPokemon.ability?.name;
-    const defenderAbilityName = params.defenderTrainedPokemon.ability?.name;
+    const { attackerAbilityName, defenderAbilityName } = this.abilityNamesOf(
+      { trainedPokemon: params.attackerTrainedPokemon, status: attacker },
+      { trainedPokemon: params.defenderTrainedPokemon, status: defender },
+    );
     const context: BattleContext = {
       battle,
       battleRepository: this.battleRepository,
@@ -2004,22 +2063,19 @@ export class MoveExecutorService {
       defenderAbilityName,
       attacker,
       defender,
-      attackerStats: applyStatOverrides(
-        this.calculateStats(params.attackerTrainedPokemon),
-        attacker.volatileState,
-      ),
-      defenderStats: applyStatOverrides(
-        this.calculateStats(params.defenderTrainedPokemon),
-        defender.volatileState,
-      ),
+      attackerStats: battleStatsOf(params.attackerTrainedPokemon, attacker),
+      defenderStats: battleStatsOf(params.defenderTrainedPokemon, defender),
+      attackerTypeNames: battleTypeNamesOf(params.attackerTrainedPokemon, attacker),
+      defenderTypeNames: battleTypeNamesOf(params.defenderTrainedPokemon, defender),
       isLastToMove: params.options.isLastToMove,
       hasRecoil: params.moveEffect?.hasRecoil === true,
       moveId: move.id,
       moveRepository: this.moveRepository,
+      typeEffectivenessRepository: this.typeEffectivenessRepository,
       defenderPendingMoveId: params.options.defenderPendingMoveId,
       calledBy: params.called?.calledBy,
-      attackerEffectiveStatus: this.effectiveStatusOf(attacker, params.attackerTrainedPokemon),
-      defenderEffectiveStatus: this.effectiveStatusOf(defender, params.defenderTrainedPokemon),
+      attackerEffectiveStatus: this.effectiveStatusOf(attacker, attackerAbilityName),
+      defenderEffectiveStatus: this.effectiveStatusOf(defender, defenderAbilityName),
     };
     context.callMove = request =>
       this.executeCalledMove(
@@ -2050,12 +2106,11 @@ export class MoveExecutorService {
    */
   private effectiveStatusOf(
     pokemon: BattlePokemonStatus,
-    trainedPokemon: TrainedPokemon,
+    abilityName: string | undefined,
   ): StatusCondition | null {
     if (isMajorStatus(pokemon.statusCondition)) {
       return pokemon.statusCondition;
     }
-    const abilityName = trainedPokemon.ability?.name;
     return (
       (abilityName ? AbilityRegistry.get(abilityName)?.treatedAsStatusCondition : null) ?? null
     );
@@ -2178,48 +2233,6 @@ export class MoveExecutorService {
   }
 
   /**
-   * TrainedPokemonから実際のステータス値を計算
-   */
-  private calculateStats(trainedPokemon: TrainedPokemon): {
-    attack: number;
-    defense: number;
-    specialAttack: number;
-    specialDefense: number;
-    speed: number;
-  } {
-    const stats = StatCalculator.calculate({
-      baseHp: trainedPokemon.pokemon.baseHp,
-      baseAttack: trainedPokemon.pokemon.baseAttack,
-      baseDefense: trainedPokemon.pokemon.baseDefense,
-      baseSpecialAttack: trainedPokemon.pokemon.baseSpecialAttack,
-      baseSpecialDefense: trainedPokemon.pokemon.baseSpecialDefense,
-      baseSpeed: trainedPokemon.pokemon.baseSpeed,
-      level: trainedPokemon.level,
-      ivHp: trainedPokemon.ivHp,
-      ivAttack: trainedPokemon.ivAttack,
-      ivDefense: trainedPokemon.ivDefense,
-      ivSpecialAttack: trainedPokemon.ivSpecialAttack,
-      ivSpecialDefense: trainedPokemon.ivSpecialDefense,
-      ivSpeed: trainedPokemon.ivSpeed,
-      evHp: trainedPokemon.evHp,
-      evAttack: trainedPokemon.evAttack,
-      evDefense: trainedPokemon.evDefense,
-      evSpecialAttack: trainedPokemon.evSpecialAttack,
-      evSpecialDefense: trainedPokemon.evSpecialDefense,
-      evSpeed: trainedPokemon.evSpeed,
-      nature: trainedPokemon.nature,
-    });
-
-    return {
-      attack: stats.attack,
-      defense: stats.defense,
-      specialAttack: stats.specialAttack,
-      specialDefense: stats.specialDefense,
-      speed: stats.speed,
-    };
-  }
-
-  /**
    * 混乱による自分へのダメージを計算
    * 混乱の自傷ダメージはタイプなしで威力40の物理攻撃として計算
    * 特性のフックは呼ばない（本家の getConfusionDamage と同じく、特性の補正を受けない）
@@ -2233,8 +2246,8 @@ export class MoveExecutorService {
     attacker: BattlePokemonStatus,
     attackerTrainedPokemon: TrainedPokemon,
   ): Promise<number> {
-    // 実際のステータス値を計算
-    const attackerStats = this.calculateStats(attackerTrainedPokemon);
+    // 実際のステータス値を計算（フォルム・パワートリックなどの実数値の上書きを反映）
+    const attackerStats = battleStatsOf(attackerTrainedPokemon, attacker);
 
     // 混乱の自傷ダメージはタイプなしで威力40の物理攻撃
     // タイプなしの技を作成（タイプ相性は1.0倍、タイプ一致もなし）
