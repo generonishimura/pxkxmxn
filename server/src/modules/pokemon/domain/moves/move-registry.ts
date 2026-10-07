@@ -259,6 +259,12 @@ import { FoulPlayEffect } from './effects/foul-play-effect';
 import { ChipAwayEffect } from './effects/chip-away-effect';
 // 相手のランクを奪う技（Issue #129 一部）
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
+// まもる系の技（Issue #107, #108 一部）
+import { DetectEffect } from './effects/detect-effect';
+import { WideGuardEffect } from './effects/wide-guard-effect';
+import { QuickGuardEffect } from './effects/quick-guard-effect';
+import { EndureEffect } from './effects/endure-effect';
+import { BanefulBunkerEffect } from './effects/baneful-bunker-effect';
 
 /**
  * 技のレジストリ
@@ -626,6 +632,12 @@ export class MoveRegistry {
       this.registry.set('ＤＤラリアット', chipAwayEffect);
       // 相手のランクを奪う技（Issue #129 一部）
       this.registry.set('シャドースチール', new SpectralThiefEffect());
+      // まもる系の技（Issue #107, #108 一部）
+      this.registry.set('みきり', new DetectEffect());
+      this.registry.set('ワイドガード', new WideGuardEffect());
+      this.registry.set('ファストガード', new QuickGuardEffect());
+      this.registry.set('こらえる', new EndureEffect());
+      this.registry.set('トーチカ', new BanefulBunkerEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
