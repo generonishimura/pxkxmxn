@@ -1082,7 +1082,7 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 - シグネチャ: `setWeather(ctx, weather, turns = 5): Promise<boolean>`、`setTerrain(ctx, field, turns = 5): Promise<boolean>`、`setPrimalWeather(ctx, holder, kind: 'heavyRain' | 'harshSunlight' | 'strongWinds'): Promise<boolean>`（`pokemon/domain/battle-events/field-state.ts`）。変えたら `true`
 - 呼ばれる場所: 技の `onUse`・特性の `onEntry` / `onDamagingHit` から呼ぶ。`weatherTurns` / `terrainTurns` が 1 のターン終了時に戻すのはエンジン（`FieldResidualProcessor`）
 - 決まり: すでに同じ天候・フィールドなら何もしない。ゲンシ天候の間は `setWeather` が何もしない。`setPrimalWeather` はふつうの天候・別のゲンシ天候を上書きし、`holder` が場を離れたらエンジンが天候を終わらせる
-- 基底クラス: `BaseWeatherMoveEffect`（あまごいなど。ゲンシ天候の間は `But it failed`）、`BaseWeatherEffect`（あめふらしなど）、`BaseTerrainMoveEffect`（エレキフィールドなど）、`BaseFieldEffect`（エレキメイカーなど）、`BasePrimalWeatherEffect`（ゲンシ天候の特性）
+- 基底クラス: `BaseWeatherMoveEffect`（あまごいなど。すでに同じ天候のときとゲンシ天候の間は `But it failed`）、`BaseWeatherEffect`（あめふらしなど）、`BaseTerrainMoveEffect`（エレキフィールドなど。すでに同じフィールドなら `But it failed`）、`BaseFieldEffect`（エレキメイカーなど）、`BasePrimalWeatherEffect`（ゲンシ天候の特性）
 - 使う技・特性: グラスフィールド、さむいギャグ（ゆき。11.5 の `selfSwitch` と一緒に）、はじまりのうみ・おわりのだいち・デルタストリーム
 
 ```ts

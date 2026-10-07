@@ -33,7 +33,7 @@ describe('GrassyTerrainEffect（グラスフィールド）', () => {
     expect(getGlobalFieldState(battle.sideState).terrainTurns).toBe(5);
   });
 
-  it('すでにグラスフィールドなら残りターン数を延ばさない', async () => {
+  it('すでにグラスフィールドなら失敗し、残りターン数を延ばさない', async () => {
     // Arrange
     const { context, get, battleRepository } = createInMemoryBattle();
     await battleRepository.update(1, { field: Field.GrassyTerrain });
@@ -45,6 +45,6 @@ describe('GrassyTerrainEffect（グラスフィールド）', () => {
     // Assert
     const battle = (await battleRepository.findById(1))!;
     expect(getGlobalFieldState(battle.sideState).terrainTurns).toBe(2);
-    expect(message).toBeNull();
+    expect(message).toBe('But it failed');
   });
 });
