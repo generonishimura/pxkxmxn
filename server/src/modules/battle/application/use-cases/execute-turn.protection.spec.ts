@@ -33,6 +33,7 @@ describe('ExecuteTurnUseCase - まもる系', () => {
   const FEINT = createTestMove(7, 'フェイント', { power: 30, priority: 2 });
   const HYPER_DRILL = createTestMove(8, 'ハイパードリル');
   const BIG_TACKLE = createTestMove(9, 'すてみタックル', { power: 300 });
+  const HIGH_JUMP_KICK = createTestMove(10, 'とびひざげり', { type: 'かくとう', power: 130 });
 
   const GUARDS: ReadonlyArray<readonly [number, string, number, ProtectionMoveConfig]> = [
     [20, 'テストのまもる', 4, { kind: 'protect' }],
@@ -61,6 +62,7 @@ describe('ExecuteTurnUseCase - まもる系', () => {
     FEINT,
     HYPER_DRILL,
     BIG_TACKLE,
+    HIGH_JUMP_KICK,
     ...guardMoves,
   ];
 
@@ -82,7 +84,7 @@ describe('ExecuteTurnUseCase - まもる系', () => {
           active: true,
           baseSpeed: options.attackerSpeed ?? 150,
           ability: options.attackerAbility,
-          moveIds: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+          moveIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         },
         {
           id: 2,
@@ -429,6 +431,40 @@ describe('ExecuteTurnUseCase - まもる系', () => {
       // Assert
       expect(engine.status(2).currentHp).toBe(1);
       expect(result.actions[1].result).toContain('endured the hit!');
+    });
+  });
+
+  describe('外したときに自分がダメージを受ける技（とびひざげり）', () => {
+    it.each(['テストのまもる', 'テストのキングシールド'])(
+      '%s に防がれると、使用者は最大 HP の半分のダメージを受ける',
+      async guard => {
+        // Arrange
+        const engine = setup();
+
+        // Act
+        const result = await engine.runTurn(
+          { moveId: HIGH_JUMP_KICK.id },
+          { moveId: guardId(guard) },
+        );
+
+        // Assert
+        expect(engine.status(1).currentHp).toBe(80);
+        expect(engine.status(2).currentHp).toBe(160);
+        expect(result.actions[1].result).toContain('but it was blocked');
+        expect(result.actions[1].result).toContain('kept going and crashed! (80 damage)');
+      },
+    );
+
+    it('防がれなければ、使用者はダメージを受けない', async () => {
+      // Arrange
+      const engine = setup();
+
+      // Act
+      await engine.runTurn({ moveId: HIGH_JUMP_KICK.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(1).currentHp).toBe(160);
+      expect(engine.status(2).currentHp).toBeLessThan(160);
     });
   });
 });

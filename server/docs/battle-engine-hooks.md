@@ -20,7 +20,7 @@
 
 1. ヒット共通のコンテキストを作る（技名・技フラグ・効果のある天候・実数値・無視するランク・`effectivePriority`）
 2. 両者の特性の `preventsMove` で技を失敗させるか判定する（変化技も含む。防御側はかたやぶりで無視）。失敗ならPPだけ減って `Used <技> but it failed (<特性名>)`
-3. 相手のまもる系（13.5）で防ぐかを判定する（相手を対象にする技だけ）。防いだら `Used <技> but it was blocked (<守りの技名>)` で終わる。続けて、マジックコート・マジックミラー（13.6）ではね返すかを判定する
+3. 相手のまもる系（13.5）で防ぐかを判定する（相手を対象にする技だけ）。防いだら技の `onMiss`（とびひざげりなどの自傷）を呼び、`Used <技> but it was blocked (<守りの技名>)` で終わる。続けて、マジックコート・マジックミラー（13.6）ではね返すかを判定する
 4. 防御側特性の `isImmuneToMove` で技そのものを無効にするか判定する（変化技も含む）。無効なら防御側特性の `onMoveBlocked` を呼んで終わり
 5. 技の `shouldFail` で技が失敗するか判定する。失敗ならPPだけ減って `Used <技> but it failed`
 6. 隠れている相手（そらをとぶなど）に届くかの判定と、命中判定（`AccuracyCalculator.checkHit`）。変化技も、相手を対象にする技なら命中判定をする（13.2）。当たったら、フェイントなど（`breaksProtect`）は相手の守りを解く（13.5）。相手のみがわりで、相手を対象にする変化技は失敗する
@@ -1480,7 +1480,7 @@ export class KingsShieldEffect implements IMoveEffect {
 #### 相手の技を防ぐ（findBlockingGuard）
 
 - シグネチャ: `findBlockingGuard({ protection, side, move: { moveName, category, effectivePriority, bypassesProtect? } }): BlockingGuard | undefined`（`battle/domain/logic/protection.ts`）
-- 呼ばれる場所: `MoveExecutorService.runMoveBody`。相手を対象にする技で、特性の `preventsMove`・サイコフィールドのあと、マジックコートと `isImmuneToMove` の前。防いだら `Used <技> but it was blocked (<守りの技名>)` で終わる（PP は減る。outcome は `failed`）
+- 呼ばれる場所: `MoveExecutorService.runMoveBody`。相手を対象にする技で、特性の `preventsMove`・サイコフィールドのあと、マジックコートと `isImmuneToMove` の前。防いだら技の `onMiss` を呼んで、`Used <技> but it was blocked (<守りの技名>) <onMiss のメッセージ>` で終わる（PP は減る。outcome は `failed`）。とびひざげり・とびげりは、外れたときと同じく最大 HP の 1/2 のダメージを受ける（本家の onMoveFail）
 - 判定（本家の onTryHit の順）:
   1. ファストガード: 優先度（`effectivePriority`。いたずらごころを含む）が 1 以上の技（変化技も）
   2. ワイドガード: 相手全体・自分以外全体の技（`MoveBehaviors` の `spread`。じしん・なみのり・なきごえなど）
@@ -1574,6 +1574,7 @@ export class MagicBounceEffect implements IAbilityEffect {
 ### 13.7 近似と注意
 
 - 注: 出し続ける技（あばれるなど）は、まもる系に防がれると止まる（失敗として扱う）。本家は 1 ターン目に防がれたときだけ止まる
+- 注: 技の `onMiss` は、命中判定で外れたときと、まもる系に防がれたときに呼ぶ。タイプ相性で無効化されたとき・特性の `preventsMove` などで失敗したときは呼ばない（とびひざげりがゴーストタイプに無効化されても自傷しない）
 - 注: ふかしのこぶしは、本家と同じくトリックガードを通り抜けない（変化技で接触する技はない）
 - 注: まもる系を続けて使ったときの成功の判定と、たたみがえし・まもる系の「最後に動くなら失敗」は、`Math.random` と `isLastToMove` で判定する（呼ばれた技でも同じ）
 - 注: 決まったダメージを与える技（ちきゅうなげなど）を作るときは、本家と同じく急所にならないようにする必要がある（今のエンジンは、ダメージ計算をする攻撃技すべてで急所を引く）

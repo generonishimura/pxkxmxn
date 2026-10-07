@@ -89,7 +89,7 @@ export interface IMoveEffect {
   ): Promise<string | null>;
 
   /**
-   * 技が外れたときに発動する効果
+   * 技が外れたときに発動する効果（命中判定で外れたときと、相手のまもる系に防がれたとき）
    * @param attacker 攻撃側のポケモン
    * @param defender 防御側のポケモン
    * @param battleContext バトルコンテキスト

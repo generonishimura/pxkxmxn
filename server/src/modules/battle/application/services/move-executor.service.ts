@@ -971,7 +971,11 @@ export class MoveExecutorService {
         battleContext,
       });
       if (blocked) {
-        return blocked;
+        // 防がれた技も失敗なので、とびひざげりなどは自分にダメージを受ける（本家の onMoveFail）
+        const crashMessage = await moveEffect?.onMiss?.(attacker, defender, battleContext);
+        return crashMessage
+          ? { ...blocked, message: `${blocked.message} ${crashMessage}` }
+          : blocked;
       }
     }
 
