@@ -5,40 +5,34 @@ import { BattleContext } from '../../abilities/battle-context.interface';
 /**
  * 「みがわり」の特殊効果実装
  *
- * 効果: 最大HPの1/4を消費してみがわりを作る
- * 注意: 現時点では、BattlePokemonStatusにsubstituteHpフィールドがないため、簡易実装としてHPを消費するのみ
+ * 最大 HP の 1/4（切り捨て）を払って、同じ HP のみがわり（`volatileState.substituteHp`）を作る。
+ * みがわりがダメージを受ける・相手の変化技を防ぐ処理はエンジンが行う（`docs/battle-state.md`）。
+ * すでにみがわりがある・HP が最大 HP の 1/4 以下・最大 HP が 1 なら失敗する（本家と同じ）。
+ * HP を払うのは技以外のダメージではないので、マジックガードでも払う（本家の directDamage）
  */
 export class SubstituteEffect implements IMoveEffect {
-  /**
-   * みがわり作成に必要なHPの割合
-   */
-  private static readonly SUBSTITUTE_HP_RATIO = 0.25;
-
   async onUse(
     attacker: BattlePokemonStatus,
     _defender: BattlePokemonStatus,
     battleContext: BattleContext,
   ): Promise<string | null> {
-    if (!battleContext.battleRepository) {
+    const repository = battleContext.battleRepository;
+    if (!repository) {
       return null;
     }
-
-    // 最大HPの1/4を計算
-    const substituteHp = Math.floor(attacker.maxHp * SubstituteEffect.SUBSTITUTE_HP_RATIO);
-
-    // HPが不足している場合は何もしない
-    if (attacker.currentHp <= substituteHp) {
-      return null;
+    if (
+      attacker.volatileState.substituteHp !== undefined ||
+      attacker.currentHp <= attacker.maxHp / 4 ||
+      attacker.maxHp === 1
+    ) {
+      return 'But it failed';
     }
 
-    // HPを消費
-    const newHp = attacker.currentHp - substituteHp;
-    await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {
-      currentHp: newHp,
+    const substituteHp = Math.floor(attacker.maxHp / 4);
+    await repository.updateBattlePokemonStatus(attacker.id, {
+      currentHp: attacker.currentHp - substituteHp,
     });
-
-    // TODO: BattlePokemonStatusにsubstituteHpフィールドを追加し、みがわりの状態を管理する必要がある
+    await repository.patchVolatileState(attacker.id, { substituteHp });
     return 'The user created a substitute!';
   }
 }
-
