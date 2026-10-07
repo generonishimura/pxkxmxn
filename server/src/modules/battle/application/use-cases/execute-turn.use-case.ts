@@ -66,7 +66,9 @@ export interface ExecuteTurnResult {
     trainerId: number;
     // 'move' | 'switch' | 'turnStart'（ターンの初めの効果。くちばしキャノンの加熱など）|
     // 'futureAttack'（みらいよち・はめつのねがいが当たった。trainerId は技を使ったポケモンのトレーナー）|
-    // 'revive'（さいきのいのりで手持ちが復活した）。技・特性による交代（とんぼがえり・ほえる・ききかいひ）も 'switch'
+    // 'revive'（さいきのいのりで手持ちが復活した）|
+    // 'ability'（ひんしを知った場の特性が発動した。ソウルハートなど。trainerId は特性を持つポケモンのトレーナー）。
+    // 技・特性による交代（とんぼがえり・ほえる・ききかいひ）も 'switch'
     action: string;
     result: string; // 行動結果の説明
   }>;
@@ -177,6 +179,12 @@ export class ExecuteTurnUseCase {
     });
 
     const actionResults: Array<{ trainerId: number; action: string; result: string }> = [];
+    // ひんしを場の特性に知らせたポケモン。ターンの初めにひんしのポケモンは、前のターンに知らせ済み
+    const notifiedFaintIds = new Set(
+      ((await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id)) ?? [])
+        .filter(status => status.isFainted())
+        .map(status => status.id),
+    );
 
     // ターンの初めの効果（くちばしキャノンの加熱など）を行動順に呼ぶ
     for (const action of actions) {
@@ -257,8 +265,9 @@ export class ExecuteTurnUseCase {
           result,
         });
 
-        // 技でひんしになったポケモンによる、ほかのポケモンの状態（逃げられない・バインド・メロメロ）を消す
-        await this.releaseReferencesToFainted(battle.id);
+        // 技・反動・接触特性などでひんしになったことを知らせ、
+        // そのポケモンによる、ほかのポケモンの状態（逃げられない・バインド・メロメロ）を消す
+        await this.processFaints(battle.id, notifiedFaintIds, actionResults);
 
         // 勝敗判定
         const completed = await this.completeIfDecided(battle.id, actionResults);
@@ -270,6 +279,7 @@ export class ExecuteTurnUseCase {
         const completedByPendingSwitch = await this.resolvePendingSwitches(
           battle.id,
           actionResults,
+          notifiedFaintIds,
         );
         if (completedByPendingSwitch) {
           return completedByPendingSwitch;
@@ -295,8 +305,8 @@ export class ExecuteTurnUseCase {
           result: [`Pokemon switched to ID: ${action.switchPokemonId}`, ...entryMessages].join(' '),
         });
 
-        // 設置技でひんしになったポケモンによる状態を消し、最後のポケモンなら勝敗を決める
-        await this.releaseReferencesToFainted(battle.id);
+        // 設置技でひんしになったことを知らせてそのポケモンによる状態を消し、最後のポケモンなら勝敗を決める
+        await this.processFaints(battle.id, notifiedFaintIds, actionResults);
         const completedBySwitch = await this.completeIfDecided(battle.id, actionResults);
         if (completedBySwitch) {
           return completedBySwitch;
@@ -305,6 +315,7 @@ export class ExecuteTurnUseCase {
         const completedByPendingSwitch = await this.resolvePendingSwitches(
           battle.id,
           actionResults,
+          notifiedFaintIds,
         );
         if (completedByPendingSwitch) {
           return completedByPendingSwitch;
@@ -319,6 +330,7 @@ export class ExecuteTurnUseCase {
     for (const { trainerId, message } of futureAttacks) {
       actionResults.push({ trainerId, action: 'futureAttack', result: message });
     }
+    await this.processFaints(battle.id, notifiedFaintIds, actionResults);
     const completedByFutureAttack = await this.completeIfDecided(battle.id, actionResults);
     if (completedByFutureAttack) {
       return completedByFutureAttack;
@@ -332,6 +344,7 @@ export class ExecuteTurnUseCase {
         .map(status => [status.id, status.currentHp] as const),
     );
     await this.statusConditionProcessor.processTurnEndAbilities(battleAtTurnEnd);
+    await this.processFaints(battle.id, notifiedFaintIds, actionResults);
     // ほろびのうた・やどりぎのタネ・のろい・バインドなどで最後のポケモンが倒れたら、ここで勝敗が決まる
     const completedAtTurnEnd = await this.completeIfDecided(battle.id, actionResults);
     if (completedAtTurnEnd) {
@@ -339,7 +352,7 @@ export class ExecuteTurnUseCase {
     }
     // 状態の残りターン数を減らし、このターンだけの状態を消す。
     // 切れる直前の値（1）を読む効果は上のターン終了時の処理で済んでいるので、そのあとで行う
-    await this.settleVolatileStatesAtTurnEnd(battle.id);
+    await this.settleVolatileStatesAtTurnEnd(battle.id, notifiedFaintIds, actionResults);
 
     // ターン終了時の処理が書いた sideState も残すよう、読み直してから減らす（変わったときだけ書く）
     const battleAtTick = await this.findBattle(battle.id);
@@ -352,7 +365,11 @@ export class ExecuteTurnUseCase {
     // 残りターン数を減らしたあとに行うので、出てきたポケモンが出した天候・フィールドは
     // 次のターンの終わりから減る（本家も残りの処理のあとの交代は次のターンから数える）
     await this.pokemonSwitcher.scheduleEmergencyExits(battle.id, hpBeforeTurnEnd);
-    const completedByTurnEndSwitch = await this.resolvePendingSwitches(battle.id, actionResults);
+    const completedByTurnEndSwitch = await this.resolvePendingSwitches(
+      battle.id,
+      actionResults,
+      notifiedFaintIds,
+    );
     if (completedByTurnEndSwitch) {
       return completedByTurnEndSwitch;
     }
@@ -513,13 +530,17 @@ export class ExecuteTurnUseCase {
 
   /**
    * ターン終了時に、場のポケモンの volatileState を片付ける
-   * - ひんしのポケモンを指す、ほかのポケモンの状態を消す（releaseReferencesToFainted）
+   * - ひんしのポケモンを指す、ほかのポケモンの状態を消す（processFaints）
    * - ひんしのポケモンは、すべてのキーを消す（ほろびのうたのカウントやみがわりを持ち越さない）
    * - それ以外は、残りターン数を 1 減らし、このターンだけのフラグを消す
    * 変える所がないポケモンには書き込まない
    */
-  private async settleVolatileStatesAtTurnEnd(battleId: number): Promise<void> {
-    await this.releaseReferencesToFainted(battleId);
+  private async settleVolatileStatesAtTurnEnd(
+    battleId: number,
+    notifiedFaintIds: Set<number>,
+    actionResults: ExecuteTurnResult['actions'],
+  ): Promise<void> {
+    await this.processFaints(battleId, notifiedFaintIds, actionResults);
     const statuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
     for (const status of statuses.filter(s => s.isActive)) {
       if (status.isFainted()) {
@@ -560,6 +581,43 @@ export class ExecuteTurnUseCase {
       actions: actionResults,
       winnerTrainerId: winner,
     };
+  }
+
+  /**
+   * ひんしになったときの処理（技・反動・状態異常・接触特性・設置技など、原因によらずここで行う）
+   * 技・交代・みらいよち・ターン終了時の処理のあとに呼ぶ。何度呼んでも、同じひんしを 2 回知らせない
+   *
+   * 1. 新しくひんしになった場のポケモンごとに、場の特性の onAnyFaint を呼ぶ（ソウルハート。本家の onAnyFaint）。
+   *    メッセージは 'ability' の結果に入れる。知らせたポケモンは notifiedFaintIds に入れ、
+   *    ひんしでなくなった（さいきのいのりで復活した）ポケモンは取り除く
+   * 2. ひんしのポケモンを指している、ほかのポケモンの状態を消す（releaseReferencesToFainted）
+   * @param notifiedFaintIds ひんしを知らせたポケモン（BattlePokemonStatus の ID）。この関数が書き換える
+   */
+  private async processFaints(
+    battleId: number,
+    notifiedFaintIds: Set<number>,
+    actionResults: ExecuteTurnResult['actions'],
+  ): Promise<void> {
+    const statuses =
+      (await this.battleRepository.findBattlePokemonStatusByBattleId(battleId)) ?? [];
+    for (const status of statuses) {
+      if (!status.isFainted()) {
+        notifiedFaintIds.delete(status.id);
+        continue;
+      }
+      if (!status.isActive || notifiedFaintIds.has(status.id)) {
+        continue;
+      }
+      notifiedFaintIds.add(status.id);
+      for (const notice of await this.pokemonSwitcher.notifyFaint(battleId, status)) {
+        actionResults.push({
+          trainerId: notice.trainerId,
+          action: 'ability',
+          result: notice.message,
+        });
+      }
+    }
+    await this.releaseReferencesToFainted(battleId);
   }
 
   /**
@@ -615,6 +673,7 @@ export class ExecuteTurnUseCase {
   private async resolvePendingSwitches(
     battleId: number,
     actionResults: ExecuteTurnResult['actions'],
+    notifiedFaintIds: Set<number>,
   ): Promise<ExecuteTurnResult | undefined> {
     for (let round = 0; round < ExecuteTurnUseCase.MAX_PENDING_SWITCH_ROUNDS; round++) {
       let resolved = false;
@@ -644,7 +703,7 @@ export class ExecuteTurnUseCase {
       if (!resolved) {
         return undefined;
       }
-      await this.releaseReferencesToFainted(battleId);
+      await this.processFaints(battleId, notifiedFaintIds, actionResults);
       const completed = await this.completeIfDecided(battleId, actionResults);
       if (completed) {
         return completed;

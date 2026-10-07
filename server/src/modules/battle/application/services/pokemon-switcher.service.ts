@@ -36,6 +36,7 @@ import { isGrounded } from '../../domain/logic/grounded';
 import { getGlobalFieldState } from '../../domain/state/side-state';
 // タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #110 #114 #119 #135 一部）
 import { resolveBattlePokemonTraits } from '@/modules/pokemon/domain/battle-events/battle-traits';
+import { FaintNotice, notifyFaint } from '@/modules/pokemon/domain/battle-events/faint';
 
 /**
  * 交代のオプション
@@ -104,6 +105,23 @@ export class PokemonSwitcherService {
    */
   async releasePrimalWeatherIfAbilityLost(battleId: number): Promise<void> {
     await this.primalWeatherReleaser.releaseIfAbilityLost(battleId);
+  }
+
+  /**
+   * ポケモンがひんしになったことを、場のひんしでないポケモンの特性（onAnyFaint。ソウルハートなど）に知らせる
+   * ExecuteTurnUseCase が、新しくひんしになったポケモンごとに 1 回だけ呼ぶ（原因・陣営は問わない）
+   * @returns 特性が出したメッセージ
+   */
+  async notifyFaint(battleId: number, fainted: BattlePokemonStatus): Promise<FaintNotice[]> {
+    const battle = await this.battleRepository.findById(battleId);
+    if (!battle) {
+      return [];
+    }
+    return notifyFaint(fainted, {
+      battle,
+      battleRepository: this.battleRepository,
+      trainedPokemonRepository: this.trainedPokemonRepository,
+    });
   }
 
   /**

@@ -352,13 +352,27 @@ async onAfterMoveHit(holder: BattlePokemonStatus, _a: BattlePokemonStatus, hit: 
 
 - シグネチャ: `onKnockOut?(holder, fainted, battleContext): Promise<string | null>`
 - 呼ばれる場所: `executeMove`。技の処理がすべて終わったあと（`onAfterMoveHit` のあと）、相手がひんしで自分がひんしでないとき
-- 使う特性: じしんかじょう、しろのいななき、くろのいななき、ビーストブースト、ソウルハート（近似。7章）
+- 使う特性: じしんかじょう、しろのいななき、くろのいななき、ビーストブースト
 - ビーストブーストの「最も高い能力」は、ランク補正前の実数値 `ctx.attackerStats` から選びます（本家と同じ）。
 
 ```ts
 async onKnockOut(holder: BattlePokemonStatus, _fainted: BattlePokemonStatus, ctx?: BattleContext) {
   if (!ctx) return null;
   return joinStatChangeMessages(await applyStatChanges(holder, [{ statType: 'attack', rankChange: 1 }], ctx, { source: { pokemon: holder, kind: 'ability', name: 'じしんかじょう' } }));
+}
+```
+
+### onAnyFaint（場のどのポケモンでも）
+
+- シグネチャ: `onAnyFaint?(holder, fainted, battleContext): Promise<string | null>`
+- 呼ばれる場所: `ExecuteTurnUseCase.processFaints`。技・交代・みらいよち・ターン終了時の処理のあとに、新しくひんしになった場のポケモンごとに1回、`notifyFaint` が場のひんしでないポケモンの実効の特性を ID の順に呼ぶ。ひんしの原因（自分の技・相手の技・反動・状態異常・さめはだ・設置技など）と陣営は問わない（本家の `onAnyFaint`）
+- メッセージは、特性を持つポケモンのトレーナーの `action: 'ability'` の結果に入ります
+- 使う特性: ソウルハート
+
+```ts
+async onAnyFaint(holder: BattlePokemonStatus, _fainted: BattlePokemonStatus, ctx?: BattleContext) {
+  if (!ctx) return null;
+  return joinStatChangeMessages(await applyStatChanges(holder, [{ statType: 'specialAttack', rankChange: 1 }], ctx, { source: { pokemon: holder, kind: 'ability', name: 'ソウルハート' } }));
 }
 ```
 
@@ -612,7 +626,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - トライアタック（`TriAttackEffect`）・どくのいと（`ToxicThreadEffect`）・サイコシフト（`PsychoShiftEffect`）は `canInflictStatus` / `inflictStatus` に乗せ換え済みです（シンクロ・ふしょく・`onInflictStatus` などが効く）。サイコシフトは相手に移してから使用者を治すので、相手がシンクロでもうつし返されません（本家と同じ）。
 - 接触時の特性（せいでんき・ほのおのからだ・どくのトゲなど、`BaseContactStatusConditionEffect`）で状態異常にされたときもシンクロは発動しますが、`applyContactStatusCondition` は `boolean` しか返せないため、`inflictStatus` のメッセージは捨てています。バトルログには `<特性名> activated!` だけが出て、シンクロで相手も状態異常になったことは表示されません。
 - `onOpponentStatChanged`（びんじょう）の「相手」は、相手が起こした変化ならその相手、技の実行中ならコンテキストの `attacker` / `defender` です。場に出たとき・ターン終了時に相手が自分で上げた変化（ふとうのつるぎなど）では呼ばれません。また本家は行動の終わりにまとめて写しますが、ここではすぐに写します。
-- `onKnockOut` は「自分の技で相手をひんしにした」ときだけです。ソウルハートは本家では誰がひんしになっても発動しますが、ここでは自分の技で倒したときだけになります（反動・状態異常・さめはだで相手が倒れたときは発動しない）。
+- `onAnyFaint`（ソウルハート）は、技の途中ではなく、技・交代・みらいよち・ターン終了時の処理が終わったあとにまとめて呼びます。本家はひんしになったすぐあとに呼びます。そのため、同じ行動の中のメッセージの順番が本家と違うことがあります（ソウルハートのメッセージは、その行動の結果のあとに別の結果として出る）。
 - 場に出たときの特性のコンテキスト（バトル開始時・交代時）には `trainedPokemonRepository` が入ります。いかくに対するクリアボディ・ばんけん・ミラーアーマーなどはこれで判定します。
 - はりこみは、本家では攻撃・特攻を2倍にしますが、ここでは `modifyBasePower` で威力を2倍にします。ダメージ式では威力と攻撃を掛けるので、ほかの威力補正と重なったときの丸め以外は同じ結果になります。
 - はりこみは、ひんしになったポケモンの代わりに出てきたポケモンにも発動します。本家では発動しません（代わりはターンの終わりに出るため）。このエンジンは、ひんしの代わりを次のターンの交代の行動で出し、`switchedInTurn` にそのターンを書きます。交代の処理（`PokemonSwitcherService.executeSwitch`）が「自分で交代したか、ひんしの代わりか」を書かないため、特性からは見分けられません。
@@ -668,7 +682,8 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | びびり | `onDamagingHit`（むし・ゴースト・あくで素早さ+1）+ `onStatChanged`（`source?.name === 'いかく'` で素早さ+1） |
 | せいぎのこころ・じきゅうりょく・みずがため・じょうききかん・わたげ・すなはき・こぼれダネ・ねつこうかん | `onDamagingHit`（タイプは `hit.moveTypeName`。わたげは攻撃側に `applyStatChanges`、すなはき・こぼれダネは天候・フィールドを書き込む） |
 | いかりのこうら・ぎゃくじょう（作成済み） | `onAfterMoveHit`（`hit.hpBefore > maxHp / 2` かつ今のHPが半分以下。ぎゃくじょうは特攻+1を `applyStatChanges` で行う） |
-| じしんかじょう・しろのいななき・くろのいななき・ビーストブースト・ソウルハート | `onKnockOut` |
+| じしんかじょう・しろのいななき・くろのいななき・ビーストブースト | `onKnockOut` |
+| ソウルハート | `onAnyFaint`（原因・陣営を問わず、場のポケモンがひんしになるたびに特攻+1） |
 | はりこみ | `modifyBasePower`（相手の `volatileState.switchedInTurn === battle.turn` なら威力2倍。ボディプレスは対象外。近似は7章） |
 | とうそうしん | `modifyDamageDealt`（`trainedPokemonRepository` で両方の性別を引き、同じなら1.25倍・違えば0.75倍。性別不明なら補正しない。近似は7章） |
 | ダウンロード | `onEntry`（相手のランク込みの防御と特防を比べ、防御が低ければ攻撃+1、そうでなければ特攻+1を `applyStatChanges` で行う。バトル開始時の制限は7章） |

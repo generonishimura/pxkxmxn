@@ -389,6 +389,21 @@ export interface IAbilityEffect {
   ): Promise<string | null>;
 
   /**
+   * 場のどれかのポケモンがひんしになったとき（例: ソウルハート。本家の onAnyFaint）
+   * ひんしの原因（技・反動・状態異常・接触特性など）と陣営は問わない。ExecuteTurnUseCase が、技・交代・
+   * みらいよち・ターン終了時の処理のあとに、新しくひんしになったポケモンごとに notifyFaint で呼ぶ。
+   * 呼ぶのは場のひんしでないポケモンの実効の特性だけ（持ち主がひんしなら呼ばない）
+   * @param holder この特性を持つ、場のポケモン（最新の状態）
+   * @param fainted ひんしになったポケモン
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onAnyFaint?(
+    _holder: BattlePokemonStatus,
+    _fainted: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
    * 攻撃側: 技のタイプを変更する効果（例: うるおいボイス）
    * 技側の modifyMoveType のあとに呼ばれる
    * @param pokemon 攻撃側のポケモン
