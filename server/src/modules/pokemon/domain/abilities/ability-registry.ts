@@ -228,6 +228,12 @@ import { CuteCharmEffect } from './effects/other/cute-charm-effect';
 import { CursedBodyEffect } from './effects/other/cursed-body-effect';
 // 場に出てからのターン数で変わる特性（Issue #135 一部）
 import { SlowStartEffect } from './effects/other/slow-start-effect';
+// 一時的な状態を使う特性（Issue #135 一部）
+import { AromaVeilEffect } from './effects/immunity/aroma-veil-effect';
+import { PoisonPuppeteerEffect } from './effects/other/poison-puppeteer-effect';
+import { GorillaTacticsEffect } from './effects/damage-modify/gorilla-tactics-effect';
+import { ElectromorphosisEffect } from './effects/other/electromorphosis-effect';
+import { WindPowerEffect } from './effects/other/wind-power-effect';
 
 /**
  * 特性レジストリ
@@ -554,6 +560,12 @@ export class AbilityRegistry {
       this.registry.set('のろわれボディ', new CursedBodyEffect());
       // 場に出てからのターン数で変わる特性（Issue #135 一部）
       this.registry.set('スロースタート', new SlowStartEffect());
+      // 一時的な状態を使う特性（Issue #135 一部）
+      this.registry.set('アロマベール', new AromaVeilEffect());
+      this.registry.set('どくくぐつ', new PoisonPuppeteerEffect());
+      this.registry.set('ごりむちゅう', new GorillaTacticsEffect());
+      this.registry.set('でんきにかえる', new ElectromorphosisEffect());
+      this.registry.set('ふうりょくでんき', new WindPowerEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
