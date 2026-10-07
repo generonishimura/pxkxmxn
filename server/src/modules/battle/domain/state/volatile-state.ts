@@ -159,8 +159,13 @@ export type VolatileState = {
   readonly chargingMoveId?: number;
   /** このポケモンが最後に使った技（ものまね・アンコール・かなしばりなどが読む） */
   readonly lastMoveId?: number;
-  /** このポケモンが最後に受けた技（テクスチャー２が読む） */
+  /** このポケモンが最後に受けた技 */
   readonly lastHitByMoveId?: number;
+  /**
+   * このポケモンが最後に使った技の、タイプを変える効果を反映したタイプ名（エンジンが書く。テクスチャー２が読む）
+   * lastMoveId と同じときに書く（呼ばれた技では書かない）。タイプなしの技（わるあがき）は書かない
+   */
+  readonly lastMoveTypeName?: string;
   /**
    * 一時的に入れ替わった技（ものまね・へんしん・かわりもの）
    * 技を選ぶ処理と PP を減らす処理は、BattlePokemonMove より先にここを見る
@@ -240,10 +245,13 @@ export type VolatileState = {
   readonly abilitySuppressed?: boolean;
   /** 特性の上書き（スキルスワップ・なかまづくりなど）。AbilityRegistry のキー */
   readonly abilityOverride?: string;
-  /** タイプの上書き（みずびたし・テクスチャーなど）。Type の ID。空配列はタイプなし */
-  readonly typeOverride?: readonly number[];
-  /** 3 つめに加わったタイプ（ハロウィン・もりののろい）。Type の ID */
-  readonly addedTypeId?: number;
+  /**
+   * タイプの上書き（みずびたし・テクスチャーなど）。タイプ名（Type.name）の配列。
+   * タイプなしは '???'（TYPELESS_TYPE_NAME）で表す。読むときは resolveEffectiveTypeNames を通す
+   */
+  readonly typeOverride?: readonly string[];
+  /** 3 つめに加わったタイプ（ハロウィン・もりののろい）。タイプ名（Type.name） */
+  readonly addedType?: string;
   /** 実数値の上書き */
   readonly statOverrides?: StatOverrides;
   /** へんしん・かわりもので姿を写した相手（BattlePokemonStatus の ID） */
@@ -349,6 +357,7 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   chargingMoveId: positiveInteger,
   lastMoveId: positiveInteger,
   lastHitByMoveId: positiveInteger,
+  lastMoveTypeName: nonEmptyString,
   moveSlotOverrides: arrayOf(moveSlotOverride),
   protectCount: nonNegativeInteger,
   protection: oneOf(PROTECTION_KINDS),
@@ -379,8 +388,8 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   loafing: booleanValue,
   abilitySuppressed: booleanValue,
   abilityOverride: nonEmptyString,
-  typeOverride: arrayOf(positiveInteger),
-  addedTypeId: positiveInteger,
+  typeOverride: arrayOf(nonEmptyString),
+  addedType: nonEmptyString,
   statOverrides,
   transformedIntoStatusId: positiveInteger,
   form: nonEmptyString,
