@@ -17,6 +17,8 @@ import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemo
  *
  * 注: バトル開始時は、トレーナー1の先発が場に出た時点でトレーナー2の先発がまだいないため、
  * トレーナー1の先発のダウンロードは発動しない（いかくと同じエンジンの順番による）
+ * 注: 両方が同時にひんしになったあとの代わりも、先に出た側は、相手の場にまだひんしのポケモンがいるので発動しない。
+ *     本家は両方の代わりが出てから発動する（docs/battle-engine-hooks.md の7章）
  */
 export class DownloadEffect implements IAbilityEffect {
   private static readonly ABILITY_NAME = 'ダウンロード';
