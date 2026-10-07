@@ -511,7 +511,7 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `hitSubstitute` | 技がみがわりに当たった（`afterDamage` の `damage` はみがわりに与えた量） | 技の実行の `afterDamage` |
 | `moveRepository` | 技のリポジトリ（9.4） | 技の実行 |
 | `selfSwitchCancelled` | 技の効果が `true` にすると、技の `selfSwitch` の交代をやめる（11.5） | 技の実行（`onUse`・`onHit`・`afterDamage` で書く） |
-| `attackerFaintedAllyCount` | 攻撃側の、自分以外の手持ちがひんしになった延べ数（11.7） | ダメージ技の実行・ダメージ計算 |
+| `attackerFaintedAllyCount` | 攻撃側の手持ちがひんしになった延べ数（自分が復活した回数も入る。11.7） | ダメージ技の実行・ダメージ計算 |
 
 ### イベントの型（`pokemon/domain/battle-events/`）
 
@@ -1235,7 +1235,8 @@ trapsOpponent(_holder: BattlePokemonStatus, target: TrapTarget): boolean {
 
 - 型・シグネチャ: `battleContext.attackerFaintedAllyCount?: number`、`countFaintedAllies(ctx, holder): Promise<number>`（`pokemon/domain/battle-events/switching.ts`）
 - 入る場所: ダメージ技の実行（`beforeDamage` 以降）と、ダメージ計算の特性フック（`modifyBasePower` など）のコンテキスト
-- 値: 自分以外の手持ちがひんしになった延べ数（今ひんしの仲間の数 + `persistentState.revivalCount`。さいきのいのりで復活しても減らない。本家の `side.totalFainted`）
+- 値: 手持ちがひんしになった延べ数（今ひんしの仲間の数 + 自分を含む手持ちの `persistentState.revivalCount`。さいきのいのりで復活しても減らない。自分が前にひんしになって復活した回数も入る。本家の `side.totalFainted`）
+- 注: 本家は場に出たときの数を覚えておく（`effectState.fallen`）。ここでは技を出すたびに数えるが、シングルバトルでは場にいる間に数が変わらないので同じになる
 - 使う特性: そうだいしょう（`[4096, 4506, 4915, 5325, 5734, 6144][Math.min(5, n)]` を威力に掛ける）
 
 ```ts

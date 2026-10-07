@@ -26,8 +26,9 @@ export const findFaintedPartyMembers = (
   statuses.filter(s => s.trainerId === trainerId && s.isFainted()).sort(byId);
 
 /**
- * 自分以外の手持ちがひんしになった延べ数（そうだいしょう。本家の side.totalFainted）
+ * 手持ちがひんしになった延べ数（そうだいしょう。本家の side.totalFainted）
  * 今ひんしの仲間の数に、さいきのいのりで復活した回数（persistentState.revivalCount）を足す。
+ * 自分が前にひんしになって復活した回数も数える（自分は今ひんしではないので、今のひんしとしては数えない）。
  * 復活しても減らない（復活したポケモンがまたひんしになれば 2 と数える）
  */
 export const countFaintedAllies = (
@@ -38,7 +39,7 @@ export const countFaintedAllies = (
     .filter(s => s.trainerId === holder.trainerId && s.id !== holder.id)
     .reduce(
       (count, s) => count + (s.isFainted() ? 1 : 0) + (s.persistentState.revivalCount ?? 0),
-      0,
+      holder.persistentState.revivalCount ?? 0,
     );
 
 /**

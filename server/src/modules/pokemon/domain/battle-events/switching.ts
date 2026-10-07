@@ -49,7 +49,8 @@ export const hasFaintedPartyMember = async (
   findFaintedPartyMembers(await statusesOf(battleContext), trainerId).length > 0;
 
 /**
- * 自分以外の手持ちがひんしになった延べ数（そうだいしょう。復活しても減らない）
+ * 手持ちがひんしになった延べ数（そうだいしょう。本家の side.totalFainted。復活しても減らない。
+ * 自分が前にひんしになって復活した回数も入る）
  * ダメージ技の中では battleContext.attackerFaintedAllyCount に同じ値が入っている
  */
 export const countFaintedAllies = async (

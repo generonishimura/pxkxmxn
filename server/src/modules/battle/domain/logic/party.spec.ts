@@ -82,5 +82,17 @@ describe('party', () => {
       // Assert
       expect(count).toBe(2);
     });
+
+    it('自分がひんしになって、さいきのいのりで復活した回数も数える（本家の side.totalFainted）', () => {
+      // Arrange
+      const holder = status(1, 1, { active: true, persistent: { revivalCount: 1 } });
+      const statuses = [holder, status(2, 1, { hp: 0 })];
+
+      // Act
+      const count = countFaintedAllies(statuses, holder);
+
+      // Assert
+      expect(count).toBe(2);
+    });
   });
 });

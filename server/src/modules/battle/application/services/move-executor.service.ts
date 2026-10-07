@@ -1005,7 +1005,7 @@ export class MoveExecutorService {
       attackerAbilityEffect?.secondaryEffectChanceMultiplier;
     battleContext.secondaryEffectsSuppressed =
       defenderAbilityEffect?.blocksSecondaryEffects === true;
-    // 自分以外の手持ちがひんしになった延べ数（そうだいしょう）
+    // 手持ちがひんしになった延べ数（そうだいしょう。本家の side.totalFainted）
     battleContext.attackerFaintedAllyCount = countFaintedAllies(
       (await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id)) ?? [],
       attacker,
