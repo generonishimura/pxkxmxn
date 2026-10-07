@@ -267,7 +267,8 @@ export class MoveExecutorService {
    * 6. 技タイプの決定（技の modifyMoveType → 攻撃側特性の modifyMoveType）と、技全体のタイプ相性
    * 7. 技の beforeDamage（連続技の回数決定）。このあと両者の状態を取り直す
    * 8. 技の威力の決定（技の modifyMovePower）
-   * 9. ヒットごとにダメージを適用し（みがわりがあればみがわりに）、防御側特性の onDamagingHit → 攻撃側特性の onSourceDamagingHit を呼ぶ
+   * 9. ヒットごとにダメージを適用し（みがわりがあればみがわりに）、技の onDamagingHit → 防御側特性の onDamagingHit →
+   *    攻撃側特性の onSourceDamagingHit を呼ぶ
    * 10. onHit → afterDamage（合計ダメージ） → 防御側特性の onAfterMoveHit → 攻撃側特性の onKnockOut
    * 11. 倒した相手のみちづれ・おんねん
    *
@@ -1457,11 +1458,14 @@ export class MoveExecutorService {
         hitCount += 1;
       }
 
-      // ヒットごとの特性（防御側の onDamagingHit → 攻撃側の onSourceDamagingHit）。
+      // ヒットごとの技の追加効果と特性（技の onDamagingHit → 防御側の onDamagingHit → 攻撃側の onSourceDamagingHit）。
+      // 本家の spreadMoveHit と同じく、技の追加効果（secondaries）を DamagingHit より先にする。
       // 防いだヒットでも呼ぶ（hit.damage は 0。本家の DamagingHit もダメージ 0 で呼ばれる）
       if (
         (dealtDamage > 0 || blockMessage) &&
-        (defenderEventEffect?.onDamagingHit || attackerAbilityEffect?.onSourceDamagingHit)
+        (moveEffect?.onDamagingHit ||
+          defenderEventEffect?.onDamagingHit ||
+          attackerAbilityEffect?.onSourceDamagingHit)
       ) {
         // 特性で能力ランク・HP・状態異常が変わるため、そのたびに両者の状態を取り直す
         const refreshStatuses = async (): Promise<void> => {
@@ -1475,6 +1479,17 @@ export class MoveExecutorService {
           battleContext.defender = updatedDefender;
         };
         const hit = createHitResult(dealtDamage, hpBeforeHit, hitIndex, isCriticalHit);
+        let moveMessage: string | null = null;
+        if (moveEffect?.onDamagingHit) {
+          moveMessage = await moveEffect.onDamagingHit(
+            currentAttacker,
+            updatedDefender,
+            hit,
+            battleContext,
+          );
+          // 特性に、追加効果で変わったあとの状態を渡す（ダブルニードルのどくなど）
+          await refreshStatuses();
+        }
         let defenderMessage: string | null = null;
         if (defenderEventEffect?.onDamagingHit) {
           defenderMessage = await defenderEventEffect.onDamagingHit(
@@ -1498,7 +1513,7 @@ export class MoveExecutorService {
           await refreshStatuses();
         }
         hitEventMessages.push(
-          ...[defenderMessage, attackerMessage].filter((m): m is string => Boolean(m)),
+          ...[moveMessage, defenderMessage, attackerMessage].filter((m): m is string => Boolean(m)),
         );
       }
 

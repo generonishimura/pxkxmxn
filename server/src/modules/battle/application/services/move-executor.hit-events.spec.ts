@@ -1,6 +1,7 @@
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { MoldBreakerEffect } from '@/modules/pokemon/domain/abilities/effects/mold-breaker-effect';
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
+import { TwineedleEffect } from '@/modules/pokemon/domain/moves/effects/twineedle-effect';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { ATTACKER_ID, DEFENDER_ID, setupMoveExecutor } from './__tests__/move-executor-test-setup';
@@ -268,6 +269,52 @@ describe('MoveExecutorService - ヒットとひんしのイベント', () => {
       expect(message).toBe(
         'Used ほのおのパンチ and dealt 20 damage (hit 2 times) せいでんき activated!',
       );
+    });
+  });
+
+  describe('技の onDamagingHit（ヒットごとの追加効果）', () => {
+    it('ダメージを与えたヒットごとに、防御側特性の onDamagingHit より先に呼ばれる', async () => {
+      // Arrange
+      const calls: string[] = [];
+      const onMoveDamagingHit = jest.fn(
+        async (_attacker: BattlePokemonStatus, _defender: BattlePokemonStatus, hit: HitResult) => {
+          calls.push(`move:${hit.hitIndex}`);
+          return null;
+        },
+      );
+      AbilityRegistry.register('テストじきゅうりょく', {
+        onDamagingHit: async (_holder, _attacker, hit) => {
+          calls.push(`ability:${hit.hitIndex}`);
+          return null;
+        },
+      });
+      const { execute } = setupMoveExecutor({
+        defenderAbility: 'テストじきゅうりょく',
+        moveEffect: { ...twoHits, onDamagingHit: onMoveDamagingHit },
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(calls).toEqual(['move:0', 'ability:0', 'move:1', 'ability:1']);
+      const [attacker, defender] = onMoveDamagingHit.mock.calls[1];
+      expect(attacker.id).toBe(ATTACKER_ID);
+      expect(defender.currentHp).toBe(80);
+    });
+
+    it('ダブルニードル: どくの判定をヒットごとに行う（1回目で外れても2回目でどくにできる）', async () => {
+      // Arrange
+      // 1回目のヒットの判定は 0.5（20% から外れる）、2回目は 0.1（20% に入る）
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.5).mockReturnValueOnce(0.1);
+      const { execute, statuses } = setupMoveExecutor({ moveEffect: new TwineedleEffect() });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(statuses.get(DEFENDER_ID)?.statusCondition).toBe(StatusCondition.Poison);
+      expect(message).toBe('Used ほのおのパンチ and dealt 20 damage (hit 2 times) was poisoned!');
     });
   });
 
