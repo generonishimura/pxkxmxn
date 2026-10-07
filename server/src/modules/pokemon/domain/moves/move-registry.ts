@@ -336,6 +336,10 @@ import { LightScreenEffect } from './effects/light-screen-effect';
 import { MudSportEffect } from './effects/mud-sport-effect';
 import { WaterSportEffect } from './effects/water-sport-effect';
 import { CourtChangeEffect } from './effects/court-change-effect';
+// 陣営にターン数のある状態を張る技（Issue #107, #111 一部）
+import { TailwindEffect } from './effects/tailwind-effect';
+import { AuroraVeilEffect } from './effects/aurora-veil-effect';
+import { LuckyChantEffect } from './effects/lucky-chant-effect';
 
 /**
  * 技のレジストリ
@@ -782,6 +786,10 @@ export class MoveRegistry {
       this.registry.set('どろあそび', new MudSportEffect());
       this.registry.set('みずあそび', new WaterSportEffect());
       this.registry.set('コートチェンジ', new CourtChangeEffect());
+      // 陣営にターン数のある状態を張る技（Issue #107, #111 一部）
+      this.registry.set('おいかぜ', new TailwindEffect());
+      this.registry.set('オーロラベール', new AuroraVeilEffect());
+      this.registry.set('おまじない', new LuckyChantEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,

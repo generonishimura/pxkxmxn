@@ -241,6 +241,9 @@ import { PrimordialSeaEffect } from './effects/weather/primordial-sea-effect';
 import { DesolateLandEffect } from './effects/weather/desolate-land-effect';
 import { DeltaStreamEffect } from './effects/weather/delta-stream-effect';
 import { SupremeOverlordEffect } from './effects/damage-modify/supreme-overlord-effect';
+// 陣営の守りに関わる特性（Issue #135 一部）
+import { InfiltratorEffect } from './effects/other/infiltrator-effect';
+import { ScreenCleanerEffect } from './effects/other/screen-cleaner-effect';
 
 /**
  * 特性レジストリ
@@ -580,6 +583,9 @@ export class AbilityRegistry {
       this.registry.set('おわりのだいち', new DesolateLandEffect());
       this.registry.set('デルタストリーム', new DeltaStreamEffect());
       this.registry.set('そうだいしょう', new SupremeOverlordEffect());
+      // 陣営の守りに関わる特性（Issue #135 一部）
+      this.registry.set('すりぬけ', new InfiltratorEffect());
+      this.registry.set('バリアフリー', new ScreenCleanerEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

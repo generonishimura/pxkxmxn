@@ -104,4 +104,41 @@ describe('WindRiderEffect（かぜのり）', () => {
       expect(message).toBeNull();
     });
   });
+
+  describe('onEntry', () => {
+    it('自分の陣営においかぜが吹いている中で場に出たら、攻撃を1段階上げる', async () => {
+      // Arrange
+      const { context, get, battleRepository } = createInMemoryBattle({}, { ability: 'かぜのり' });
+      await battleRepository.patchSideConditions(1, 2, { tailwindTurns: 3 });
+
+      // Act
+      await new WindRiderEffect().onEntry(get(2), context());
+
+      // Assert
+      expect(get(2).attackRank).toBe(1);
+    });
+
+    it('相手の陣営にだけおいかぜが吹いているときは上げない', async () => {
+      // Arrange
+      const { context, get, battleRepository } = createInMemoryBattle({}, { ability: 'かぜのり' });
+      await battleRepository.patchSideConditions(1, 1, { tailwindTurns: 3 });
+
+      // Act
+      await new WindRiderEffect().onEntry(get(2), context());
+
+      // Assert
+      expect(get(2).attackRank).toBe(0);
+    });
+
+    it('おいかぜが吹いていなければ上げない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({}, { ability: 'かぜのり' });
+
+      // Act
+      await new WindRiderEffect().onEntry(get(2), context());
+
+      // Assert
+      expect(get(2).attackRank).toBe(0);
+    });
+  });
 });
