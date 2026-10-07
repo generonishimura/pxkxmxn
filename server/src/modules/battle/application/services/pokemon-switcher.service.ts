@@ -22,6 +22,7 @@ import {
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { NotFoundException } from '@/shared/domain/exceptions';
 // 場の状態・設置技・交代の仕組み（Issue #102 #103 #108 #110 #135 一部）
 import { PrimalWeatherReleaser } from './primal-weather-releaser';
@@ -31,6 +32,8 @@ import {
   TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
 } from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { crossesHalfHp, findSwitchTargets } from '../../domain/logic/party';
+import { isGrounded } from '../../domain/logic/grounded';
+import { getGlobalFieldState } from '../../domain/state/side-state';
 
 /**
  * 交代のオプション
@@ -95,16 +98,27 @@ export class PokemonSwitcherService {
 
   /**
    * 交代できない理由を返す（交代できるなら undefined）
-   * ねをはる・逃げられない状態・バインド状態を見る。ゴーストタイプは、どれでも交代できる。
-   * かけたポケモンがひんし・場にいない、逃げられない状態とバインド状態は見ない
+   * ねをはる・逃げられない状態・バインド状態・相手の特性（trapsOpponent）・フェアリーロックを見る。
+   * ゴーストタイプは、どれでも交代できる。かけたポケモンがひんし・場にいない、逃げられない状態とバインド状態は見ない
    * @param active 交代しようとしている場のポケモン
+   * @param opponent 相手の場のポケモン（ひんしなら特性で逃げられなくしない）
+   * @param battle バトル（フェアリーロック）
    */
-  async findSwitchBlocker(active: BattlePokemonStatus): Promise<SwitchBlocker | undefined> {
+  async findSwitchBlocker(
+    active: BattlePokemonStatus,
+    opponent?: BattlePokemonStatus,
+    battle?: Battle,
+  ): Promise<SwitchBlocker | undefined> {
     const state = active.volatileState;
+    const fairyLock =
+      battle !== undefined && getGlobalFieldState(battle.sideState).fairyLockTurns !== undefined;
+    const opponentAbility = await this.findTrappingAbility(opponent);
     if (
       state.ingrain === undefined &&
       state.trappedByStatusId === undefined &&
-      state.partialTrap === undefined
+      state.partialTrap === undefined &&
+      !fairyLock &&
+      !opponentAbility
     ) {
       return undefined;
     }
@@ -113,7 +127,50 @@ export class PokemonSwitcherService {
       trainedPokemon?.pokemon.primaryType.name,
       trainedPokemon?.pokemon.secondaryType?.name,
     ].filter((name): name is string => name !== undefined);
-    return findSwitchBlocker(await this.withoutReleasedTraps(state), typeNames);
+    const abilityName = trainedPokemon?.ability?.name;
+    const trappedByAbility =
+      opponent !== undefined &&
+      opponentAbility?.trapsOpponent?.(
+        opponent,
+        {
+          pokemon: active,
+          typeNames,
+          abilityName,
+          grounded: isGrounded({
+            typeNames,
+            abilityName,
+            volatileState: state,
+            sideState: battle?.sideState,
+          }),
+        },
+        battle
+          ? {
+              battle,
+              battleRepository: this.battleRepository,
+              trainedPokemonRepository: this.trainedPokemonRepository,
+            }
+          : undefined,
+      ) === true;
+    return findSwitchBlocker(await this.withoutReleasedTraps(state), typeNames, {
+      trappedByAbility,
+      fairyLock,
+    });
+  }
+
+  /**
+   * 相手の場のポケモンの、逃げられなくする特性（trapsOpponent を持つ特性）
+   * 相手がいない・ひんし・特性が消されている（いえき）ときは undefined
+   */
+  private async findTrappingAbility(
+    opponent: BattlePokemonStatus | undefined,
+  ): Promise<IAbilityEffect | undefined> {
+    if (!opponent || opponent.isFainted() || opponent.volatileState.abilitySuppressed === true) {
+      return undefined;
+    }
+    const trainedPokemon = await this.trainedPokemonRepository.findById(opponent.trainedPokemonId);
+    const abilityName = trainedPokemon?.ability?.name;
+    const effect = abilityName ? AbilityRegistry.get(abilityName) : undefined;
+    return effect?.trapsOpponent ? effect : undefined;
   }
 
   /**

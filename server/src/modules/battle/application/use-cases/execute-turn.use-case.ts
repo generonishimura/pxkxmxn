@@ -368,7 +368,8 @@ export class ExecuteTurnUseCase {
    * 一時的な状態から、このターンの行動を決める
    *
    * 1. 反動・ため技の 2 ターン目・出し続ける技（resolveForcedAction）: 選んだ行動にかかわらず、その技を出す（交代もできない）
-   * 2. 交代: ねをはる・逃げられない状態・バインド状態なら交代できない（ゴーストタイプは交代できる）
+   * 2. 交代: ねをはる・逃げられない状態・バインド状態・相手の特性（かげふみなど）・フェアリーロックなら
+   *    交代できない（ゴーストタイプは交代できる）
    * 3. 技: アンコール中はアンコールされた技を出す（その技の PP が 0 ならアンコールが解ける）。
    *    技の欄は、ものまねなどで入れ替わった技（moveSlotOverrides）を先に見る。
    *    PP がない・技の制限で出せない技を選び、ほかに出せる技もないときは、わるあがきを出す
@@ -395,7 +396,7 @@ export class ExecuteTurnUseCase {
     }
 
     if (action.switchPokemonId) {
-      const blocker = await this.pokemonSwitcher.findSwitchBlocker(active);
+      const blocker = await this.pokemonSwitcher.findSwitchBlocker(active, opponent, battle);
       return blocker ? { action, failure: switchBlockedMessage(blocker) } : { action };
     }
     if (!action.moveId) {

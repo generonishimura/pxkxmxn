@@ -45,4 +45,42 @@ describe('findSwitchBlocker（交代できない理由）', () => {
     expect(switchBlockedMessage('trapped')).toBe('Cannot switch out because it is trapped');
     expect(switchBlockedMessage('ingrain')).toBe('Cannot switch out because of its roots');
   });
+
+  it('相手の特性で逃げられない（かげふみ・ありじごく・じりょく）なら trappingAbility', () => {
+    // Act
+    const blocker = findSwitchBlocker({}, ['はがね'], { trappedByAbility: true });
+
+    // Assert
+    expect(blocker).toBe('trappingAbility');
+  });
+
+  it('フェアリーロックの間は fairyLock で交代できない', () => {
+    // Act
+    const blocker = findSwitchBlocker({}, ['ノーマル'], { fairyLock: true });
+
+    // Assert
+    expect(blocker).toBe('fairyLock');
+  });
+
+  it('ゴーストタイプは、相手の特性やフェアリーロックでも交代できる', () => {
+    // Act
+    const blocker = findSwitchBlocker({}, ['ゴースト'], {
+      trappedByAbility: true,
+      fairyLock: true,
+    });
+
+    // Assert
+    expect(blocker).toBeUndefined();
+  });
+
+  it('特性・フェアリーロックで交代できないときも、逃げられないというメッセージ', () => {
+    // Act
+    const messages = [switchBlockedMessage('trappingAbility'), switchBlockedMessage('fairyLock')];
+
+    // Assert
+    expect(messages).toEqual([
+      'Cannot switch out because it is trapped',
+      'Cannot switch out because it is trapped',
+    ]);
+  });
 });

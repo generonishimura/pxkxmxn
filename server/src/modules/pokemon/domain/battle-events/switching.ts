@@ -12,6 +12,20 @@ import { BattleContext } from '../abilities/battle-context.interface';
  * 交代そのものはエンジン（ExecuteTurnUseCase）が、行動のすぐあとに行う
  */
 
+/**
+ * 逃げられなくする特性（trapsOpponent）に渡す、交代しようとしている相手の情報
+ */
+export interface TrapTarget {
+  /** 交代しようとしている相手 */
+  readonly pokemon: BattlePokemonStatus;
+  /** 相手のタイプ名（じりょく: はがねタイプか） */
+  readonly typeNames: readonly string[];
+  /** 相手の特性名（かげふみ: 相手もかげふみなら逃げられる） */
+  readonly abilityName?: string;
+  /** 相手が地面にいるか（ありじごく） */
+  readonly grounded: boolean;
+}
+
 const statusesOf = async (battleContext: BattleContext): Promise<BattlePokemonStatus[]> =>
   (await battleContext.battleRepository?.findBattlePokemonStatusByBattleId(
     battleContext.battle.id,

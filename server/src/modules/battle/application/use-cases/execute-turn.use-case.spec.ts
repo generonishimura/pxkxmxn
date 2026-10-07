@@ -425,11 +425,10 @@ describe('ExecuteTurnUseCase', () => {
       moveRepository.findById.mockResolvedValue(move);
       // getEffectiveSpeedで使用
       // executeMoveで命中率判定のためにTrainedPokemonを取得
-      trainedPokemonRepository.findById
-        .mockResolvedValueOnce(trainedPokemon1) // trainer1の速度計算
-        .mockResolvedValueOnce(trainedPokemon3) // trainer2の速度計算
-        .mockResolvedValueOnce(trainedPokemon3) // executeMoveでtrainer2取得（attacker）
-        .mockResolvedValueOnce(trainedPokemon1); // executeMoveでtrainer1取得（defender）
+      // trainer2 のポケモン（300）以外は trainedPokemon1 を返す（交代先・交代の制限の判定でも引く）
+      trainedPokemonRepository.findById.mockImplementation((id: number) =>
+        Promise.resolve(id === 300 ? trainedPokemon3 : trainedPokemon1),
+      );
       const typeEffectivenessMap = new Map<string, number>();
       typeEffectivenessMap.set('1-1', 1.0);
       typeEffectivenessMap.set('1-', 1.0);

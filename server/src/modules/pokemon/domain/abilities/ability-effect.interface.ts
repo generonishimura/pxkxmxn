@@ -9,6 +9,7 @@ import type { StatChange } from '../battle-events/stat-change';
 import type { VolatileKind } from '../battle-events/volatile-infliction';
 // 場の状態・設置技・交代の仕組み（Issue #102 #103 #135 一部）
 import type { PrimalWeather } from '@/modules/battle/domain/state/side-state';
+import type { TrapTarget } from '../battle-events/switching';
 
 /**
  * 特性効果のインターフェース
@@ -674,4 +675,19 @@ export interface IAbilityEffect {
    * 半分以下になったときに pendingChoice（emergencyExit）を書き、すぐに交代させる
    */
   readonly switchesOutBelowHalfHp?: boolean;
+
+  /**
+   * 相手を逃げられなくするか（例: かげふみ、ありじごく、じりょく）
+   * 相手が交代を選んだとき、ExecuteTurnUseCase（PokemonSwitcherService.findSwitchBlocker）が場の相手の特性として呼ぶ。
+   * ゴーストタイプの相手は、true を返しても交代できる（エンジンが判定する）。持ち主がひんしのときは呼ばない。
+   * とんぼがえり・ほえるなどの交代は止めない
+   * @param holder この特性を持つポケモン
+   * @param target 交代しようとしている相手（タイプ・特性・地面にいるか）
+   * @returns 逃げられなくするなら true
+   */
+  trapsOpponent?(
+    _holder: BattlePokemonStatus,
+    _target: TrapTarget,
+    _battleContext?: BattleContext,
+  ): boolean | undefined;
 }
