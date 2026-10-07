@@ -79,16 +79,16 @@ describe('ExecuteTurnUseCase - フォルムを変える特性', () => {
     expect(engine.status(1).volatileState.form).toBe('zen');
   });
 
-  it('リミットシールドのメテノは、りゅうせいのすがたの間、でんじはでまひにならない', async () => {
+  it('リミットシールドのメテノは、場に出てりゅうせいのすがたになったあと、でんじはでまひにならない', async () => {
     // Arrange
     const engine = createBattleEngine({
       moves: MOVES,
       pokemon: [
         { id: 1, trainerId: 1, active: true, moveIds: MOVE_IDS },
+        { id: 2, trainerId: 2, active: true, moveIds: MOVE_IDS, baseSpeed: 50 },
         {
-          id: 2,
+          id: 3,
           trainerId: 2,
-          active: true,
           moveIds: MOVE_IDS,
           baseSpeed: 50,
           ability: 'リミットシールド',
@@ -97,12 +97,14 @@ describe('ExecuteTurnUseCase - フォルムを変える特性', () => {
         },
       ],
     });
+    await engine.runTurn({ moveId: SPLASH.id }, { switchPokemonId: 3 });
 
     // Act
     await engine.runTurn({ moveId: THUNDER_WAVE.id }, { moveId: SPLASH.id });
 
     // Assert
-    expect(engine.status(2).statusCondition).toBe(StatusCondition.None);
+    expect(engine.status(3).volatileState.form).toBe('meteor');
+    expect(engine.status(3).statusCondition).toBe(StatusCondition.None);
   });
 
   it('ぎょぐんのヨワシは、交代で場に出たときに HP が 1/4 より上ならむれたすがたになる', async () => {

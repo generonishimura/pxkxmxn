@@ -29,7 +29,7 @@ describe('ShieldsDownEffect（リミットシールド）', () => {
       expect(get(1).volatileState.form).toBe('core');
     });
 
-    it('場に出たときに HP が半分より上なら、りゅうせいのすがたのまま', async () => {
+    it('場に出たときに HP が半分より上なら、りゅうせいのすがたになる', async () => {
       // Arrange
       const { context, get } = createInMemoryBattle({
         nationalDex: MINIOR,
@@ -40,7 +40,7 @@ describe('ShieldsDownEffect（リミットシールド）', () => {
       await effect.onEntry(get(1), context());
 
       // Assert
-      expect(get(1).volatileState.form).toBeUndefined();
+      expect(get(1).volatileState.form).toBe('meteor');
     });
 
     it('ターン終了時に HP が半分以下なら、コアのすがたになる', async () => {
@@ -68,7 +68,7 @@ describe('ShieldsDownEffect（リミットシールド）', () => {
       await effect.onTurnEnd(get(1), context());
 
       // Assert
-      expect(get(1).volatileState.form).toBeUndefined();
+      expect(get(1).volatileState.form).toBe('meteor');
     });
 
     it('メテノでなければ、フォルムは変わらない', async () => {
@@ -96,7 +96,10 @@ describe('ShieldsDownEffect（リミットシールド）', () => {
       StatusCondition.Freeze,
     ])('りゅうせいのすがたなら、%s にならない', status => {
       // Arrange
-      const { get } = createInMemoryBattle({ nationalDex: MINIOR });
+      const { get } = createInMemoryBattle({
+        nationalDex: MINIOR,
+        status: { volatileState: { form: 'meteor' } },
+      });
 
       // Act
       const result = effect.canReceiveStatusCondition(get(1), status);
@@ -119,6 +122,31 @@ describe('ShieldsDownEffect（リミットシールド）', () => {
       expect(result).toBeUndefined();
     });
 
+    it('場に出たばかりでフォルムが決まっていない間は、コアのすがたとして状態異常を防がない', () => {
+      // Arrange
+      const { get } = createInMemoryBattle({
+        nationalDex: MINIOR,
+        status: { currentHp: 100, maxHp: 100 },
+      });
+
+      // Act
+      const result = effect.canReceiveStatusCondition(get(1), StatusCondition.Poison);
+
+      // Assert
+      expect(result).toBeUndefined();
+    });
+
+    it('場に出たばかりでフォルムが決まっていない間は、あくびを防がない', () => {
+      // Arrange
+      const { get } = createInMemoryBattle({ nationalDex: MINIOR });
+
+      // Act
+      const result = effect.canReceiveVolatile(get(1), 'yawn');
+
+      // Assert
+      expect(result).toBeUndefined();
+    });
+
     it('こんらんは防がない', () => {
       // Arrange
       const { get } = createInMemoryBattle({ nationalDex: MINIOR });
@@ -134,7 +162,7 @@ describe('ShieldsDownEffect（リミットシールド）', () => {
       // Arrange
       const { get } = createInMemoryBattle({
         nationalDex: MINIOR,
-        status: { volatileState: { transformedIntoStatusId: 2 } },
+        status: { volatileState: { form: 'meteor', transformedIntoStatusId: 2 } },
       });
 
       // Act
@@ -146,7 +174,10 @@ describe('ShieldsDownEffect（リミットシールド）', () => {
 
     it('りゅうせいのすがたなら、あくびを受けない', () => {
       // Arrange
-      const { get } = createInMemoryBattle({ nationalDex: MINIOR });
+      const { get } = createInMemoryBattle({
+        nationalDex: MINIOR,
+        status: { volatileState: { form: 'meteor' } },
+      });
 
       // Act
       const result = effect.canReceiveVolatile(get(1), 'yawn');
@@ -170,7 +201,11 @@ describe('ShieldsDownEffect（リミットシールド）', () => {
       // Arrange
       const { context, get } = createInMemoryBattle(
         { ability: 'かたやぶり' },
-        { ability: 'リミットシールド', nationalDex: MINIOR },
+        {
+          ability: 'リミットシールド',
+          nationalDex: MINIOR,
+          status: { volatileState: { form: 'meteor' } },
+        },
       );
 
       // Act
@@ -186,7 +221,11 @@ describe('ShieldsDownEffect（リミットシールド）', () => {
       // Arrange
       const { context, get } = createInMemoryBattle(
         { ability: 'かたやぶり' },
-        { ability: 'リミットシールド', nationalDex: MINIOR },
+        {
+          ability: 'リミットシールド',
+          nationalDex: MINIOR,
+          status: { volatileState: { form: 'meteor' } },
+        },
       );
 
       // Act
