@@ -8,7 +8,8 @@ import { EntryHazard, addEntryHazard } from '../../../battle-events/field-state'
  * （まきびし・どくびし・ステルスロック・ねばねばネット）
  *
  * 相手（defender）の陣営に addEntryHazard で置く。上限（まきびし 3 層・どくびし 2 層・ほかは 1 つ）なら失敗する。
- * 場に出たポケモンへの効果（ダメージ・どく・素早さ -1）と、マジックミラーで跳ね返すのはエンジンが行う
+ * 場に出たポケモンへの効果（ダメージ・どく・素早さ -1）と、マジックコート・マジックミラーではね返すのはエンジンが行う
+ * （はね返すのは MoveExecutorService。設置技は MoveBehaviors の reflectable）
  */
 export abstract class BaseEntryHazardMoveEffect implements IMoveEffect {
   /**
