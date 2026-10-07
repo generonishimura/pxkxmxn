@@ -204,6 +204,10 @@ import { ContraryEffect } from './effects/stat-change/contrary-effect';
 import { MirrorArmorEffect } from './effects/stat-change/mirror-armor-effect';
 import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
+// フォルムを変える特性: はらぺこスイッチ・マイティチェンジ・テラスチェンジ（Issue #135 一部）
+import { HungerSwitchEffect } from './effects/other/hunger-switch-effect';
+import { ZeroToHeroEffect } from './effects/other/zero-to-hero-effect';
+import { TeraShiftEffect } from './effects/other/tera-shift-effect';
 
 /**
  * 特性レジストリ
@@ -506,6 +510,10 @@ export class AbilityRegistry {
       this.registry.set('ミラーアーマー', new MirrorArmorEffect());
       this.registry.set('ばんけん', new GuardDogEffect());
       this.registry.set('びんじょう', new OpportunistEffect());
+      // フォルムを変える特性: はらぺこスイッチ・マイティチェンジ・テラスチェンジ（Issue #135 一部）
+      this.registry.set('はらぺこスイッチ', new HungerSwitchEffect());
+      this.registry.set('マイティチェンジ', new ZeroToHeroEffect());
+      this.registry.set('テラスチェンジ', new TeraShiftEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
