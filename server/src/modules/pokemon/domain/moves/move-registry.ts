@@ -259,6 +259,9 @@ import { FoulPlayEffect } from './effects/foul-play-effect';
 import { ChipAwayEffect } from './effects/chip-away-effect';
 // 相手のランクを奪う技（Issue #129 一部）
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
+// 急所ランクを上げる技（Issue #111 一部）
+import { FocusEnergyEffect } from './effects/focus-energy-effect';
+import { LaserFocusEffect } from './effects/laser-focus-effect';
 
 /**
  * 技のレジストリ
@@ -626,6 +629,9 @@ export class MoveRegistry {
       this.registry.set('ＤＤラリアット', chipAwayEffect);
       // 相手のランクを奪う技（Issue #129 一部）
       this.registry.set('シャドースチール', new SpectralThiefEffect());
+      // 急所ランクを上げる技（Issue #111 一部）
+      this.registry.set('きあいだめ', new FocusEnergyEffect());
+      this.registry.set('とぎすます', new LaserFocusEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
