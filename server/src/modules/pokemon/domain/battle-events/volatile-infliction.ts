@@ -48,6 +48,7 @@ export const VOLATILE_KIND_KEYS = {
   laserFocus: 'laserFocusTurns', // とぎすます
   // 急所ランク・まもる系の仕組み（Issue #107 #111 一部）
   focusEnergy: 'critStageBoost', // きあいだめ
+  magicCoat: 'magicCoat', // マジックコート
 } as const satisfies Readonly<Record<string, keyof VolatileState>>;
 
 /**

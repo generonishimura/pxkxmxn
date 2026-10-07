@@ -115,6 +115,8 @@ interface CalledMoveInfo {
   readonly isFutureAttack?: boolean;
   /** 使用者が自分で出したのと同じに扱う（PP を減らし、使用者の記録を書く。さいはいの consumePp） */
   readonly actsAsOwnMove?: boolean;
+  /** マジックコート・マジックミラーではね返した技（もう一度はね返さない） */
+  readonly bounced?: boolean;
 }
 
 /**
@@ -703,6 +705,8 @@ export class MoveExecutorService {
       readonly trace?: MoveTrace;
       /** 呼んだ技の行動順の情報（同じポケモンが同じ相手に出すときだけ、呼ばれた技に渡す） */
       readonly options?: ExecuteMoveOptions;
+      /** マジックコート・マジックミラーではね返した技 */
+      readonly bounced?: boolean;
     } = {},
   ): Promise<string> {
     const depth = caller.depth ?? 1;
@@ -812,6 +816,7 @@ export class MoveExecutorService {
         powerMultiplier: request.powerMultiplier,
         depth,
         actsAsOwnMove: request.consumePp === true,
+        bounced: caller.bounced,
       },
       trace: caller.trace,
     });
@@ -968,6 +973,28 @@ export class MoveExecutorService {
       if (blocked) {
         return blocked;
       }
+    }
+
+    // マジックコート・マジックミラー: はね返せる技を、相手が使用者に出し直す（本家の onTryHit。はね返した技は返さない）
+    const reflector = this.findMoveReflector({
+      move,
+      attacker,
+      defender,
+      defenderAbilityEffect,
+      called,
+    });
+    if (reflector) {
+      const reflectedMessage = await this.executeCalledMove(
+        battle,
+        attacker,
+        defender,
+        { moveId: move.id, calledBy: reflector, user: defender, target: attacker },
+        { depth: (called?.depth ?? 0) + 1, trace: params.trace, bounced: true },
+      );
+      return {
+        message: `Used ${move.name} but it was bounced back (${reflector})! ${reflectedMessage}`,
+        outcome: 'failed',
+      };
     }
 
     // 技そのものの無効化（ぼうおん・ぼうだんなど）。変化技も含め、命中判定の前に判定する
@@ -1498,6 +1525,34 @@ export class MoveExecutorService {
       outcome: damage > 0 ? 'hit' : 'failed',
       moveTypeName: moveType.name,
     };
+  }
+
+  /**
+   * 技をはね返すもの（マジックコート・マジックミラー）を探す
+   * はね返せる技（MoveBehaviors の reflectable。相手の陣営に置く技を含む）で、相手が自分ではなく、
+   * はね返した技でなく、相手が隠れていない（そらをとぶなど）とき、相手の volatileState.magicCoat か、
+   * 相手の特性の bouncesMoves（かたやぶりで無視された特性なら見ない）があれば、その名前を返す
+   */
+  private findMoveReflector(params: {
+    move: Move;
+    attacker: BattlePokemonStatus;
+    defender: BattlePokemonStatus;
+    defenderAbilityEffect: IAbilityEffect | undefined;
+    called: CalledMoveInfo | undefined;
+  }): string | undefined {
+    const { move, attacker, defender } = params;
+    if (
+      !MoveBehaviors.has(move.name, 'reflectable') ||
+      attacker.id === defender.id ||
+      params.called?.bounced === true ||
+      defender.volatileState.semiInvulnerable !== undefined
+    ) {
+      return undefined;
+    }
+    if (defender.volatileState.magicCoat === true) {
+      return 'マジックコート';
+    }
+    return params.defenderAbilityEffect?.bouncesMoves === true ? 'マジックミラー' : undefined;
   }
 
   /**

@@ -771,4 +771,12 @@ export interface IAbilityEffect {
     _holder: BattlePokemonStatus,
     _battleContext?: BattleContext,
   ): boolean | undefined;
+  // ---- 技をはね返す（Issue #135 一部） ----
+
+  /**
+   * 防御側: はね返せる技（MoveBehaviors の reflectable）を、使用者に返す特性かどうか（例: マジックミラー）
+   * MoveExecutorService が、まもる系の判定のあと・特性の無効化の前に参照する。かたやぶりで無視される。
+   * 返した技は、この特性を持つポケモンが元の使用者に出す（はね返した技は、もう一度はね返されない）
+   */
+  readonly bouncesMoves?: boolean;
 }
