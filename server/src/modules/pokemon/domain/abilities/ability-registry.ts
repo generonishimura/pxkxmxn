@@ -268,6 +268,12 @@ import { MummyEffect } from './effects/other/mummy-effect';
 import { LingeringAromaEffect } from './effects/other/lingering-aroma-effect';
 import { WanderingSpiritEffect } from './effects/other/wandering-spirit-effect';
 import { NeutralizingGasEffect } from './effects/other/neutralizing-gas-effect';
+// フォルムを変える特性（Issue #135 一部）
+import { ForecastEffect } from './effects/form-change/forecast-effect';
+import { ZenModeEffect } from './effects/form-change/zen-mode-effect';
+import { StanceChangeEffect } from './effects/form-change/stance-change-effect';
+import { ShieldsDownEffect } from './effects/form-change/shields-down-effect';
+import { SchoolingEffect } from './effects/form-change/schooling-effect';
 
 /**
  * 特性レジストリ
@@ -640,6 +646,12 @@ export class AbilityRegistry {
       this.registry.set('とれないにおい', new LingeringAromaEffect());
       this.registry.set('さまようたましい', new WanderingSpiritEffect());
       this.registry.set('かがくへんかガス', new NeutralizingGasEffect());
+      // フォルムを変える特性（Issue #135 一部）
+      this.registry.set('てんきや', new ForecastEffect());
+      this.registry.set('ダルマモード', new ZenModeEffect());
+      this.registry.set('バトルスイッチ', new StanceChangeEffect());
+      this.registry.set('リミットシールド', new ShieldsDownEffect());
+      this.registry.set('ぎょぐん', new SchoolingEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
