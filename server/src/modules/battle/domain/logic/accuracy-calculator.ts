@@ -155,7 +155,11 @@ export class AccuracyCalculator {
     // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
     if (
       defenderAbilityName &&
-      !AbilityRegistry.isIgnoredByMoldBreaker(attackerAbilityName, defenderAbilityName)
+      !AbilityRegistry.isIgnoredByMoldBreaker(
+        attackerAbilityName,
+        defenderAbilityName,
+        battleContext,
+      )
     ) {
       const abilityEffect = AbilityRegistry.get(defenderAbilityName);
       if (abilityEffect?.modifyEvasion) {
@@ -215,7 +219,11 @@ export class AccuracyCalculator {
     }
     if (
       defenderAbilityName &&
-      !AbilityRegistry.isIgnoredByMoldBreaker(attackerAbilityName, defenderAbilityName)
+      !AbilityRegistry.isIgnoredByMoldBreaker(
+        attackerAbilityName,
+        defenderAbilityName,
+        battleContext,
+      )
     ) {
       accuracy =
         AbilityRegistry.get(defenderAbilityName)?.modifyBaseAccuracy?.(

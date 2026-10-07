@@ -875,10 +875,14 @@ export class MoveExecutorService {
     const attackerAbilityEffect = attackerAbilityName
       ? AbilityRegistry.get(attackerAbilityName)
       : undefined;
-    // かたやぶり系の特性を持つ場合、防御側の特性効果は無視する
+    // かたやぶり系の特性を持つ場合、防御側の特性効果は無視する（きんしのちからは変化技のときだけ）
     const defenderAbilityEffect =
       defenderAbilityName &&
-      !AbilityRegistry.isIgnoredByMoldBreaker(attackerAbilityName, defenderAbilityName)
+      !AbilityRegistry.isIgnoredByMoldBreaker(attackerAbilityName, defenderAbilityName, {
+        battle,
+        moveName: move.name,
+        moveCategory: move.category,
+      })
         ? AbilityRegistry.get(defenderAbilityName)
         : undefined;
     // ヒットの前後で呼ぶ防御側特性は、かたやぶりでも無視しない（じきゅうりょく・さめはだなど）

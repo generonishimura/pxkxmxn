@@ -130,7 +130,7 @@ export const canApplyVolatile = async (
     const sourceAbilityName =
       source.abilityName ??
       (source.pokemon ? await resolveAbilityName(source.pokemon, battleContext) : undefined);
-    if (await isIgnoredByMoldBreaker(sourceAbilityName, targetAbilityName)) {
+    if (await isIgnoredByMoldBreaker(sourceAbilityName, targetAbilityName, battleContext)) {
       return kind !== 'yawn' || !hasMajorStatus(target);
     }
   }

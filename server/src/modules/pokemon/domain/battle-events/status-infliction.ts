@@ -152,7 +152,7 @@ export const canInflictStatus = async (
   const byOpponentMove = source?.kind === 'move' && source.pokemon?.id !== target.id;
   if (
     byOpponentMove &&
-    (await isIgnoredByMoldBreaker(await getSourceAbilityName(), targetAbilityName))
+    (await isIgnoredByMoldBreaker(await getSourceAbilityName(), targetAbilityName, battleContext))
   ) {
     return true;
   }

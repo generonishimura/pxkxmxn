@@ -736,4 +736,26 @@ export interface IAbilityEffect {
    * かたやぶりでは無視されない
    */
   readonly ensuresMoveHit?: boolean;
+  // ---- きんしのちから（Issue #135 一部） ----
+
+  /**
+   * 使用者: 同じ優先度の中での順番を変える効果（例: きんしのちから・あとだし = -0.1、クイックドロウ = +0.1）
+   * 行動順を決めるとき（ActionOrderDeterminerService）、modifyPriority のあとの優先度に足す。
+   * 1 未満の値を返すので、優先度の違いは越えない（本家の onFractionalPriority）。
+   * battleContext.moveCategory などは行動するポケモンが選んだ技。技の実行中の effectivePriority には入らない
+   * @param holder この特性を持つ、行動するポケモン
+   * @returns 足す値（-1 より大きく 1 より小さい数）、変えない場合はundefined
+   */
+  modifyFractionalPriority?(
+    _holder: BattlePokemonStatus,
+    _battleContext?: BattleContext,
+  ): number | undefined;
+
+  /**
+   * 攻撃側: 技によって、相手の特性を無視する効果（例: きんしのちから = 変化技なら true）
+   * AbilityRegistry.hasMoldBreaker / isIgnoredByMoldBreaker が、技のコンテキスト（moveCategory など）を渡して呼ぶ。
+   * true を返す技では breaksMold（かたやぶり）と同じに扱う
+   * @returns 相手の特性を無視するなら true
+   */
+  breaksMoldFor?(_battleContext?: BattleContext): boolean | undefined;
 }

@@ -40,11 +40,17 @@ export const getAbilityEffect = async (
 
 /**
  * 相手を対象にする効果で、対象の特性が使い手のかたやぶり系の特性に無視されるか
+ * battleContext は技のコンテキスト（きんしのちからの breaksMoldFor が moveCategory を見る）
  */
 export const isIgnoredByMoldBreaker = async (
   sourceAbilityName: string | undefined,
   targetAbilityName: string | undefined,
+  battleContext?: BattleContext,
 ): Promise<boolean> => {
   const { AbilityRegistry } = await import('../abilities/ability-registry');
-  return AbilityRegistry.isIgnoredByMoldBreaker(sourceAbilityName, targetAbilityName);
+  return AbilityRegistry.isIgnoredByMoldBreaker(
+    sourceAbilityName,
+    targetAbilityName,
+    battleContext,
+  );
 };

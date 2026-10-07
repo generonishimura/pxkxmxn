@@ -62,7 +62,7 @@ export interface DeterminedAction {
  * 決定ルール:
  * 1. ポケモン交代は常に先に実行
  * 2. 技を使用する場合、優先度と速度を考慮
- * 3. 優先度が異なる場合は優先度が高い方が先
+ * 3. 優先度が異なる場合は優先度が高い方が先（特性の modifyFractionalPriority で、同じ優先度の中の順番を変えられる）
  * 4. 優先度が同じ場合は速度が高い方が先（おいかぜの陣営は素早さ 2 倍。トリックルームの間は遅い方が先）
  */
 @Injectable()
@@ -220,6 +220,22 @@ export class ActionOrderDeterminerService {
         }
       }
     }
+
+    // 同じ優先度の中での順番（きんしのちから・あとだし。本家の onFractionalPriority）
+    const trainer1FractionalPriority = trainer1TrainedPokemon?.ability
+      ? AbilityRegistry.get(trainer1TrainedPokemon.ability.name)?.modifyFractionalPriority?.(
+          trainer1Active,
+          trainer1Context,
+        )
+      : undefined;
+    const trainer2FractionalPriority = trainer2TrainedPokemon?.ability
+      ? AbilityRegistry.get(trainer2TrainedPokemon.ability.name)?.modifyFractionalPriority?.(
+          trainer2Active,
+          trainer2Context,
+        )
+      : undefined;
+    trainer1Priority += trainer1FractionalPriority ?? 0;
+    trainer2Priority += trainer2FractionalPriority ?? 0;
 
     // 優先度が異なる場合は優先度が高い方が先
     if (trainer1Priority !== trainer2Priority) {

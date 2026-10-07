@@ -120,6 +120,7 @@ export const applyStatChanges = async (
     (await isIgnoredByMoldBreaker(
       source.abilityName ?? (await resolveAbilityName(source.pokemon, battleContext)),
       targetAbilityName,
+      battleContext,
     ));
   // 変化を変える・防ぐ特性（かたやぶりで無視される）
   const gate = moldBroken ? undefined : targetAbility;

@@ -307,6 +307,7 @@ export class DamageCalculator {
       !AbilityRegistry.isIgnoredByMoldBreaker(
         params.attackerAbilityName,
         params.defenderAbilityName,
+        params.battleContext,
       )
     ) {
       const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
@@ -425,7 +426,11 @@ export class DamageCalculator {
   ): boolean {
     if (
       !params.defenderAbilityName ||
-      AbilityRegistry.isIgnoredByMoldBreaker(params.attackerAbilityName, params.defenderAbilityName)
+      AbilityRegistry.isIgnoredByMoldBreaker(
+        params.attackerAbilityName,
+        params.defenderAbilityName,
+        params.battleContext,
+      )
     ) {
       return false;
     }
