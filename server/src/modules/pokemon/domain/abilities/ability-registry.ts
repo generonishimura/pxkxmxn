@@ -207,6 +207,7 @@ import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 import { PrimordialSeaEffect } from './effects/weather/primordial-sea-effect';
 import { DesolateLandEffect } from './effects/weather/desolate-land-effect';
 import { DeltaStreamEffect } from './effects/weather/delta-stream-effect';
+import { SupremeOverlordEffect } from './effects/damage-modify/supreme-overlord-effect';
 
 /**
  * 特性レジストリ
@@ -513,6 +514,7 @@ export class AbilityRegistry {
       this.registry.set('はじまりのうみ', new PrimordialSeaEffect());
       this.registry.set('おわりのだいち', new DesolateLandEffect());
       this.registry.set('デルタストリーム', new DeltaStreamEffect());
+      this.registry.set('そうだいしょう', new SupremeOverlordEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
