@@ -9,6 +9,7 @@ import {
 } from '@/modules/battle/domain/logic/battle-pokemon-traits';
 import {
   AbilityHolder,
+  EffectiveTypeParams,
   NEUTRALIZING_GAS_ABILITY_NAME,
   resolveEffectiveAbilityName,
 } from '@/modules/battle/domain/logic/effective-traits';
@@ -141,23 +142,35 @@ export const resolveBattleAbilityName = async (
 };
 
 /**
+ * 実効のタイプを求めるときのオプション
+ * - excludeAddedType: 3 つめのタイプ（addedType。ハロウィン・もりののろい）を除く（本家の getTypes(true)。
+ *   ミラータイプ・もえつきる・でんこうそうげきで写すタイプ）
+ * - ignoreRoost: はねやすめで失ったひこうタイプも含める（本家の roost の typeWas）
+ */
+export type TypeNamesOptions = Pick<EffectiveTypeParams, 'excludeAddedType' | 'ignoreRoost'>;
+
+/**
  * 実効のタイプ名を引く（みずびたし・はねやすめ・ハロウィン・フォルムなどを反映）
  * 技・特性の実装でタイプを判定するときは、TrainedPokemon のタイプではなく必ずこれを使う
+ * @param options 3 つめのタイプを除く・はねやすめを見ない（TypeNamesOptions）
  * @returns 育成ポケモンが見つからなければ空の配列
  */
 export const resolveTypeNames = async (
   pokemon: BattlePokemonStatus,
   deps: BattleTraitsDeps,
+  options: TypeNamesOptions = {},
 ): Promise<string[]> => {
   const trainedPokemon = await deps.trainedPokemonRepository?.findById(pokemon.trainedPokemonId);
-  return trainedPokemon ? battleTypeNamesOf(trainedPokemon, pokemon) : [];
+  return trainedPokemon ? battleTypeNamesOf(trainedPokemon, pokemon, options) : [];
 };
 
 /**
  * 実効のタイプにそのタイプがあるか（本家の hasType）
+ * @param options 3 つめのタイプを除く・はねやすめを見ない（TypeNamesOptions）
  */
 export const hasType = async (
   pokemon: BattlePokemonStatus,
   typeName: string,
   deps: BattleTraitsDeps,
-): Promise<boolean> => (await resolveTypeNames(pokemon, deps)).includes(typeName);
+  options: TypeNamesOptions = {},
+): Promise<boolean> => (await resolveTypeNames(pokemon, deps, options)).includes(typeName);

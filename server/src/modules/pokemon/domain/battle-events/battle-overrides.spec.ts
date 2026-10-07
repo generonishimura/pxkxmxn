@@ -3,6 +3,7 @@ import { createInMemoryBattle } from './__tests__/in-memory-battle';
 import { addType, findResistingTypeNames, setTypes } from './type-change';
 import { setAbility, suppressAbility, swapAbilities } from './ability-change';
 import { findIllusionTarget } from './illusion';
+import { resolveTypeNames } from './battle-traits';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { ITypeEffectivenessRepository } from '../pokemon.repository.interface';
 import { Type } from '../entities/type.entity';
@@ -49,6 +50,52 @@ describe('タイプ・特性を書き換える補助関数', () => {
       // Assert
       expect(arceus).toBe(false);
       expect(silvally).toBe(false);
+    });
+  });
+
+  describe('resolveTypeNames', () => {
+    it('既定では 3 つめのタイプ（addedType）も含める', async () => {
+      // Arrange
+      const battle = createInMemoryBattle({
+        types: ['くさ'],
+        status: { volatileState: { addedType: 'ゴースト' } },
+      });
+
+      // Act
+      const types = await resolveTypeNames(battle.get(1), battle.context());
+
+      // Assert
+      expect(types).toEqual(['くさ', 'ゴースト']);
+    });
+
+    it('excludeAddedType なら 3 つめのタイプを除く（ミラータイプ・もえつきるで写すタイプ。本家の getTypes(true)）', async () => {
+      // Arrange
+      const battle = createInMemoryBattle({
+        types: ['くさ'],
+        status: { volatileState: { addedType: 'ゴースト' } },
+      });
+
+      // Act
+      const types = await resolveTypeNames(battle.get(1), battle.context(), {
+        excludeAddedType: true,
+      });
+
+      // Assert
+      expect(types).toEqual(['くさ']);
+    });
+
+    it('ignoreRoost なら、はねやすめで失ったひこうタイプも含める', async () => {
+      // Arrange
+      const battle = createInMemoryBattle({
+        types: ['ひこう'],
+        status: { volatileState: { roosting: true } },
+      });
+
+      // Act
+      const types = await resolveTypeNames(battle.get(1), battle.context(), { ignoreRoost: true });
+
+      // Assert
+      expect(types).toEqual(['ひこう']);
     });
   });
 

@@ -1634,7 +1634,7 @@ export class MagicBounceEffect implements IAbilityEffect {
 
 ### 14.1 実効の値を読む（resolveTypeNames / hasType / resolveAbilityName / resolveBattlePokemonTraits）
 
-- シグネチャ: `resolveTypeNames(pokemon, ctx): Promise<string[]>`、`hasType(pokemon, typeName, ctx): Promise<boolean>`、`resolveBattlePokemonTraits(pokemon, deps, { trainedPokemon?, others? }): Promise<{ trainedPokemon, abilityName, typeNames, stats } | undefined>`、`resolveBattleAbilityName(pokemon, deps)`（`battle-traits.ts`）、`resolveAbilityName(pokemon, ctx)`（`ability-lookup.ts`）
+- シグネチャ: `resolveTypeNames(pokemon, ctx, options?): Promise<string[]>`、`hasType(pokemon, typeName, ctx, options?): Promise<boolean>`（`options` は `{ excludeAddedType?, ignoreRoost? }`。`excludeAddedType: true` で 3 つめのタイプを除く。本家の getTypes(true)）、`resolveBattlePokemonTraits(pokemon, deps, { trainedPokemon?, others? }): Promise<{ trainedPokemon, abilityName, typeNames, stats } | undefined>`、`resolveBattleAbilityName(pokemon, deps)`（`battle-traits.ts`）、`resolveAbilityName(pokemon, ctx)`（`ability-lookup.ts`）
 - 同期の版（ドメイン層。エンジンが使う）: `battleTypeNamesOf(trainedPokemon, status)`・`battleAbilityNameOf(trainedPokemon, status, others)`・`battleStatsOf(trainedPokemon, status)`（`battle/domain/logic/battle-pokemon-traits.ts`）、`resolveEffectiveTypeNames`・`resolveEffectiveAbilityName`（`effective-traits.ts`）
 - タイプ: `typeOverride` → フォルムのタイプ（14.6）→ もとのタイプ。はねやすめのターン（`roosting`）はひこうを除き、なくなればノーマル。最後に `addedType` を足す。タイプなしは `'???'`（`TYPELESS_TYPE_NAME`）で、どのタイプとも一致しない
 - 特性: `abilityOverride` → もとの特性。へんしん中は `noTransform` の特性が効かない。消せない特性（`cantSuppress`）はいつも効く。`abilitySuppressed` と、場のほかのポケモンのかがくへんかガスで消える（undefined）
@@ -1654,7 +1654,7 @@ const name = await resolveAbilityName(target, ctx);                 // いえき
 - `addType`: `addedType` を書く（前に足したタイプは置き換える）。ひんしなら false。「すでにそのタイプなら失敗」は呼ぶ側で `hasType` を見る
 - `findResistingTypeNames`: 技のタイプを半減以下にする（相性 0 を含む）タイプを `ALL_TYPE_NAMES` の順に返す。使用者がすでに持つタイプを除くのは呼ぶ側
 - もとのタイプに戻す（ぎたいでフィールドがなくなったとき）は `patchVolatileState(id, { typeOverride: null })`
-- 使う技・特性: みずびたし（`['みず']`）・まほうのこな（`['エスパー']`）・テクスチャー（1 つめの欄の技のタイプ。`resolveMoveSlots` と `moveRepository`）・テクスチャー２（相手の `lastMoveTypeName` を `findResistingTypeNames` に渡し、ランダムに 1 つ）・ミラータイプ（相手の `resolveTypeNames` から `'???'` を除く。なければ相手に `addedType` があればノーマル、なければ失敗。相手の `addedType` も写す）・ほごしょく（`battle.field` で エレキ→でんき・グラス→くさ・ミスト→フェアリー・サイコ→エスパー・なし→ノーマル）・もえつきる・でんこうそうげき（自分のタイプのほのお・でんきを `TYPELESS_TYPE_NAME` に変える。`addedType` は除いて写す）・へんしょく・へんげんじざい・リベロ・ぎたい・ハロウィン（`addType(target, 'ゴースト')`）・もりののろい（`addType(target, 'くさ')`）
+- 使う技・特性: みずびたし（`['みず']`）・まほうのこな（`['エスパー']`）・テクスチャー（1 つめの欄の技のタイプ。`resolveMoveSlots` と `moveRepository`）・テクスチャー２（相手の `lastMoveTypeName` を `findResistingTypeNames` に渡し、ランダムに 1 つ）・ミラータイプ（相手の `resolveTypeNames(defender, ctx, { excludeAddedType: true })` から `'???'` を除く。なければ相手に `addedType` があればノーマル、なければ失敗。相手の `addedType` も写す）・ほごしょく（`battle.field` で エレキ→でんき・グラス→くさ・ミスト→フェアリー・サイコ→エスパー・なし→ノーマル）・もえつきる・でんこうそうげき（`resolveTypeNames(attacker, ctx, { excludeAddedType: true })` のほのお・でんきを `TYPELESS_TYPE_NAME` に変えて `setTypes`）・へんしょく・へんげんじざい・リベロ・ぎたい・ハロウィン（`addType(target, 'ゴースト')`）・もりののろい（`addType(target, 'くさ')`）
 
 ```ts
 const types = await resolveTypeNames(defender, ctx);
@@ -1831,9 +1831,9 @@ if (ctx) await changeForm(holder, form, ctx); // てんきや（onWeatherChange 
 | みずびたし・まほうのこな | `setTypes(defender, ['みず'] / ['エスパー'], ctx)`（すでにそのタイプだけなら失敗） |
 | テクスチャー | 1 つめの欄の技のタイプ（持っていれば失敗）を `setTypes(attacker, [type], ctx)` |
 | テクスチャー２ | 相手の `lastMoveTypeName`（なければ失敗）を `findResistingTypeNames` に渡し、使用者が持つタイプを除いてランダムに `setTypes` |
-| ミラータイプ | 相手の `resolveTypeNames`（`'???'` を除く）を `setTypes(attacker, ...)`、相手の `addedType` も書く |
+| ミラータイプ | 相手の `resolveTypeNames(defender, ctx, { excludeAddedType: true })`（`'???'` を除く）を `setTypes(attacker, ...)`、相手の `addedType` も書く |
 | ほごしょく | `battle.field` のタイプで `setTypes(attacker, ...)` |
-| もえつきる・でんこうそうげき | `shouldFail`（ほのお・でんきを持っていなければ）と `afterDamage` で、そのタイプを `TYPELESS_TYPE_NAME` に変えて `setTypes` |
+| もえつきる・でんこうそうげき | `shouldFail`（ほのお・でんきを持っていなければ）と `afterDamage` で、`resolveTypeNames(attacker, ctx, { excludeAddedType: true })` のそのタイプを `TYPELESS_TYPE_NAME` に変えて `setTypes` |
 | はねやすめ | 回復と `patchVolatileState(attacker.id, { roosting: true })`。ひこうを失うのはエンジン |
 | ハロウィン・もりののろい | `hasType` で持っていれば失敗、`addType(defender, 'ゴースト' / 'くさ', ctx)` |
 | プラズマシャワー | `patchGlobalFieldState(battle.id, { ionDeluge: true })`（14.3） |
