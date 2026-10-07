@@ -5,6 +5,7 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 import { rollSecondaryEffect } from '../secondary-effect';
 import { EffectSource } from '../../battle-events/effect-source';
 import { canInflictStatus, inflictStatus } from '../../battle-events/status-infliction';
+import { isVolatileStatusCondition } from '@/modules/battle/domain/logic/volatile-status-condition';
 
 /**
  * 複数の状態異常を付与する際の設定
@@ -37,6 +38,10 @@ export interface StatusConditionConfig {
  * X%の確率でYの状態異常を付与、Z%の確率でWの状態異常を付与する汎用的な実装
  *
  * 各技の特殊効果は、このクラスを継承してパラメータを設定するだけで実装できる
+ *
+ * - 状態異常（やけど・まひなど）は、成功したもののうち最初の1つだけを付与する
+ * - ひるみ・こんらんは volatileState に置くので、状態異常と一緒に付与できる（本家と同じく、
+ *   ほのおのキバはやけどとひるみが両方起こりうる）
  */
 export abstract class BaseMultipleStatusConditionEffect implements IMoveEffect {
   /**
@@ -46,7 +51,7 @@ export abstract class BaseMultipleStatusConditionEffect implements IMoveEffect {
 
   /**
    * 技が命中したときに発動
-   * 各状態異常に対して独立に確率判定を行い、成功したもののみを付与
+   * 各状態異常に対して独立に確率判定を行い、成功したもののみを付与（状態異常は最初の1つだけ）
    */
   async onHit(
     attacker: BattlePokemonStatus,
@@ -59,6 +64,7 @@ export abstract class BaseMultipleStatusConditionEffect implements IMoveEffect {
 
     // 各状態異常に対して独立に判定
     const appliedStatuses: string[] = [];
+    let majorStatusApplied = false;
     const source: EffectSource = {
       pokemon: attacker,
       abilityName: battleContext.attackerAbilityName,
@@ -78,9 +84,9 @@ export abstract class BaseMultipleStatusConditionEffect implements IMoveEffect {
         continue;
       }
 
-      // 状態異常を付与（最初に成功したもののみ）
-      // 複数の状態異常が同時に成功した場合は、最初のものを優先
-      if (appliedStatuses.length === 0) {
+      // 状態異常は最初に成功したものだけを付与する。ひるみ・こんらんは状態異常と一緒に付与できる
+      const isVolatile = isVolatileStatusCondition(config.statusCondition);
+      if (isVolatile || !majorStatusApplied) {
         const messages = await inflictStatus(
           defender,
           config.statusCondition,
@@ -88,6 +94,7 @@ export abstract class BaseMultipleStatusConditionEffect implements IMoveEffect {
           options,
         );
         appliedStatuses.push(config.message, ...messages);
+        majorStatusApplied = majorStatusApplied || !isVolatile;
       }
     }
 

@@ -2,6 +2,7 @@ import { IMoveEffect } from '../../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { isHealBlocked } from '../../../battle-events/heal';
 
 /**
  * 回復の対象
@@ -44,6 +45,7 @@ export const isMajorStatusCondition = (statusCondition: StatusCondition | null):
  *   1/2 回復では、本家の ceil(最大 HP × 0.5) と同じ値になる
  * - curesStatusCondition が true の技は、状態異常も治す
  * - 回復も状態異常の回復もできない場合（HP 満タンなど）は失敗する
+ * - 回復する側がかいふくふうじ中なら HP は回復しない（いやしのはどうなどで、かいふくふうじ中の相手を回復しようとしたとき）
  * - 対象がひんしの場合は失敗する
  */
 export abstract class BaseHealEffect implements IMoveEffect {
@@ -85,7 +87,7 @@ export abstract class BaseHealEffect implements IMoveEffect {
       return null;
     }
 
-    const canHeal = target.currentHp < target.maxHp;
+    const canHeal = target.currentHp < target.maxHp && !isHealBlocked(target);
     const canCure = this.curesStatusCondition && isMajorStatusCondition(target.statusCondition);
     if (!canHeal && !canCure) {
       return null;

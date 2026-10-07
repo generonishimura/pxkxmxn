@@ -13,13 +13,15 @@ const MIN_RANK = -6;
 
 /**
  * ばんけん（Guard Dog）特性の効果
- * いかくを受けたとき、攻撃が下がる代わりに1段階上がる
+ * いかくを受けたとき、攻撃が下がる代わりに1段階上がる。ほえる・ふきとばし・ドラゴンテールなどで交代させられない
  *
  * - いかく以外による攻撃の低下（なきごえなど）は変えない
  * - 攻撃ランクがすでに-6なら上げない（本家は下がる量を上限で切ってから判定するので、下がる量0で発動しない）
- * 注: 本家の「ふきとばし・ほえるなどで交代させられない」効果は、強制交代の仕組みがないため実装していない
+ * - 交代させられないのは preventsForcedSwitch（エンジンが判定する。かたやぶりで無視される）
  */
 export class GuardDogEffect implements IAbilityEffect {
+  readonly preventsForcedSwitch = true;
+
   modifyIncomingStatChange(
     holder: BattlePokemonStatus,
     change: StatChange,

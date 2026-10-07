@@ -1,21 +1,13 @@
-import { IMoveEffect } from '../move-effect.interface';
-import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
-import { BattleContext } from '../../abilities/battle-context.interface';
+import { BaseSideConditionMoveEffect } from './base/base-side-condition-move-effect';
 
 /**
- * 「しろいきり」の特殊効果実装
+ * しろいきり（Mist）技の効果
  *
- * 効果: 自分のステータス変化を防ぐ
- * 注意: 現時点では、バトルフィールドの状態として管理する機能がないため、簡易実装としてメッセージのみ返す
+ * 5 ターンの間、自分の陣営のポケモンは相手に能力を下げられない（すりぬけの技は通る）。
+ * 防ぐのはエンジン（applyStatChanges）が行う。すでに張っていれば失敗する
  */
-export class MistEffect implements IMoveEffect {
-  async onUse(
-    _attacker: BattlePokemonStatus,
-    _defender: BattlePokemonStatus,
-    _battleContext: BattleContext,
-  ): Promise<string | null> {
-    // TODO: バトルフィールドの状態として管理する機能を実装する必要がある
-    return 'The user shrouded itself in a white mist!';
-  }
+export class MistEffect extends BaseSideConditionMoveEffect {
+  protected readonly key = 'mistTurns';
+  protected readonly turns = 5;
+  protected readonly message = 'The user shrouded itself in a white mist!';
 }
-

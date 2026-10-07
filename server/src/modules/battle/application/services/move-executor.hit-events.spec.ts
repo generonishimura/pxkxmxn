@@ -59,6 +59,7 @@ describe('MoveExecutorService - ヒットとひんしのイベント', () => {
         moveTypeName: 'ノーマル',
         moveCategory: 'Physical',
         targetFainted: false,
+        isCriticalHit: false,
       });
     });
 

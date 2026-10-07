@@ -1,80 +1,109 @@
 import { ObliviousEffect } from './oblivious-effect';
-import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
-import { BattleContext } from '../battle-context.interface';
-import { BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
+import { AbilityRegistry } from '../ability-registry';
+import { canApplyVolatile } from '../../battle-events/volatile-infliction';
+import { canInflictStatus } from '../../battle-events/status-infliction';
+import { applyStatChanges } from '../../battle-events/stat-change';
+import { createInMemoryBattle } from '../../battle-events/__tests__/in-memory-battle';
+import { Gender } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 
-describe('ObliviousEffect', () => {
-  let effect: ObliviousEffect;
-  let pokemon: BattlePokemonStatus;
-  let battleContext: BattleContext;
-
+describe('ObliviousEffect（どんかん）', () => {
   beforeEach(() => {
-    effect = new ObliviousEffect();
-    pokemon = {
-      id: 1,
-      battleId: 1,
-      trainedPokemonId: 1,
-      trainerId: 1,
-      isActive: true,
-      currentHp: 100,
-      maxHp: 100,
-      attackRank: 0,
-      defenseRank: 0,
-      specialAttackRank: 0,
-      specialDefenseRank: 0,
-      speedRank: 0,
-      accuracyRank: 0,
-      evasionRank: 0,
-      statusCondition: StatusCondition.None,
-    } as BattlePokemonStatus;
-
-    battleContext = {
-      battle: {
-        id: 1,
-        trainer1Id: 1,
-        trainer2Id: 2,
-        team1Id: 1,
-        team2Id: 2,
-        turn: 1,
-        weather: null,
-        field: null,
-        status: BattleStatus.Active,
-        winnerTrainerId: null,
-        sideState: {},
-      },
-    };
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
   });
 
-  describe('canReceiveStatusCondition', () => {
-    // 注: どんかん特性は本来メロメロ・あくび無効化だが、
-    // 現在の実装では簡略化のためねむり無効化として実装されている
-    // （メロメロ・あくびは状態異常とは別のメカニズムのため）
-    it('should return false for Sleep status condition (simplified implementation for Infatuation/Yawn)', () => {
-      const result = effect.canReceiveStatusCondition(
-        pokemon,
-        StatusCondition.Sleep,
-        battleContext,
-      );
-      expect(result).toBe(false);
+  it('どんかんとして登録されている', () => {
+    // Act
+    const effect = AbilityRegistry.get('どんかん');
+
+    // Assert
+    expect(effect).toBeInstanceOf(ObliviousEffect);
+  });
+
+  it('メロメロにならない', async () => {
+    // Arrange
+    const { context, get } = createInMemoryBattle(
+      { gender: Gender.Male },
+      { ability: 'どんかん', gender: Gender.Female },
+    );
+
+    // Act
+    const result = await canApplyVolatile(get(2), 'attract', context(), {
+      source: { pokemon: get(1), kind: 'move', name: 'メロメロ' },
     });
 
-    it('should return true for other status conditions', () => {
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Burn, battleContext)).toBe(
-        true,
-      );
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Freeze, battleContext)).toBe(
-        true,
-      );
-      expect(
-        effect.canReceiveStatusCondition(pokemon, StatusCondition.Paralysis, battleContext),
-      ).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Poison, battleContext)).toBe(
-        true,
-      );
-      expect(
-        effect.canReceiveStatusCondition(pokemon, StatusCondition.BadPoison, battleContext),
-      ).toBe(true);
+    // Assert
+    expect(result).toBe(false);
+  });
+
+  it('ちょうはつを受けない', async () => {
+    // Arrange
+    const { context, get } = createInMemoryBattle({}, { ability: 'どんかん' });
+
+    // Act
+    const result = await canApplyVolatile(get(2), 'taunt', context(), {
+      source: { pokemon: get(1), kind: 'move', name: 'ちょうはつ' },
     });
+
+    // Assert
+    expect(result).toBe(false);
+  });
+
+  it('かたやぶりの技では、ちょうはつを受ける', async () => {
+    // Arrange
+    const { context, get } = createInMemoryBattle(
+      { ability: 'かたやぶり' },
+      { ability: 'どんかん' },
+    );
+
+    // Act
+    const result = await canApplyVolatile(get(2), 'taunt', context(), {
+      source: { pokemon: get(1), kind: 'move', name: 'ちょうはつ' },
+    });
+
+    // Assert
+    expect(result).toBe(true);
+  });
+
+  it('アンコールなど、ほかの一時的な状態は受ける', async () => {
+    // Arrange
+    const { context, get } = createInMemoryBattle({}, { ability: 'どんかん' });
+
+    // Act
+    const result = await canApplyVolatile(get(2), 'encore', context(), {
+      source: { pokemon: get(1), kind: 'move', name: 'アンコール' },
+    });
+
+    // Assert
+    expect(result).toBe(true);
+  });
+
+  it('ねむりにはなる（第 9 世代のどんかんは、ねむりを防がない）', async () => {
+    // Arrange
+    const { context, get } = createInMemoryBattle({}, { ability: 'どんかん' });
+
+    // Act
+    const result = await canInflictStatus(get(2), StatusCondition.Sleep, context());
+
+    // Assert
+    expect(result).toBe(true);
+  });
+
+  it('いかくで攻撃が下がらない', async () => {
+    // Arrange
+    const { context, get } = createInMemoryBattle({}, { ability: 'どんかん' });
+
+    // Act
+    const result = await applyStatChanges(
+      get(2),
+      [{ statType: 'attack', rankChange: -1 }],
+      context(),
+      { source: { pokemon: get(1), kind: 'ability', name: 'いかく' } },
+    );
+
+    // Assert
+    expect(result.applied).toEqual([]);
+    expect(get(2).attackRank).toBe(0);
   });
 });

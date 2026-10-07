@@ -69,8 +69,11 @@ describe('ExecuteTurnUseCase - 最後に行動するかどうか', () => {
       trainedPokemonRepository,
     );
     jest.spyOn(statusConditionProcessor, 'processTurnEndAbilities').mockResolvedValue();
-    const pokemonSwitcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository);
-    jest.spyOn(pokemonSwitcher, 'executeSwitch').mockResolvedValue();
+    const pokemonSwitcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository, {
+      getTypeEffectivenessMap: jest.fn().mockResolvedValue(new Map()),
+      findTypeByName: jest.fn().mockResolvedValue(null),
+    });
+    jest.spyOn(pokemonSwitcher, 'executeSwitch').mockResolvedValue([]);
     const moveExecutor = new MoveExecutorService(
       battleRepository,
       trainedPokemonRepository,
@@ -109,8 +112,8 @@ describe('ExecuteTurnUseCase - 最後に行動するかどうか', () => {
     });
 
     // Assert
-    expect(executeMove.mock.calls[0][6]).toEqual({ isLastToMove: false });
-    expect(executeMove.mock.calls[1][6]).toEqual({ isLastToMove: true });
+    expect(executeMove.mock.calls[0][6]).toMatchObject({ isLastToMove: false });
+    expect(executeMove.mock.calls[1][6]).toMatchObject({ isLastToMove: true });
   });
 
   it('相手が交代した場合、技を使う側は最後に行動する扱いになる', async () => {

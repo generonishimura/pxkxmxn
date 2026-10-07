@@ -20,6 +20,7 @@ const SYNCHRONIZED_STATUSES: readonly StatusCondition[] = [
  * 相手にやけど・まひ・どく・もうどくにされたとき、相手も同じ状態異常にする
  *
  * - 技・特性のどちらで付与されても発動する（inflictStatus で付与されたとき）。自分で付与したとき（かえんだまなど）は発動しない
+ * - どくびしでどく・もうどくになったときは発動しない（本家と同じ。どくびしは、しんぴのまもりで防げるよう相手を source にしている）
  * - サイコシフトでうつされたときは、相手がまだ状態異常なのでうつし返せない（本家と同じ）
  * - 注: せいでんきなど接触時の特性で状態異常にされたときも相手を状態異常にするが、バトルログには「<特性名> activated!」しか出ず、シンクロのメッセージは出ない
  * - 相手がタイプ・特性で防げる場合や、すでに状態異常の場合は、相手は状態異常にならない
@@ -36,6 +37,9 @@ export class SynchronizeEffect implements IAbilityEffect {
       return null;
     }
     if (source.pokemon.id === holder.id || !SYNCHRONIZED_STATUSES.includes(statusCondition)) {
+      return null;
+    }
+    if (source.kind === 'other' && source.name === 'どくびし') {
       return null;
     }
 

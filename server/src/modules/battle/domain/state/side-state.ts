@@ -26,6 +26,19 @@ export type PendingWish = {
 };
 
 /**
+ * みらいよち・はめつのねがい。turns ターン後のターン終了時に、その陣営の場のポケモンに技が当たる
+ * 陣営（ポケモンのいる場所）に置くので、交代しても、そこにいるポケモンに当たる
+ */
+export type PendingFutureAttack = {
+  /** 残りターン数。1 のときのターン終了時に当たる（使ったターンに 3 を書く） */
+  readonly turns: number;
+  /** 当たる技（Move の ID） */
+  readonly moveId: number;
+  /** 技を使ったポケモン（BattlePokemonStatus の ID）。場を離れていても、このポケモンの能力で当たる */
+  readonly sourceStatusId: number;
+};
+
+/**
  * 次に出てきたポケモンを回復する技の種類
  * いやしのねがいは HP と状態異常だけを、みかづきのまいは PP も回復する
  */
@@ -100,10 +113,19 @@ export type SideConditions = {
   readonly wish?: PendingWish;
   /** いやしのねがい・みかづきのまい。次に出てきたポケモンを回復する */
   readonly healingWish?: HealingWishKind;
+  /** みらいよち・はめつのねがい（この陣営に当たる） */
+  readonly futureAttack?: PendingFutureAttack;
 
   // ---- プレイヤーの選択待ち ----
   /** 交代先（復活させるポケモン）の選択を待っている */
   readonly pendingChoice?: PendingChoice;
+
+  // ---- 場の状態・設置技・交代の仕組み（Issue #102 #103 #107 #108 #110 #111 #135 一部） ----
+  /**
+   * この陣営の場のポケモンを、控えのポケモンとランダムに入れ替える（ほえる・ふきとばし・ドラゴンテール・ともえなげ）
+   * 技の処理のあとに ExecuteTurnUseCase が入れ替えて消す
+   */
+  readonly forcedSwitch?: boolean;
 };
 
 /**
@@ -135,7 +157,24 @@ export type GlobalFieldState = {
   readonly ionDeluge?: boolean;
   /** バトル全体で最後に使われた技（まねっこが読む） */
   readonly lastMoveId?: number;
+
+  // ---- 場の状態・設置技・交代の仕組み（Issue #102 #103 #107 #108 #110 #111 #135 一部） ----
+  /**
+   * ゲンシ天候（おおあめ・おおひでり・らんきりゅう）。Battle.weather はおおあめなら Rain、おおひでりなら Sun、
+   * らんきりゅうなら None にする。weatherSourceStatusId のポケモンが場を離れたら終わる（weatherTurns は持たない）
+   */
+  readonly primalWeather?: PrimalWeather;
 };
+
+/**
+ * ゲンシ天候の種類
+ * - heavyRain: おおあめ（はじまりのうみ。ほのおの攻撃技が失敗する）
+ * - harshSunlight: おおひでり（おわりのだいち。みずの攻撃技が失敗する）
+ * - strongWinds: らんきりゅう（デルタストリーム。ひこうタイプの弱点を等倍にする）
+ */
+export const PRIMAL_WEATHERS = ['heavyRain', 'harshSunlight', 'strongWinds'] as const;
+
+export type PrimalWeather = (typeof PRIMAL_WEATHERS)[number];
 
 /**
  * バトル全体の場の状態（Battle.sideState）
@@ -151,6 +190,12 @@ export type SideState = {
 const pendingWish = requiredFieldsOf<PendingWish>({
   turns: nonNegativeInteger,
   healAmount: positiveInteger,
+});
+
+const pendingFutureAttack = requiredFieldsOf<PendingFutureAttack>({
+  turns: nonNegativeInteger,
+  moveId: positiveInteger,
+  sourceStatusId: positiveInteger,
 });
 
 const pendingChoice = requiredFieldsOf<PendingChoice>({
@@ -180,6 +225,8 @@ export const SIDE_CONDITIONS_PARSERS: FieldParsers<SideConditions> = {
   wish: pendingWish,
   healingWish: oneOf(HEALING_WISH_KINDS),
   pendingChoice,
+  futureAttack: pendingFutureAttack,
+  forcedSwitch: booleanValue,
 };
 
 /**
@@ -199,6 +246,7 @@ export const GLOBAL_FIELD_STATE_PARSERS: FieldParsers<GlobalFieldState> = {
   terrainTurns: nonNegativeInteger,
   ionDeluge: booleanValue,
   lastMoveId: positiveInteger,
+  primalWeather: oneOf(PRIMAL_WEATHERS),
 };
 
 /**
@@ -241,7 +289,7 @@ export const updateSideConditions = (
 
 /**
  * コートチェンジで 2 つの陣営の間で入れ替えるキー
- * ねがいごと・いやしのねがい・ガード系（ワイドガードなど）・選択待ちは入れ替えない
+ * ねがいごと・いやしのねがい・ガード系（ワイドガードなど）・選択待ち・強制交代は入れ替えない
  * おまじないは第 8 世代以降にないが、Showdown と同じく入れ替える側に入れておく
  */
 export const COURT_CHANGE_KEYS = [
@@ -256,6 +304,25 @@ export const COURT_CHANGE_KEYS = [
   'toxicSpikesLayers',
   'stealthRock',
   'stickyWeb',
+] as const satisfies ReadonlyArray<keyof SideConditions>;
+
+/**
+ * 設置技のキー（こうそくスピン・きりばらいで消す）
+ */
+export const HAZARD_KEYS = [
+  'spikesLayers',
+  'toxicSpikesLayers',
+  'stealthRock',
+  'stickyWeb',
+] as const satisfies ReadonlyArray<keyof SideConditions>;
+
+/**
+ * 壁のキー（バリアフリー・かわらわり・きりばらいで消す）
+ */
+export const SCREEN_KEYS = [
+  'reflectTurns',
+  'lightScreenTurns',
+  'auroraVeilTurns',
 ] as const satisfies ReadonlyArray<keyof SideConditions>;
 
 const copyKey = <K extends keyof SideConditions>(
@@ -365,6 +432,11 @@ export const SIDE_TURN_SCOPED_FLAGS = [
 ] as const satisfies ReadonlyArray<keyof SideConditions>;
 
 /**
+ * 陣営全体の、このターンだけの守り（ワイドガード・ファストガード・トリックガード・たたみがえし）
+ */
+export type SideGuardKind = (typeof SIDE_TURN_SCOPED_FLAGS)[number];
+
+/**
  * 両陣営にかかる、ターン終了時に 1 減らし、0 になったら消す残りターン数
  * weatherTurns・terrainTurns が切れたときに Battle.weather / Battle.field を戻すのは、tick の前に値が 1 かどうかで判定する
  */
@@ -388,7 +460,7 @@ export const GLOBAL_TURN_SCOPED_FLAGS = ['ionDeluge'] as const satisfies Readonl
 >;
 
 /**
- * 陣営のターン終了時の変更（残りターン数・ねがいごとを減らし、このターンだけのフラグを消す）
+ * 陣営のターン終了時の変更（残りターン数・ねがいごと・みらいよちを減らし、このターンだけのフラグを消す）
  */
 const sideConditionsTickPatch = (conditions: SideConditions): StatePatch<SideConditions> => {
   const patch: MutableStatePatch<SideConditions> = {};
@@ -401,6 +473,10 @@ const sideConditionsTickPatch = (conditions: SideConditions): StatePatch<SideCon
   if (conditions.wish !== undefined) {
     const turns = tickTurnCount(conditions.wish.turns);
     patch.wish = turns === undefined ? undefined : { ...conditions.wish, turns };
+  }
+  if (conditions.futureAttack !== undefined) {
+    const turns = tickTurnCount(conditions.futureAttack.turns);
+    patch.futureAttack = turns === undefined ? undefined : { ...conditions.futureAttack, turns };
   }
   for (const key of SIDE_TURN_SCOPED_FLAGS) {
     if (conditions[key] !== undefined) {

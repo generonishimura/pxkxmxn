@@ -120,8 +120,13 @@ export interface IBattleRepository {
 
   /**
    * バトル中のポケモンの技を更新（PPを更新）
+   * moveId と maxPp を渡すと、技の欄の技そのものを書き換える（スケッチ。交代しても戻らない）。
+   * 交代で戻る入れ替え（ものまね・へんしん）は volatileState.moveSlotOverrides に置く
    */
-  updateBattlePokemonMove(id: number, data: { currentPp: number }): Promise<BattlePokemonMove>;
+  updateBattlePokemonMove(
+    id: number,
+    data: { currentPp: number; moveId?: number; maxPp?: number },
+  ): Promise<BattlePokemonMove>;
 
   /**
    * IDでバトル中のポケモンの技を取得

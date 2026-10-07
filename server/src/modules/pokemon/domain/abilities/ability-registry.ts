@@ -1,4 +1,5 @@
 import { IAbilityEffect } from './ability-effect.interface';
+import type { BattleContext } from './battle-context.interface';
 import { IntimidateEffect } from './effects/stat-change/intimidate-effect';
 import { SwiftSwimEffect } from './effects/stat-change/swift-swim-effect';
 import { ChlorophyllEffect } from './effects/stat-change/chlorophyll-effect';
@@ -563,18 +564,21 @@ export class AbilityRegistry {
 
   /**
    * 攻撃側がかたやぶり系の特性を持っているかチェック
-   * かたやぶり系の特性（breaksMold が true の特性）は、防御側の特性効果を無視する
+   * かたやぶり系の特性（breaksMold が true の特性）は、防御側の特性効果を無視する。
+   * breaksMoldFor を持つ特性（きんしのちから）は、技のコンテキストで true を返したときだけ無視する
    * @param attackerAbilityName 攻撃側の特性名
+   * @param battleContext 技のコンテキスト（moveCategory など。breaksMoldFor に渡す）
    * @returns かたやぶり系の特性を持っている場合はtrue、そうでない場合はfalse
    */
-  static hasMoldBreaker(attackerAbilityName?: string): boolean {
+  static hasMoldBreaker(attackerAbilityName?: string, battleContext?: BattleContext): boolean {
     if (!attackerAbilityName) {
       return false;
     }
     if (attackerAbilityName === this.MOLD_BREAKER_ABILITY_NAME) {
       return true;
     }
-    return this.registry.get(attackerAbilityName)?.breaksMold === true;
+    const effect = this.registry.get(attackerAbilityName);
+    return effect?.breaksMold === true || effect?.breaksMoldFor?.(battleContext) === true;
   }
 
   /**
@@ -582,13 +586,15 @@ export class AbilityRegistry {
    * unaffectedByMoldBreaker が true の特性（プリズムアーマーなど）は無視されない
    * @param attackerAbilityName 攻撃側の特性名
    * @param defenderAbilityName 防御側の特性名
+   * @param battleContext 技のコンテキスト（breaksMoldFor に渡す）
    * @returns 防御側の特性を無視する場合はtrue
    */
   static isIgnoredByMoldBreaker(
     attackerAbilityName?: string,
     defenderAbilityName?: string,
+    battleContext?: BattleContext,
   ): boolean {
-    if (!this.hasMoldBreaker(attackerAbilityName)) {
+    if (!this.hasMoldBreaker(attackerAbilityName, battleContext)) {
       return false;
     }
     if (!defenderAbilityName) {

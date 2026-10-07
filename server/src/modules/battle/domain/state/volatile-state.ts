@@ -37,6 +37,30 @@ export const PROTECTION_KINDS = [
 export type ProtectionKind = (typeof PROTECTION_KINDS)[number];
 
 /**
+ * ため技でためている間の隠れ方（そらをとぶ・あなをほるなど）
+ * - air: そらをとぶ・とびはねる・フリーフォール
+ * - underground: あなをほる
+ * - underwater: ダイビング
+ * - vanished: シャドーダイブ・ゴーストダイブ
+ */
+export const SEMI_INVULNERABLE_KINDS = ['air', 'underground', 'underwater', 'vanished'] as const;
+
+export type SemiInvulnerableKind = (typeof SEMI_INVULNERABLE_KINDS)[number];
+
+/**
+ * しめつける・まきつく・ほのおのうずなど、ターン終了時にダメージを受ける「バインド状態」
+ * turns は本家の残りターン数（4〜5 回ダメージを受けたあと、次のターン終了時に解ける）
+ */
+export type PartialTrap = {
+  /** しめつけたポケモン（BattlePokemonStatus の ID）。場を離れると解ける */
+  readonly sourceStatusId: number;
+  /** しめつけた技（Move の ID） */
+  readonly moveId: number;
+  /** 残りターン数。ターン終了時に 1 減らし、0 になったら解ける（ダメージは受けない） */
+  readonly turns: number;
+};
+
+/**
  * 技 ID と残りターン数の組（アンコール・かなしばりなど）
  */
 export type MoveTurns = {
@@ -135,8 +159,13 @@ export type VolatileState = {
   readonly chargingMoveId?: number;
   /** このポケモンが最後に使った技（ものまね・アンコール・かなしばりなどが読む） */
   readonly lastMoveId?: number;
-  /** このポケモンが最後に受けた技（テクスチャー２が読む） */
+  /** このポケモンが最後に受けた技 */
   readonly lastHitByMoveId?: number;
+  /**
+   * このポケモンが最後に使った技の、タイプを変える効果を反映したタイプ名（エンジンが書く。テクスチャー２が読む）
+   * lastMoveId と同じときに書く（呼ばれた技では書かない）。タイプなしの技（わるあがき）は書かない
+   */
+  readonly lastMoveTypeName?: string;
   /**
    * 一時的に入れ替わった技（ものまね・へんしん・かわりもの）
    * 技を選ぶ処理と PP を減らす処理は、BattlePokemonMove より先にここを見る
@@ -216,10 +245,13 @@ export type VolatileState = {
   readonly abilitySuppressed?: boolean;
   /** 特性の上書き（スキルスワップ・なかまづくりなど）。AbilityRegistry のキー */
   readonly abilityOverride?: string;
-  /** タイプの上書き（みずびたし・テクスチャーなど）。Type の ID。空配列はタイプなし */
-  readonly typeOverride?: readonly number[];
-  /** 3 つめに加わったタイプ（ハロウィン・もりののろい）。Type の ID */
-  readonly addedTypeId?: number;
+  /**
+   * タイプの上書き（みずびたし・テクスチャーなど）。タイプ名（Type.name）の配列。
+   * タイプなしは '???'（TYPELESS_TYPE_NAME）で表す。読むときは resolveEffectiveTypeNames を通す
+   */
+  readonly typeOverride?: readonly string[];
+  /** 3 つめに加わったタイプ（ハロウィン・もりののろい）。タイプ名（Type.name） */
+  readonly addedType?: string;
   /** 実数値の上書き */
   readonly statOverrides?: StatOverrides;
   /** へんしん・かわりもので姿を写した相手（BattlePokemonStatus の ID） */
@@ -240,6 +272,29 @@ export type VolatileState = {
   readonly switchedInTurn?: number;
   /** へんげんじざい・リベロを、場に出てから使った（場に出るたびに 1 回だけ） */
   readonly typeChangeAbilityUsed?: boolean;
+
+  // ---- 技の流れ（エンジンが書く） ----
+  /** ため技でためている間の隠れ方。ため技を出すか、出せなかったときにエンジンが消す */
+  readonly semiInvulnerable?: SemiInvulnerableKind;
+  /** はかいこうせんなどの反動で、次の行動は動けない。次に行動するときにエンジンが消す */
+  readonly mustRecharge?: boolean;
+  /**
+   * lastMoveId の技を続けて成功させた回数（1 以上）。ころがる・れんぞくぎりの威力に使う
+   * 技が失敗・外れたとき、別の技を出したときにエンジンが書き直す
+   */
+  readonly consecutiveMoveCount?: number;
+  /** さわぐで、場の誰も眠れない。lockedInMove が終わったターンのターン終了時に消える（失敗・技を出せなかったときはすぐ消える） */
+  readonly uproar?: boolean;
+
+  // ---- そのほか ----
+  /** じごくづきの残りターン数（音技を出せない） */
+  readonly throatChopTurns?: number;
+  /** しめつける系のバインド状態 */
+  readonly partialTrap?: PartialTrap;
+  /** しおづけ（ターン終了時に最大 HP の 1/8、みず・はがねは 1/4 のダメージ） */
+  readonly saltCure?: boolean;
+  /** くちばしキャノンをためている（このターンに接触技を受けると、相手をやけどにする） */
+  readonly beakBlast?: boolean;
 };
 
 const moveTurns = requiredFieldsOf<MoveTurns>({
@@ -253,6 +308,12 @@ const statOverrides = optionalFieldsOf<StatOverrides>({
   specialAttack: positiveInteger,
   specialDefense: positiveInteger,
   speed: positiveInteger,
+});
+
+const partialTrap = requiredFieldsOf<PartialTrap>({
+  sourceStatusId: positiveInteger,
+  moveId: positiveInteger,
+  turns: nonNegativeInteger,
 });
 
 const moveSlotOverride = requiredFieldsOf<MoveSlotOverride>({
@@ -296,6 +357,7 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   chargingMoveId: positiveInteger,
   lastMoveId: positiveInteger,
   lastHitByMoveId: positiveInteger,
+  lastMoveTypeName: nonEmptyString,
   moveSlotOverrides: arrayOf(moveSlotOverride),
   protectCount: nonNegativeInteger,
   protection: oneOf(PROTECTION_KINDS),
@@ -326,14 +388,22 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   loafing: booleanValue,
   abilitySuppressed: booleanValue,
   abilityOverride: nonEmptyString,
-  typeOverride: arrayOf(positiveInteger),
-  addedTypeId: positiveInteger,
+  typeOverride: arrayOf(nonEmptyString),
+  addedType: nonEmptyString,
   statOverrides,
   transformedIntoStatusId: positiveInteger,
   form: nonEmptyString,
   illusionStatusId: positiveInteger,
   switchedInTurn: nonNegativeInteger,
   typeChangeAbilityUsed: booleanValue,
+  semiInvulnerable: oneOf(SEMI_INVULNERABLE_KINDS),
+  mustRecharge: booleanValue,
+  consecutiveMoveCount: positiveInteger,
+  uproar: booleanValue,
+  throatChopTurns: nonNegativeInteger,
+  partialTrap,
+  saltCure: booleanValue,
+  beakBlast: booleanValue,
 };
 
 /**
@@ -370,6 +440,7 @@ export const VOLATILE_TURN_COUNTER_KEYS = [
   'magnetRiseTurns',
   'yawnTurns',
   'laserFocusTurns',
+  'throatChopTurns',
 ] as const satisfies ReadonlyArray<KeysOfType<VolatileState, number>>;
 
 /**
@@ -392,6 +463,7 @@ export const VOLATILE_TURN_SCOPED_FLAGS = [
   'powder',
   'electrified',
   'roosting',
+  'beakBlast',
 ] as const satisfies ReadonlyArray<keyof VolatileState>;
 
 /**
@@ -417,8 +489,64 @@ const applyIfChanged = (
 export const clearVolatileOnSwitchOut = (): VolatileState => emptyVolatileState();
 
 /**
+ * バトンタッチで次のポケモンに引き継ぐキー（本家の noCopy でない状態）
+ * 能力ランクは列（attackRank など）にあるので、ここには入らない
+ * 注: パワートリックの実数値の入れ替え（statOverrides）は引き継がない
+ */
+export const BATON_PASS_KEYS = [
+  'confusionTurns',
+  'leechSeed',
+  'cursed',
+  'ingrain',
+  'aquaRing',
+  'substituteHp',
+  'tauntTurns',
+  'healBlockTurns',
+  'perishCount',
+  'telekinesisTurns',
+  'magnetRiseTurns',
+  'tarShot',
+  'critStageBoost',
+  'laserFocusTurns',
+  'charged',
+  'abilitySuppressed',
+  'throatChopTurns',
+] as const satisfies ReadonlyArray<keyof VolatileState>;
+
+/**
+ * state から keys のキーだけを取り出した patch を返す（引き継ぎ用）
+ */
+const pickPatch = (
+  state: VolatileState,
+  keys: ReadonlyArray<keyof VolatileState>,
+): StatePatch<VolatileState> => {
+  const patch: Partial<Record<keyof VolatileState, unknown>> = {};
+  for (const key of keys) {
+    if (state[key] !== undefined) {
+      patch[key] = state[key];
+    }
+  }
+  return patch as StatePatch<VolatileState>;
+};
+
+/**
+ * バトンタッチで次のポケモンに書く patch を返す
+ * 引っ込む前の状態（state）から BATON_PASS_KEYS だけを取り出す。
+ * 使い方: 引っ込む前に読んでおき、場に出たあとで patchVolatileState(next.id, batonPassPatch(state))
+ */
+export const batonPassPatch = (state: VolatileState): StatePatch<VolatileState> =>
+  pickPatch(state, BATON_PASS_KEYS);
+
+/**
+ * しっぽきりで次のポケモンに書く patch を返す（みがわりだけを引き継ぐ）
+ */
+export const shedTailPatch = (state: VolatileState): StatePatch<VolatileState> =>
+  pickPatch(state, ['substituteHp']);
+
+/**
  * ターン終了時の VolatileState を返す
- * 残りターン数を 1 減らして 0 になったキーを消し、このターンだけのフラグを消す
+ * 残りターン数を 1 減らして 0 になったキーを消し、このターンだけのフラグを消す。
+ * さわぐが終わったあと（lockedInMove がない uproar）も消す
  * 変える所がないときは、同じオブジェクトを返す（書き込みが要るかを === で判定できる）
  */
 export const tickVolatileStateAtTurnEnd = (state: VolatileState): VolatileState => {
@@ -441,6 +569,10 @@ export const tickVolatileStateAtTurnEnd = (state: VolatileState): VolatileState 
       markRemoved(patch, key);
     }
   }
+  // さわぐは、最後のターンのターン終了時まで場の誰も眠れない（本家の uproar は residual の最後で終わる）
+  if (state.uproar !== undefined && state.lockedInMove === undefined) {
+    markRemoved(patch, 'uproar');
+  }
   return applyIfChanged(state, patch);
 };
 
@@ -460,7 +592,7 @@ export const clearVolatileOnBeforeMove = (state: VolatileState): VolatileState =
 
 /**
  * statusId のポケモンが場を離れたときの、ほかのポケモンの VolatileState を返す
- * そのポケモンによる「逃げられない」「たこがため」「メロメロ」を消す
+ * そのポケモンによる「逃げられない」「たこがため」「メロメロ」「バインド状態」を消す
  * 変える所がないときは、同じオブジェクトを返す
  */
 export const releaseVolatileReferencesTo = (
@@ -474,6 +606,9 @@ export const releaseVolatileReferencesTo = (
   }
   if (state.infatuatedWithStatusId === statusId) {
     patch.infatuatedWithStatusId = undefined;
+  }
+  if (state.partialTrap?.sourceStatusId === statusId) {
+    patch.partialTrap = undefined;
   }
   return applyIfChanged(state, patch);
 };

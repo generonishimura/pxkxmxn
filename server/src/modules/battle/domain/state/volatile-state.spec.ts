@@ -5,8 +5,11 @@ import {
   VOLATILE_TURN_SCOPED_FLAGS,
   VOLATILE_UNTIL_NEXT_MOVE_FLAGS,
   VolatileState,
+  BATON_PASS_KEYS,
+  batonPassPatch,
   clearVolatileOnBeforeMove,
   clearVolatileOnSwitchOut,
+  shedTailPatch,
   emptyVolatileState,
   parseVolatileState,
   releaseVolatileReferencesTo,
@@ -38,6 +41,7 @@ const FULL_VOLATILE_STATE: Required<VolatileState> = {
   chargingMoveId: 601,
   lastMoveId: 85,
   lastHitByMoveId: 94,
+  lastMoveTypeName: 'ほのお',
   moveSlotOverrides: [{ battlePokemonMoveId: 4, moveId: 102, currentPp: 5, maxPp: 5 }],
   protectCount: 1,
   protection: 'kingsShield',
@@ -68,14 +72,22 @@ const FULL_VOLATILE_STATE: Required<VolatileState> = {
   loafing: true,
   abilitySuppressed: true,
   abilityOverride: 'たんじゅん',
-  typeOverride: [14],
-  addedTypeId: 8,
+  typeOverride: ['ゴースト'],
+  addedType: 'くさ',
   statOverrides: { attack: 120, defense: 80, specialAttack: 90, specialDefense: 70, speed: 110 },
   transformedIntoStatusId: 2,
   form: 'blade',
   illusionStatusId: 6,
   switchedInTurn: 4,
   typeChangeAbilityUsed: true,
+  semiInvulnerable: 'air',
+  mustRecharge: true,
+  consecutiveMoveCount: 2,
+  throatChopTurns: 2,
+  partialTrap: { sourceStatusId: 2, moveId: 20, turns: 5 },
+  saltCure: true,
+  uproar: true,
+  beakBlast: true,
 };
 
 /**
@@ -102,10 +114,11 @@ const LOWER_BOUNDS: ReadonlyArray<readonly [keyof VolatileState, number, number]
   ['stockpileCount', 1, 0],
   ['critStageBoost', 0, -1],
   ['laserFocusTurns', 0, -1],
-  ['addedTypeId', 1, 0],
   ['transformedIntoStatusId', 1, 0],
   ['illusionStatusId', 1, 0],
   ['switchedInTurn', 0, -1],
+  ['consecutiveMoveCount', 1, 0],
+  ['throatChopTurns', 0, -1],
 ];
 
 /**
@@ -403,6 +416,7 @@ describe('VolatileState', () => {
         powder: true,
         electrified: true,
         roosting: true,
+        beakBlast: true,
       };
 
       // Act
@@ -410,6 +424,28 @@ describe('VolatileState', () => {
 
       // Assert
       expect(ticked).toEqual({});
+    });
+
+    it('さわぐが終わったあと（lockedInMove がない uproar）は、ターン終了時に uproar を消す', () => {
+      // Arrange
+      const state: VolatileState = { uproar: true };
+
+      // Act
+      const ticked = tickVolatileStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({});
+    });
+
+    it('さわいでいる途中（lockedInMove がある）なら、uproar は残す', () => {
+      // Arrange
+      const state: VolatileState = { uproar: true, lockedInMove: { moveId: 253, turns: 1 } };
+
+      // Act
+      const ticked = tickVolatileStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual(state);
     });
 
     it('ターン終了時に減らさないキーは、そのまま残す', () => {
@@ -423,6 +459,10 @@ describe('VolatileState', () => {
         destinyBond: true,
         grudge: true,
         leechSeed: true,
+        partialTrap: { sourceStatusId: 2, moveId: 20, turns: 5 },
+        mustRecharge: true,
+        semiInvulnerable: 'underground',
+        consecutiveMoveCount: 2,
       };
 
       // Act
@@ -531,6 +571,17 @@ describe('VolatileState', () => {
       expect(released).toEqual({});
     });
 
+    it('場を離れたポケモンによるしめつける系の状態を消す', () => {
+      // Arrange
+      const state: VolatileState = { partialTrap: { sourceStatusId: 5, moveId: 20, turns: 4 } };
+
+      // Act
+      const released = releaseVolatileReferencesTo(state, 5);
+
+      // Assert
+      expect(released).toEqual({});
+    });
+
     it('ほかのポケモンを指しているときは、同じオブジェクトを返す', () => {
       // Arrange
       const state: VolatileState = {
@@ -544,6 +595,66 @@ describe('VolatileState', () => {
 
       // Assert
       expect(released).toBe(state);
+    });
+  });
+
+  describe('batonPassPatch', () => {
+    it('バトンタッチで引き継ぐキーだけを取り出す', () => {
+      // Arrange
+      const state: VolatileState = {
+        substituteHp: 30,
+        confusionTurns: 2,
+        leechSeed: true,
+        perishCount: 2,
+        critStageBoost: 2,
+        tauntTurns: 2,
+        encore: { moveId: 3, turns: 2 },
+        infatuatedWithStatusId: 4,
+        lastMoveId: 5,
+        switchedInTurn: 1,
+      };
+
+      // Act
+      const patch = batonPassPatch(state);
+
+      // Assert
+      expect(patch).toEqual({
+        substituteHp: 30,
+        confusionTurns: 2,
+        leechSeed: true,
+        perishCount: 2,
+        critStageBoost: 2,
+        tauntTurns: 2,
+      });
+    });
+
+    it('引き継ぐキーはすべて VolatileState のキー', () => {
+      // Act
+      const unknownKeys = BATON_PASS_KEYS.filter(key => !(key in FULL_VOLATILE_STATE));
+
+      // Assert
+      expect(unknownKeys).toEqual([]);
+    });
+  });
+
+  describe('shedTailPatch', () => {
+    it('しっぽきりはみがわりだけを引き継ぐ', () => {
+      // Arrange
+      const state: VolatileState = { substituteHp: 25, leechSeed: true };
+
+      // Act
+      const patch = shedTailPatch(state);
+
+      // Assert
+      expect(patch).toEqual({ substituteHp: 25 });
+    });
+
+    it('みがわりがなければ空の patch を返す', () => {
+      // Act
+      const patch = shedTailPatch({ leechSeed: true });
+
+      // Assert
+      expect(patch).toEqual({});
     });
   });
 });

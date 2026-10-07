@@ -4,6 +4,8 @@ import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status
 import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { IBattleRepository } from '../../domain/battle.repository.interface';
+import { StatePatch } from '../../domain/state/state-field-parser';
+import { VolatileState, updateVolatileState } from '../../domain/state/volatile-state';
 import { DamageCalculator, DamageCalculationParams } from '../../domain/logic/damage-calculator';
 import { AccuracyCalculator } from '../../domain/logic/accuracy-calculator';
 import { Nature } from '../../domain/logic/stat-calculator';
@@ -29,6 +31,7 @@ import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interfac
 import { MoldBreakerEffect } from '@/modules/pokemon/domain/abilities/effects/mold-breaker-effect';
 import { DoubleEdgeEffect } from '@/modules/pokemon/domain/moves/effects/double-edge-effect';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
+import { NO_CRITICAL_HIT_RANDOM } from '../__tests__/battle-engine-harness';
 
 describe('MoveExecutorService - ダメージ前後のフック', () => {
   const ATTACKER_ID = 1;
@@ -145,7 +148,17 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       findBattlePokemonMoveById: jest
         .fn()
         .mockResolvedValue(new BattlePokemonMove(BATTLE_POKEMON_MOVE_ID, ATTACKER_ID, 1, 10, 10)),
-      patchVolatileState: jest.fn(),
+      patchVolatileState: jest.fn((id: number, patch: StatePatch<VolatileState>) => {
+        const current = statuses.get(id);
+        if (!current) {
+          throw new Error(`status ${id} not found`);
+        }
+        const updated = withChanges(current, {
+          volatileState: updateVolatileState(current.volatileState, patch),
+        });
+        statuses.set(id, updated);
+        return Promise.resolve(updated);
+      }),
       patchPersistentState: jest.fn(),
       patchSideConditions: jest.fn(),
       patchGlobalFieldState: jest.fn(),
@@ -178,6 +191,7 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       trainedPokemonRepository,
       moveRepository,
       typeEffectivenessRepository,
+      NO_CRITICAL_HIT_RANDOM,
     );
     const battle = new Battle(
       1,
@@ -740,7 +754,7 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       jest.spyOn(StatusConditionHandler, 'shouldSelfAttackFromConfusion').mockReturnValue(true);
       statuses.set(
         ATTACKER_ID,
-        withChanges(statuses.get(ATTACKER_ID)!, { statusCondition: StatusCondition.Confusion }),
+        withChanges(statuses.get(ATTACKER_ID)!, { volatileState: { confusionTurns: 3 } }),
       );
 
       await execute();

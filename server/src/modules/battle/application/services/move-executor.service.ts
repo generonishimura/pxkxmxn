@@ -1,5 +1,5 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { Battle } from '../../domain/entities/battle.entity';
+import { Injectable, Inject, Optional } from '@nestjs/common';
+import { Battle, Field } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import {
   IBattleRepository,
@@ -22,9 +22,6 @@ import {
   MoveInfo,
 } from '../../domain/logic/damage-calculator';
 import { AccuracyCalculator } from '../../domain/logic/accuracy-calculator';
-import { StatCalculator } from '../../domain/logic/stat-calculator';
-import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
-import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
@@ -37,12 +34,65 @@ import { MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-fl
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
 import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
-import { removalPatch } from '../../domain/state/state-field-parser';
+import { modifyByFixedPoint } from '../../domain/logic/fixed-point-modifier';
+import { isMajorStatus } from '../../domain/logic/major-status';
+import { StatusCondition } from '../../domain/entities/status-condition.enum';
+import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
+import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called-move';
+import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
+import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
+import { getGlobalFieldState, getSideConditions } from '../../domain/state/side-state';
 import {
-  VOLATILE_UNTIL_NEXT_MOVE_FLAGS,
-  VolatileState,
-  clearVolatileOnBeforeMove,
-} from '../../domain/state/volatile-state';
+  STRUGGLE_MOVE_NAME,
+  findMoveRestriction,
+  findMoveSlot,
+  moveRestrictionMessage,
+  resolveMoveSlots,
+} from '../../domain/logic/move-selection';
+import { BeforeMoveChecker } from './before-move-checker';
+import { MoveLifecycle, MoveOutcome } from './move-lifecycle';
+// 場の状態・設置技・交代の仕組み（Issue #102 #103 #107 #110 #135 一部）
+import { isGrounded } from '../../domain/logic/grounded';
+import {
+  effectivePrimalWeather,
+  primalWeatherBlocksMove,
+} from '../../domain/logic/field-modifiers';
+import { countFaintedAllies, crossesHalfHp, findSwitchTargets } from '../../domain/logic/party';
+// 急所ランクの仕組み（Issue #111 #135 一部）
+import {
+  RandomSource,
+  baseCriticalHitStage,
+  clampCriticalHitStage,
+  rollCriticalHit,
+} from '../../domain/logic/critical-hit';
+import { preventsCriticalHit } from '../../domain/logic/field-modifiers';
+// まもる系の仕組み（Issue #102 #103 #107 #108 #120 #135 一部）
+import {
+  BlockingGuard,
+  GUARD_MOVE_NAMES,
+  PROTECTION_CONTACT_EFFECTS,
+  findBlockingGuard,
+  hasBreakableProtection,
+  protectSuccessChance,
+} from '../../domain/logic/protection';
+import { ProtectionMoveConfig } from '@/modules/pokemon/domain/moves/move-effect.interface';
+import { applyStatChanges } from '@/modules/pokemon/domain/battle-events/stat-change';
+import { joinStatChangeMessages } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
+import { fractionOfMaxHp } from '@/modules/pokemon/domain/battle-events/heal';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #107 #110 #112 #114 #117 #119 #135 一部）
+import {
+  BattlePokemonRef,
+  abilityHolderOf,
+  battleAbilityNameOf,
+  battleStatsOf,
+  battleTypeNamesOf,
+} from '../../domain/logic/battle-pokemon-traits';
+import { TYPELESS_TYPE_NAME, currentAbilityName } from '../../domain/logic/effective-traits';
+
+/**
+ * 急所の乱数（RandomSource）を差し替えるときの DI トークン。省略すると Math.random を使う
+ */
+export const CRITICAL_HIT_RANDOM_TOKEN = 'CRITICAL_HIT_RANDOM';
 
 /**
  * 技の実行オプション
@@ -52,6 +102,71 @@ export interface ExecuteMoveOptions {
    * このターン、技の使用者が最後に行動するかどうか（アナライズ）
    */
   isLastToMove?: boolean;
+  /**
+   * 相手がこのターンにまだ技を出していなければ、相手が出す予定の技の ID（さきどり・ふいうち）
+   */
+  defenderPendingMoveId?: number;
+}
+
+/**
+ * 別の技から呼ばれた技の情報
+ */
+interface CalledMoveInfo {
+  /** 呼び出した技・特性の名前 */
+  readonly calledBy: string;
+  /** 威力の倍率（さきどり = 1.5） */
+  readonly powerMultiplier?: number;
+  /** 呼び出しの深さ（1 から） */
+  readonly depth: number;
+  /** みらいよち・はめつのねがいが当たるとき（技を置かずに、そのまま当てる） */
+  readonly isFutureAttack?: boolean;
+  /** 使用者が自分で出したのと同じに扱う（PP を減らし、使用者の記録を書く。さいはいの consumePp） */
+  readonly actsAsOwnMove?: boolean;
+  /** マジックコート・マジックミラーではね返した技（もう一度はね返さない） */
+  readonly bounced?: boolean;
+  /**
+   * 元の技から引き継ぐ優先度（はね返した技。本家の activeMove.priority）
+   * あれば、使用者の特性の modifyPriority（いたずらごころ）を足さずに effectivePriority にする
+   */
+  readonly inheritedPriority?: number;
+}
+
+/**
+ * 1 回の行動（executeMove）の中で、最後に出し始めた技（本家の battle.activeMove）
+ * 呼ばれた技（ゆびをふるで出た技など）を出すと書き換わる。行動の終わりに GlobalFieldState.lastMoveId に書き、
+ * 相手の特性の onOpponentMoveUsed（おどりこ）に渡す
+ */
+interface MoveTrace {
+  activeMove?: Move;
+}
+
+/**
+ * 技を使う処理に渡すもの
+ */
+interface MoveUseParams {
+  readonly battle: Battle;
+  readonly move: Move;
+  readonly attacker: BattlePokemonStatus;
+  readonly defender: BattlePokemonStatus;
+  readonly battlePokemonMoveId: number | undefined;
+  readonly options: ExecuteMoveOptions;
+  readonly attackerTrainedPokemon: TrainedPokemon;
+  readonly defenderTrainedPokemon: TrainedPokemon;
+  readonly called?: CalledMoveInfo;
+  /** 最後に出し始めた技の記録（みらいよちが当たるときは渡さない） */
+  readonly trace?: MoveTrace;
+  /** 使用者の特性の onPrepareHit を呼び終えた（呼び直さない） */
+  readonly prepared?: boolean;
+}
+
+/**
+ * 技を使った結果（メッセージと、片付けに使う結果の種類）
+ */
+interface MoveUseResult {
+  readonly message: string;
+  readonly outcome: MoveOutcome;
+  /** 出した技のタイプ（ダメージ技はタイプ変更の反映後。じゅうでんの消去に使う） */
+  readonly moveTypeName?: string;
 }
 
 /**
@@ -77,6 +192,41 @@ export class MoveExecutorService {
    */
   private static readonly CONFUSION_NON_EXISTENT_TYPE_ID = -1;
 
+  /**
+   * 別の技から呼ぶ深さの上限（ゆびをふる → ねごと → … が続かないように）
+   */
+  private static readonly MAX_CALLED_MOVE_DEPTH = 3;
+
+  /**
+   * ふんじんで爆発するときのダメージ（最大 HP の 1/4。四捨五入、最低 1）
+   */
+  private static readonly POWDER_DAMAGE_DIVISOR = 4;
+
+  /** よこどり（奪った技では onPrepareHit を呼ばない） */
+  private static readonly SNATCH_MOVE_NAME = 'よこどり';
+
+  /**
+   * 別の技を呼ぶ技（本家の callsMove。この技そのものでは onPrepareHit を呼ばない）
+   */
+  private static readonly CALLS_MOVE_NAMES: readonly string[] = [
+    'ゆびをふる',
+    'ねごと',
+    'ねこのて',
+    'まねっこ',
+    'オウムがえし',
+    'さきどり',
+    'しぜんのちから',
+  ];
+
+  /** プラズマシャワー・そうでんで変わるタイプ */
+  private static readonly NORMAL_TYPE_NAME = 'ノーマル';
+  private static readonly ELECTRIC_TYPE_NAME = 'でんき';
+
+  private readonly beforeMoveChecker: BeforeMoveChecker;
+  private readonly moveLifecycle: MoveLifecycle;
+  /** 急所の判定に使う乱数 */
+  private readonly criticalHitRandom: RandomSource;
+
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
@@ -86,22 +236,43 @@ export class MoveExecutorService {
     private readonly moveRepository: IMoveRepository,
     @Inject(TYPE_EFFECTIVENESS_REPOSITORY_TOKEN)
     private readonly typeEffectivenessRepository: ITypeEffectivenessRepository,
-  ) {}
+    @Optional()
+    @Inject(CRITICAL_HIT_RANDOM_TOKEN)
+    criticalHitRandom?: RandomSource,
+  ) {
+    this.beforeMoveChecker = new BeforeMoveChecker(battleRepository);
+    this.moveLifecycle = new MoveLifecycle(battleRepository);
+    this.criticalHitRandom = criticalHitRandom ?? Math.random;
+  }
 
   /**
    * 技を実行
    *
-   * ダメージ技の流れ:
+   * 0. このターンに先にアンコールされていたら、アンコールされた技に変える（resolveEncoreOverride）
+   * 1. 技を出す前の判定（BeforeMoveChecker: 反動・ねむり・こおり・なまけ・ひるみ・技の制限・こんらん・メロメロ・まひ）
+   * 2. 技を使う（useMove）
+   *    - PP を減らす（ため技の 2 ターン目・出し続ける技の 2 ターン目以降は減らさない）
+   *    - 技を出した記録（lastMoveId など）
+   *    - よこどり・ため技の 1 ターン目
+   *    - 技の本体（runMoveBody）
+   *    - 反動・出し続ける技・続けて出した回数
+   * 3. 相手の特性の onOpponentMoveUsed（おどりこ）
+   *
+   * 技の本体（ダメージ技）の流れ:
    * 1. ヒットのコンテキストを作る（技名・技フラグ・効果のある天候・実数値・ランク無視・優先度）
    * 2. 両者の特性の preventsMove（しめりけなど）で技が失敗するかを判定する
    * 3. 防御側特性の isImmuneToMove（ぼうおんなど）で技そのものが無効かを判定する（無効なら onMoveBlocked）
    * 4. 技の shouldFail（ゆめくいなど）で技が失敗するかを判定する
-   * 5. 命中判定
+   * 5. そらをとぶなどで隠れている相手に当たるかの判定と、命中判定
    * 6. 技タイプの決定（技の modifyMoveType → 攻撃側特性の modifyMoveType）と、技全体のタイプ相性
    * 7. 技の beforeDamage（連続技の回数決定）。このあと両者の状態を取り直す
    * 8. 技の威力の決定（技の modifyMovePower）
-   * 9. ヒットごとにダメージを適用し、防御側特性の onDamagingHit → 攻撃側特性の onSourceDamagingHit を呼ぶ
+   * 9. ヒットごとにダメージを適用し（みがわりがあればみがわりに）、防御側特性の onDamagingHit → 攻撃側特性の onSourceDamagingHit を呼ぶ
    * 10. 接触時の特性 → onHit → afterDamage（合計ダメージ） → 防御側特性の onAfterMoveHit → 攻撃側特性の onKnockOut
+   * 11. 倒した相手のみちづれ・おんねん
+   *
+   * @param battlePokemonMoveId 技の欄（BattlePokemonMove の ID）。覚えていない技を出し続けるとき（ゆびをふるで出た
+   *   あばれるの 2 ターン目など）は undefined（PP を減らさない）
    */
   async executeMove(
     battle: Battle,
@@ -109,14 +280,25 @@ export class MoveExecutorService {
     moveId: number,
     attacker: BattlePokemonStatus,
     defender: BattlePokemonStatus,
-    battlePokemonMoveId: number,
+    battlePokemonMoveId: number | undefined,
     options: ExecuteMoveOptions = {},
   ): Promise<string> {
     // 技情報を取得
-    const move = await this.moveRepository.findById(moveId);
+    let move = await this.moveRepository.findById(moveId);
 
     if (!move) {
       throw new NotFoundException('Move', moveId);
+    }
+
+    // 先に行動した側が書いた状態（こおりが溶けた・ちょうはつなど）を見るため、最新の状態を読み直す
+    attacker = (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? attacker;
+    defender = (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? defender;
+
+    // このターンに先にアンコールされたら、アンコールされた技に変える（本家の onOverrideAction）
+    const encored = await this.resolveEncoreOverride(attacker, move);
+    if (encored) {
+      move = encored.move;
+      battlePokemonMoveId = encored.battlePokemonMoveId;
     }
 
     // 攻撃側と防御側のポケモン情報を取得
@@ -134,45 +316,668 @@ export class MoveExecutorService {
       throw new NotFoundException('TrainedPokemon', missingId);
     }
 
-    // 混乱状態の判定（技を使おうとしたときに自分を攻撃する可能性がある）
-    if (attacker.statusCondition === StatusCondition.Confusion) {
-      if (StatusConditionHandler.shouldSelfAttackFromConfusion()) {
-        // 自分を攻撃する場合、技を使わずに自分にダメージを与える
-        // 混乱の自傷ダメージはタイプなしで威力40の物理攻撃として計算
-        const selfDamage = await this.calculateConfusionSelfDamage(
-          battle,
-          attacker,
-          attackerTrainedPokemon,
-        );
-        const newHp = Math.max(0, attacker.currentHp - selfDamage);
-        await this.battleRepository.updateBattlePokemonStatus(attacker.id, {
-          currentHp: newHp,
-        });
-        return `Pokemon is confused and hurt itself in confusion (${selfDamage} damage)`;
-      }
+    // 技を出す前の判定（本家の onBeforeMove の順）
+    const attackerAbilityEffect = this.abilityEffectOf(
+      this.abilityNameOf(
+        { trainedPokemon: attackerTrainedPokemon, status: attacker },
+        { trainedPokemon: defenderTrainedPokemon, status: defender },
+      ),
+    );
+    const beforeMove = await this.beforeMoveChecker.check({
+      battle,
+      move,
+      attacker,
+      defender,
+      attackerAbilityEffect,
+      battleContext: this.createHitContext({
+        battle,
+        move,
+        moveEffect: MoveRegistry.get(move.name),
+        attacker,
+        defender,
+        attackerTrainedPokemon,
+        defenderTrainedPokemon,
+        attackerAbilityEffect,
+        defenderAbilityEffect: undefined,
+        options,
+      }),
+      calculateConfusionSelfDamage: current =>
+        this.calculateConfusionSelfDamage(battle, current, attackerTrainedPokemon),
+    });
+    if (beforeMove.cancelled === true) {
+      return beforeMove.message;
     }
 
-    // みちづれ・おんねんは、使用者が次に技を出そうとしたときに消える
-    // みちづれを続けて使ったときの失敗判定を入れるときは、この消去より前で読む
-    if (clearVolatileOnBeforeMove(attacker.volatileState) !== attacker.volatileState) {
-      attacker = await this.battleRepository.patchVolatileState(
-        attacker.id,
-        removalPatch<VolatileState>(VOLATILE_UNTIL_NEXT_MOVE_FLAGS),
-      );
+    const trace: MoveTrace = {};
+    const result = await this.useMove({
+      battle,
+      move,
+      attacker: beforeMove.attacker,
+      defender,
+      battlePokemonMoveId,
+      options,
+      attackerTrainedPokemon,
+      defenderTrainedPokemon,
+      trace,
+    });
+    // バトル全体で最後に出た技（まねっこが読む）。本家と同じく、技を出し終えてから書く。
+    // 呼ばれた技を出したときは、その技を書く（ゆびをふる → たいあたりなら、たいあたり）
+    if (trace.activeMove) {
+      await this.battleRepository.patchGlobalFieldState(battle.id, {
+        lastMoveId: trace.activeMove.id,
+      });
     }
+    // おどりこなどには、最後に出し始めた技（ゆびをふるで出た技など）と、行動の結果を渡す
+    const observerMessages = await this.runOpponentMoveObservers({
+      battle,
+      move: trace.activeMove ?? move,
+      outcome: result.outcome,
+      userId: attacker.id,
+      observerId: defender.id,
+      observerTrainedPokemon: defenderTrainedPokemon,
+      options,
+    });
+    const observerMessage = observerMessages.map(message => ` ${message}`).join('');
+    return `${beforeMove.prefix}${result.message}${observerMessage}`;
+  }
+
+  /**
+   * アンコールされているのに別の技を出そうとしたとき、代わりに出すアンコールされた技と技の欄
+   * 行動を決めたあと（このターン）にアンコールされたときに当たる。本家の encore の onOverrideAction と同じく、
+   * アンコールされた技の PP を使う（このあとの PP を減らす処理がその欄を減らす）
+   * - ため技の 2 ターン目・出し続ける技・反動のターン・わるあがきは変えない
+   * - アンコールされた技の PP が 0 なら、アンコールを消して選んだ技を出す
+   * @returns 変えないときは undefined
+   */
+  private async resolveEncoreOverride(
+    attacker: BattlePokemonStatus,
+    move: Move,
+  ): Promise<{ move: Move; battlePokemonMoveId: number } | undefined> {
+    const state = attacker.volatileState;
+    const encore = state.encore;
+    if (
+      encore === undefined ||
+      encore.moveId === move.id ||
+      move.name === STRUGGLE_MOVE_NAME ||
+      state.mustRecharge === true ||
+      state.chargingMoveId !== undefined ||
+      state.lockedInMove !== undefined
+    ) {
+      return undefined;
+    }
+    const moves =
+      (await this.battleRepository.findBattlePokemonMovesByBattlePokemonStatusId(attacker.id)) ??
+      [];
+    const slot = findMoveSlot(resolveMoveSlots(moves, state), encore.moveId);
+    if (!slot) {
+      return undefined;
+    }
+    if (slot.currentPp <= 0) {
+      await this.battleRepository.patchVolatileState(attacker.id, { encore: null });
+      return undefined;
+    }
+    const encoredMove = await this.moveRepository.findById(encore.moveId);
+    return encoredMove
+      ? { move: encoredMove, battlePokemonMoveId: slot.battlePokemonMoveId }
+      : undefined;
+  }
+
+  /**
+   * ターンの初めに、技の onTurnStart を呼ぶ（くちばしキャノンの加熱など）
+   * ExecuteTurnUseCase が、技を選んだポケモンごとに行動順で呼ぶ
+   * @returns メッセージ（なければ null）
+   */
+  async runTurnStartHook(
+    battle: Battle,
+    moveId: number,
+    user: BattlePokemonStatus,
+    opponent: BattlePokemonStatus,
+  ): Promise<string | null> {
+    const move = await this.moveRepository.findById(moveId);
+    const moveEffect = move ? MoveRegistry.get(move.name) : undefined;
+    if (!move || !moveEffect?.onTurnStart) {
+      return null;
+    }
+    const userTrainedPokemon = await this.trainedPokemonRepository.findById(user.trainedPokemonId);
+    const opponentTrainedPokemon = await this.trainedPokemonRepository.findById(
+      opponent.trainedPokemonId,
+    );
+    if (!userTrainedPokemon || !opponentTrainedPokemon) {
+      return null;
+    }
+    const context = this.createHitContext({
+      battle,
+      move,
+      moveEffect,
+      attacker: user,
+      defender: opponent,
+      attackerTrainedPokemon: userTrainedPokemon,
+      defenderTrainedPokemon: opponentTrainedPokemon,
+      attackerAbilityEffect: undefined,
+      defenderAbilityEffect: undefined,
+      options: {},
+    });
+    return moveEffect.onTurnStart(user, opponent, context);
+  }
+
+  /**
+   * ターン終了時に、みらいよち・はめつのねがいを当てる
+   * SideConditions.futureAttack の turns が 1 の陣営の、場のポケモンに当てる（tickSideStateAtTurnEnd の前に呼ぶ）
+   * 技を使ったポケモンが場を離れていても、そのポケモンの能力で当たる。PP は減らさず、技を出す前の判定もしない
+   * 注: 本家は技を使ったポケモンが場にいないとき、特性・持ち物の補正を受けない。ここでは特性の補正も受ける
+   * @returns 当てた技のメッセージと、技を使ったポケモンのトレーナー ID
+   */
+  async executeFutureAttacks(
+    battle: Battle,
+  ): Promise<Array<{ readonly trainerId: number; readonly message: string }>> {
+    const latestBattle = (await this.battleRepository.findById(battle.id)) ?? battle;
+    const messages: Array<{ readonly trainerId: number; readonly message: string }> = [];
+    for (const trainerId of [latestBattle.trainer1Id, latestBattle.trainer2Id]) {
+      const pending = getSideConditions(latestBattle.sideState, trainerId).futureAttack;
+      if (pending?.turns !== 1) {
+        continue;
+      }
+      const target = await this.battleRepository.findActivePokemonByBattleIdAndTrainerId(
+        battle.id,
+        trainerId,
+      );
+      const source = await this.battleRepository.findBattlePokemonStatusById(
+        pending.sourceStatusId,
+      );
+      const move = await this.moveRepository.findById(pending.moveId);
+      if (!target || target.isFainted() || !source || !move) {
+        continue;
+      }
+      const sourceTrainedPokemon = await this.trainedPokemonRepository.findById(
+        source.trainedPokemonId,
+      );
+      const targetTrainedPokemon = await this.trainedPokemonRepository.findById(
+        target.trainedPokemonId,
+      );
+      if (!sourceTrainedPokemon || !targetTrainedPokemon) {
+        continue;
+      }
+      const result = await this.useMove({
+        battle: latestBattle,
+        move,
+        attacker: source,
+        defender: target,
+        battlePokemonMoveId: undefined,
+        options: {},
+        attackerTrainedPokemon: sourceTrainedPokemon,
+        defenderTrainedPokemon: targetTrainedPokemon,
+        called: { calledBy: move.name, depth: 1, isFutureAttack: true },
+      });
+      messages.push({ trainerId: source.trainerId, message: result.message });
+    }
+    return messages;
+  }
+
+  /**
+   * 技を選べるか（技の制限を受けないか）を判定する（ExecuteTurnUseCase が、わるあがきを出すかの判定に使う）
+   * かなしばり・かいふくふうじ・じごくづき・ちょうはつ・相手のふういん・アンコール・いちゃもん・こだわり・じゅうりょくを見る
+   * 技が見つからないときは選べるとみなす
+   */
+  async isMoveSelectable(
+    user: BattlePokemonStatus,
+    opponent: BattlePokemonStatus,
+    moveId: number,
+    options: { readonly gravity?: boolean } = {},
+  ): Promise<boolean> {
+    const move = await this.moveRepository.findById(moveId);
+    if (!move) {
+      return true;
+    }
+    const restriction = findMoveRestriction(
+      user.volatileState,
+      { moveId: move.id, moveName: move.name, category: move.category },
+      {
+        imprisonedMoveIds: await this.beforeMoveChecker.findImprisonedMoveIds(opponent),
+        gravity: options.gravity,
+      },
+    );
+    return restriction === undefined;
+  }
+
+  /**
+   * 技名から技の ID を引く（わるあがきを出すときなど）
+   * 技のリポジトリが findByName を持たないときは undefined
+   */
+  async findMoveIdByName(moveName: string): Promise<number | undefined> {
+    const move = await this.moveRepository.findByName?.(moveName);
+    return move?.id;
+  }
+
+  /**
+   * 技を出す前の判定を通ったあとに、技を使う
+   * called は、別の技（ゆびをふるなど）から呼ばれた技のときだけ渡す（PP を減らさず、使用者の記録を書かない。
+   * actsAsOwnMove なら、使用者が自分で出したのと同じに扱う）
+   */
+  private async useMove(params: MoveUseParams): Promise<MoveUseResult> {
+    const { battle, move, defender, options, called } = params;
+    const { attackerTrainedPokemon, defenderTrainedPokemon } = params;
+    let attacker = params.attacker;
+    const isCalled = called !== undefined && called.actsAsOwnMove !== true;
+    const previousState = attacker.volatileState;
+    // ため技の 2 ターン目・出し続ける技の 2 ターン目以降は、PP を減らさない（本家と同じ）
+    const isContinuation =
+      !isCalled &&
+      (previousState.chargingMoveId === move.id || previousState.lockedInMove?.moveId === move.id);
 
     const moveEffect = MoveRegistry.get(move.name);
-    const attackerAbilityName = attackerTrainedPokemon.ability?.name;
-    const defenderAbilityName = defenderTrainedPokemon.ability?.name;
-    const attackerAbilityEffect = attackerAbilityName
-      ? AbilityRegistry.get(attackerAbilityName)
-      : undefined;
-    // かたやぶり系の特性を持つ場合、防御側の特性効果は無視する
+    const { attackerAbilityName, defenderAbilityName } = this.abilityNamesOf(
+      { trainedPokemon: attackerTrainedPokemon, status: attacker },
+      { trainedPokemon: defenderTrainedPokemon, status: defender },
+    );
+    const attackerAbilityEffect = this.abilityEffectOf(attackerAbilityName);
+    // ヒットの前後で呼ぶ防御側特性は、かたやぶりでも無視しない（じきゅうりょく・さめはだ・プレッシャーなど）
+    const defenderEventEffect = this.abilityEffectOf(defenderAbilityName);
+
+    const contextFor = (current: BattlePokemonStatus): BattleContext =>
+      this.createHitContext({
+        battle,
+        move,
+        moveEffect,
+        attacker: current,
+        defender,
+        attackerTrainedPokemon,
+        defenderTrainedPokemon,
+        attackerAbilityEffect,
+        defenderAbilityEffect: undefined,
+        options,
+        called,
+        trace: params.trace,
+      });
+
+    // PP を減らす（プレッシャーの分を含む）
+    if (!isCalled && !isContinuation && params.battlePokemonMoveId !== undefined) {
+      await this.moveLifecycle.consumePp({
+        attacker,
+        defender,
+        move,
+        battlePokemonMoveId: params.battlePokemonMoveId,
+        defenderEventEffect,
+        battleContext: contextFor(attacker),
+      });
+    }
+
+    // ふんじん・ゲンシ天候は、タイプを変える効果（技の modifyMoveType → 攻撃側特性の modifyMoveType →
+    // プラズマシャワー・そうでん）を反映したタイプで判定する（本家の onTryMove）
+    const triedTypeName =
+      moveEffect?.typeless === true
+        ? undefined
+        : this.resolveMoveTypeName(
+            move,
+            moveEffect,
+            attacker,
+            defender,
+            attackerAbilityEffect,
+            contextFor(attacker),
+          );
+
+    // 技を出した記録（みちづれ・おんねんの消去、lastMoveId・lastMoveTypeName、こだわり、まもるの回数）
+    // みらいよちが当たるときは、技を出したことにならないので書かない
+    if (called?.isFutureAttack !== true) {
+      if (params.trace) {
+        params.trace.activeMove = move;
+      }
+      attacker = await this.moveLifecycle.recordMoveUse({
+        attacker,
+        move,
+        moveEffect,
+        attackerAbilityEffect,
+        isCalled,
+        moveTypeName: triedTypeName,
+      });
+    }
+
+    // 技そのものの onTryMove（もえつきる・でんこうそうげき）。本家と同じく、ゲンシ天候・ふんじん（runEvent の
+    // TryMove）より先に、特性の onPrepareHit より前に判定する（失敗したら、へんげんじざいでタイプは変わらない）
+    if (
+      called?.isFutureAttack !== true &&
+      moveEffect?.failsOnTryMove?.(attacker, defender, contextFor(attacker)) === true
+    ) {
+      return {
+        message: `Used ${move.name} but it failed`,
+        outcome: 'failed',
+        moveTypeName: triedTypeName,
+      };
+    }
+
+    // ゲンシ天候: おおあめのほのおの攻撃技・おおひでりのみずの攻撃技は失敗する（PP は減る。ノーてんきが場にいれば効かない）。
+    // ふんじんより先に判定する（本家の onTryMovePriority はゲンシ天候 1・ふんじん -1）
+    const primal = effectivePrimalWeather(battle.sideState, [
+      attackerAbilityName,
+      defenderAbilityName,
+    ]);
+    if (
+      triedTypeName !== undefined &&
+      primalWeatherBlocksMove(primal, triedTypeName, move.category)
+    ) {
+      return {
+        message:
+          primal === 'heavyRain'
+            ? `Used ${move.name} but the Fire-type attack fizzled out in the heavy rain`
+            : `Used ${move.name} but the Water-type attack evaporated in the harsh sunlight`,
+        outcome: 'failed',
+        moveTypeName: triedTypeName,
+      };
+    }
+
+    // ふんじん: ほのお技を出そうとすると爆発し、技は失敗する（PP は減る。マジックガードならダメージなし）
+    if (attacker.volatileState.powder === true && triedTypeName === 'ほのお') {
+      const powderDamage = await applyIndirectDamage(
+        attacker,
+        Math.max(1, Math.round(attacker.maxHp / MoveExecutorService.POWDER_DAMAGE_DIVISOR)),
+        contextFor(attacker),
+      );
+      return {
+        message: `Used ${move.name} but the powder exploded! (${powderDamage} damage)`,
+        outcome: 'failed',
+        moveTypeName: 'ほのお',
+      };
+    }
+
+    // みらいよち・はめつのねがい: 相手の陣営に置き、2 ターン後のターン終了時に当たる
+    if (MoveBehaviors.has(move.name, 'futureMove') && called?.isFutureAttack !== true) {
+      const scheduled = await this.moveLifecycle.scheduleFutureAttack({
+        battle,
+        attacker,
+        defender,
+        move,
+      });
+      return scheduled
+        ? { message: `Used ${move.name} and foresaw an attack!`, outcome: 'hit' }
+        : { message: `Used ${move.name} but it failed`, outcome: 'failed' };
+    }
+
+    // よこどり: 相手がよこどりを使っていれば、奪われる変化技は相手が出す
+    if (
+      !isCalled &&
+      defender.volatileState.snatch === true &&
+      MoveBehaviors.has(move.name, 'snatch')
+    ) {
+      await this.battleRepository.patchVolatileState(defender.id, { snatch: null });
+      const snatchedMessage = await this.executeCalledMove(
+        battle,
+        defender,
+        attacker,
+        { moveId: move.id, calledBy: 'よこどり' },
+        { trace: params.trace },
+      );
+      return {
+        message: `Used ${move.name} but it was snatched! ${snatchedMessage}`,
+        outcome: 'failed',
+      };
+    }
+
+    // ため技の 1 ターン目（ためたら、ここで終わる）
+    const charge = await this.moveLifecycle.handleChargeTurn({
+      attacker,
+      defender,
+      move,
+      moveEffect,
+      battleContext: contextFor(attacker),
+    });
+    if (charge.charged === true) {
+      return { message: charge.message, outcome: 'charged' };
+    }
+    attacker = charge.attacker;
+
+    const body = await this.runMoveBody({ ...params, attacker });
+    const afterMessage = await this.moveLifecycle.afterMove({
+      attacker,
+      move,
+      moveEffect,
+      outcome: body.outcome,
+      isCalled,
+      previousState,
+      moveTypeName: body.moveTypeName ?? move.type.name,
+      battleContext: contextFor(attacker),
+    });
+    return afterMessage ? { ...body, message: `${body.message} ${afterMessage}` } : body;
+  }
+
+  /**
+   * 別の技を、技の処理の流れに乗せて出す（battleContext.callMove の中身）
+   * 既定では PP を減らさず、技を出す前の判定もしない。呼び出しが深くなりすぎたら失敗する
+   * - request.runBeforeMoveChecks: 技を出すポケモンの技を出す前の判定をする（おどりこ・さいはい）
+   * - request.consumePp: 技を出すポケモンが自分で出したのと同じに扱う（PP・lastMoveId。さいはい）
+   */
+  private async executeCalledMove(
+    battle: Battle,
+    currentUser: BattlePokemonStatus,
+    currentTarget: BattlePokemonStatus,
+    request: CalledMoveRequest,
+    caller: {
+      readonly depth?: number;
+      readonly trace?: MoveTrace;
+      /** 呼んだ技の行動順の情報（同じポケモンが同じ相手に出すときだけ、呼ばれた技に渡す） */
+      readonly options?: ExecuteMoveOptions;
+      /** マジックコート・マジックミラーではね返した技 */
+      readonly bounced?: boolean;
+      /** 元の技から引き継ぐ優先度（はね返した技） */
+      readonly inheritedPriority?: number;
+    } = {},
+  ): Promise<string> {
+    const depth = caller.depth ?? 1;
+    if (depth > MoveExecutorService.MAX_CALLED_MOVE_DEPTH) {
+      return 'But it failed';
+    }
+    const move =
+      request.moveId !== undefined
+        ? await this.moveRepository.findById(request.moveId)
+        : request.moveName
+          ? await this.moveRepository.findByName?.(request.moveName)
+          : null;
+    if (!move) {
+      return 'But it failed';
+    }
+    const requestedUser = request.user ?? currentUser;
+    const requestedTarget =
+      request.target ?? (requestedUser.id === currentUser.id ? currentTarget : currentUser);
+    const user =
+      (await this.battleRepository.findBattlePokemonStatusById(requestedUser.id)) ?? requestedUser;
+    const target =
+      (await this.battleRepository.findBattlePokemonStatusById(requestedTarget.id)) ??
+      requestedTarget;
+    if (user.isFainted()) {
+      return 'But it failed';
+    }
+    const userTrainedPokemon = await this.trainedPokemonRepository.findById(user.trainedPokemonId);
+    const targetTrainedPokemon = await this.trainedPokemonRepository.findById(
+      target.trainedPokemonId,
+    );
+    if (!userTrainedPokemon || !targetTrainedPokemon) {
+      return 'But it failed';
+    }
+    const latestBattle = (await this.battleRepository.findById(battle.id)) ?? battle;
+
+    // おどりこ・さいはい: 技を出すポケモンの、技を出す前の判定（ねむり・まひ・ひるみ・こんらんなど）
+    let actingUser = user;
+    let prefix = '';
+    if (request.runBeforeMoveChecks === true) {
+      const userAbilityEffect = this.abilityEffectOf(
+        this.abilityNameOf(
+          { trainedPokemon: userTrainedPokemon, status: user },
+          { trainedPokemon: targetTrainedPokemon, status: target },
+        ),
+      );
+      const beforeMove = await this.beforeMoveChecker.check({
+        battle: latestBattle,
+        move,
+        attacker: user,
+        defender: target,
+        attackerAbilityEffect: userAbilityEffect,
+        battleContext: this.createHitContext({
+          battle: latestBattle,
+          move,
+          moveEffect: MoveRegistry.get(move.name),
+          attacker: user,
+          defender: target,
+          attackerTrainedPokemon: userTrainedPokemon,
+          defenderTrainedPokemon: targetTrainedPokemon,
+          attackerAbilityEffect: userAbilityEffect,
+          defenderAbilityEffect: undefined,
+          options: {},
+        }),
+        calculateConfusionSelfDamage: current =>
+          this.calculateConfusionSelfDamage(latestBattle, current, userTrainedPokemon),
+      });
+      if (beforeMove.cancelled === true) {
+        return beforeMove.message;
+      }
+      actingUser = beforeMove.attacker;
+      prefix = beforeMove.prefix;
+    }
+
+    // じゅうりょく: 呼ばれた技も、そらをとぶ・とびげりなどは失敗する（本家の gravity の onModifyMove）
+    if (
+      getGlobalFieldState(latestBattle.sideState).gravityTurns !== undefined &&
+      MoveBehaviors.has(move.name, 'gravity')
+    ) {
+      return `${prefix}${moveRestrictionMessage('gravity', move.name)}`;
+    }
+
+    // さいはい: 技を出すポケモンの技の欄から PP を減らす
+    const battlePokemonMoveId =
+      request.consumePp === true
+        ? findMoveSlot(
+            resolveMoveSlots(
+              (await this.battleRepository.findBattlePokemonMovesByBattlePokemonStatusId(
+                actingUser.id,
+              )) ?? [],
+              actingUser.volatileState,
+            ),
+            move.id,
+          )?.battlePokemonMoveId
+        : undefined;
+
+    // ゆびをふる・ねごとで出た技にも、相手がまだ行動していないか・最後に行動するかを渡す（ふいうち・アナライズ・
+    // ちょうはつのターン数）。別のポケモンが出すとき（さいはい・おどりこ・よこどり）は、行動順が変わるので渡さない
+    const inheritsOptions = user.id === currentUser.id && target.id === currentTarget.id;
+    const result = await this.useMove({
+      battle: latestBattle,
+      move,
+      attacker: actingUser,
+      defender: target,
+      battlePokemonMoveId,
+      options: inheritsOptions ? (caller.options ?? {}) : {},
+      attackerTrainedPokemon: userTrainedPokemon,
+      defenderTrainedPokemon: targetTrainedPokemon,
+      called: {
+        calledBy: request.calledBy,
+        powerMultiplier: request.powerMultiplier,
+        depth,
+        actsAsOwnMove: request.consumePp === true,
+        bounced: caller.bounced,
+        inheritedPriority: caller.inheritedPriority,
+      },
+      trace: caller.trace,
+    });
+    return `${prefix}${result.message}`;
+  }
+
+  /**
+   * 相手が技を出し終えたあとの、自分の特性の onOpponentMoveUsed（おどりこ）
+   * 本家のおどりこと同じく、相手の技が何かをしたとき（outcome が hit）だけ呼び、自分が隠れているとき（そらをとぶなど）は呼ばない
+   * move は相手が最後に出し始めた技（ゆびをふるで出た技なら、その技）
+   */
+  private async runOpponentMoveObservers(params: {
+    battle: Battle;
+    move: Move;
+    outcome: MoveOutcome;
+    userId: number;
+    observerId: number;
+    observerTrainedPokemon: TrainedPokemon;
+    options: ExecuteMoveOptions;
+  }): Promise<string[]> {
+    if (params.outcome !== 'hit') {
+      return [];
+    }
+    const observer = await this.battleRepository.findBattlePokemonStatusById(params.observerId);
+    // 特性を消す効果（いえき・かがくへんかガス）は特性を足さないので、今の特性が持たなければここで終わる
+    const currentEffect = this.abilityEffectOf(
+      observer
+        ? currentAbilityName(
+            abilityHolderOf({ trainedPokemon: params.observerTrainedPokemon, status: observer }),
+          )
+        : params.observerTrainedPokemon.ability?.name,
+    );
+    if (!currentEffect?.onOpponentMoveUsed) {
+      return [];
+    }
+    const user = await this.battleRepository.findBattlePokemonStatusById(params.userId);
+    if (
+      !observer ||
+      !user ||
+      observer.isFainted() ||
+      observer.volatileState.semiInvulnerable !== undefined
+    ) {
+      return [];
+    }
+    const userTrainedPokemon = await this.trainedPokemonRepository.findById(user.trainedPokemonId);
+    if (!userTrainedPokemon) {
+      return [];
+    }
+    const abilityEffect = this.abilityEffectOf(
+      this.abilityNameOf(
+        { trainedPokemon: params.observerTrainedPokemon, status: observer },
+        { trainedPokemon: userTrainedPokemon, status: user },
+      ),
+    );
+    if (!abilityEffect?.onOpponentMoveUsed) {
+      return [];
+    }
+    const latestBattle = (await this.battleRepository.findById(params.battle.id)) ?? params.battle;
+    // おどりこが自分で技を出すときは、おどりこを持つポケモンが使用者になる
+    const context = this.createHitContext({
+      battle: latestBattle,
+      move: params.move,
+      moveEffect: MoveRegistry.get(params.move.name),
+      attacker: user,
+      defender: observer,
+      attackerTrainedPokemon: userTrainedPokemon,
+      defenderTrainedPokemon: params.observerTrainedPokemon,
+      attackerAbilityEffect: undefined,
+      defenderAbilityEffect: undefined,
+      options: params.options,
+    });
+    context.callMove = request =>
+      this.executeCalledMove(latestBattle, observer, user, {
+        ...request,
+        user: request.user ?? observer,
+      });
+    const message = await abilityEffect.onOpponentMoveUsed(observer, user, context);
+    return message ? [message] : [];
+  }
+
+  /**
+   * 技の本体（特性の無効化・命中判定・ダメージ・追加効果）
+   */
+  private async runMoveBody(params: MoveUseParams): Promise<MoveUseResult> {
+    const { battle, move, defender, options, called } = params;
+    const { attackerTrainedPokemon, defenderTrainedPokemon } = params;
+    const attacker = params.attacker;
+
+    const moveEffect = MoveRegistry.get(move.name);
+    const { attackerAbilityName, defenderAbilityName } = this.abilityNamesOf(
+      { trainedPokemon: attackerTrainedPokemon, status: attacker },
+      { trainedPokemon: defenderTrainedPokemon, status: defender },
+    );
+    const attackerAbilityEffect = this.abilityEffectOf(attackerAbilityName);
+    // かたやぶり系の特性を持つ場合、防御側の特性効果は無視する（きんしのちからは変化技のときだけ）
     const defenderAbilityEffect =
       defenderAbilityName &&
-      !AbilityRegistry.isIgnoredByMoldBreaker(attackerAbilityName, defenderAbilityName)
+      !AbilityRegistry.isIgnoredByMoldBreaker(attackerAbilityName, defenderAbilityName, {
+        battle,
+        moveName: move.name,
+        moveCategory: move.category,
+      })
         ? AbilityRegistry.get(defenderAbilityName)
         : undefined;
+    // ヒットの前後で呼ぶ防御側特性は、かたやぶりでも無視しない（じきゅうりょく・さめはだなど）
+    const defenderEventEffect = this.abilityEffectOf(defenderAbilityName);
 
     // バトルコンテキストを作成（技の特殊効果・特性のフック用）
     const battleContext = this.createHitContext({
@@ -186,31 +991,128 @@ export class MoveExecutorService {
       attackerAbilityEffect,
       defenderAbilityEffect,
       options,
+      called,
+      trace: params.trace,
     });
 
     // ダメージ技かどうか。威力が null の攻撃技（おしおきなど）は modifyMovePower があればダメージ技として扱う
     const isDamagingMove =
       move.category !== 'Status' &&
       (move.power !== null || moveEffect?.modifyMovePower !== undefined);
+    const targetsOpponent = MoveFlags.targetsOpponent(move.name) && defender.id !== attacker.id;
 
-    // 攻撃側特性の modifyPriority を反映した優先度（じょおうのいげんなどの判定用）
+    // 攻撃側特性の modifyPriority を反映した優先度（じょおうのいげんなどの判定用）。
+    // はね返した技は、はね返した側のいたずらごころを足さず、元の技の優先度を引き継ぐ（本家の useMoveInner）
     battleContext.effectivePriority =
+      called?.inheritedPriority ??
       attackerAbilityEffect?.modifyPriority?.(attacker, move.priority, battleContext) ??
       move.priority;
 
-    // 特性による技の失敗（しめりけ・じょおうのいげんなど）。両者の特性で、命中判定の前に判定する
-    const preventingAbilityName = this.findMovePreventingAbility({
+    // 特性による技の失敗（しめりけ・じょおうのいげんなど）。両者の特性で、命中判定の前に判定する。
+    // onPrepareHit のあとのやり直し（prepared）では判定し直さない（本家の TryMove は PrepareHit より前に 1 回）
+    const preventingAbilityName = params.prepared
+      ? undefined
+      : this.findMovePreventingAbility({
+          attacker,
+          defender,
+          attackerAbilityName,
+          defenderAbilityName,
+          attackerAbilityEffect,
+          defenderAbilityEffect,
+          battleContext,
+        });
+    if (preventingAbilityName) {
+      return {
+        message: `Used ${move.name} but it failed (${preventingAbilityName})`,
+        outcome: 'failed',
+      };
+    }
+
+    // 技を出す直前の使用者の特性（へんげんじざい・リベロ・バトルスイッチ。本家の onPrepareHit）。
+    // タイプ・フォルムが変わるので、使用者を読み直して技の本体をやり直す（やり直しでは preventsMove と onPrepareHit を呼ばない）
+    if (
+      !params.prepared &&
+      attackerAbilityEffect?.onPrepareHit &&
+      this.runsPrepareHit(move, called)
+    ) {
+      battleContext.moveTypeName =
+        moveEffect?.typeless === true
+          ? undefined
+          : this.resolveMoveTypeName(
+              move,
+              moveEffect,
+              attacker,
+              defender,
+              attackerAbilityEffect,
+              battleContext,
+            );
+      const prepareMessage = await attackerAbilityEffect.onPrepareHit(
+        attacker,
+        defender,
+        battleContext,
+      );
+      const preparedAttacker =
+        (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? attacker;
+      const body = await this.runMoveBody({
+        ...params,
+        attacker: preparedAttacker,
+        prepared: true,
+      });
+      return prepareMessage ? { ...body, message: `${prepareMessage} ${body.message}` } : body;
+    }
+
+    // サイコフィールド: 地面にいる相手への優先度の高い技（いたずらごころなどの補正を含む）は失敗する
+    if (
+      targetsOpponent &&
+      this.isProtectedByPsychicTerrain(battle, defender, defenderTrainedPokemon, battleContext)
+    ) {
+      return { message: `Used ${move.name} but it failed (Psychic Terrain)`, outcome: 'failed' };
+    }
+
+    // まもる系（まもる・キングシールド・ワイドガードなど）。特性の無効化より先に判定する（本家の onTryHit の優先度）
+    if (targetsOpponent) {
+      const blocked = await this.blockByProtection({
+        battle,
+        move,
+        attacker,
+        defender,
+        attackerAbilityEffect,
+        battleContext,
+      });
+      if (blocked) {
+        // 防がれた技も失敗なので、とびひざげりなどは自分にダメージを受ける（本家の onMoveFail）
+        const crashMessage = await moveEffect?.onMiss?.(attacker, defender, battleContext);
+        return crashMessage
+          ? { ...blocked, message: `${blocked.message} ${crashMessage}` }
+          : blocked;
+      }
+    }
+
+    // マジックコート・マジックミラー: はね返せる技を、相手が使用者に出し直す（本家の onTryHit。はね返した技は返さない）
+    const reflector = this.findMoveReflector({
+      move,
       attacker,
       defender,
-      attackerAbilityName,
-      defenderAbilityName,
-      attackerAbilityEffect,
       defenderAbilityEffect,
-      battleContext,
+      called,
     });
-    if (preventingAbilityName) {
-      await this.consumePp(battlePokemonMoveId);
-      return `Used ${move.name} but it failed (${preventingAbilityName})`;
+    if (reflector) {
+      const reflectedMessage = await this.executeCalledMove(
+        battle,
+        attacker,
+        defender,
+        { moveId: move.id, calledBy: reflector, user: defender, target: attacker },
+        {
+          depth: (called?.depth ?? 0) + 1,
+          trace: params.trace,
+          bounced: true,
+          inheritedPriority: battleContext.effectivePriority,
+        },
+      );
+      return {
+        message: `Used ${move.name} but it was bounced back (${reflector})! ${reflectedMessage}`,
+        outcome: 'failed',
+      };
     }
 
     // 技そのものの無効化（ぼうおん・ぼうだんなど）。変化技も含め、命中判定の前に判定する
@@ -218,22 +1120,42 @@ export class MoveExecutorService {
       MoveFlags.targetsOpponent(move.name) &&
       defenderAbilityEffect?.isImmuneToMove?.(defender, battleContext) === true
     ) {
-      await this.consumePp(battlePokemonMoveId);
       // 無効にしたあとの防御側特性の効果（かぜのりの攻撃ランク+1など）
       const blockedMessage = await defenderAbilityEffect.onMoveBlocked?.(defender, battleContext);
-      return blockedMessage
-        ? `Used ${move.name} but it had no effect ${blockedMessage}`
-        : `Used ${move.name} but it had no effect`;
+      return {
+        message: blockedMessage
+          ? `Used ${move.name} but it had no effect ${blockedMessage}`
+          : `Used ${move.name} but it had no effect`,
+        outcome: 'failed',
+      };
     }
 
     // 技の条件による失敗（ゆめくいは相手がねむりでなければ失敗）。命中判定の前に判定する
     if (moveEffect?.shouldFail?.(attacker, defender, battleContext) === true) {
-      await this.consumePp(battlePokemonMoveId);
-      return `Used ${move.name} but it failed`;
+      return { message: `Used ${move.name} but it failed`, outcome: 'failed' };
     }
 
-    // 命中率判定（変化技の場合は常に命中とみなす）
-    if (isDamagingMove) {
+    // 技の側の理由で必ず当たるか（どくタイプが使うどくどく）。隠れている相手にも当たる
+    const ensuresHit = AccuracyCalculator.alwaysHitsByMoveUser(
+      move.name,
+      battleTypeNamesOf(attackerTrainedPokemon, attacker),
+    );
+
+    // そらをとぶ・あなをほるなどで隠れている相手には、決まった技しか当たらない（ロックオン中・ノーガードは当たる）
+    if (
+      targetsOpponent &&
+      !ensuresHit &&
+      !this.canReachSemiInvulnerable(attacker, defender, move, [
+        attackerAbilityName,
+        defenderAbilityName,
+      ])
+    ) {
+      return this.missed(move, moveEffect, attacker, defender, battleContext);
+    }
+
+    // 命中率判定。変化技も、相手を対象にする技なら判定する（命中率が null の技は必ず当たる）。
+    // 威力が null で modifyMovePower もない攻撃技は、今までどおり判定しない
+    if (isDamagingMove || (move.category === 'Status' && targetsOpponent)) {
       const hit = AccuracyCalculator.checkHit(
         move.accuracy,
         attacker,
@@ -241,35 +1163,77 @@ export class MoveExecutorService {
         attackerAbilityName,
         defenderAbilityName,
         battleContext,
+        { ensuresHit },
       );
 
       if (!hit) {
-        // 外れた場合でもPPは消費される
-        await this.consumePp(battlePokemonMoveId);
-
-        // 技の特殊効果（onMiss）を呼び出す
-        if (moveEffect?.onMiss) {
-          const missMessage = await moveEffect.onMiss(attacker, defender, battleContext);
-          if (missMessage) {
-            return `Used ${move.name} but it missed. ${missMessage}`;
-          }
-        }
-
-        return `Used ${move.name} but it missed`;
+        return this.missed(move, moveEffect, attacker, defender, battleContext);
       }
     }
 
-    // 変化技の場合はダメージなし(PPは消費される)
+    // フェイント・シャドーダイブなど（breaksProtect）: 当たったら相手の守りを解く（本家の hitStepBreakProtect）
+    const protectionBrokenMessage =
+      targetsOpponent &&
+      MoveBehaviors.has(move.name, 'breaksProtect') &&
+      (await this.breakProtection(battle, defender))
+        ? ' It broke through the protection!'
+        : '';
+
+    // みがわりがあると、相手を対象にする変化技は失敗する（音技など bypassSubstitute の技とすりぬけを除く）
+    const bypassesSubstitute =
+      !targetsOpponent ||
+      MoveBehaviors.has(move.name, 'bypassSubstitute') ||
+      attackerAbilityEffect?.infiltrates === true;
+
+    // 変化技の場合はダメージなし
     if (!isDamagingMove) {
-      await this.consumePp(battlePokemonMoveId);
-
-      // 変化技の特殊効果（onUse）を呼び出す
-      let moveEffectMessage: string | null = null;
-      if (moveEffect?.onUse) {
-        moveEffectMessage = await moveEffect.onUse(attacker, defender, battleContext);
+      if (defender.volatileState.substituteHp !== undefined && !bypassesSubstitute) {
+        return { message: `Used ${move.name} but it failed`, outcome: 'failed' };
       }
+      // ほえる・ふきとばし: 相手を交代させられなければ失敗する（控えがいない・ねをはる・きゅうばん）
+      const forcesOut = moveEffect?.forceSwitch === true && targetsOpponent;
+      if (forcesOut && !(await this.canForceOut(battle, defender, defenderAbilityEffect))) {
+        return { message: `Used ${move.name} but it failed`, outcome: 'failed' };
+      }
+      // まもる系の技: 成功の判定と、守りの書き込み（失敗したら onUse は呼ばない）
+      let protectionMessage: string | null = null;
+      if (moveEffect?.protection) {
+        protectionMessage = await this.startProtection({
+          battle,
+          attacker,
+          protection: moveEffect.protection,
+          options,
+        });
+        if (protectionMessage === null) {
+          return { message: `Used ${move.name} but it failed`, outcome: 'failed' };
+        }
+      }
+      // 変化技の特殊効果（onUse）を呼び出す
+      let moveEffectMessage: string | null = protectionMessage;
+      if (moveEffect?.onUse) {
+        const useMessage = await moveEffect.onUse(attacker, defender, battleContext);
+        moveEffectMessage =
+          protectionMessage && useMessage
+            ? `${protectionMessage} ${useMessage}`
+            : (useMessage ?? protectionMessage);
+      }
+      // onUse が失敗を返したら、とんぼがえり系の交代もしない（本家も技が失敗したら selfSwitch しない）
+      if (moveEffectMessage?.startsWith('But it failed') === true) {
+        battleContext.selfSwitchCancelled = true;
+      }
+      await this.scheduleSwitchesAfterMove({
+        battle,
+        moveEffect,
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        forcesOut,
+        battleContext,
+      });
 
-      return moveEffectMessage ? `Used ${move.name} ${moveEffectMessage}` : `Used ${move.name}`;
+      return {
+        message: moveEffectMessage ? `Used ${move.name} ${moveEffectMessage}` : `Used ${move.name}`,
+        outcome: 'hit',
+      };
     }
 
     // 追加効果の確率倍率（てんのめぐみ）と、相手への追加効果の無効化（りんぷん）
@@ -277,6 +1241,11 @@ export class MoveExecutorService {
       attackerAbilityEffect?.secondaryEffectChanceMultiplier;
     battleContext.secondaryEffectsSuppressed =
       defenderAbilityEffect?.blocksSecondaryEffects === true;
+    // 手持ちがひんしになった延べ数（そうだいしょう。本家の side.totalFainted）
+    battleContext.attackerFaintedAllyCount = countFaintedAllies(
+      (await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id)) ?? [],
+      attacker,
+    );
 
     let currentAttacker = attacker;
     let updatedDefender = defender;
@@ -294,6 +1263,9 @@ export class MoveExecutorService {
 
     // ダメージ計算の入力（攻撃側・防御側はその時点の最新の状態を使う）
     const typeEffectiveness = await this.typeEffectivenessRepository.getTypeEffectivenessMap();
+    // タイプ一致・相性に使う実効のタイプ（みずびたし・はねやすめ・ハロウィン・フォルムなどを反映）
+    const attackerTypes = await this.typesOf(attackerTrainedPokemon, attacker);
+    const defenderTypes = await this.typesOf(defenderTrainedPokemon, defender);
     const createDamageParams = (
       power: number | null,
       baseDamageRatio?: number,
@@ -302,14 +1274,8 @@ export class MoveExecutorService {
       defender: updatedDefender,
       move: { power, typeId: moveType.id, category: move.category, accuracy: move.accuracy },
       moveType,
-      attackerTypes: {
-        primary: attackerTrainedPokemon.pokemon.primaryType,
-        secondary: attackerTrainedPokemon.pokemon.secondaryType,
-      },
-      defenderTypes: {
-        primary: defenderTrainedPokemon.pokemon.primaryType,
-        secondary: defenderTrainedPokemon.pokemon.secondaryType,
-      },
+      attackerTypes,
+      defenderTypes,
       typeEffectiveness,
       weather: battleContext.weather ?? null,
       field: battle.field,
@@ -342,14 +1308,17 @@ export class MoveExecutorService {
       battleContext.defender = updatedDefender;
     }
 
-    // 技の威力を決定
-    const power =
+    // 技の威力を決定（さきどりで呼ばれた技は 1.5 倍）
+    const basePower =
       moveEffect?.modifyMovePower?.(currentAttacker, updatedDefender, battleContext) ?? move.power;
-    // 威力が決まらなかった場合はダメージを与えない（PPは消費される）
-    if (power === null) {
-      await this.consumePp(battlePokemonMoveId);
-      return `Used ${move.name}`;
+    // 威力が決まらなかった場合はダメージを与えない
+    if (basePower === null) {
+      return { message: `Used ${move.name}`, outcome: 'failed', moveTypeName: moveType.name };
     }
+    const power =
+      called?.powerMultiplier !== undefined
+        ? modifyByFixedPoint(basePower, Math.round(called.powerMultiplier * 4096))
+        : basePower;
     battleContext.movePower = power;
 
     // ヒットごとの基礎ダメージの倍率（連続技・おやこあいの追加ヒット）。威力はどのヒットも同じ
@@ -365,14 +1334,20 @@ export class MoveExecutorService {
     // ヒットごとにダメージを計算して適用
     // damage は実際に減らしたHPの合計（残りHPを超えた分は含めない。反動などはこの値を使う）
     let damage = 0;
+    let substituteDamage = 0;
+    let substituteBroke = false;
     let hitCount = 0;
+    let criticalHitCount = 0;
+    let blockedHitCount = 0;
+    let endured = false;
     const hpBeforeMove = updatedDefender.currentHp;
-    // ヒットの前後で呼ぶ防御側特性は、かたやぶりでも無視しない（じきゅうりょく・さめはだなど）
-    const defenderEventEffect = defenderAbilityName
-      ? AbilityRegistry.get(defenderAbilityName)
-      : undefined;
     const hitEventMessages: string[] = [];
-    const createHitResult = (hitDamage: number, hpBefore: number, hitIndex: number): HitResult => ({
+    const createHitResult = (
+      hitDamage: number,
+      hpBefore: number,
+      hitIndex: number,
+      isCriticalHit: boolean,
+    ): HitResult => ({
       damage: hitDamage,
       hpBefore,
       hitIndex,
@@ -381,32 +1356,99 @@ export class MoveExecutorService {
       moveTypeName: moveType.name,
       moveCategory: move.category,
       targetFainted: updatedDefender.isFainted(),
+      isCriticalHit,
     });
+    // 急所ランク（技・きあいだめ・とぎすます → 攻撃側特性の modifyCritRatio）と、急所を防ぐもの
+    // （防御側特性の preventsCriticalHit・相手の陣営のおまじない）。急所はヒットごとに引く（本家の getDamage）
+    const criticalHitStage = this.resolveCriticalHitStage(
+      move,
+      currentAttacker,
+      attackerAbilityEffect,
+      battleContext,
+    );
+    const criticalHitBlocked =
+      defenderAbilityEffect?.preventsCriticalHit === true ||
+      preventsCriticalHit(getSideConditions(battle.sideState, defender.trainerId));
     for (const [hitIndex, hitDamageRatio] of hitDamageRatios.entries()) {
       battleContext.hitIndex = hitIndex;
+      const isCriticalHit =
+        !criticalHitBlocked && rollCriticalHit(criticalHitStage, this.criticalHitRandom);
+      battleContext.isCriticalHit = isCriticalHit;
       const hitDamage = await DamageCalculator.calculate(createDamageParams(power, hitDamageRatio));
 
-      // ダメージを適用
-      const hpBeforeHit = updatedDefender.currentHp;
-      const newHp = Math.max(0, hpBeforeHit - hitDamage);
-      const dealtDamage = hpBeforeHit - newHp;
-      await this.battleRepository.updateBattlePokemonStatus(defender.id, {
-        currentHp: newHp,
-      });
+      // みがわりがあれば、HP の代わりにみがわりにダメージを与える（追加効果・接触時の特性は起きない）
+      const substituteHp = updatedDefender.volatileState.substituteHp;
+      const hitsSubstitute = substituteHp !== undefined && !bypassesSubstitute && hitDamage > 0;
 
-      // 更新後のdefenderを取得（次のヒットと状態異常付与のために最新の状態を取得）
-      const latestDefender = await this.battleRepository.findBattlePokemonStatusById(defender.id);
-      if (!latestDefender) {
-        throw new NotFoundException('Defender BattlePokemonStatus', defender.id);
+      // ばけのかわ・アイスフェイス（防御側特性の blockDamagingHit。かたやぶりで無視される）: このヒットのダメージを 0 にする。
+      // 防いだヒットも当たったものとして扱い、急所にはならない（本家の onDamage が 0 を返す・onCriticalHit が false）
+      const blockMessage =
+        !hitsSubstitute && hitDamage > 0 && defenderAbilityEffect?.blockDamagingHit
+          ? await defenderAbilityEffect.blockDamagingHit(
+              updatedDefender,
+              currentAttacker,
+              battleContext,
+            )
+          : null;
+      if (isCriticalHit && hitDamage > 0 && !blockMessage) {
+        criticalHitCount += 1;
       }
-      updatedDefender = latestDefender;
-      battleContext.defender = latestDefender;
-      damage += dealtDamage;
-      hitCount += 1;
+      if (blockMessage) {
+        hitEventMessages.push(blockMessage);
+        blockedHitCount += 1;
+        hitCount += 1;
+        // 特性が書いた状態（ばけのかわの 1/8 のダメージなど）を読み直す
+        currentAttacker =
+          (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? currentAttacker;
+        updatedDefender =
+          (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? updatedDefender;
+        battleContext.attacker = currentAttacker;
+        battleContext.defender = updatedDefender;
+      }
 
-      // ヒットごとの特性（防御側の onDamagingHit → 攻撃側の onSourceDamagingHit）
+      if (hitsSubstitute && substituteHp !== undefined) {
+        const dealtToSubstitute = Math.min(substituteHp, hitDamage);
+        const remaining = substituteHp - dealtToSubstitute;
+        await this.battleRepository.patchVolatileState(defender.id, {
+          substituteHp: remaining > 0 ? remaining : null,
+        });
+        updatedDefender =
+          (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? updatedDefender;
+        battleContext.defender = updatedDefender;
+        substituteDamage += dealtToSubstitute;
+        substituteBroke = substituteBroke || remaining <= 0;
+        hitCount += 1;
+        continue;
+      }
+
+      // ダメージを適用（こらえるのターンは、ひんしになるダメージでも HP が 1 残る）。防いだヒットは HP を変えない
+      const hpBeforeHit = updatedDefender.currentHp;
+      let dealtDamage = 0;
+      if (!blockMessage) {
+        const endures =
+          updatedDefender.volatileState.protection === 'endure' && hitDamage >= hpBeforeHit;
+        endured = endured || endures;
+        const newHp = endures ? Math.min(hpBeforeHit, 1) : Math.max(0, hpBeforeHit - hitDamage);
+        dealtDamage = hpBeforeHit - newHp;
+        await this.battleRepository.updateBattlePokemonStatus(defender.id, {
+          currentHp: newHp,
+        });
+
+        // 更新後のdefenderを取得（次のヒットと状態異常付与のために最新の状態を取得）
+        const latestDefender = await this.battleRepository.findBattlePokemonStatusById(defender.id);
+        if (!latestDefender) {
+          throw new NotFoundException('Defender BattlePokemonStatus', defender.id);
+        }
+        updatedDefender = latestDefender;
+        battleContext.defender = latestDefender;
+        damage += dealtDamage;
+        hitCount += 1;
+      }
+
+      // ヒットごとの特性（防御側の onDamagingHit → 攻撃側の onSourceDamagingHit）。
+      // 防いだヒットでも呼ぶ（hit.damage は 0。本家の DamagingHit もダメージ 0 で呼ばれる）
       if (
-        dealtDamage > 0 &&
+        (dealtDamage > 0 || blockMessage) &&
         (defenderEventEffect?.onDamagingHit || attackerAbilityEffect?.onSourceDamagingHit)
       ) {
         // 特性で能力ランク・HP・状態異常が変わるため、そのたびに両者の状態を取り直す
@@ -420,7 +1462,7 @@ export class MoveExecutorService {
           battleContext.attacker = currentAttacker;
           battleContext.defender = updatedDefender;
         };
-        const hit = createHitResult(dealtDamage, hpBeforeHit, hitIndex);
+        const hit = createHitResult(dealtDamage, hpBeforeHit, hitIndex, isCriticalHit);
         let defenderMessage: string | null = null;
         if (defenderEventEffect?.onDamagingHit) {
           defenderMessage = await defenderEventEffect.onDamagingHit(
@@ -448,19 +1490,59 @@ export class MoveExecutorService {
         );
       }
 
-      // 無効化された・どちらかがひんしになった場合は残りのヒットをしない
-      if (hitDamage === 0 || updatedDefender.isFainted() || currentAttacker.isFainted()) {
+      // 無効化された・どちらかがひんしになった場合は残りのヒットをしない（防いだヒットのあとは次のヒットに進む）
+      if (
+        (hitDamage === 0 && !blockMessage) ||
+        updatedDefender.isFainted() ||
+        currentAttacker.isFainted()
+      ) {
         break;
       }
     }
+    // 1 回でも当たったか（ダメージを与えたか、ばけのかわなどで防がれたか）。追加効果・接触時の特性・交代の判定に使う
+    const landed = damage > 0 || blockedHitCount > 0;
+
+    // みがわりにだけ当たったときは、反動・吸収（afterDamage）だけを起こす（本家と同じ）
+    if (damage === 0 && substituteDamage > 0) {
+      battleContext.hitSubstitute = true;
+      const latestAttacker =
+        (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? currentAttacker;
+      const afterSubstituteMessage = moveEffect?.afterDamage
+        ? await moveEffect.afterDamage(
+            latestAttacker,
+            updatedDefender,
+            substituteDamage,
+            battleContext,
+          )
+        : null;
+      const brokeMessage = substituteBroke ? ' The substitute broke!' : '';
+      const afterMessage = afterSubstituteMessage ? ` ${afterSubstituteMessage}` : '';
+      const substituteCriticalMessage = criticalHitCount > 0 ? ' A critical hit!' : '';
+      // みがわりに当たったとんぼがえりは交代する（相手を交代させる技は、みがわりに当たったら入れ替えない）
+      await this.scheduleSwitchesAfterMove({
+        battle,
+        moveEffect,
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        forcesOut: false,
+        battleContext,
+      });
+      return {
+        message: `Used ${move.name} and hit the substitute (${substituteDamage} damage)${substituteCriticalMessage}${protectionBrokenMessage}${brokeMessage}${afterMessage}`,
+        outcome: 'hit',
+        moveTypeName: moveType.name,
+      };
+    }
 
     // タイプ無効化が発動した場合（ダメージが0の場合）、HP回復などの効果を処理
-    if (damage === 0 && defenderTrainedPokemon?.ability) {
-      const abilityEffect = AbilityRegistry.get(defenderTrainedPokemon.ability.name);
-      if (abilityEffect?.onAfterTakingDamage) {
-        // タイプ無効化が発動したことを示すために、元のダメージとして0を渡す
-        await abilityEffect.onAfterTakingDamage(updatedDefender, 0, battleContext);
-      }
+    if (damage === 0 && defenderEventEffect?.onAfterTakingDamage) {
+      // タイプ無効化が発動したことを示すために、元のダメージとして0を渡す
+      await defenderEventEffect.onAfterTakingDamage(updatedDefender, 0, battleContext);
+    }
+
+    // 受けた技を記録する（テクスチャー２が読む）
+    if (damage > 0) {
+      await this.battleRepository.patchVolatileState(defender.id, { lastHitByMoveId: move.id });
     }
 
     // 接触技による状態異常付与（防御側の特性）
@@ -468,7 +1550,7 @@ export class MoveExecutorService {
     // 技の追加効果に渡すポケモンの状態（接触時の特性で変わった場合は取得し直す）
     let attackerForMoveEffect = currentAttacker;
     let defenderForMoveEffect = updatedDefender;
-    if (damage > 0 && defenderEventEffect?.applyContactStatusCondition) {
+    if (landed && defenderEventEffect?.applyContactStatusCondition) {
       const applied = await defenderEventEffect.applyContactStatusCondition(
         updatedDefender,
         currentAttacker,
@@ -485,8 +1567,25 @@ export class MoveExecutorService {
       }
     }
 
-    // PPを消費
-    await this.consumePp(battlePokemonMoveId);
+    // くちばしキャノンをためている相手に接触技を当てると、やけどになる
+    if (
+      landed &&
+      isContactMove(battleContext) &&
+      defenderForMoveEffect.volatileState.beakBlast === true
+    ) {
+      const { inflicted } = await tryInflictStatus(
+        attackerForMoveEffect,
+        StatusCondition.Burn,
+        battleContext,
+        { source: { pokemon: defenderForMoveEffect, kind: 'other', name: 'くちばしキャノン' } },
+      );
+      if (inflicted) {
+        contactEffectMessage += ' was burned by Beak Blast!';
+        attackerForMoveEffect =
+          (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ??
+          attackerForMoveEffect;
+      }
+    }
 
     // 技の特殊効果（onHit）を呼び出す
     let moveEffectMessage = '';
@@ -520,15 +1619,488 @@ export class MoveExecutorService {
       defenderId: defender.id,
       attackerAbilityEffect,
       defenderEventEffect,
-      createMoveHit: () => createHitResult(damage, hpBeforeMove, hitCount - 1),
+      createMoveHit: () =>
+        createHitResult(damage, hpBeforeMove, hitCount - 1, criticalHitCount > 0),
       damage,
       battleContext,
     });
 
+    // 倒した相手のみちづれ・おんねん
+    const faintedDefender =
+      (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? updatedDefender;
+    const faintMessages =
+      damage > 0
+        ? await this.moveLifecycle.applyFaintReactions({
+            attacker: currentAttacker,
+            fainted: faintedDefender,
+            move,
+            battleContext,
+          })
+        : [];
+
+    // 交代（とんぼがえり・ドラゴンテール・ききかいひ）。当たったとき（ばけのかわで防がれたときを含む）だけ。
+    // ドラゴンテールの強制交代が先に決まり、そのときききかいひは発動しない（本家の forceSwitchFlag）
+    if (landed) {
+      const latestDefender = await this.battleRepository.findBattlePokemonStatusById(defender.id);
+      const forced =
+        moveEffect?.forceSwitch === true &&
+        latestDefender !== null &&
+        (await this.canForceOut(battle, latestDefender, defenderAbilityEffect));
+      const exited =
+        !forced &&
+        (await this.scheduleEmergencyExit(battle, defender.id, hpBeforeMove, defenderEventEffect));
+      await this.scheduleSwitchesAfterMove({
+        battle,
+        moveEffect,
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        forcesOut: forced,
+        battleContext,
+        selfSwitchBlocked: exited,
+        defenderAbilityEffect,
+      });
+    }
+
     const hitCountMessage = hitCount > 1 ? ` (hit ${hitCount} times)` : '';
+    const criticalHitMessage = criticalHitCount > 0 ? ' A critical hit!' : '';
+    const enduredMessage = endured ? ' The opponent endured the hit!' : '';
     const eventMessage = hitEventMessages.map(message => ` ${message}`).join('');
-    const afterMoveMessage = afterMoveMessages.map(message => ` ${message}`).join('');
-    return `Used ${move.name} and dealt ${damage} damage${hitCountMessage}${contactEffectMessage}${eventMessage}${moveEffectMessage}${afterMoveMessage}`;
+    const afterMoveMessage = [...afterMoveMessages, ...faintMessages]
+      .map(message => ` ${message}`)
+      .join('');
+    return {
+      message: `Used ${move.name} and dealt ${damage} damage${hitCountMessage}${criticalHitMessage}${protectionBrokenMessage}${enduredMessage}${contactEffectMessage}${eventMessage}${moveEffectMessage}${afterMoveMessage}`,
+      outcome: landed ? 'hit' : 'failed',
+      moveTypeName: moveType.name,
+    };
+  }
+
+  /**
+   * 使用者の特性の onPrepareHit を呼ぶ技か（本家の protean と同じ条件）
+   * はね返した技・みらいよちが当たるとき・よこどりで奪った技・技を呼ぶ技（ゆびをふるなど。呼ばれた技では呼ぶ）では呼ばない
+   */
+  private runsPrepareHit(move: Move, called: CalledMoveInfo | undefined): boolean {
+    return (
+      called?.bounced !== true &&
+      called?.isFutureAttack !== true &&
+      called?.calledBy !== MoveExecutorService.SNATCH_MOVE_NAME &&
+      !MoveExecutorService.CALLS_MOVE_NAMES.includes(move.name)
+    );
+  }
+
+  /**
+   * 技をはね返すもの（マジックコート・マジックミラー）を探す
+   * はね返せる技（MoveBehaviors の reflectable。相手の陣営に置く技を含む）で、相手が自分ではなく、
+   * はね返した技でなく、相手がひんしでも隠れてもいない（そらをとぶなど）とき、相手の volatileState.magicCoat か、
+   * 相手の特性の bouncesMoves（かたやぶりで無視された特性なら見ない）があれば、その名前を返す
+   */
+  private findMoveReflector(params: {
+    move: Move;
+    attacker: BattlePokemonStatus;
+    defender: BattlePokemonStatus;
+    defenderAbilityEffect: IAbilityEffect | undefined;
+    called: CalledMoveInfo | undefined;
+  }): string | undefined {
+    const { move, attacker, defender } = params;
+    if (
+      !MoveBehaviors.has(move.name, 'reflectable') ||
+      attacker.id === defender.id ||
+      params.called?.bounced === true ||
+      defender.isFainted() ||
+      defender.volatileState.semiInvulnerable !== undefined
+    ) {
+      return undefined;
+    }
+    if (defender.volatileState.magicCoat === true) {
+      return 'マジックコート';
+    }
+    return params.defenderAbilityEffect?.bouncesMoves === true ? 'マジックミラー' : undefined;
+  }
+
+  /**
+   * まもる系の技を使う（技の protection）。成功したらメッセージ、失敗したら null を返す
+   * - このターン最後に動くなら失敗する（本家の queue.willAct）
+   * - たたみがえしは、出てから最初の行動でなければ失敗する
+   * - 自分を守る技（kind）は、続けて成功させた回数（protectCount）から 1/3^n で成功を引く。
+   *   成功したら protection と protectCount + 1 を書き、失敗したら protectCount を消す
+   * - 陣営の守り（side）は陣営に書く。ワイドガード・ファストガードは protectCount も 1 増やす（本家の stall）
+   */
+  private async startProtection(params: {
+    battle: Battle;
+    attacker: BattlePokemonStatus;
+    protection: ProtectionMoveConfig;
+    options: ExecuteMoveOptions;
+  }): Promise<string | null> {
+    const { battle, attacker, protection, options } = params;
+    const count = attacker.volatileState.protectCount ?? 0;
+    const fail = async (): Promise<null> => {
+      if (attacker.volatileState.protectCount !== undefined) {
+        await this.battleRepository.patchVolatileState(attacker.id, { protectCount: null });
+      }
+      return null;
+    };
+    if (options.isLastToMove === true) {
+      return fail();
+    }
+    if (protection.kind !== undefined) {
+      if (Math.random() >= protectSuccessChance(count)) {
+        return fail();
+      }
+      await this.battleRepository.patchVolatileState(attacker.id, {
+        protection: protection.kind,
+        protectCount: count + 1,
+      });
+      return protection.kind === 'endure' ? 'braced itself!' : 'protected itself!';
+    }
+    const switchedInTurn = attacker.volatileState.switchedInTurn;
+    if (
+      protection.side === 'matBlock' &&
+      switchedInTurn !== undefined &&
+      battle.turn !== switchedInTurn + 1
+    ) {
+      return fail();
+    }
+    await this.battleRepository.patchSideConditions(battle.id, attacker.trainerId, {
+      [protection.side]: true,
+    });
+    if (protection.side === 'wideGuard' || protection.side === 'quickGuard') {
+      await this.battleRepository.patchVolatileState(attacker.id, { protectCount: count + 1 });
+    }
+    return 'protected its team!';
+  }
+
+  /**
+   * 相手のまもる系で技が防がれるかを判定し、防がれたら結果を返す（本家の onTryHit）
+   * 接触した技なら、守りの効果（キングシールドの攻撃 -1・ニードルガードのダメージ・トーチカのどくなど）を使用者に与える
+   * 使用者の特性の bypassesProtection（ふかしのこぶし）が true なら通り抜ける
+   * @returns 防がれたときの結果。防がれなければ undefined
+   */
+  private async blockByProtection(params: {
+    battle: Battle;
+    move: Move;
+    attacker: BattlePokemonStatus;
+    defender: BattlePokemonStatus;
+    attackerAbilityEffect: IAbilityEffect | undefined;
+    battleContext: BattleContext;
+  }): Promise<MoveUseResult | undefined> {
+    const { battle, move, attacker, defender, battleContext } = params;
+    const guard = findBlockingGuard({
+      protection: defender.volatileState.protection,
+      side: getSideConditions(battle.sideState, defender.trainerId),
+      move: {
+        moveName: move.name,
+        category: move.category,
+        effectivePriority: battleContext.effectivePriority ?? move.priority,
+        bypassesProtect:
+          params.attackerAbilityEffect?.bypassesProtection?.(attacker, battleContext) === true,
+      },
+    });
+    if (guard === undefined) {
+      return undefined;
+    }
+    const contactMessage = isContactMove(battleContext)
+      ? await this.applyProtectionContactEffect(guard, attacker, defender, battleContext)
+      : null;
+    const blockedMessage = `Used ${move.name} but it was blocked (${GUARD_MOVE_NAMES[guard]})`;
+    return {
+      message: contactMessage ? `${blockedMessage} ${contactMessage}` : blockedMessage,
+      outcome: 'failed',
+    };
+  }
+
+  /**
+   * 接触した使用者への守りの効果（PROTECTION_CONTACT_EFFECTS）を与える
+   * 能力ランクの低下・状態異常は守ったポケモンが起こしたもの（kind: 'other'）として、特性・しろいきり・
+   * しんぴのまもりで防げる。ダメージは技以外のダメージ（マジックガードで防げる）
+   * @returns メッセージ（効果がなければ null）
+   */
+  private async applyProtectionContactEffect(
+    guard: BlockingGuard,
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): Promise<string | null> {
+    const effect = PROTECTION_CONTACT_EFFECTS[guard];
+    if (!effect) {
+      return null;
+    }
+    const source = { pokemon: defender, kind: 'other' as const, name: GUARD_MOVE_NAMES[guard] };
+    switch (effect.type) {
+      case 'stat': {
+        const result = await applyStatChanges(
+          attacker,
+          [{ statType: effect.statType, rankChange: effect.rankChange }],
+          battleContext,
+          { source },
+        );
+        return joinStatChangeMessages(result);
+      }
+      case 'damage': {
+        const dealt = await applyIndirectDamage(
+          attacker,
+          fractionOfMaxHp(attacker, effect.divisor),
+          battleContext,
+        );
+        return dealt > 0 ? `was hurt by ${GUARD_MOVE_NAMES[guard]}! (${dealt} damage)` : null;
+      }
+      case 'status': {
+        const { inflicted } = await tryInflictStatus(attacker, effect.status, battleContext, {
+          source,
+        });
+        if (!inflicted) {
+          return null;
+        }
+        return effect.status === StatusCondition.Burn ? 'was burned!' : 'was poisoned!';
+      }
+    }
+  }
+
+  /**
+   * 相手の守り（こらえるを除く自分を守る技と、陣営の守り）を解く（フェイントなど。本家の hitStepBreakProtect）
+   * 解いたら、相手のまもる系を続けた回数（protectCount）も消す
+   * @returns 解いたら true
+   */
+  private async breakProtection(battle: Battle, defender: BattlePokemonStatus): Promise<boolean> {
+    const protection = defender.volatileState.protection;
+    if (
+      !hasBreakableProtection(protection, getSideConditions(battle.sideState, defender.trainerId))
+    ) {
+      return false;
+    }
+    await this.battleRepository.patchVolatileState(defender.id, {
+      protection: protection === 'endure' ? protection : null,
+      protectCount: null,
+    });
+    await this.battleRepository.patchSideConditions(battle.id, defender.trainerId, {
+      wideGuard: null,
+      quickGuard: null,
+      craftyShield: null,
+      matBlock: null,
+    });
+    return true;
+  }
+
+  /**
+   * 相手を交代させられるか（ほえる・ふきとばし・ドラゴンテール・ともえなげ）
+   * 相手がひんしでなく、控えがいて、ねをはっておらず、特性の preventsForcedSwitch（きゅうばん・ばんけん）がない
+   * @param defenderAbilityEffect かたやぶりで無視された特性なら undefined
+   */
+  private async canForceOut(
+    battle: Battle,
+    defender: BattlePokemonStatus,
+    defenderAbilityEffect: IAbilityEffect | undefined,
+  ): Promise<boolean> {
+    if (
+      defender.isFainted() ||
+      defender.volatileState.ingrain === true ||
+      defenderAbilityEffect?.preventsForcedSwitch === true
+    ) {
+      return false;
+    }
+    return this.hasSwitchTarget(battle.id, defender.trainerId);
+  }
+
+  /**
+   * トレーナーに交代先（控えにいて、ひんしでないポケモン）がいるか
+   */
+  private async hasSwitchTarget(battleId: number, trainerId: number): Promise<boolean> {
+    const statuses =
+      (await this.battleRepository.findBattlePokemonStatusByBattleId(battleId)) ?? [];
+    return findSwitchTargets(statuses, trainerId).length > 0;
+  }
+
+  /**
+   * 技のあとの交代を予約する（交代そのものは、行動のすぐあとに ExecuteTurnUseCase が行う）
+   * - 技の selfSwitch: 使用者がひんしでなく、控えがいて、技の効果が selfSwitchCancelled を立てていなければ、
+   *   使用者の陣営に pendingChoice を書く（バトンタッチ = batonPass、しっぽきり = shedTail、ほかは pivot）
+   * - forcesOut: 相手を交代させられれば、相手の陣営に forcedSwitch を書く
+   */
+  private async scheduleSwitchesAfterMove(params: {
+    battle: Battle;
+    moveEffect: IMoveEffect | undefined;
+    attackerId: number;
+    defenderId: number;
+    forcesOut: boolean;
+    battleContext: BattleContext;
+    /** ききかいひで相手が交代するとき（とんぼがえりの使用者は交代しない） */
+    selfSwitchBlocked?: boolean;
+    /** 攻撃技で相手を交代させるときの、防御側の特性（かたやぶりで無視された特性なら undefined） */
+    defenderAbilityEffect?: IAbilityEffect;
+  }): Promise<void> {
+    const { battle, moveEffect, battleContext } = params;
+    const defender = await this.battleRepository.findBattlePokemonStatusById(params.defenderId);
+    if (
+      params.forcesOut &&
+      defender &&
+      (await this.canForceOut(battle, defender, params.defenderAbilityEffect))
+    ) {
+      await this.battleRepository.patchSideConditions(battle.id, defender.trainerId, {
+        forcedSwitch: true,
+      });
+    }
+    const selfSwitch = moveEffect?.selfSwitch;
+    if (
+      selfSwitch === undefined ||
+      params.selfSwitchBlocked === true ||
+      battleContext.selfSwitchCancelled === true
+    ) {
+      return;
+    }
+    const attacker = await this.battleRepository.findBattlePokemonStatusById(params.attackerId);
+    if (!attacker || attacker.isFainted() || !attacker.isActive) {
+      return;
+    }
+    if (!(await this.hasSwitchTarget(battle.id, attacker.trainerId))) {
+      return;
+    }
+    await this.battleRepository.patchSideConditions(battle.id, attacker.trainerId, {
+      pendingChoice: { reason: selfSwitch === true ? 'pivot' : selfSwitch },
+    });
+  }
+
+  /**
+   * ききかいひ・にげごし（特性の switchesOutBelowHalfHp）: 相手の技で HP が最大 HP の半分より上から
+   * 半分以下（ひんしを除く）になり、控えがいれば、防御側の陣営に pendingChoice（emergencyExit）を書く
+   * かたやぶりでは無視されない
+   * 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
+   * @returns 書いたら true
+   */
+  private async scheduleEmergencyExit(
+    battle: Battle,
+    defenderId: number,
+    hpBefore: number,
+    defenderEventEffect: IAbilityEffect | undefined,
+  ): Promise<boolean> {
+    if (defenderEventEffect?.switchesOutBelowHalfHp !== true) {
+      return false;
+    }
+    const defender = await this.battleRepository.findBattlePokemonStatusById(defenderId);
+    if (!defender || !crossesHalfHp(defender, hpBefore)) {
+      return false;
+    }
+    if (!(await this.hasSwitchTarget(battle.id, defender.trainerId))) {
+      return false;
+    }
+    await this.battleRepository.patchSideConditions(battle.id, defender.trainerId, {
+      pendingChoice: { reason: 'emergencyExit' },
+    });
+    return true;
+  }
+
+  /**
+   * サイコフィールドで守られるか（本家の psychicterrain の onTryHit）
+   * フィールドがサイコフィールドで、優先度（effectivePriority）が 1 以上で、相手が地面にいて隠れていない
+   */
+  private isProtectedByPsychicTerrain(
+    battle: Battle,
+    defender: BattlePokemonStatus,
+    defenderTrainedPokemon: TrainedPokemon,
+    battleContext: BattleContext,
+  ): boolean {
+    if (battle.field !== Field.PsychicTerrain || (battleContext.effectivePriority ?? 0) <= 0) {
+      return false;
+    }
+    if (defender.volatileState.semiInvulnerable !== undefined) {
+      return false;
+    }
+    return isGrounded({
+      typeNames: battleTypeNamesOf(defenderTrainedPokemon, defender),
+      abilityName: battleContext.defenderAbilityName,
+      volatileState: defender.volatileState,
+      sideState: battle.sideState,
+    });
+  }
+
+  /**
+   * 実効の特性名（場にいるほかのポケモンのかがくへんかガスも見る）
+   * @param other 場にいるほかのポケモン（シングルバトルでは相手）
+   */
+  private abilityNameOf(self: BattlePokemonRef, other?: BattlePokemonRef): string | undefined {
+    return battleAbilityNameOf(self.trainedPokemon, self.status, other ? [other] : []);
+  }
+
+  /**
+   * 攻撃側と防御側の実効の特性名
+   */
+  private abilityNamesOf(
+    attacker: BattlePokemonRef,
+    defender: BattlePokemonRef,
+  ): { attackerAbilityName: string | undefined; defenderAbilityName: string | undefined } {
+    return {
+      attackerAbilityName: this.abilityNameOf(attacker, defender),
+      defenderAbilityName: this.abilityNameOf(defender, attacker),
+    };
+  }
+
+  /**
+   * 特性名から特性の効果を引く（特性がなければ undefined）
+   */
+  private abilityEffectOf(abilityName: string | undefined): IAbilityEffect | undefined {
+    return abilityName ? AbilityRegistry.get(abilityName) : undefined;
+  }
+
+  /**
+   * タイプ一致・相性に使う、実効のタイプ（Type）の一覧
+   * もとのタイプと同じ名前ならそのタイプを、ほかはリポジトリから引く。タイプなし（???）はタイプなしのタイプにする
+   */
+  private async typesOf(
+    trainedPokemon: TrainedPokemon,
+    status: BattlePokemonStatus,
+  ): Promise<Type[]> {
+    const baseTypes = [trainedPokemon.pokemon.primaryType, trainedPokemon.pokemon.secondaryType];
+    const types: Type[] = [];
+    for (const name of battleTypeNamesOf(trainedPokemon, status)) {
+      const type =
+        name === TYPELESS_TYPE_NAME
+          ? MoveExecutorService.createTypelessType()
+          : (baseTypes.find(base => base?.name === name) ??
+            (await this.typeEffectivenessRepository.findTypeByName(name)));
+      if (type) {
+        types.push(type);
+      }
+    }
+    return types;
+  }
+
+  /**
+   * 技が外れたとき（技の onMiss を呼ぶ）
+   */
+  private async missed(
+    move: Move,
+    moveEffect: IMoveEffect | undefined,
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): Promise<MoveUseResult> {
+    if (moveEffect?.onMiss) {
+      const missMessage = await moveEffect.onMiss(attacker, defender, battleContext);
+      if (missMessage) {
+        return { message: `Used ${move.name} but it missed. ${missMessage}`, outcome: 'missed' };
+      }
+    }
+    return { message: `Used ${move.name} but it missed`, outcome: 'missed' };
+  }
+
+  /**
+   * そらをとぶ・あなをほるなどで隠れている相手に、この技が届くか
+   * 隠れていなければ届く。ロックオン・こころのめ（使用者の lockOnTurns）があれば届く。
+   * 攻撃側か防御側の特性が ensuresMoveHit（ノーガード）なら届く
+   */
+  private canReachSemiInvulnerable(
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    move: Move,
+    abilityNames: readonly [string | undefined, string | undefined],
+  ): boolean {
+    const kind = defender.volatileState.semiInvulnerable;
+    if (
+      kind === undefined ||
+      attacker.volatileState.lockOnTurns !== undefined ||
+      AccuracyCalculator.ensuresHitByAbility(...abilityNames)
+    ) {
+      return true;
+    }
+    return MoveBehaviors.hitsSemiInvulnerable(kind, move.name);
   }
 
   /**
@@ -593,10 +2165,14 @@ export class MoveExecutorService {
     attackerAbilityEffect: IAbilityEffect | undefined;
     defenderAbilityEffect: IAbilityEffect | undefined;
     options: ExecuteMoveOptions;
+    called?: CalledMoveInfo;
+    trace?: MoveTrace;
   }): BattleContext {
     const { battle, move, attacker, defender } = params;
-    const attackerAbilityName = params.attackerTrainedPokemon.ability?.name;
-    const defenderAbilityName = params.defenderTrainedPokemon.ability?.name;
+    const { attackerAbilityName, defenderAbilityName } = this.abilityNamesOf(
+      { trainedPokemon: params.attackerTrainedPokemon, status: attacker },
+      { trainedPokemon: params.defenderTrainedPokemon, status: defender },
+    );
     const context: BattleContext = {
       battle,
       battleRepository: this.battleRepository,
@@ -613,11 +2189,28 @@ export class MoveExecutorService {
       defenderAbilityName,
       attacker,
       defender,
-      attackerStats: this.calculateStats(params.attackerTrainedPokemon),
-      defenderStats: this.calculateStats(params.defenderTrainedPokemon),
+      attackerStats: battleStatsOf(params.attackerTrainedPokemon, attacker),
+      defenderStats: battleStatsOf(params.defenderTrainedPokemon, defender),
+      attackerTypeNames: battleTypeNamesOf(params.attackerTrainedPokemon, attacker),
+      defenderTypeNames: battleTypeNamesOf(params.defenderTrainedPokemon, defender),
       isLastToMove: params.options.isLastToMove,
       hasRecoil: params.moveEffect?.hasRecoil === true,
+      moveId: move.id,
+      moveRepository: this.moveRepository,
+      typeEffectivenessRepository: this.typeEffectivenessRepository,
+      defenderPendingMoveId: params.options.defenderPendingMoveId,
+      calledBy: params.called?.calledBy,
+      attackerEffectiveStatus: this.effectiveStatusOf(attacker, attackerAbilityName),
+      defenderEffectiveStatus: this.effectiveStatusOf(defender, defenderAbilityName),
     };
+    context.callMove = request =>
+      this.executeCalledMove(
+        battle,
+        context.attacker ?? attacker,
+        context.defender ?? defender,
+        request,
+        { depth: (params.called?.depth ?? 0) + 1, trace: params.trace, options: params.options },
+      );
 
     const baseFlags = MoveFlags.get(move.name);
     context.moveFlags =
@@ -632,6 +2225,21 @@ export class MoveExecutorService {
     );
 
     return context;
+  }
+
+  /**
+   * 状態異常として扱う状態（状態異常があればそれ、なければ特性の treatedAsStatusCondition）
+   */
+  private effectiveStatusOf(
+    pokemon: BattlePokemonStatus,
+    abilityName: string | undefined,
+  ): StatusCondition | null {
+    if (isMajorStatus(pokemon.statusCondition)) {
+      return pokemon.statusCondition;
+    }
+    return (
+      (abilityName ? AbilityRegistry.get(abilityName)?.treatedAsStatusCondition : null) ?? null
+    );
   }
 
   /**
@@ -674,16 +2282,72 @@ export class MoveExecutorService {
     if (moveEffect?.typeless === true) {
       return MoveExecutorService.createTypelessType();
     }
-    let typeName =
-      moveEffect?.modifyMoveType?.(attacker, defender, battleContext) ?? move.type.name;
-    battleContext.moveTypeName = typeName;
-    typeName =
-      attackerAbilityEffect?.modifyMoveType?.(attacker, typeName, battleContext) ?? typeName;
+    const typeName = this.resolveMoveTypeName(
+      move,
+      moveEffect,
+      attacker,
+      defender,
+      attackerAbilityEffect,
+      battleContext,
+    );
 
     if (typeName === move.type.name) {
       return move.type;
     }
     return (await this.typeEffectivenessRepository.findTypeByName(typeName)) ?? move.type;
+  }
+
+  /**
+   * 技のタイプ名を決定する（本家の onModifyType の優先度の順）
+   * 1. 技の modifyMoveType（ウェザーボールなど）
+   * 2. 攻撃側特性の modifyMoveType（-スキン・ノーマルスキン・うるおいボイス）。技の効果で変わったあとのタイプを
+   *    battleContext.moveTypeName で渡す
+   * 3. プラズマシャワー（GlobalFieldState.ionDeluge）: ノーマル技をでんき技にする
+   * 4. そうでん（使用者の volatileState.electrified）: どのタイプの技もでんき技にする
+   * 本家も技自身の onModifyType（singleEvent）を先に、特性・場の状態（runEvent）をあとに呼ぶ
+   */
+  private resolveMoveTypeName(
+    move: Move,
+    moveEffect: IMoveEffect | undefined,
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    attackerAbilityEffect: IAbilityEffect | undefined,
+    battleContext: BattleContext,
+  ): string {
+    const typeName =
+      moveEffect?.modifyMoveType?.(attacker, defender, battleContext) ?? move.type.name;
+    battleContext.moveTypeName = typeName;
+    const abilityResult = attackerAbilityEffect?.modifyMoveType?.(
+      attacker,
+      typeName,
+      battleContext,
+    );
+    // -スキン系の 1.2 倍の判定に使う（本家の typeChangerBoosted。プラズマシャワー・そうでんでは変わらない）
+    battleContext.moveTypeChangedByAbility = abilityResult !== undefined;
+    const abilityTypeName = abilityResult ?? typeName;
+    if (attacker.volatileState.electrified === true) {
+      return MoveExecutorService.ELECTRIC_TYPE_NAME;
+    }
+    const ionDeluge = getGlobalFieldState(battleContext.battle.sideState).ionDeluge === true;
+    return ionDeluge && abilityTypeName === MoveExecutorService.NORMAL_TYPE_NAME
+      ? MoveExecutorService.ELECTRIC_TYPE_NAME
+      : abilityTypeName;
+  }
+
+  /**
+   * 急所ランクを求める（0〜3。3 は必ず急所）
+   * 1. 技（急所に当たりやすい技 +1、必ず急所になる技）と、使用者の critStageBoost（きあいだめ）・laserFocusTurns（とぎすます）
+   * 2. 攻撃側特性の modifyCritRatio（きょううん・ひとでなし）
+   */
+  private resolveCriticalHitStage(
+    move: Move,
+    attacker: BattlePokemonStatus,
+    attackerAbilityEffect: IAbilityEffect | undefined,
+    battleContext: BattleContext,
+  ): number {
+    const stage = baseCriticalHitStage(move.name, attacker.volatileState);
+    const modified = attackerAbilityEffect?.modifyCritRatio?.(attacker, stage, battleContext);
+    return clampCriticalHitStage(modified ?? stage);
   }
 
   /**
@@ -714,70 +2378,6 @@ export class MoveExecutorService {
   }
 
   /**
-   * PPを消費
-   * @param battlePokemonMoveId バトル中のポケモンの技ID
-   */
-  private async consumePp(battlePokemonMoveId: number): Promise<void> {
-    // 現在のBattlePokemonMoveを取得
-    const battlePokemonMove =
-      await this.battleRepository.findBattlePokemonMoveById(battlePokemonMoveId);
-
-    if (!battlePokemonMove) {
-      throw new NotFoundException('BattlePokemonMove', battlePokemonMoveId);
-    }
-
-    // PPを1消費
-    const newPp = battlePokemonMove.consumePp(1);
-
-    // PPを更新
-    await this.battleRepository.updateBattlePokemonMove(battlePokemonMoveId, {
-      currentPp: newPp,
-    });
-  }
-
-  /**
-   * TrainedPokemonから実際のステータス値を計算
-   */
-  private calculateStats(trainedPokemon: TrainedPokemon): {
-    attack: number;
-    defense: number;
-    specialAttack: number;
-    specialDefense: number;
-    speed: number;
-  } {
-    const stats = StatCalculator.calculate({
-      baseHp: trainedPokemon.pokemon.baseHp,
-      baseAttack: trainedPokemon.pokemon.baseAttack,
-      baseDefense: trainedPokemon.pokemon.baseDefense,
-      baseSpecialAttack: trainedPokemon.pokemon.baseSpecialAttack,
-      baseSpecialDefense: trainedPokemon.pokemon.baseSpecialDefense,
-      baseSpeed: trainedPokemon.pokemon.baseSpeed,
-      level: trainedPokemon.level,
-      ivHp: trainedPokemon.ivHp,
-      ivAttack: trainedPokemon.ivAttack,
-      ivDefense: trainedPokemon.ivDefense,
-      ivSpecialAttack: trainedPokemon.ivSpecialAttack,
-      ivSpecialDefense: trainedPokemon.ivSpecialDefense,
-      ivSpeed: trainedPokemon.ivSpeed,
-      evHp: trainedPokemon.evHp,
-      evAttack: trainedPokemon.evAttack,
-      evDefense: trainedPokemon.evDefense,
-      evSpecialAttack: trainedPokemon.evSpecialAttack,
-      evSpecialDefense: trainedPokemon.evSpecialDefense,
-      evSpeed: trainedPokemon.evSpeed,
-      nature: trainedPokemon.nature,
-    });
-
-    return {
-      attack: stats.attack,
-      defense: stats.defense,
-      specialAttack: stats.specialAttack,
-      specialDefense: stats.specialDefense,
-      speed: stats.speed,
-    };
-  }
-
-  /**
    * 混乱による自分へのダメージを計算
    * 混乱の自傷ダメージはタイプなしで威力40の物理攻撃として計算
    * 特性のフックは呼ばない（本家の getConfusionDamage と同じく、特性の補正を受けない）
@@ -791,8 +2391,8 @@ export class MoveExecutorService {
     attacker: BattlePokemonStatus,
     attackerTrainedPokemon: TrainedPokemon,
   ): Promise<number> {
-    // 実際のステータス値を計算
-    const attackerStats = this.calculateStats(attackerTrainedPokemon);
+    // 実際のステータス値を計算（フォルム・パワートリックなどの実数値の上書きを反映）
+    const attackerStats = battleStatsOf(attackerTrainedPokemon, attacker);
 
     // 混乱の自傷ダメージはタイプなしで威力40の物理攻撃
     // タイプなしの技を作成（タイプ相性は1.0倍、タイプ一致もなし）

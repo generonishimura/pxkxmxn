@@ -39,6 +39,8 @@ const FULL_SIDE_CONDITIONS: Required<SideConditions> = {
   wish: { turns: 1, healAmount: 80 },
   healingWish: 'lunarDance',
   pendingChoice: { reason: 'revivalBlessing' },
+  futureAttack: { turns: 2, moveId: 248, sourceStatusId: 3 },
+  forcedSwitch: true,
 };
 
 /**
@@ -57,6 +59,7 @@ const FULL_GLOBAL_FIELD_STATE: Required<GlobalFieldState> = {
   terrainTurns: 5,
   ionDeluge: true,
   lastMoveId: 85,
+  primalWeather: 'heavyRain',
 };
 
 /**
@@ -229,6 +232,7 @@ describe('SideState', () => {
             craftyShield: true,
             matBlock: true,
             pendingChoice: { reason: 'pivot' },
+            forcedSwitch: true,
           },
         },
       };
@@ -250,6 +254,7 @@ describe('SideState', () => {
             craftyShield: true,
             matBlock: true,
             pendingChoice: { reason: 'pivot' },
+            forcedSwitch: true,
             lightScreenTurns: 5,
           },
         },
@@ -320,6 +325,24 @@ describe('SideState', () => {
       expect(ticked).toEqual({ sides: { '1': { wish: { turns: 1, healAmount: 80 } } } });
     });
 
+    it('みらいよちは技と使用者を残してターン数だけ減らし、1 なら消す', () => {
+      // Arrange
+      const state: SideState = {
+        sides: {
+          '1': { futureAttack: { turns: 3, moveId: 248, sourceStatusId: 4 } },
+          '2': { futureAttack: { turns: 1, moveId: 353, sourceStatusId: 3 } },
+        },
+      };
+
+      // Act
+      const ticked = tickSideStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toEqual({
+        sides: { '1': { futureAttack: { turns: 2, moveId: 248, sourceStatusId: 4 } } },
+      });
+    });
+
     it('このターンだけ陣営を守るフラグは消し、空になった陣営はキーごと消す', () => {
       // Arrange
       const state: SideState = {
@@ -368,6 +391,7 @@ describe('SideState', () => {
             stickyWeb: true,
             healingWish: 'lunarDance',
             pendingChoice: { reason: 'pivot' },
+            forcedSwitch: true,
           },
         },
       };
@@ -572,6 +596,20 @@ describe('SideState', () => {
         sides: { '1': { stealthRock: true } },
         global: { gravityTurns: 3 },
       });
+    });
+
+    it('ゲンシ天候は決まった 3 つの名前だけを読み込む', () => {
+      // Arrange
+      const json = { global: { primalWeather: 'strongWinds', weatherSourceStatusId: 3 } };
+      const unknown = { global: { primalWeather: 'snow' } };
+
+      // Act
+      const state = parseSideState(json);
+      const rejected = parseSideState(unknown);
+
+      // Assert
+      expect(getGlobalFieldState(state).primalWeather).toBe('strongWinds');
+      expect(rejected).toEqual({});
     });
 
     it('トレーナーIDとして読めないキーの陣営は捨てる', () => {

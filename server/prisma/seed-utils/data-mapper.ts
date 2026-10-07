@@ -76,6 +76,14 @@ export const createTypeSeedData = (type: PokeApiTypeResponse): TypeSeedData => (
   damageRelations: type.damage_relations,
 });
 
+/**
+ * 種族の既定のすがたか（PokeAPI の is_default）
+ * DB の Pokemon は全国図鑑の番号ごとに 1 行なので、別のすがた（ポワルンのゆきぐも・ギルガルドのブレードフォルム・
+ * ジガルデのメガシンカなど）で上書きしないよう、既定のすがただけを入れる
+ */
+export const isDefaultPokemon = (pokemon: PokeApiPokemonResponse): boolean =>
+  pokemon.is_default !== false;
+
 export const createPokemonSeedData = (
   pokemon: PokeApiPokemonResponse,
   species: PokeApiPokemonSpeciesResponse,

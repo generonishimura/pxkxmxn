@@ -44,4 +44,9 @@ export interface HitResult {
    * このヒット（onAfterMoveHit では技全体）で防御側がひんしになったか
    */
   readonly targetFainted: boolean;
+
+  /**
+   * このヒットが急所だったか（onAfterMoveHit では、どれかのヒットが急所だったか）。いかりのつぼが読む
+   */
+  readonly isCriticalHit?: boolean;
 }

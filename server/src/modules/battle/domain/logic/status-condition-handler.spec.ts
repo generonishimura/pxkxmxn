@@ -42,12 +42,7 @@ describe('StatusConditionHandler', () => {
       expect(StatusConditionHandler.canAct(status)).toBe(false);
     });
 
-    it('ひるみの場合は行動不能', () => {
-      const status = createBattlePokemonStatus(StatusCondition.Flinch);
-      expect(StatusConditionHandler.canAct(status)).toBe(false);
-    });
-
-    it('やけど・どく・もうどく・こんらんの場合は行動可能', () => {
+    it('やけど・どく・もうどくの場合は行動可能（ひるみ・こんらんは volatileState で判定する）', () => {
       expect(StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.Burn))).toBe(
         true,
       );
@@ -56,9 +51,6 @@ describe('StatusConditionHandler', () => {
       );
       expect(
         StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.BadPoison)),
-      ).toBe(true);
-      expect(
-        StatusConditionHandler.canAct(createBattlePokemonStatus(StatusCondition.Confusion)),
       ).toBe(true);
     });
 
@@ -211,18 +203,13 @@ describe('StatusConditionHandler', () => {
       expect(StatusConditionHandler.isClearedOnSwitch(null)).toBe(false);
     });
 
-    it('やけど・どく・もうどく・まひ・こおり・ねむり・こんらんは交代時に解除される', () => {
+    it('やけど・どく・もうどく・まひ・こおり・ねむりは交代時に解除される', () => {
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Burn)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Poison)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.BadPoison)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Paralysis)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Freeze)).toBe(true);
       expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Sleep)).toBe(true);
-      expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Confusion)).toBe(true);
-    });
-
-    it('ひるみは交代時に解除されない', () => {
-      expect(StatusConditionHandler.isClearedOnSwitch(StatusCondition.Flinch)).toBe(false);
     });
   });
 
@@ -302,34 +289,6 @@ describe('StatusConditionHandler', () => {
       expect(StatusConditionHandler.shouldSelfAttackFromConfusion()).toBe(false);
 
       random.mockRestore();
-    });
-  });
-
-  describe('shouldClearConfusion', () => {
-    it('0ターン目（混乱付与ターン）は解除されない', () => {
-      expect(StatusConditionHandler.shouldClearConfusion(0)).toBe(false);
-    });
-
-    it('confusionTurnCount = 1, 2の場合は33%の確率で解除', () => {
-      const results2: boolean[] = [];
-      const results3: boolean[] = [];
-      for (let i = 0; i < 100; i++) {
-        results2.push(StatusConditionHandler.shouldClearConfusion(1));
-        results3.push(StatusConditionHandler.shouldClearConfusion(2));
-      }
-      const trueCount2 = results2.filter(r => r).length;
-      const trueCount3 = results3.filter(r => r).length;
-      // 33%の確率なので、20%以上45%以下になることが期待される
-      expect(trueCount2).toBeGreaterThan(20);
-      expect(trueCount2).toBeLessThan(45);
-      expect(trueCount3).toBeGreaterThan(20);
-      expect(trueCount3).toBeLessThan(45);
-    });
-
-    it('confusionTurnCount >= 4の場合は必ず解除', () => {
-      // 3ターン目は確率的（33%）のため、ここでは検証しない
-      expect(StatusConditionHandler.shouldClearConfusion(4)).toBe(true); // 4ターン目は必ず解除
-      expect(StatusConditionHandler.shouldClearConfusion(100)).toBe(true);
     });
   });
 });

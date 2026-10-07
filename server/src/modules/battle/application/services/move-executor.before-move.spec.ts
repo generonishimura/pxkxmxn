@@ -21,19 +21,25 @@ describe('MoveExecutorService - 技を出そうとしたときの状態の片付
     await execute();
 
     // Assert
-    expect(statuses.get(ATTACKER_ID).volatileState).toEqual({ leechSeed: true });
+    expect(statuses.get(ATTACKER_ID).volatileState).toEqual({
+      leechSeed: true,
+      lastMoveId: 1,
+      lastMoveTypeName: 'ノーマル',
+      consecutiveMoveCount: 1,
+    });
   });
 
-  it('みちづれもおんねんもないときは、使用者の状態を書き込まない', async () => {
+  it('みちづれもおんねんもないときは、消す patch を書かない', async () => {
     // Arrange
     const { execute, battleRepository } = setupMoveExecutor({
-      attacker: { volatileState: { leechSeed: true } },
+      attacker: { volatileState: { leechSeed: true, lastMoveId: 1, consecutiveMoveCount: 1 } },
     });
 
     // Act
     await execute();
 
     // Assert
-    expect(battleRepository.patchVolatileState).not.toHaveBeenCalled();
+    const patches = battleRepository.patchVolatileState.mock.calls.map(([, patch]) => patch);
+    expect(patches.some(patch => 'destinyBond' in patch || 'grudge' in patch)).toBe(false);
   });
 });

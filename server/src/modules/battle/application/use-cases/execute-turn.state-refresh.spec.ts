@@ -136,12 +136,15 @@ describe('ExecuteTurnUseCase - ターン中の状態の読み書き', () => {
     const processTurnEnd = jest
       .spyOn(statusConditionProcessor, 'processTurnEndAbilities')
       .mockResolvedValue();
-    const pokemonSwitcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository);
+    const pokemonSwitcher = new PokemonSwitcherService(battleRepository, trainedPokemonRepository, {
+      getTypeEffectivenessMap: jest.fn().mockResolvedValue(new Map()),
+      findTypeByName: jest.fn().mockResolvedValue(null),
+    });
     // 交代: トレーナー2 の場のポケモンを ID 20 にする
     jest.spyOn(pokemonSwitcher, 'executeSwitch').mockImplementation(() => {
       statuses.set(2, createStatus(2, 2, false));
       statuses.set(20, createStatus(20, 2, true));
-      return Promise.resolve();
+      return Promise.resolve([]);
     });
     const moveExecutor = new MoveExecutorService(
       battleRepository,
@@ -335,7 +338,7 @@ describe('ExecuteTurnUseCase - ターン中の状態の読み書き', () => {
       expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
-    it('sideState の残りターン数を減らし、ターン数と一緒に書き込む', async () => {
+    it('sideState の残りターン数を減らして書き込み、そのあとでターン数を書き込む', async () => {
       // Arrange
       const { useCase, battleRepository, setBattle } = setup(bothMove);
       setBattle({
@@ -349,10 +352,10 @@ describe('ExecuteTurnUseCase - ターン中の状態の読み書き', () => {
       await useCase.execute(params);
 
       // Assert
-      expect(battleRepository.update).toHaveBeenCalledWith(1, {
-        turn: 4,
-        sideState: { sides: { '1': { reflectTurns: 4 } } },
-      });
+      expect(battleRepository.update.mock.calls).toEqual([
+        [1, { sideState: { sides: { '1': { reflectTurns: 4 } } } }],
+        [1, { turn: 4 }],
+      ]);
     });
 
     it('ターン終了時の処理が書いた sideState も消さずに減らす', async () => {
@@ -368,7 +371,6 @@ describe('ExecuteTurnUseCase - ターン中の状態の読み書き', () => {
 
       // Assert
       expect(battleRepository.update).toHaveBeenCalledWith(1, {
-        turn: 4,
         sideState: { sides: { '2': { tailwindTurns: 2 } } },
       });
     });

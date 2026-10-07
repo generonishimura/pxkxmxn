@@ -5,6 +5,12 @@ import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repo
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import type { MoveFlag } from '../moves/move-flags';
 import type { StatType } from '../moves/effects/base/base-stat-change-effect';
+import type { CallMove } from '../battle-events/called-move';
+import type { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import type {
+  IMoveRepository,
+  ITypeEffectivenessRepository,
+} from '../pokemon.repository.interface';
 
 /**
  * ランク補正前の実数値（種族値・個体値・努力値・性格補正を反映済み）
@@ -67,6 +73,13 @@ export interface BattleContext {
    * -スキン系の特性で「もとはノーマル技だったか」を判定するのに使う
    */
   baseMoveTypeName?: string;
+
+  /**
+   * 攻撃側特性の modifyMoveType が、この技のタイプを決めたか（undefined 以外を返したか。本家の move.typeChangerBoosted）
+   * -スキン系・ノーマルスキンの 1.2 倍は、これが true のときだけ掛ける（技が先に変えたウェザーボール・
+   * プラズマシャワーやそうでんだけで変わった技は false）
+   */
+  moveTypeChangedByAbility?: boolean;
 
   /**
    * 連続攻撃技の攻撃回数
@@ -205,4 +218,73 @@ export interface BattleContext {
    * ダメージ計算・命中判定で、ここに含まれるランクを0として扱う
    */
   ignoredDefenderRanks?: ReadonlySet<StatType>;
+  // ---- 一時的な状態（volatile）の仕組み（Issue #103 #104 #107 #135 一部） ----
+
+  /**
+   * 技の ID（Move の ID）。技の実行・ダメージ計算で入る（のろわれボディのかなしばりなど）
+   */
+  moveId?: number;
+
+  /**
+   * 相手がこのターンにまだ技を出していなければ、相手が出す予定の技の ID（さきどり・ふいうち）
+   * 相手がもう行動した・交代した・技を選んでいないときは undefined
+   */
+  defenderPendingMoveId?: number;
+
+  /**
+   * 別の技を、技の処理の流れに乗せて出す（ゆびをふる・ねごと・まねっこなど）
+   * 技の実行（MoveExecutorService）のコンテキストにだけ入る
+   */
+  callMove?: CallMove;
+
+  /**
+   * この技を呼び出した技・特性の名前（ゆびをふるで出た技なら 'ゆびをふる'）。呼ばれた技のときだけ入る
+   */
+  calledBy?: string;
+
+  /**
+   * 攻撃側・防御側の「状態異常として扱う状態」（ぜったいねむりならねむり）
+   * 状態異常があればその状態異常、なければ特性の treatedAsStatusCondition。getEffectiveStatusCondition が読む
+   */
+  attackerEffectiveStatus?: StatusCondition | null;
+  defenderEffectiveStatus?: StatusCondition | null;
+
+  /**
+   * この技がみがわりに当たったかどうか（afterDamage の damage は、みがわりに与えた量）
+   */
+  hitSubstitute?: boolean;
+
+  /**
+   * 技のリポジトリ（技名・分類・PP を引く。ものまね・スケッチ・ねこのて・ねごとが候補の技を調べる）
+   * 技の実行（MoveExecutorService）のコンテキストにだけ入る
+   */
+  moveRepository?: IMoveRepository;
+  // ---- 場の状態・設置技・交代の仕組み（Issue #103 #135 一部） ----
+
+  /**
+   * 技の効果で、技の selfSwitch（とんぼがえり・すてゼリフなど）の交代をやめる（すてゼリフで能力が下がらなかったとき）
+   * 技の onUse / onHit / afterDamage の中で true にする
+   */
+  selfSwitchCancelled?: boolean;
+
+  /**
+   * 攻撃側の手持ちがひんしになった延べ数（そうだいしょう。本家の side.totalFainted。復活しても減らない。
+   * 自分が前にひんしになって復活した回数も入る）
+   * ダメージ技の実行（beforeDamage 以降）と、ダメージ計算の特性フック（modifyBasePower など）で入る
+   */
+  attackerFaintedAllyCount?: number;
+  // ---- タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #112 #114 #119 #135 一部） ----
+
+  /**
+   * 攻撃側・防御側の実効のタイプ名（みずびたし・はねやすめ・ハロウィン・フォルムなどを反映。resolveEffectiveTypeNames）
+   * 技の実行（MoveExecutorService）のコンテキストに入る。タイプなし（'???'）を含むことがある
+   */
+  attackerTypeNames?: readonly string[];
+  defenderTypeNames?: readonly string[];
+
+  /**
+   * タイプ相性表のリポジトリ（テクスチャー２が、技を半減以下にするタイプを探す）
+   * 技の実行（MoveExecutorService）のコンテキストに入る
+   */
+  typeEffectivenessRepository?: ITypeEffectivenessRepository;
 }

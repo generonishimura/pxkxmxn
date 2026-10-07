@@ -534,4 +534,53 @@ describe('BattlePrismaRepository - 状態の JSON 列', () => {
       });
     });
   });
+  describe('古い行のこんらん・ひるみ', () => {
+    it('statusCondition がこんらんの行は、状態異常なしとこんらんの残り回数として読む', async () => {
+      // Arrange
+      const { prisma, repository } = setup();
+      prisma.battlePokemonStatus.findUnique.mockResolvedValue(
+        statusRow({ statusCondition: 'Confusion' }),
+      );
+
+      // Act
+      const status = await repository.findBattlePokemonStatusById(10);
+
+      // Assert
+      expect(status?.statusCondition).toBeNull();
+      expect(status?.volatileState.confusionTurns).toBe(2);
+    });
+
+    it('statusCondition がひるみの行は、状態異常なしとして読む', async () => {
+      // Arrange
+      const { prisma, repository } = setup();
+      prisma.battlePokemonStatus.findUnique.mockResolvedValue(
+        statusRow({ statusCondition: 'Flinch' }),
+      );
+
+      // Act
+      const status = await repository.findBattlePokemonStatusById(10);
+
+      // Assert
+      expect(status?.statusCondition).toBeNull();
+      expect(status?.volatileState.flinched).toBeUndefined();
+    });
+
+    it('部分更新では、古い行のこんらんを volatileState に移し、statusCondition を None にする', async () => {
+      // Arrange
+      const { tx, repository } = setup();
+      tx.battlePokemonStatus.findUnique.mockResolvedValue(
+        statusRow({ statusCondition: 'Confusion' }),
+      );
+      tx.battlePokemonStatus.update.mockResolvedValue(statusRow());
+
+      // Act
+      await repository.patchVolatileState(10, { tauntTurns: 3 });
+
+      // Assert
+      expect(tx.battlePokemonStatus.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: { volatileState: { confusionTurns: 2, tauntTurns: 3 }, statusCondition: 'None' },
+      });
+    });
+  });
 });
