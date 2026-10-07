@@ -1110,7 +1110,7 @@ const isCriticalHit = !preventsCriticalHit(side) && rollCriticalHit(stage);
 | キー（書く値） | 効果（エンジン） | 使う技 |
 | --- | --- | --- |
 | `trickRoomTurns`（5。すでにあれば `null` で消す） | 同じ優先度なら遅い方が先 | トリックルーム |
-| `gravityTurns`（5。すでにあれば失敗） | 命中 6840/4096 倍、`MoveBehaviors` の `gravity` の技を出せない、ひこう・ふゆうにもじめん技が当たる | じゅうりょく |
+| `gravityTurns`（5。すでにあれば失敗） | 命中 6840/4096 倍、`MoveBehaviors` の `gravity` の技を出せない（ゆびをふる・ねごとなどで呼ばれた技も失敗する）、ひこう・ふゆうにもじめん技が当たる | じゅうりょく |
 | `wonderRoomTurns`（5。すでにあれば `null` で消す） | 防御と特防の実数値を入れ替える | ワンダールーム |
 | `magicRoomTurns`（5。すでにあれば `null` で消す） | なし（持ち物の仕組みがない） | マジックルーム |
 | `mudSportTurns` / `waterSportTurns`（5。すでにあれば失敗） | でんき技 / ほのお技の威力 1352/4096 倍 | どろあそび・みずあそび |

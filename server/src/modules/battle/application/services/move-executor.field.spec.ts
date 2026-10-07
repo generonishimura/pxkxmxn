@@ -61,6 +61,42 @@ describe('MoveExecutorService - 場の状態', () => {
       expect(battleRepository.updateBattlePokemonMove).not.toHaveBeenCalled();
       expect(statuses.get(DEFENDER_ID)!.currentHp).toBe(100);
     });
+
+    it('じゅうりょくの間は、ゆびをふるなどで呼ばれたとびげりも失敗する', async () => {
+      // Arrange
+      const caller = createMove('テストよびだし', MoveCategory.Status, null);
+      const called = new Move(
+        2,
+        'とびげり',
+        'とびげり',
+        caller.type,
+        MoveCategory.Physical,
+        100,
+        95,
+        10,
+        0,
+        null,
+      );
+      const { execute, statuses } = setup(
+        { global: { gravityTurns: 3 } },
+        {
+          move: caller,
+          moves: [caller, called],
+          moveEffects: {
+            テストよびだし: {
+              onUse: (_a, _d, ctx) => ctx.callMove!({ moveId: 2, calledBy: 'テストよびだし' }),
+            },
+          },
+        },
+      );
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(message).toBe('Used テストよびだし Cannot use とびげり because of gravity');
+      expect(statuses.get(DEFENDER_ID)!.currentHp).toBe(100);
+    });
   });
 
   describe('ゲンシ天候', () => {

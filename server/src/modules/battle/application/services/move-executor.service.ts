@@ -43,11 +43,12 @@ import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
 import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called-move';
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
-import { getSideConditions } from '../../domain/state/side-state';
+import { getGlobalFieldState, getSideConditions } from '../../domain/state/side-state';
 import {
   STRUGGLE_MOVE_NAME,
   findMoveRestriction,
   findMoveSlot,
+  moveRestrictionMessage,
   resolveMoveSlots,
 } from '../../domain/logic/move-selection';
 import { BeforeMoveChecker } from './before-move-checker';
@@ -738,6 +739,14 @@ export class MoveExecutorService {
       }
       actingUser = beforeMove.attacker;
       prefix = beforeMove.prefix;
+    }
+
+    // じゅうりょく: 呼ばれた技も、そらをとぶ・とびげりなどは失敗する（本家の gravity の onModifyMove）
+    if (
+      getGlobalFieldState(latestBattle.sideState).gravityTurns !== undefined &&
+      MoveBehaviors.has(move.name, 'gravity')
+    ) {
+      return `${prefix}${moveRestrictionMessage('gravity', move.name)}`;
     }
 
     // さいはい: 技を出すポケモンの技の欄から PP を減らす
