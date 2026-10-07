@@ -284,6 +284,9 @@ import { NaturePowerEffect } from './effects/nature-power-effect';
 import { UproarEffect } from './effects/uproar-effect';
 import { GeomancyEffect } from './effects/geomancy-effect';
 import { BeakBlastEffect } from './effects/beak-blast-effect';
+// PP を減らす技（Issue #103, #107 一部）
+import { SpiteEffect } from './effects/spite-effect';
+import { GrudgeEffect } from './effects/grudge-effect';
 
 /**
  * 技のレジストリ
@@ -676,6 +679,9 @@ export class MoveRegistry {
       this.registry.set('さわぐ', new UproarEffect());
       this.registry.set('ジオコントロール', new GeomancyEffect());
       this.registry.set('くちばしキャノン', new BeakBlastEffect());
+      // PP を減らす技（Issue #103, #107 一部）
+      this.registry.set('うらみ', new SpiteEffect());
+      this.registry.set('おんねん', new GrudgeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
