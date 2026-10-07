@@ -206,6 +206,8 @@ import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 // 特性を書き換える・消す特性（Issue #135 一部）
 import { TraceEffect } from './effects/other/trace-effect';
+import { MummyEffect } from './effects/other/mummy-effect';
+import { LingeringAromaEffect } from './effects/other/lingering-aroma-effect';
 
 /**
  * 特性レジストリ
@@ -510,6 +512,8 @@ export class AbilityRegistry {
       this.registry.set('びんじょう', new OpportunistEffect());
       // 特性を書き換える・消す特性（Issue #135 一部）
       this.registry.set('トレース', new TraceEffect());
+      this.registry.set('ミイラ', new MummyEffect());
+      this.registry.set('とれないにおい', new LingeringAromaEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
