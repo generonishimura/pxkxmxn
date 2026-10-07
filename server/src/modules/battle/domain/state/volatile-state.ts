@@ -229,7 +229,10 @@ export type VolatileState = {
   // ---- 段階・回数 ----
   /** たくわえるの回数（1〜3） */
   readonly stockpileCount?: number;
-  /** たくわえるで実際に上がったランク（ランクが +6 のときは上がらない分を数えない） */
+  /**
+   * たくわえるでランクが変わった回数（能力ごと、1 回につき 1。たんじゅんで 2 上がっても・あまのじゃくで下がっても 1。
+   * +6 で上がらなければ数えない）。はきだす・のみこむは、-値を applyStatChanges に渡して戻す（ランクを直接引かない）
+   */
   readonly stockpileBoosts?: StockpileBoosts;
   /** 急所ランクの上昇（きあいだめは +2） */
   readonly critStageBoost?: number;
@@ -324,7 +327,7 @@ const moveSlotOverride = requiredFieldsOf<MoveSlotOverride>({
 });
 
 /**
- * ランクの上がり幅（0〜6）
+ * たくわえるでランクが変わった回数（書くのは 0〜3。読むときは 0〜6 まで受け付ける）
  */
 const rankBoost = integerInRange(0, 6);
 
