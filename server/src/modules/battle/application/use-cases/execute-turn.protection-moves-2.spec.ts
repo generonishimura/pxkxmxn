@@ -157,6 +157,19 @@ describe('ExecuteTurnUseCase - トリックガード・ニードルガード・�
       expect(result.actions[0].result).toBe('Used ニードルガード but it failed');
       expect(engine.status(2).currentHp).toBe(124);
     });
+
+    it('続けて使っても、乱数が 1/3 より小さければ成功する', async () => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(0.33);
+      const engine = setup({ guardVolatile: { protectCount: 1 } });
+
+      // Act
+      const result = await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPIKY_SHIELD.id });
+
+      // Assert
+      expect(result.actions[0].result).toBe('Used ニードルガード protected itself!');
+      expect(engine.status(2).currentHp).toBe(160);
+    });
   });
 
   describe('たたみがえし', () => {
