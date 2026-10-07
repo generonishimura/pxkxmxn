@@ -263,6 +263,8 @@ import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 import { WhirlwindEffect } from './effects/whirlwind-effect';
 import { RoarEffect } from './effects/roar-effect';
 import { BatonPassEffect } from './effects/baton-pass-effect';
+import { PartingShotEffect } from './effects/parting-shot-effect';
+import { FairyLockEffect } from './effects/fairy-lock-effect';
 import { TeleportEffect } from './effects/teleport-effect';
 
 /**
@@ -635,6 +637,8 @@ export class MoveRegistry {
       this.registry.set('ふきとばし', new WhirlwindEffect());
       this.registry.set('ほえる', new RoarEffect());
       this.registry.set('バトンタッチ', new BatonPassEffect());
+      this.registry.set('すてゼリフ', new PartingShotEffect());
+      this.registry.set('フェアリーロック', new FairyLockEffect());
       this.registry.set('テレポート', new TeleportEffect());
     } catch (error) {
       throw new Error(
