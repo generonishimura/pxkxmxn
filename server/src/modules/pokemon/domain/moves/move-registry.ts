@@ -259,6 +259,11 @@ import { FoulPlayEffect } from './effects/foul-play-effect';
 import { ChipAwayEffect } from './effects/chip-away-effect';
 // 相手のランクを奪う技（Issue #129 一部）
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
+// 相手の陣営に置く設置技（Issue #102, #108 一部）
+import { SpikesEffect } from './effects/spikes-effect';
+import { StealthRockEffect } from './effects/stealth-rock-effect';
+import { StickyWebEffect } from './effects/sticky-web-effect';
+import { ToxicSpikesEffect } from './effects/toxic-spikes-effect';
 
 /**
  * 技のレジストリ
@@ -626,6 +631,11 @@ export class MoveRegistry {
       this.registry.set('ＤＤラリアット', chipAwayEffect);
       // 相手のランクを奪う技（Issue #129 一部）
       this.registry.set('シャドースチール', new SpectralThiefEffect());
+      // 相手の陣営に置く設置技（Issue #102, #108 一部）
+      this.registry.set('まきびし', new SpikesEffect());
+      this.registry.set('ステルスロック', new StealthRockEffect());
+      this.registry.set('ねばねばネット', new StickyWebEffect());
+      this.registry.set('どくびし', new ToxicSpikesEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
