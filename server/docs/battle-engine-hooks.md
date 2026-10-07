@@ -1562,6 +1562,7 @@ keepsProtectCount({ protection: { side: 'craftyShield' } }); // false
   - `volatileState.magicCoat`（マジックコート。このターンだけ）
   - 特性の `bouncesMoves`（マジックミラー。かたやぶりで無視される）
 - はね返した技は、もう一度はね返さない（両方がマジックミラーでも 1 回で止まる）。相手がひんし（同じターンに先にひんしになったときなど）か、隠れている（そらをとぶなど）ときは、はね返さない
+- はね返した技の優先度（`effectivePriority`）は、元の技の優先度を引き継ぐ。はね返した側のいたずらごころは足さない（本家の useMoveInner）。元の使用者のテイルアーマー・ファストガードなどで止まるかは、この優先度で判定する
 - 元の技のメッセージは `Used <技> but it was bounced back (<マジックコート|マジックミラー>)! <はね返した技のメッセージ>`（outcome は `failed`）
 - マジックコートの技は `tryApplyVolatile(attacker, 'magicCoat', { magicCoat: true }, ctx)` を書くだけ（ターン終了時にエンジンが消す）
 

@@ -1,4 +1,5 @@
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
+import { Field } from '../../domain/entities/battle.entity';
 import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
@@ -31,10 +32,13 @@ describe('ExecuteTurnUseCase - 技をはね返す', () => {
       defenderAbility?: string;
       defenderVolatile?: VolatileState;
       defenderHp?: number;
+      defenderTypes?: readonly string[];
+      field?: Field;
     } = {},
   ) =>
     createBattleEngine({
       moves,
+      field: options.field,
       pokemon: [
         {
           id: 1,
@@ -51,6 +55,7 @@ describe('ExecuteTurnUseCase - 技をはね返す', () => {
           ability: options.defenderAbility,
           volatileState: options.defenderVolatile,
           currentHp: options.defenderHp,
+          types: options.defenderTypes,
           moveIds: [1, 5],
         },
       ],
@@ -173,5 +178,43 @@ describe('ExecuteTurnUseCase - 技をはね返す', () => {
     expect(result.actions[0].result).not.toContain('bounced back');
     expect(getSideConditions(engine.battle().sideState, 2).spikesLayers).toBe(1);
     expect(getSideConditions(engine.battle().sideState, 1).spikesLayers).toBeUndefined();
+  });
+
+  it('はね返した技には、はね返した側のいたずらごころの優先度が付かない（テイルアーマーで止まらない）', async () => {
+    // Arrange
+    const engine = setup({
+      attackerAbility: 'テイルアーマー',
+      defenderAbility: 'いたずらごころ',
+      defenderVolatile: { magicCoat: true },
+    });
+
+    // Act
+    // いたずらごころのはねるが先に動くので、ポケモン 1 の行動は 2 番目
+    const result = await engine.runTurn({ moveId: THUNDER_WAVE.id }, { moveId: SPLASH.id });
+
+    // Assert
+    expect(result.actions[1].result).toContain('was bounced back (マジックコート)');
+    expect(result.actions[1].result).not.toContain('テイルアーマー');
+    expect(engine.status(1).statusCondition).toBe(StatusCondition.Paralysis);
+  });
+
+  it('はね返した技は、元の技の優先度を引き継ぐ（いたずらごころのでんじはは、使用者のサイコフィールドで止まる）', async () => {
+    // Arrange
+    // はね返す側はひこうタイプで地面にいないので、元のでんじははサイコフィールドで止まらない
+    const engine = setup({
+      attackerAbility: 'いたずらごころ',
+      defenderVolatile: { magicCoat: true },
+      defenderTypes: ['ひこう'],
+      field: Field.PsychicTerrain,
+    });
+
+    // Act
+    const result = await engine.runTurn({ moveId: THUNDER_WAVE.id }, { moveId: SPLASH.id });
+
+    // Assert
+    expect(result.actions[0].result).toBe(
+      'Used でんじは but it was bounced back (マジックコート)! Used でんじは but it failed (Psychic Terrain)',
+    );
+    expect(engine.status(1).statusCondition).toBe(StatusCondition.None);
   });
 });

@@ -117,6 +117,11 @@ interface CalledMoveInfo {
   readonly actsAsOwnMove?: boolean;
   /** マジックコート・マジックミラーではね返した技（もう一度はね返さない） */
   readonly bounced?: boolean;
+  /**
+   * 元の技から引き継ぐ優先度（はね返した技。本家の activeMove.priority）
+   * あれば、使用者の特性の modifyPriority（いたずらごころ）を足さずに effectivePriority にする
+   */
+  readonly inheritedPriority?: number;
 }
 
 /**
@@ -707,6 +712,8 @@ export class MoveExecutorService {
       readonly options?: ExecuteMoveOptions;
       /** マジックコート・マジックミラーではね返した技 */
       readonly bounced?: boolean;
+      /** 元の技から引き継ぐ優先度（はね返した技） */
+      readonly inheritedPriority?: number;
     } = {},
   ): Promise<string> {
     const depth = caller.depth ?? 1;
@@ -817,6 +824,7 @@ export class MoveExecutorService {
         depth,
         actsAsOwnMove: request.consumePp === true,
         bounced: caller.bounced,
+        inheritedPriority: caller.inheritedPriority,
       },
       trace: caller.trace,
     });
@@ -930,8 +938,10 @@ export class MoveExecutorService {
       (move.power !== null || moveEffect?.modifyMovePower !== undefined);
     const targetsOpponent = MoveFlags.targetsOpponent(move.name) && defender.id !== attacker.id;
 
-    // 攻撃側特性の modifyPriority を反映した優先度（じょおうのいげんなどの判定用）
+    // 攻撃側特性の modifyPriority を反映した優先度（じょおうのいげんなどの判定用）。
+    // はね返した技は、はね返した側のいたずらごころを足さず、元の技の優先度を引き継ぐ（本家の useMoveInner）
     battleContext.effectivePriority =
+      called?.inheritedPriority ??
       attackerAbilityEffect?.modifyPriority?.(attacker, move.priority, battleContext) ??
       move.priority;
 
@@ -993,7 +1003,12 @@ export class MoveExecutorService {
         attacker,
         defender,
         { moveId: move.id, calledBy: reflector, user: defender, target: attacker },
-        { depth: (called?.depth ?? 0) + 1, trace: params.trace, bounced: true },
+        {
+          depth: (called?.depth ?? 0) + 1,
+          trace: params.trace,
+          bounced: true,
+          inheritedPriority: battleContext.effectivePriority,
+        },
       );
       return {
         message: `Used ${move.name} but it was bounced back (${reflector})! ${reflectedMessage}`,
