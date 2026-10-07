@@ -1685,7 +1685,7 @@ return 'transformed into the Water type!'; // みずびたし
   4. 使用者の `volatileState.electrified`（そうでん）: どのタイプの技もでんき技にする（わるあがきを除く）
 - 決まったタイプが、タイプ一致・タイプ相性・天候補正・ふんじん・ゲンシ天候の判定・`hit.moveTypeName`・`ctx.moveTypeName` に使われる。-スキン系・ノーマルスキンの 1.2 倍は、`modifyBasePower` で `ctx.moveTypeChangedByAbility === true` のときだけ掛ける（攻撃側特性の `modifyMoveType` が undefined 以外を返したときに、エンジンが true にする。本家の `typeChangerBoosted`）。プラズマシャワー・そうでんでさらに変わっても 1.2 倍のまま。技が先にタイプを変えた（晴れ・雨のウェザーボールなど）ときや、プラズマシャワー・そうでんだけで変わったときは false。`ctx.baseMoveTypeName` で判定しない（これらの技まで 1.2 倍になる）
 - `lastMoveTypeName`: 技を出した記録（`recordMoveUse`）のとき、決まったタイプを書く（エンジンが書く。呼ばれた技でも、呼ばれた技のタイプを書く（本家の lastMoveUsed）。タイプなしの技なら消す。みらいよちが当たるときは書かない）
-- 使う技・特性: プラズマシャワー（`patchGlobalFieldState(battle.id, { ionDeluge: true })`。ターン終了時に消える）、そうでん（相手がこのターンにまだ行動していない（`ctx.defenderPendingMoveId` がある）なら `patchVolatileState(defender.id, { electrified: true })`、もう行動していれば失敗）、ノーマルスキン（すべての技を `'ノーマル'` に。もとからノーマル技でも `'ノーマル'` を返すので 1.2 倍になる。ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・だいちのはどう・めざめるパワーは変えない）、フェアリースキン・フリーズスキン・スカイスキン・エレキスキン（ノーマル技だけ変える。同じく、ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・だいちのはどうは変えない）
+- 使う技・特性: プラズマシャワー（`patchGlobalFieldState(battle.id, { ionDeluge: true })`。ターン終了時に消える）、そうでん（相手がこのターンにまだ行動していない（`ctx.defenderPendingMoveId !== undefined`）か、このターンに交代で出た（`defender.volatileState.switchedInTurn === ctx.battle.turn`。本家の activeTurns が 0）なら `patchVolatileState(defender.id, { electrified: true })`、どちらでもなければ失敗）、ノーマルスキン（すべての技を `'ノーマル'` に。もとからノーマル技でも `'ノーマル'` を返すので 1.2 倍になる。ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・だいちのはどう・めざめるパワーは変えない）、フェアリースキン・フリーズスキン・スカイスキン・エレキスキン（ノーマル技だけ変える。同じく、ウェザーボール・テクノバスター・さばきのつぶて・マルチアタック・めざめるダンス・しぜんのめぐみ・だいちのはどうは変えない）
 
 ```ts
 modifyMoveType(_p: BattlePokemonStatus, typeName: string): string | undefined {
@@ -1705,7 +1705,7 @@ modifyBasePower(_p: BattlePokemonStatus, power: number, ctx?: BattleContext): nu
 - `suppressAbility`: `abilitySuppressed` を書く。ひんし・`cantSuppress`・すでに消されているなら false
 - `resolveCurrentAbilityName`: 今の特性名（消されているかは見ない。本家の `pokemon.ability`）。なりきり・スキルスワップで写す特性や、ミイラで上書きできるかに使う
 - 技ごとの失敗（なりきりで同じ特性・`failRolePlay`、なかまづくりの `noEntrain`、なやみのタネのふみん・なまけ、シンプルビームのたんじゅん・なまけ）は呼ぶ側で判定する
-- 使う技・特性: スキルスワップ・さまようたましい（`swapAbilities`。さまようたましいは `onDamagingHit` で `hit.isContact` のとき）、なりきり（使用者に相手の特性）・なかまづくり（相手に使用者の特性）・なやみのタネ（ふみん。ねむっていれば起こす）・シンプルビーム（たんじゅん）・うつしえ（使用者に相手の特性）・トレース（`onEntry` で相手の特性。`noTrace` なら写さない）・ミイラ・とれないにおい（`onDamagingHit` で接触した相手に。相手が `cantSuppress` か同じ特性なら何もしない）、いえき（`suppressAbility`）・コアパニッシャー（相手がもう行動していれば `suppressAbility`）
+- 使う技・特性: スキルスワップ・さまようたましい（`swapAbilities`。さまようたましいは `onDamagingHit` で `hit.isContact` のとき）、なりきり（使用者に相手の特性）・なかまづくり（相手に使用者の特性）・なやみのタネ（ふみん。ねむっていれば起こす）・シンプルビーム（たんじゅん）・うつしえ（使用者に相手の特性）・トレース（`onEntry` で相手の特性。`noTrace` なら写さない）・ミイラ・とれないにおい（`onDamagingHit` で接触した相手に。相手が `cantSuppress` か同じ特性なら何もしない）、いえき（`suppressAbility`）・コアパニッシャー（相手がもう行動していて、このターンに交代で出たのでなければ `suppressAbility`。本家の newlySwitched）
 
 ```ts
 const name = await resolveCurrentAbilityName(defender, ctx);
@@ -1837,7 +1837,7 @@ if (ctx) await changeForm(holder, form, ctx); // てんきや（onWeatherChange 
 | なやみのタネ | 相手がふみん・なまけなら失敗。`setAbility(defender, 'ふみん', ctx)`、ねむっていれば治す |
 | シンプルビーム | 相手がたんじゅん・なまけなら失敗。`setAbility(defender, 'たんじゅん', ctx)` |
 | いえき | `suppressAbility(defender, ctx)`（14.4） |
-| コアパニッシャー | ダメージのあと、`ctx.defenderPendingMoveId` がなければ（相手がもう行動した）`suppressAbility` |
+| コアパニッシャー | ダメージのあと、`ctx.defenderPendingMoveId` がなく（相手がもう行動した）、`defender.volatileState.switchedInTurn !== ctx.battle.turn`（このターンに交代で出たのではない）なら `suppressAbility`。このターンに交代で出た相手は消さない（本家の newlySwitched） |
 | うつしえ | 相手の今の特性（`failRolePlay` なら失敗）を `setAbility(attacker, ...)`。シングルバトルでは味方がいない |
 | トレース | `onEntry` で相手の今の特性（`noTrace` でなければ）を `setAbility` |
 | ミイラ・とれないにおい | `onDamagingHit` で `hit.isContact` なら、相手が `cantSuppress` か同じ特性でなければ `setAbility(attacker, '<自分の特性名>', ctx)` |
@@ -1853,7 +1853,7 @@ if (ctx) await changeForm(holder, form, ctx); // てんきや（onWeatherChange 
 | はねやすめ | 回復と `patchVolatileState(attacker.id, { roosting: true })`。ひこうを失うのはエンジン |
 | ハロウィン・もりののろい | `hasType` で持っていれば失敗、`addType(defender, 'ゴースト' / 'くさ', ctx)` |
 | プラズマシャワー | `patchGlobalFieldState(battle.id, { ionDeluge: true })`（14.3） |
-| そうでん | 相手が行動していなければ `electrified: true`（14.3） |
+| そうでん | 相手がまだ行動していないか、このターンに交代で出たなら `electrified: true`（14.3） |
 | へんしょく | `onAfterMoveHit` で、ひんしでなく、`hit.moveTypeName` を持っていなければ `setTypes(holder, [type], ctx)` |
 | へんげんじざい・リベロ | `onPrepareHit`（14.9） |
 | ぎたい | `onEntry`・`onTerrainChange`（14.11） |
