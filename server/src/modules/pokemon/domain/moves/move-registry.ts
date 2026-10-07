@@ -259,6 +259,12 @@ import { FoulPlayEffect } from './effects/foul-play-effect';
 import { ChipAwayEffect } from './effects/chip-away-effect';
 // 相手のランクを奪う技（Issue #129 一部）
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
+// まもる系の技（Issue #102, #103, #107 一部）
+import { ProtectEffect } from './effects/protect-effect';
+import { KingsShieldEffect } from './effects/kings-shield-effect';
+import { ObstructEffect } from './effects/obstruct-effect';
+import { SilkTrapEffect } from './effects/silk-trap-effect';
+import { BurningBulwarkEffect } from './effects/burning-bulwark-effect';
 
 /**
  * 技のレジストリ
@@ -626,6 +632,12 @@ export class MoveRegistry {
       this.registry.set('ＤＤラリアット', chipAwayEffect);
       // 相手のランクを奪う技（Issue #129 一部）
       this.registry.set('シャドースチール', new SpectralThiefEffect());
+      // まもる系の技（Issue #102, #103, #107 一部）
+      this.registry.set('まもる', new ProtectEffect());
+      this.registry.set('キングシールド', new KingsShieldEffect());
+      this.registry.set('ブロッキング', new ObstructEffect());
+      this.registry.set('スレッドトラップ', new SilkTrapEffect());
+      this.registry.set('かえんのまもり', new BurningBulwarkEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
