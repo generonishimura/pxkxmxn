@@ -206,6 +206,7 @@ import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 // フォルムを変える特性（Issue #135 一部）
 import { ForecastEffect } from './effects/form-change/forecast-effect';
+import { ZenModeEffect } from './effects/form-change/zen-mode-effect';
 
 /**
  * 特性レジストリ
@@ -510,6 +511,7 @@ export class AbilityRegistry {
       this.registry.set('びんじょう', new OpportunistEffect());
       // フォルムを変える特性（Issue #135 一部）
       this.registry.set('てんきや', new ForecastEffect());
+      this.registry.set('ダルマモード', new ZenModeEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
