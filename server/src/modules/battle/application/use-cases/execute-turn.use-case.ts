@@ -96,8 +96,8 @@ interface PlannedAction {
  * ターン処理のロジックを実行するユースケース
  *
  * 処理内容:
- * 0. 一時的な状態から行動を決める（planAction: 反動・ため技・出し続ける技・アンコール・ものまねの技・
- *    わるあがき・交代の制限）
+ * 0. 交代先を確かめる（無効なら何も書き込まずに弾く）。一時的な状態から行動を決める（planAction: 反動・ため技・
+ *    出し続ける技・アンコール・ものまねの技・わるあがき・交代の制限）
  * 1. 行動順の決定（速度と優先度を考慮）。そのあとターンの初めの効果（技の onTurnStart）
  * 2. 行動の実行（技の実行またはポケモン交代）。ひんしのポケモンは行動しない
  * 3. ダメージ計算
@@ -149,6 +149,18 @@ export class ExecuteTurnUseCase {
 
     if (!trainer1Active || !trainer2Active) {
       throw new NotFoundException('Active pokemon');
+    }
+
+    // 交代先を、ターンの書き込み（行動を決めるときのアンコールの解除など）より前に確かめる。
+    // 無効なら ValidationException を投げ、ターン全体を何も書き込まずに弾く
+    for (const action of [params.trainer1Action, params.trainer2Action]) {
+      if (action.switchPokemonId) {
+        await this.pokemonSwitcher.findValidSwitchTarget(
+          battle.id,
+          action.trainerId,
+          action.switchPokemonId,
+        );
+      }
     }
 
     // 一時的な状態から行動を決める

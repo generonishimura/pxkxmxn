@@ -26,7 +26,14 @@ describe('ExecuteTurnUseCase - 最後に行動するかどうか', () => {
       findById: jest.fn().mockResolvedValue(battle),
       create: jest.fn(),
       update: jest.fn().mockResolvedValue(battle),
-      findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([]),
+      // 場のトレーナー 1・2 のポケモンと、トレーナー 2 の控え（交代先の 5）
+      findBattlePokemonStatusByBattleId: jest
+        .fn()
+        .mockResolvedValue([
+          createStatus(1),
+          createStatus(2),
+          new BattlePokemonStatus(5, 1, 5, 2, false, 100, 100, 0, 0, 0, 0, 0, 0, 0, null),
+        ]),
       createBattlePokemonStatus: jest.fn(),
       updateBattlePokemonStatus: jest.fn(),
       findActivePokemonByBattleIdAndTrainerId: jest.fn((_battleId: number, trainerId: number) =>

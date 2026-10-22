@@ -23,7 +23,7 @@ import { StatusConditionHandler } from '../../domain/logic/status-condition-hand
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
-import { NotFoundException } from '@/shared/domain/exceptions';
+import { ValidationException } from '@/shared/domain/exceptions';
 // 場の状態・設置技・交代の仕組み（Issue #102 #103 #108 #110 #135 一部）
 import { PrimalWeatherReleaser } from './primal-weather-releaser';
 import { EntryEffectProcessor } from './entry-effect-processor';
@@ -31,7 +31,12 @@ import {
   ITypeEffectivenessRepository,
   TYPE_EFFECTIVENESS_REPOSITORY_TOKEN,
 } from '@/modules/pokemon/domain/pokemon.repository.interface';
-import { crossesHalfHp, findSwitchTargets } from '../../domain/logic/party';
+import {
+  SwitchTargetProblem,
+  crossesHalfHp,
+  findSwitchTargets,
+  resolveSwitchTarget,
+} from '../../domain/logic/party';
 import { isGrounded } from '../../domain/logic/grounded';
 import { getGlobalFieldState } from '../../domain/state/side-state';
 // タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #110 #114 #119 #135 一部）
@@ -49,6 +54,15 @@ export interface SwitchOptions {
    */
   readonly transfer?: 'batonPass' | 'shedTail';
 }
+
+/**
+ * 交代先にできない理由ごとの、例外のメッセージ
+ */
+const SWITCH_TARGET_PROBLEM_MESSAGES: Record<SwitchTargetProblem, string> = {
+  notFound: 'Switch target is not in this battle or does not belong to the trainer',
+  alreadyActive: 'Switch target is already active',
+  fainted: 'Switch target has fainted',
+};
 
 /**
  * 能力ランクの列（引っ込むと 0 に戻る。バトンタッチでは引き継ぐ）
@@ -239,7 +253,35 @@ export class PokemonSwitcherService {
   }
 
   /**
+   * 交代先を確かめ、交代先のポケモンを返す（何も書き込まない）
+   * このバトルにいて、そのトレーナーのポケモンで、いま場にいなくて、ひんしでないこと。
+   * ExecuteTurnUseCase がリクエストを受けたとき（ターンの書き込みの前）と、executeSwitch が場のポケモンを
+   * 引っ込める前に呼ぶ
+   * @param battleId バトルID
+   * @param trainerId 交代するトレーナーのID
+   * @param trainedPokemonId 交代先の TrainedPokemon の ID
+   * @throws ValidationException 交代先にできないとき
+   */
+  async findValidSwitchTarget(
+    battleId: number,
+    trainerId: number,
+    trainedPokemonId: number,
+  ): Promise<BattlePokemonStatus> {
+    const statuses =
+      (await this.battleRepository.findBattlePokemonStatusByBattleId(battleId)) ?? [];
+    const resolved = resolveSwitchTarget(statuses, trainerId, trainedPokemonId);
+    if ('problem' in resolved) {
+      throw new ValidationException(
+        `${SWITCH_TARGET_PROBLEM_MESSAGES[resolved.problem]} (trainedPokemonId: ${trainedPokemonId}, trainerId: ${trainerId})`,
+        'switchPokemonId',
+      );
+    }
+    return resolved.target;
+  }
+
+  /**
    * ポケモンを交代
+   * 交代先は、場のポケモンを引っ込める前に確かめる（無効なら何も書き込まずに ValidationException を投げる）
    * @param battle バトル
    * @param trainerId トレーナーID
    * @param trainedPokemonId 交代するポケモンのTrainedPokemonID
@@ -255,6 +297,9 @@ export class PokemonSwitcherService {
     trainedPokemonId: number,
     options: SwitchOptions = {},
   ): Promise<string[]> {
+    // 交代先を先に確かめる。引っ込めたあとに交代先が無効だと分かると、場にポケモンがいなくなる
+    const validTarget = await this.findValidSwitchTarget(battle.id, trainerId, trainedPokemonId);
+
     // 現在のアクティブなポケモンを非アクティブにする
     const currentActive = await this.battleRepository.findActivePokemonByBattleIdAndTrainerId(
       battle.id,
@@ -301,17 +346,8 @@ export class PokemonSwitcherService {
       await this.releaseReferencesTo(currentActive.id, battleStatuses);
       await this.releasePrimalWeather(battle.id, currentActive.id);
     }
-
-    const targetStatus = battleStatuses.find(
-      s => s.trainedPokemonId === trainedPokemonId && s.trainerId === trainerId,
-    );
-
-    if (!targetStatus) {
-      throw new NotFoundException(
-        'BattlePokemonStatus',
-        `trainedPokemonId: ${trainedPokemonId}, trainerId: ${trainerId}`,
-      );
-    }
+    // 引っ込める間の書き込み（特性の onSwitchOut など）を反映した、交代先の状態
+    const targetStatus = battleStatuses.find(s => s.id === validTarget.id) ?? validTarget;
 
     // 場に出たターンを書く（ねこだまし・たたみがえし・はりこみなどが読む）。
     // バトンタッチ・しっぽきりなら、引っ込む前の状態から引き継ぐものも書く
