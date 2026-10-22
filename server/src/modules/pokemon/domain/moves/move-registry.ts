@@ -919,6 +919,7 @@ export class MoveRegistry {
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
   }
