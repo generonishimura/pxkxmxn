@@ -201,13 +201,14 @@ describe('ExecuteTurnUseCase', () => {
       trainerId: number,
       currentHp: number = 100,
       maxHp: number = 100,
+      isActive: boolean = true,
     ): BattlePokemonStatus => {
       return new BattlePokemonStatus(
         id,
         battleId,
         trainedPokemonId,
         trainerId,
-        true,
+        isActive,
         currentHp,
         maxHp,
         0,
@@ -383,7 +384,8 @@ describe('ExecuteTurnUseCase', () => {
       const trainedPokemon2 = createMockTrainedPokemon(200, pokemon2);
 
       const currentActiveStatus = createMockBattlePokemonStatus(1, 100, trainer1Id, 100, 100);
-      const switchTargetStatus = createMockBattlePokemonStatus(2, 200, trainer1Id, 100, 100);
+      // 交代先は控え（場にいない）
+      const switchTargetStatus = createMockBattlePokemonStatus(2, 200, trainer1Id, 100, 100, false);
 
       const trainer2ActiveStatus = createMockBattlePokemonStatus(3, 300, trainer2Id, 100, 100);
       const pokemon3 = createMockPokemon(3, 'ポケモン3');

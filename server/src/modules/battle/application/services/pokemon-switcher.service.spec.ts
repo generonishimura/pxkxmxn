@@ -5,6 +5,7 @@ import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status
 import { VolatileState } from '../../domain/state/volatile-state';
 import { PersistentPokemonState } from '../../domain/state/persistent-state';
 import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
+import { ValidationException } from '@/shared/domain/exceptions';
 
 describe('PokemonSwitcherService - 状態の片付け', () => {
   const LEAVING_ID = 1;
@@ -17,6 +18,7 @@ describe('PokemonSwitcherService - 状態の片付け', () => {
     isActive: boolean,
     volatileState: VolatileState = {},
     persistentState: PersistentPokemonState = {},
+    currentHp = 100,
   ): BattlePokemonStatus =>
     new BattlePokemonStatus(
       id,
@@ -24,7 +26,7 @@ describe('PokemonSwitcherService - 状態の片付け', () => {
       id * 100,
       trainerId,
       isActive,
-      100,
+      currentHp,
       100,
       0,
       0,
@@ -38,9 +40,11 @@ describe('PokemonSwitcherService - 状態の片付け', () => {
       persistentState,
     );
 
-  const setup = (options: { leaving?: VolatileState; opponent?: VolatileState } = {}) => {
+  const setup = (
+    options: { leaving?: VolatileState; opponent?: VolatileState; incomingHp?: number } = {},
+  ) => {
     const leaving = createStatus(LEAVING_ID, 1, true, options.leaving, { disguiseBusted: true });
-    const incoming = createStatus(INCOMING_ID, 1, false);
+    const incoming = createStatus(INCOMING_ID, 1, false, {}, {}, options.incomingHp);
     const opponent = createStatus(OPPONENT_ID, 2, true, options.opponent);
     const battleRepository = {
       findById: jest.fn().mockResolvedValue(null),
@@ -145,5 +149,38 @@ describe('PokemonSwitcherService - 状態の片付け', () => {
     // Assert
     const writtenIds = battleRepository.updateBattlePokemonStatus.mock.calls.map(([id]) => id);
     expect(writtenIds).toEqual([LEAVING_ID, INCOMING_ID]);
+  });
+
+  describe('交代先の確認（場のポケモンを引っ込める前に行う）', () => {
+    it.each([
+      ['存在しないポケモン', 1, 9900],
+      ['相手のトレーナーのポケモン', 1, OPPONENT_ID * 100],
+      ['いま場にいるポケモン', 1, LEAVING_ID * 100],
+    ])(
+      '交代先が%sなら、何も書き込まずに ValidationException を投げる',
+      async (_label, trainerId, trainedPokemonId) => {
+        // Arrange
+        const { service, battleRepository, battle } = setup();
+
+        // Act
+        const run = service.executeSwitch(battle, trainerId, trainedPokemonId);
+
+        // Assert
+        await expect(run).rejects.toThrow(ValidationException);
+        expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+      },
+    );
+
+    it('交代先がひんしなら、何も書き込まずに ValidationException を投げる', async () => {
+      // Arrange
+      const { service, battleRepository, battle } = setup({ incomingHp: 0 });
+
+      // Act
+      const run = service.executeSwitch(battle, 1, INCOMING_ID * 100);
+
+      // Assert
+      await expect(run).rejects.toThrow(ValidationException);
+      expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+    });
   });
 });

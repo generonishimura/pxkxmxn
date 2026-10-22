@@ -4,6 +4,8 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
 import { requestSwitch } from '@/modules/pokemon/domain/battle-events/switching';
+import { ValidationException } from '@/shared/domain/exceptions';
+import { IBattleRepository } from '../../domain/battle.repository.interface';
 import {
   HarnessPokemon,
   createBattleEngine,
@@ -360,6 +362,92 @@ describe('ExecuteTurnUseCase - 技・特性による交代', () => {
         action: 'revive',
         result: 'Pokemon (ID: 3) was revived and is ready to fight again!',
       });
+    });
+  });
+
+  describe('交代先の確認（リクエストを受けたとき）', () => {
+    /**
+     * バトルの状態を書き換えるリポジトリのメソッドを、すべて見張る
+     */
+    const spyWrites = (repository: IBattleRepository) =>
+      (
+        [
+          'update',
+          'updateBattlePokemonStatus',
+          'patchVolatileState',
+          'patchPersistentState',
+          'patchSideConditions',
+          'patchGlobalFieldState',
+          'updateBattlePokemonMove',
+        ] as const
+      ).map(method => jest.spyOn(repository, method));
+
+    it.each([
+      ['存在しないポケモン', 99],
+      ['相手のトレーナーのポケモン', 4],
+      ['いま場にいるポケモン', 1],
+    ])('交代先が%sなら、ターン全体を弾き、何も書き込まない', async (_label, switchPokemonId) => {
+      // Arrange
+      const engine = setup();
+      const writes = spyWrites(engine.battleRepository);
+
+      // Act
+      const run = engine.runTurn({ switchPokemonId }, { moveId: TACKLE.id });
+
+      // Assert
+      await expect(run).rejects.toThrow(ValidationException);
+      for (const write of writes) {
+        expect(write).not.toHaveBeenCalled();
+      }
+      expect(engine.active(1)?.id).toBe(1);
+      expect(engine.active(2)?.id).toBe(2);
+    });
+
+    it('交代先がひんしなら、ターン全体を弾き、何も書き込まない', async () => {
+      // Arrange
+      const engine = setup({ p3: { currentHp: 0 } });
+      const writes = spyWrites(engine.battleRepository);
+
+      // Act
+      const run = engine.runTurn({ switchPokemonId: 3 }, { moveId: TACKLE.id });
+
+      // Assert
+      await expect(run).rejects.toThrow(ValidationException);
+      for (const write of writes) {
+        expect(write).not.toHaveBeenCalled();
+      }
+      expect(engine.active(1)?.id).toBe(1);
+    });
+
+    it('相手の交代先が無効なら、先に計画する自分の行動（アンコールが解ける）も書き込まない', async () => {
+      // Arrange
+      // アンコールされた技（たいあたり。欄は 10）の PP が 0 だと、行動を決めるときにアンコールが解ける
+      const engine = setup({
+        p1: { volatileState: { encore: { moveId: TACKLE.id, turns: 2 } } },
+      });
+      await engine.battleRepository.updateBattlePokemonMove(10, { currentPp: 0 });
+      const writes = spyWrites(engine.battleRepository);
+
+      // Act
+      const run = engine.runTurn({ moveId: SPLASH.id }, { switchPokemonId: 3 });
+
+      // Assert
+      await expect(run).rejects.toThrow(ValidationException);
+      for (const write of writes) {
+        expect(write).not.toHaveBeenCalled();
+      }
+      expect(engine.status(1).volatileState.encore).toEqual({ moveId: TACKLE.id, turns: 2 });
+    });
+
+    it('場のポケモンがひんしでも、ひんしでない控えには交代できる', async () => {
+      // Arrange
+      const engine = setup({ p1: { currentHp: 0 } });
+
+      // Act
+      await engine.runTurn({ switchPokemonId: 3 }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.active(1)?.id).toBe(3);
     });
   });
 });

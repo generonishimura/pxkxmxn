@@ -17,6 +17,41 @@ export const findSwitchTargets = (
   statuses.filter(s => s.trainerId === trainerId && !s.isActive && !s.isFainted()).sort(byId);
 
 /**
+ * 交代先にできない理由
+ * - notFound: このバトルに、そのトレーナーのそのポケモンがいない（ほかのバトル・相手のポケモンも含む）
+ * - alreadyActive: いま場にいる
+ * - fainted: ひんし
+ */
+export type SwitchTargetProblem = 'notFound' | 'alreadyActive' | 'fainted';
+
+/**
+ * 交代先（TrainedPokemon の ID）を、このバトルのポケモンの一覧から探して確かめる
+ * @param statuses このバトルのポケモンの一覧
+ * @param trainerId 交代するトレーナー
+ * @param trainedPokemonId 交代先の TrainedPokemon の ID
+ * @returns 交代できるなら target、できないなら problem
+ */
+export const resolveSwitchTarget = (
+  statuses: readonly BattlePokemonStatus[],
+  trainerId: number,
+  trainedPokemonId: number,
+): { target: BattlePokemonStatus } | { problem: SwitchTargetProblem } => {
+  const target = statuses.find(
+    s => s.trainedPokemonId === trainedPokemonId && s.trainerId === trainerId,
+  );
+  if (!target) {
+    return { problem: 'notFound' };
+  }
+  if (target.isActive) {
+    return { problem: 'alreadyActive' };
+  }
+  if (target.isFainted()) {
+    return { problem: 'fainted' };
+  }
+  return { target };
+};
+
+/**
  * ひんしの手持ち（さいきのいのりで復活させられるポケモン）を ID の順に返す
  */
 export const findFaintedPartyMembers = (

@@ -1,6 +1,11 @@
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { PersistentPokemonState } from '../state/persistent-state';
-import { countFaintedAllies, findFaintedPartyMembers, findSwitchTargets } from './party';
+import {
+  countFaintedAllies,
+  findFaintedPartyMembers,
+  findSwitchTargets,
+  resolveSwitchTarget,
+} from './party';
 
 describe('party', () => {
   const status = (
@@ -44,6 +49,37 @@ describe('party', () => {
 
       // Assert
       expect(targets.map(s => s.id)).toEqual([3, 5]);
+    });
+  });
+
+  describe('resolveSwitchTarget', () => {
+    // トレーナー 1: 場の 1、控えの 3、ひんしの控えの 4。トレーナー 2: 場の 2
+    const statuses = [
+      status(1, 1, { active: true }),
+      status(2, 2, { active: true }),
+      status(3, 1),
+      status(4, 1, { hp: 0 }),
+    ];
+
+    it('控えにいる、ひんしでない自分のポケモンなら、そのポケモンを返す', () => {
+      // Act
+      const resolved = resolveSwitchTarget(statuses, 1, 3);
+
+      // Assert
+      expect(resolved).toEqual({ target: statuses[2] });
+    });
+
+    it.each([
+      ['このバトルにいないポケモン', 99, 'notFound'],
+      ['相手のトレーナーのポケモン', 2, 'notFound'],
+      ['いま場にいるポケモン', 1, 'alreadyActive'],
+      ['ひんしのポケモン', 4, 'fainted'],
+    ])('%sなら、交代できない理由を返す', (_label, trainedPokemonId, problem) => {
+      // Act
+      const resolved = resolveSwitchTarget(statuses, 1, trainedPokemonId as number);
+
+      // Assert
+      expect(resolved).toEqual({ problem });
     });
   });
 
