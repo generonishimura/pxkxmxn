@@ -5,6 +5,8 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 import { isEffectivelyAsleep } from '../../battle-events/effective-status';
 import { isUproarActive } from '../../battle-events/status-infliction';
 import { getAbilityEffect, resolveAbilityName } from '../../battle-events/ability-lookup';
+import { isStatusPreventedByTerrain } from '../../battle-events/field-protection';
+import { resolveTypeNames } from '../../battle-events/battle-traits';
 
 /**
  * ねむる（Rest）技の効果
@@ -16,13 +18,12 @@ import { getAbilityEffect, resolveAbilityName } from '../../battle-events/abilit
  * - HP が満タン
  * - 自分の特性がねむりを防ぐ（ふみん・やるき・晴れのリーフガードなど。canReceiveStatusCondition）
  * - 場の誰かがさわいでいる
+ * - 地面にいて、エレキフィールド・ミストフィールドの上にいる（isStatusPreventedByTerrain）
  *
  * ほかの状態異常（やけど・まひなど）があるときは、ねむりに上書きする（本家と同じ）
  *
  * 注: 本家では「2ターン固定で眠る」が、現状の engine では状態異常のターン経過管理が
  *     未整備のため、眠り状態の付与のみを行う（眠りの起床処理は engine 側の責務）
- * 注: エレキフィールド・ミストフィールドでねむりにならない処理は、状態異常の付与全体で
- *     まだ扱っていないため、ここでも失敗しない
  */
 export class RestEffect implements IMoveEffect {
   async onUse(
@@ -44,7 +45,7 @@ export class RestEffect implements IMoveEffect {
       return 'But it failed';
     }
 
-    // ねむりになれない（特性・さわぐ）なら失敗
+    // ねむりになれない（特性・さわぐ・フィールド）なら失敗
     if (!(await canFallAsleep(attacker, battleContext))) {
       return 'But it failed';
     }
@@ -69,7 +70,20 @@ const canFallAsleep = async (
   if (await isUproarActive(pokemon, battleContext)) {
     return false;
   }
-  const ability = await getAbilityEffect(await resolveAbilityName(pokemon, battleContext));
+  const abilityName = await resolveAbilityName(pokemon, battleContext);
+  const typeNames = await resolveTypeNames(pokemon, battleContext);
+  if (
+    isStatusPreventedByTerrain(
+      pokemon,
+      StatusCondition.Sleep,
+      typeNames,
+      abilityName,
+      battleContext,
+    )
+  ) {
+    return false;
+  }
+  const ability = await getAbilityEffect(abilityName);
   return (
     ability?.canReceiveStatusCondition?.(pokemon, StatusCondition.Sleep, battleContext, {
       kind: 'move',
