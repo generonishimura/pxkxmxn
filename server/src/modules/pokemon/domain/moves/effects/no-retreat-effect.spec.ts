@@ -2,6 +2,8 @@ import { NoRetreatEffect } from './no-retreat-effect';
 import { BaseMultiHitEffect } from './base-multi-hit-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
+import { createInMemoryBattle } from '../../battle-events/__tests__/in-memory-battle';
+import { AbilityRegistry } from '../../abilities/ability-registry';
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
 
 describe('NoRetreatEffect', () => {
@@ -56,7 +58,9 @@ describe('NoRetreatEffect', () => {
     const result = await effect.onUse(attacker, defender, ctx);
 
     // Assert
-    expect(result).toBe("user's stats rose!");
+    expect(result).toBe(
+      'Attack rose! Defense rose! Special Attack rose! Special Defense rose! Speed rose!',
+    );
     expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
       attackRank: 2,
       defenseRank: 1,
@@ -101,5 +105,51 @@ describe('NoRetreatEffect', () => {
 
     // Assert
     expect(result).toBeNull();
+  });
+
+  describe('共通の能力ランク変化の経路', () => {
+    beforeEach(() => {
+      AbilityRegistry.clear();
+      AbilityRegistry.initialize();
+    });
+
+    it('あまのじゃくの使用者は、5つの能力がそれぞれ1段階下がる', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({ ability: 'あまのじゃく' });
+
+      // Act
+      await new NoRetreatEffect().onUse(get(1), get(2), context({ attacker: get(1) }));
+
+      // Assert
+      expect(get(1).attackRank).toBe(-1);
+      expect(get(1).defenseRank).toBe(-1);
+      expect(get(1).specialAttackRank).toBe(-1);
+      expect(get(1).specialDefenseRank).toBe(-1);
+      expect(get(1).speedRank).toBe(-1);
+    });
+
+    it('たんじゅんの使用者は、5つの能力がそれぞれ2段階上がる', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({ ability: 'たんじゅん' });
+
+      // Act
+      await new NoRetreatEffect().onUse(get(1), get(2), context({ attacker: get(1) }));
+
+      // Assert
+      expect(get(1).attackRank).toBe(2);
+      expect(get(1).speedRank).toBe(2);
+    });
+
+    it('相手の特性に関係なく、自分のランクが上がる', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({}, { ability: 'ミラーアーマー' });
+
+      // Act
+      await new NoRetreatEffect().onUse(get(1), get(2), context({ attacker: get(1) }));
+
+      // Assert
+      expect(get(1).attackRank).toBe(1);
+      expect(get(2).attackRank).toBe(0);
+    });
   });
 });

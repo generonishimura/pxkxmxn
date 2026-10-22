@@ -202,4 +202,81 @@ describe('ToxicThreadEffect', () => {
       expect(get(2).speedRank).toBe(-1);
     });
   });
+
+  describe('共通の能力ランク変化の経路', () => {
+    beforeEach(() => {
+      AbilityRegistry.clear();
+      AbilityRegistry.initialize();
+    });
+
+    it('クリアボディの相手は、どくになるがすばやさは下がらない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({}, { ability: 'クリアボディ' });
+
+      // Act
+      const message = await new ToxicThreadEffect().onUse(
+        get(1),
+        get(2),
+        context({ attacker: get(1), defender: get(2) }),
+      );
+
+      // Assert
+      expect(get(2).statusCondition).toBe(StatusCondition.Poison);
+      expect(get(2).speedRank).toBe(0);
+      expect(message).toContain('was poisoned!');
+      expect(message).not.toContain('Speed fell!');
+    });
+
+    it('あまのじゃくの相手は、すばやさが1段階上がる', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({}, { ability: 'あまのじゃく' });
+
+      // Act
+      const message = await new ToxicThreadEffect().onUse(
+        get(1),
+        get(2),
+        context({ attacker: get(1), defender: get(2) }),
+      );
+
+      // Assert
+      expect(get(2).speedRank).toBe(1);
+      expect(message).toContain('Speed rose!');
+    });
+
+    it('ミラーアーマーの相手は、すばやさ低下を使用者に跳ね返す', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({}, { ability: 'ミラーアーマー' });
+
+      // Act
+      const message = await new ToxicThreadEffect().onUse(
+        get(1),
+        get(2),
+        context({ attacker: get(1), defender: get(2) }),
+      );
+
+      // Assert
+      expect(get(2).speedRank).toBe(0);
+      expect(get(1).speedRank).toBe(-1);
+      expect(get(2).statusCondition).toBe(StatusCondition.Poison);
+      expect(message).toContain('ミラーアーマー reflected the stat drop!');
+    });
+
+    it('どくも状態変化も起きなければ、null を返す', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(
+        {},
+        { ability: 'クリアボディ', types: ['どく'] },
+      );
+
+      // Act
+      const message = await new ToxicThreadEffect().onUse(
+        get(1),
+        get(2),
+        context({ attacker: get(1), defender: get(2) }),
+      );
+
+      // Assert
+      expect(message).toBeNull();
+    });
+  });
 });

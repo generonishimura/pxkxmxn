@@ -3,7 +3,8 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 import { canInflictStatus, inflictStatus } from '../../battle-events/status-infliction';
-import { moveEffectSource } from './base/base-stat-change-effect';
+import { applyStatChanges } from '../../battle-events/stat-change';
+import { joinStatChangeMessages, moveEffectSource } from './base/base-stat-change-effect';
 
 /**
  * どくのいと（Toxic Thread）技の効果
@@ -12,7 +13,8 @@ import { moveEffectSource } from './base/base-stat-change-effect';
  *       (Poisons the target and lowers its Speed by one stage)
  *
  * - どくの付与は canInflictStatus / inflictStatus で行う（どく・はがねタイプの免疫・相手の特性・かたやぶり・ふしょく・シンクロなどが効く）
- * - すばやさランクは状態異常付与の成否にかかわらず常に下げを試みる
+ * - すばやさランクは状態異常付与の成否にかかわらず、applyStatChanges で下げを試みる
+ *   （ミラーアーマー・あまのじゃく・クリアボディ・しろいきりなどが効く）
  */
 export class ToxicThreadEffect implements IMoveEffect {
   async onUse(
@@ -38,14 +40,16 @@ export class ToxicThreadEffect implements IMoveEffect {
       messages.push('was poisoned!', ...inflictedMessages);
     }
 
-    // すばやさランク -1 の試行
-    const currentSpeedRank = defender.getStatRank('speed');
-    const newSpeedRank = Math.max(-6, currentSpeedRank - 1);
-    if (newSpeedRank !== currentSpeedRank) {
-      await battleContext.battleRepository.updateBattlePokemonStatus(defender.id, {
-        speedRank: newSpeedRank,
-      });
-      messages.push('Speed fell!');
+    // すばやさランク -1 の試行（特性・しろいきりなどが効く共通の経路を通る）
+    const result = await applyStatChanges(
+      defender,
+      [{ statType: 'speed', rankChange: -1 }],
+      battleContext,
+      options,
+    );
+    const statMessage = joinStatChangeMessages(result);
+    if (statMessage) {
+      messages.push(statMessage);
     }
 
     return messages.length > 0 ? messages.join(' ') : null;
