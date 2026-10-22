@@ -703,6 +703,7 @@ export class AbilityRegistry {
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
   }

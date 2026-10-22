@@ -172,13 +172,12 @@ export class StatusConditionProcessorService {
     }
 
     // ねむりのターン数を取得・更新
-    let sleepTurnCount = 0;
     if (status.statusCondition === StatusCondition.Sleep) {
       if (!this.sleepTurnCounts.has(battleId)) {
         this.sleepTurnCounts.set(battleId, new Map());
       }
       const battleMap = this.sleepTurnCounts.get(battleId)!;
-      sleepTurnCount = battleMap.get(status.id) || 0;
+      const sleepTurnCount = battleMap.get(status.id) || 0;
 
       // ねむりの自動解除判定（はやおきなどは1ターンに2ターン分進む）
       const sleepStep = abilityEffect?.sleepTurnMultiplier ?? 1;
