@@ -110,6 +110,7 @@ import { LickEffect } from './effects/lick-effect';
 import { SparkEffect } from './effects/spark-effect';
 import { SmellingSaltsEffect } from './effects/smelling-salts-effect';
 import { VoltTackleEffect } from './effects/volt-tackle-effect';
+import { WaveCrashEffect } from './effects/wave-crash-effect';
 import { ForcePalmEffect } from './effects/force-palm-effect';
 import { FreezeShockEffect } from './effects/freeze-shock-effect';
 import { NuzzleEffect } from './effects/nuzzle-effect';
@@ -566,6 +567,7 @@ export class MoveRegistry {
       this.registry.set('スパーク', new SparkEffect());
       this.registry.set('きつけ', new SmellingSaltsEffect());
       this.registry.set('ボルテッカー', new VoltTackleEffect());
+      this.registry.set('ウェーブタックル', new WaveCrashEffect());
       this.registry.set('はっけい', new ForcePalmEffect());
       this.registry.set('フリーズボルト', new FreezeShockEffect());
       this.registry.set('ほっぺすりすり', new NuzzleEffect());
