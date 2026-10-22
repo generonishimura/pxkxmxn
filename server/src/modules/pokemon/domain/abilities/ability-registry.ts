@@ -116,6 +116,93 @@ import { MoodyEffect } from './effects/stat-change/moody-effect';
 import { VictoryStarEffect } from './effects/other/victory-star-effect';
 import { SweetVeilEffect } from './effects/immunity/sweet-veil-effect';
 import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
+// 反動を受けない特性（Issue #135 一部）
+import { RockHeadEffect } from './effects/other/rock-head-effect';
+import { MagicGuardEffect } from './effects/other/magic-guard-effect';
+// 最後に行動したときの威力補正（Issue #135 一部）
+import { AnalyticEffect } from './effects/damage-modify/analytic-effect';
+// 技を出す前に失敗・無効にする特性（Issue #135 一部）
+import { DampEffect } from './effects/other/damp-effect';
+import { QueenlyMajestyEffect } from './effects/other/queenly-majesty-effect';
+import { DazzlingEffect } from './effects/other/dazzling-effect';
+import { ArmorTailEffect } from './effects/other/armor-tail-effect';
+import { GoodAsGoldEffect } from './effects/immunity/good-as-gold-effect';
+// 天候の効果をなくす特性（Issue #135 一部）
+import { CloudNineEffect } from './effects/weather/cloud-nine-effect';
+// 追加効果・天候・連続技・ランク無視の特性（Issue #135 一部）
+import { ShieldDustEffect } from './effects/other/shield-dust-effect';
+import { SereneGraceEffect } from './effects/other/serene-grace-effect';
+import { AirLockEffect } from './effects/weather/air-lock-effect';
+import { SkillLinkEffect } from './effects/other/skill-link-effect';
+import { UnawareEffect } from './effects/other/unaware-effect';
+// かたやぶり系・はやてのつばさ・おやこあい・ダークオーラ（Issue #135 一部）
+import { GaleWingsEffect } from './effects/other/gale-wings-effect';
+import { ParentalBondEffect } from './effects/other/parental-bond-effect';
+import { DarkAuraEffect } from './effects/damage-modify/dark-aura-effect';
+// フェアリーオーラ・オーラブレイク・こだいかっせい・クォークチャージ・しんがん（Issue #135 一部）
+import { FairyAuraEffect } from './effects/damage-modify/fairy-aura-effect';
+import { AuraBreakEffect } from './effects/damage-modify/aura-break-effect';
+import { ProtosynthesisEffect } from './effects/stat-change/protosynthesis-effect';
+import { QuarkDriveEffect } from './effects/stat-change/quark-drive-effect';
+import { MindsEyeEffect } from './effects/stat-change/minds-eye-effect';
+// ひるみ・状態異常・ねむり・吸収に反応する特性（Issue #135 一部）
+import { StenchEffect } from './effects/other/stench-effect';
+import { SynchronizeEffect } from './effects/other/synchronize-effect';
+import { EarlyBirdEffect } from './effects/other/early-bird-effect';
+import { LiquidOozeEffect } from './effects/other/liquid-ooze-effect';
+// 状態異常ダメージ・ヒット後の特性（Issue #135 一部）
+import { PoisonHealEffect } from './effects/other/poison-heal-effect';
+import { PoisonTouchEffect } from './effects/other/poison-touch-effect';
+import { MoxieEffect } from './effects/stat-change/moxie-effect';
+import { JustifiedEffect } from './effects/stat-change/justified-effect';
+import { RattledEffect } from './effects/stat-change/rattled-effect';
+// 被弾・接触・ひんし・どくの付与で発動する特性（Issue #135 一部）
+import { IronBarbsEffect } from './effects/other/iron-barbs-effect';
+import { StaminaEffect } from './effects/stat-change/stamina-effect';
+import { WaterCompactionEffect } from './effects/stat-change/water-compaction-effect';
+import { CorrosionEffect } from './effects/other/corrosion-effect';
+import { SoulHeartEffect } from './effects/stat-change/soul-heart-effect';
+import { BeastBoostEffect } from './effects/stat-change/beast-boost-effect';
+// ダメージを受けたとき・相手を倒したときに発動する特性（Issue #135 一部）
+import { CottonDownEffect } from './effects/stat-change/cotton-down-effect';
+import { SteamEngineEffect } from './effects/stat-change/steam-engine-effect';
+import { SandSpitEffect } from './effects/weather/sand-spit-effect';
+import { ChillingNeighEffect } from './effects/stat-change/chilling-neigh-effect';
+import { GrimNeighEffect } from './effects/stat-change/grim-neigh-effect';
+import { AsOneGlastrierEffect } from './effects/stat-change/as-one-glastrier-effect';
+// ダメージを受けた・与えたときに発動する特性（Issue #135 一部）
+import { SeedSowerEffect } from './effects/weather/seed-sower-effect';
+import { ThermalExchangeEffect } from './effects/immunity/thermal-exchange-effect';
+import { AngerShellEffect } from './effects/stat-change/anger-shell-effect';
+import { ToxicChainEffect } from './effects/other/toxic-chain-effect';
+// タイプ相性で発動する特性（Issue #135 一部）
+import { WonderGuardEffect } from './effects/immunity/wonder-guard-effect';
+import { TintedLensEffect } from './effects/damage-modify/tinted-lens-effect';
+import { FilterEffect } from './effects/damage-modify/filter-effect';
+import { PrismArmorEffect } from './effects/damage-modify/prism-armor-effect';
+import { NeuroforceEffect } from './effects/damage-modify/neuroforce-effect';
+// 技フラグで判定する特性（Issue #135 一部）
+import { SoundproofEffect } from './effects/immunity/soundproof-effect';
+import { BulletproofEffect } from './effects/immunity/bulletproof-effect';
+import { OvercoatEffect } from './effects/immunity/overcoat-effect';
+import { IronFistEffect } from './effects/damage-modify/iron-fist-effect';
+import { StrongJawEffect } from './effects/damage-modify/strong-jaw-effect';
+// 技フラグを使う特性（Issue #135 一部）
+import { MegaLauncherEffect } from './effects/damage-modify/mega-launcher-effect';
+import { ToughClawsEffect } from './effects/damage-modify/tough-claws-effect';
+import { LongReachEffect } from './effects/other/long-reach-effect';
+import { LiquidVoiceEffect } from './effects/other/liquid-voice-effect';
+import { TriageEffect } from './effects/other/triage-effect';
+// 技フラグで判定する特性: 音技・風技・切る技（Issue #135 一部）
+import { PunkRockEffect } from './effects/damage-modify/punk-rock-effect';
+import { SharpnessEffect } from './effects/damage-modify/sharpness-effect';
+import { WindRiderEffect } from './effects/immunity/wind-rider-effect';
+// 能力ランクの変化を変える・写す特性（Issue #135 一部）
+import { SimpleEffect } from './effects/stat-change/simple-effect';
+import { ContraryEffect } from './effects/stat-change/contrary-effect';
+import { MirrorArmorEffect } from './effects/stat-change/mirror-armor-effect';
+import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
+import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
 
 /**
  * 特性レジストリ
@@ -326,6 +413,98 @@ export class AbilityRegistry {
       this.registry.set('しれいとう', noBattleEffect);
       this.registry.set('きょうえん', noBattleEffect);
       this.registry.set('おもてなし', noBattleEffect);
+      // 反動を受けない特性（Issue #135 一部）
+      this.registry.set('いしあたま', new RockHeadEffect());
+      this.registry.set('マジックガード', new MagicGuardEffect());
+      // 最後に行動したときの威力補正（Issue #135 一部）
+      this.registry.set('アナライズ', new AnalyticEffect());
+      // 技を出す前に失敗・無効にする特性（Issue #135 一部）
+      this.registry.set('しめりけ', new DampEffect());
+      this.registry.set('じょおうのいげん', new QueenlyMajestyEffect());
+      this.registry.set('ビビッドボディ', new DazzlingEffect());
+      this.registry.set('テイルアーマー', new ArmorTailEffect());
+      this.registry.set('おうごんのからだ', new GoodAsGoldEffect());
+      // 天候の効果をなくす特性（Issue #135 一部）
+      this.registry.set('ノーてんき', new CloudNineEffect());
+      // 追加効果・天候・連続技・ランク無視の特性（Issue #135 一部）
+      this.registry.set('りんぷん', new ShieldDustEffect());
+      this.registry.set('てんのめぐみ', new SereneGraceEffect());
+      this.registry.set('エアロック', new AirLockEffect());
+      this.registry.set('スキルリンク', new SkillLinkEffect());
+      this.registry.set('てんねん', new UnawareEffect());
+      // かたやぶり系・はやてのつばさ・おやこあい・ダークオーラ（Issue #135 一部）
+      this.registry.set('ターボブレイズ', new MoldBreakerEffect());
+      this.registry.set('テラボルテージ', new MoldBreakerEffect());
+      this.registry.set('はやてのつばさ', new GaleWingsEffect());
+      this.registry.set('おやこあい', new ParentalBondEffect());
+      this.registry.set('ダークオーラ', new DarkAuraEffect());
+      // フェアリーオーラ・オーラブレイク・こだいかっせい・クォークチャージ・しんがん（Issue #135 一部）
+      this.registry.set('フェアリーオーラ', new FairyAuraEffect());
+      this.registry.set('オーラブレイク', new AuraBreakEffect());
+      this.registry.set('こだいかっせい', new ProtosynthesisEffect());
+      this.registry.set('クォークチャージ', new QuarkDriveEffect());
+      this.registry.set('しんがん', new MindsEyeEffect());
+      // ひるみ・状態異常・ねむり・吸収に反応する特性（Issue #135 一部）
+      this.registry.set('あくしゅう', new StenchEffect());
+      this.registry.set('シンクロ', new SynchronizeEffect());
+      this.registry.set('はやおき', new EarlyBirdEffect());
+      this.registry.set('ヘドロえき', new LiquidOozeEffect());
+      // 状態異常ダメージ・ヒット後の特性（Issue #135 一部）
+      this.registry.set('ポイズンヒール', new PoisonHealEffect());
+      this.registry.set('どくしゅ', new PoisonTouchEffect());
+      this.registry.set('じしんかじょう', new MoxieEffect());
+      this.registry.set('せいぎのこころ', new JustifiedEffect());
+      this.registry.set('びびり', new RattledEffect());
+      // 被弾・接触・ひんし・どくの付与で発動する特性（Issue #135 一部）
+      this.registry.set('てつのトゲ', new IronBarbsEffect());
+      this.registry.set('じきゅうりょく', new StaminaEffect());
+      this.registry.set('みずがため', new WaterCompactionEffect());
+      this.registry.set('ふしょく', new CorrosionEffect());
+      this.registry.set('ソウルハート', new SoulHeartEffect());
+      this.registry.set('ビーストブースト', new BeastBoostEffect());
+      // ダメージを受けたとき・相手を倒したときに発動する特性（Issue #135 一部）
+      this.registry.set('わたげ', new CottonDownEffect());
+      this.registry.set('じょうききかん', new SteamEngineEffect());
+      this.registry.set('すなはき', new SandSpitEffect());
+      this.registry.set('しろのいななき', new ChillingNeighEffect());
+      this.registry.set('くろのいななき', new GrimNeighEffect());
+      this.registry.set('じんばいったい', new AsOneGlastrierEffect());
+      // ダメージを受けた・与えたときに発動する特性（Issue #135 一部）
+      this.registry.set('こぼれダネ', new SeedSowerEffect());
+      this.registry.set('ねつこうかん', new ThermalExchangeEffect());
+      this.registry.set('いかりのこうら', new AngerShellEffect());
+      this.registry.set('どくのくさり', new ToxicChainEffect());
+      // タイプ相性で発動する特性（Issue #135 一部）
+      // ハードロックはフィルターと同効果のため FilterEffect を共有
+      const filter = new FilterEffect();
+      this.registry.set('ふしぎなまもり', new WonderGuardEffect());
+      this.registry.set('いろめがね', new TintedLensEffect());
+      this.registry.set('フィルター', filter);
+      this.registry.set('ハードロック', filter);
+      this.registry.set('プリズムアーマー', new PrismArmorEffect());
+      this.registry.set('ブレインフォース', new NeuroforceEffect());
+      // 技フラグで判定する特性（Issue #135 一部）
+      this.registry.set('ぼうおん', new SoundproofEffect());
+      this.registry.set('ぼうだん', new BulletproofEffect());
+      this.registry.set('ぼうじん', new OvercoatEffect());
+      this.registry.set('てつのこぶし', new IronFistEffect());
+      this.registry.set('がんじょうあご', new StrongJawEffect());
+      // 技フラグを使う特性（Issue #135 一部）
+      this.registry.set('メガランチャー', new MegaLauncherEffect());
+      this.registry.set('かたいツメ', new ToughClawsEffect());
+      this.registry.set('えんかく', new LongReachEffect());
+      this.registry.set('うるおいボイス', new LiquidVoiceEffect());
+      this.registry.set('ヒーリングシフト', new TriageEffect());
+      // 技フラグで判定する特性: 音技・風技・切る技（Issue #135 一部）
+      this.registry.set('パンクロック', new PunkRockEffect());
+      this.registry.set('きれあじ', new SharpnessEffect());
+      this.registry.set('かぜのり', new WindRiderEffect());
+      // 能力ランクの変化を変える・写す特性（Issue #135 一部）
+      this.registry.set('たんじゅん', new SimpleEffect());
+      this.registry.set('あまのじゃく', new ContraryEffect());
+      this.registry.set('ミラーアーマー', new MirrorArmorEffect());
+      this.registry.set('ばんけん', new GuardDogEffect());
+      this.registry.set('びんじょう', new OpportunistEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
@@ -367,15 +546,38 @@ export class AbilityRegistry {
   }
 
   /**
-   * 攻撃側がかたやぶり特性を持っているかチェック
-   * かたやぶり特性は、防御側の特性効果を無視する
+   * 攻撃側がかたやぶり系の特性を持っているかチェック
+   * かたやぶり系の特性（breaksMold が true の特性）は、防御側の特性効果を無視する
    * @param attackerAbilityName 攻撃側の特性名
-   * @returns かたやぶり特性を持っている場合はtrue、そうでない場合はfalse
+   * @returns かたやぶり系の特性を持っている場合はtrue、そうでない場合はfalse
    */
   static hasMoldBreaker(attackerAbilityName?: string): boolean {
     if (!attackerAbilityName) {
       return false;
     }
-    return attackerAbilityName === this.MOLD_BREAKER_ABILITY_NAME;
+    if (attackerAbilityName === this.MOLD_BREAKER_ABILITY_NAME) {
+      return true;
+    }
+    return this.registry.get(attackerAbilityName)?.breaksMold === true;
+  }
+
+  /**
+   * 防御側の特性が、攻撃側のかたやぶり系の特性で無視されるかチェック
+   * unaffectedByMoldBreaker が true の特性（プリズムアーマーなど）は無視されない
+   * @param attackerAbilityName 攻撃側の特性名
+   * @param defenderAbilityName 防御側の特性名
+   * @returns 防御側の特性を無視する場合はtrue
+   */
+  static isIgnoredByMoldBreaker(
+    attackerAbilityName?: string,
+    defenderAbilityName?: string,
+  ): boolean {
+    if (!this.hasMoldBreaker(attackerAbilityName)) {
+      return false;
+    }
+    if (!defenderAbilityName) {
+      return true;
+    }
+    return this.registry.get(defenderAbilityName)?.unaffectedByMoldBreaker !== true;
   }
 }

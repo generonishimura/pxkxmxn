@@ -5,6 +5,7 @@ import { Field } from '@/modules/battle/domain/entities/battle.entity';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 import { BaseStatusConditionEffect } from './base-status-condition-effect';
 import { BaseStatChangeEffect } from './base/base-stat-change-effect';
+import { rollSecondaryEffect } from '../secondary-effect';
 
 /**
  * ひみつのちからの追加効果: 相手をまひにする（確率判定は SecretPowerEffect 側で行う）
@@ -73,7 +74,7 @@ export class SecretPowerEffect implements IMoveEffect {
       return null;
     }
 
-    if (Math.random() >= SecretPowerEffect.CHANCE) {
+    if (!rollSecondaryEffect(SecretPowerEffect.CHANCE, battleContext)) {
       return null;
     }
 

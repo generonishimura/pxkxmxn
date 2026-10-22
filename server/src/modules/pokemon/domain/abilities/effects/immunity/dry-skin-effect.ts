@@ -2,6 +2,7 @@ import { BaseTypeAbsorbEffect } from '../base/base-type-absorb-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 import { Weather } from '@/modules/battle/domain/entities/battle.entity';
+import { getContextWeather } from '../../context-weather';
 
 /**
  * かんそうはだ（Dry Skin）特性の効果
@@ -42,7 +43,7 @@ export class DrySkinEffect extends BaseTypeAbsorbEffect {
       return;
     }
 
-    const weather = battleContext.battle.weather;
+    const weather = getContextWeather(battleContext);
     if (weather !== Weather.Rain && weather !== Weather.Sun) {
       return;
     }

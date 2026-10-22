@@ -5,11 +5,11 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
  * 「でんじは」の特殊効果実装
  *
  * 効果: 必ず相手にまひを付与 (Paralyzes the target)
- * 注: じめんタイプへの無効化（タイプ相性）はダメージ計算/命中判定側で扱う想定
+ * でんきタイプ（まひの免疫）とじめんタイプ（でんき技の相性が0）には効かない
  */
 export class ThunderWaveEffect extends BaseStatusConditionEffect {
   protected readonly statusCondition = StatusCondition.Paralysis;
   protected readonly chance = 1.0;
-  protected readonly immuneTypes = ['でんき'];
+  protected readonly immuneTypes = ['でんき', 'じめん'];
   protected readonly message = 'was paralyzed!';
 }

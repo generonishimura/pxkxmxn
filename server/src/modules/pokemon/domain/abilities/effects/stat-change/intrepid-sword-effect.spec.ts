@@ -45,10 +45,8 @@ describe('IntrepidSwordEffect', () => {
     // Act
     await effect.onEntry(pokemon, ctx);
 
-    // Assert
-    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-      attackRank: 6,
-    });
+    // Assert: ランクが変わらないので書き込まない
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
   it('battleRepository が無い場合は何もしない', async () => {

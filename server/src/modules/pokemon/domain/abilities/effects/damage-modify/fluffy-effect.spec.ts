@@ -56,19 +56,20 @@ describe('FluffyEffect', () => {
       const contextWithFire: BattleContext = {
         ...battleContext,
         moveTypeName: 'ほのお',
+        moveCategory: 'Special',
       };
       const result = effect.modifyDamage(pokemon, 100, contextWithFire);
       expect(result).toBe(200); // 100 * 2.0 = 200
     });
 
-    it('should return 2x damage for Fire type contact moves (Fire takes priority)', () => {
+    it('ほのおタイプの接触技は2倍と半減が打ち消し合って等倍になる', () => {
       const contextWithFireContact: BattleContext = {
         ...battleContext,
         moveTypeName: 'ほのお',
         moveCategory: 'Physical',
       };
       const result = effect.modifyDamage(pokemon, 100, contextWithFireContact);
-      expect(result).toBe(200); // ほのおタイプが優先される
+      expect(result).toBe(100);
     });
 
     it('should return unchanged damage for non-contact Special moves', () => {

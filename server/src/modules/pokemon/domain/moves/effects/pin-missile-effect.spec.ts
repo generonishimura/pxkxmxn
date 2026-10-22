@@ -29,7 +29,7 @@ describe('PinMissileEffect', () => {
       trainerId: 2,
     });
     move = createMove(
-      'ダブルニードル',
+      'ミサイルばり',
       'Pin Missile',
       new Type(7, 'むし', 'Bug'),
       MoveCategory.Physical,

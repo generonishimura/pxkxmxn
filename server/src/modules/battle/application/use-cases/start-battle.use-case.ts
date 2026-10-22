@@ -5,7 +5,9 @@ import {
 } from '../../domain/battle.repository.interface';
 import {
   ITeamRepository,
+  ITrainedPokemonRepository,
   TEAM_REPOSITORY_TOKEN,
+  TRAINED_POKEMON_REPOSITORY_TOKEN,
 } from '@/modules/trainer/domain/trainer.repository.interface';
 import {
   IMoveRepository,
@@ -35,6 +37,8 @@ export class StartBattleUseCase {
     private readonly teamRepository: ITeamRepository,
     @Inject(MOVE_REPOSITORY_TOKEN)
     private readonly moveRepository: IMoveRepository,
+    @Inject(TRAINED_POKEMON_REPOSITORY_TOKEN)
+    private readonly trainedPokemonRepository: ITrainedPokemonRepository,
   ) {}
 
   /**
@@ -181,9 +185,11 @@ export class StartBattleUseCase {
     }
 
     // 特性効果を発動
+    // 相手の特性（クリアボディ・ばんけんなど）を調べられるよう、育成ポケモンリポジトリも渡す
     await abilityEffect.onEntry(status, {
       battle,
       battleRepository: this.battleRepository,
+      trainedPokemonRepository: this.trainedPokemonRepository,
     });
   }
 

@@ -111,8 +111,12 @@ export class ExecuteTurnUseCase {
     const actionResults: Array<{ trainerId: number; action: string; result: string }> = [];
 
     // 行動を順番に実行
-    for (const action of actions) {
+    for (const [actionIndex, action] of actions.entries()) {
       if (action.action === 'move' && action.moveId) {
+        // このあとに相手の技が残っていなければ、最後に行動する（アナライズ）
+        const isLastToMove = !actions
+          .slice(actionIndex + 1)
+          .some(next => next.action === 'move' && next.trainerId !== action.trainerId);
         const attacker =
           action.trainerId === params.trainer1Action.trainerId ? trainer1Active : trainer2Active;
         const defender =
@@ -162,6 +166,7 @@ export class ExecuteTurnUseCase {
               attacker,
               defender,
               battlePokemonMove.id,
+              { isLastToMove },
             );
             actionResults.push({
               trainerId: action.trainerId,
@@ -187,6 +192,7 @@ export class ExecuteTurnUseCase {
             attacker,
             defender,
             battlePokemonMove.id,
+            { isLastToMove },
           );
           actionResults.push({
             trainerId: action.trainerId,

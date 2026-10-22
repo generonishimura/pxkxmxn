@@ -109,8 +109,8 @@ describe('BaseSelfAllStatsBoostEffect', () => {
     const result = await effect.onHit(attacker, defender, ctx);
 
     expect(result).toBe("user's stats rose!");
+    // 既に6の攻撃ランクは変わらないので書き込まない
     expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
-      attackRank: 6, // 既に6なのでそのまま
       defenseRank: 4,
       specialAttackRank: 1,
       specialDefenseRank: 0,

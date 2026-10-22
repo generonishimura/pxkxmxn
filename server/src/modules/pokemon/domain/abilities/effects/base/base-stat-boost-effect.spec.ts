@@ -191,9 +191,8 @@ describe('BaseStatBoostEffect', () => {
 
       await effect.onEntry(pokemon, battleContext);
 
-      expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        attackRank: 6,
-      });
+      // ランクが変わらないので書き込まない
+      expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
     it('ランクが-6の場合、-6のまま（下限チェック）', async () => {
@@ -213,9 +212,8 @@ describe('BaseStatBoostEffect', () => {
 
       await effect.onEntry(pokemon, battleContext);
 
-      expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        defenseRank: -6,
-      }); // -6 + (-1) = -7 → Math.max(-6, -7) = -6
+      // ランクが変わらないので書き込まない
+      expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
     it('全てのステータスタイプで正常に動作する', async () => {

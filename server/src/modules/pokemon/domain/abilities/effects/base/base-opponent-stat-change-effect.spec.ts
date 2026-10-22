@@ -191,9 +191,8 @@ describe('BaseOpponentStatChangeEffect', () => {
 
       await effect.onEntry(pokemon, battleContext);
 
-      expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
-        defenseRank: 6,
-      });
+      // ランクが変わらないので書き込まない
+      expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
     it('ランクが-6の場合、-6のまま（下限チェック）', async () => {
@@ -214,9 +213,8 @@ describe('BaseOpponentStatChangeEffect', () => {
 
       await effect.onEntry(pokemon, battleContext);
 
-      expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
-        specialAttackRank: -6,
-      }); // -6 + (-2) = -8 → Math.max(-6, -8) = -6
+      // ランクが変わらないので書き込まない
+      expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
     it('trainer1Idのポケモンが場に出た場合、trainer2Idのポケモンのランクを変更', async () => {

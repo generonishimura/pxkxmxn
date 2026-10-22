@@ -19,6 +19,11 @@ export abstract class BaseCrashDamageEffect implements IMoveEffect {
   protected readonly message: string = 'kept going and crashed!';
 
   /**
+   * 外したときの自傷がある技（すてみの対象）
+   */
+  readonly hasRecoil = true;
+
+  /**
    * 技が外れたときに発動
    * 使用者自身に最大HPの半分のダメージを与える
    */

@@ -1,12 +1,14 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
+import { isContactMove } from '../../../moves/move-flags';
 
 /**
  * もふもふ（Fluffy）特性の効果
  * 接触技のダメージ半減、ほのおタイプのダメージ2倍
  *
- * 注意: ほのおタイプの接触技の場合は、2倍が優先される
+ * - 接触の判定は技フラグ（えんかくなどの補正後）で行う
+ * - ほのおタイプの接触技は、2倍と半減が打ち消し合って等倍になる
  */
 export class FluffyEffect implements IAbilityEffect {
   /**
@@ -21,7 +23,7 @@ export class FluffyEffect implements IAbilityEffect {
 
   /**
    * ダメージを受けるときに発動
-   * 接触技の場合は半減、ほのおタイプの場合は2倍
+   * 接触技の場合は半減、ほのおタイプの場合は2倍（両方なら等倍）
    */
   modifyDamage(
     _pokemon: BattlePokemonStatus,
@@ -32,21 +34,17 @@ export class FluffyEffect implements IAbilityEffect {
       return damage;
     }
 
-    // ほのおタイプの場合は2倍（優先）
+    let multiplier = 1;
     if (battleContext.moveTypeName === 'ほのお') {
-      return Math.floor(damage * FluffyEffect.FIRE_TYPE_DAMAGE_MULTIPLIER);
+      multiplier *= FluffyEffect.FIRE_TYPE_DAMAGE_MULTIPLIER;
+    }
+    if (isContactMove(battleContext)) {
+      multiplier *= FluffyEffect.CONTACT_MOVE_DAMAGE_MULTIPLIER;
     }
 
-    // 接触技の場合は半減
-    if (battleContext.moveCategory === 'Physical') {
-      // 接触技の判定は、moveCategoryがPhysicalの場合に接触技とみなす
-      // 実際のゲームでは、技ごとに接触技かどうかの判定が必要だが、
-      // 現時点ではPhysical技を接触技とみなす
-      // TODO: 技データに基づいて「接触技」かどうかを判定する実装に置き換える（Physical＝接触技という簡略化を解消する）
-      return Math.floor(damage * FluffyEffect.CONTACT_MOVE_DAMAGE_MULTIPLIER);
+    if (multiplier === 1) {
+      return damage;
     }
-
-    // 条件を満たさない場合は修正しない
-    return damage;
+    return Math.floor(damage * multiplier);
   }
 }

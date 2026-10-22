@@ -2,21 +2,21 @@ import { IMoveEffect } from '../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { canInflictStatus, inflictStatus } from '../../battle-events/status-infliction';
+import { moveEffectSource } from './base/base-stat-change-effect';
 
 /**
- * 「どくのいと」の特殊効果実装
+ * どくのいと（Toxic Thread）技の効果
  *
  * 効果: 相手にどくを付与し、すばやさランクを1段階下げる
  *       (Poisons the target and lowers its Speed by one stage)
  *
- * - どくタイプ・はがねタイプにはどく付与は無効
+ * - どくの付与は canInflictStatus / inflictStatus で行う（どく・はがねタイプの免疫・相手の特性・かたやぶり・ふしょく・シンクロなどが効く）
  * - すばやさランクは状態異常付与の成否にかかわらず常に下げを試みる
  */
 export class ToxicThreadEffect implements IMoveEffect {
-  private static readonly POISON_IMMUNE_TYPES = ['どく', 'はがね'] as const;
-
   async onUse(
-    _attacker: BattlePokemonStatus,
+    attacker: BattlePokemonStatus,
     defender: BattlePokemonStatus,
     battleContext: BattleContext,
   ): Promise<string | null> {
@@ -26,16 +26,16 @@ export class ToxicThreadEffect implements IMoveEffect {
 
     const messages: string[] = [];
 
-    // どく付与の試行
-    const canPoison =
-      (!defender.statusCondition || defender.statusCondition === StatusCondition.None) &&
-      !(await this.hasPoisonImmuneType(defender, battleContext));
-
-    if (canPoison) {
-      await battleContext.battleRepository.updateBattlePokemonStatus(defender.id, {
-        statusCondition: StatusCondition.Poison,
-      });
-      messages.push('was poisoned!');
+    // どく付与の試行（付与されたあとの特性（シンクロなど）のメッセージも足す）
+    const options = { source: moveEffectSource(attacker, battleContext) };
+    if (await canInflictStatus(defender, StatusCondition.Poison, battleContext, options)) {
+      const inflictedMessages = await inflictStatus(
+        defender,
+        StatusCondition.Poison,
+        battleContext,
+        options,
+      );
+      messages.push('was poisoned!', ...inflictedMessages);
     }
 
     // すばやさランク -1 の試行
@@ -49,23 +49,5 @@ export class ToxicThreadEffect implements IMoveEffect {
     }
 
     return messages.length > 0 ? messages.join(' ') : null;
-  }
-
-  private async hasPoisonImmuneType(
-    defender: BattlePokemonStatus,
-    battleContext: BattleContext,
-  ): Promise<boolean> {
-    if (!battleContext.trainedPokemonRepository) {
-      return false;
-    }
-    const trainedPokemon = await battleContext.trainedPokemonRepository.findById(
-      defender.trainedPokemonId,
-    );
-    if (!trainedPokemon) {
-      return false;
-    }
-    const primary = trainedPokemon.pokemon.primaryType.name;
-    const secondary = trainedPokemon.pokemon.secondaryType?.name;
-    return ToxicThreadEffect.POISON_IMMUNE_TYPES.some(t => t === primary || t === secondary);
   }
 }

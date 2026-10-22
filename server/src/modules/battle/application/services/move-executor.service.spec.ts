@@ -159,10 +159,11 @@ describe('MoveExecutorService', () => {
       findById: jest.fn((id: number) => Promise.resolve(trainedPokemons.get(id) ?? null)),
       findByTrainerId: jest.fn(),
     };
+    // 接触時の特性を発動させるため、接触技（contact フラグを持つ技）を使う
     const move = new Move(
       1,
-      'テスト技',
-      'Test Move',
+      'たいあたり',
+      'Tackle',
       new Type(1, 'ノーマル', 'Normal'),
       MoveCategory.Physical,
       80,
@@ -177,6 +178,7 @@ describe('MoveExecutorService', () => {
     };
     const typeEffectivenessRepository: jest.Mocked<ITypeEffectivenessRepository> = {
       getTypeEffectivenessMap: jest.fn().mockResolvedValue(new Map()),
+      findTypeByName: jest.fn().mockResolvedValue(null),
     };
 
     AbilityRegistry.clear();

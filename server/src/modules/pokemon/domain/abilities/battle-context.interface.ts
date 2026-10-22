@@ -2,6 +2,20 @@ import { Battle } from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
 import { Weather, Field } from '@/modules/battle/domain/entities/battle.entity';
 import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
+import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
+import type { MoveFlag } from '../moves/move-flags';
+import type { StatType } from '../moves/effects/base/base-stat-change-effect';
+
+/**
+ * ランク補正前の実数値（種族値・個体値・努力値・性格補正を反映済み）
+ */
+export interface BattleStatValues {
+  attack: number;
+  defense: number;
+  specialAttack: number;
+  specialDefense: number;
+  speed: number;
+}
 
 /**
  * バトルコンテキスト
@@ -49,6 +63,12 @@ export interface BattleContext {
   moveTypeName?: string;
 
   /**
+   * 技本来のタイプ名（技・特性の modifyMoveType でタイプを変える前、例: "ノーマル"）
+   * -スキン系の特性で「もとはノーマル技だったか」を判定するのに使う
+   */
+  baseMoveTypeName?: string;
+
+  /**
    * 連続攻撃技の攻撃回数
    * BaseMultiHitEffectで設定される
    */
@@ -79,7 +99,7 @@ export interface BattleContext {
   isCriticalHit?: boolean;
 
   /**
-   * 反動ダメージがある技かどうか
+   * 反動ダメージ、または外したときの自傷がある技かどうか（技の hasRecoil）
    * すてみなどの特性で使用
    */
   hasRecoil?: boolean;
@@ -89,4 +109,100 @@ export interface BattleContext {
    * ちからずくなどの特性で使用
    */
   hasSecondaryEffect?: boolean;
+
+  /**
+   * 技名（DB の name、例: "ほのおのパンチ"）
+   */
+  moveName?: string;
+
+  /**
+   * 技の静的フラグ（MoveFlags 表の値に、攻撃側特性の modifyMoveFlags を反映したもの）
+   */
+  moveFlags?: ReadonlySet<MoveFlag>;
+
+  /**
+   * 技の優先度（特性補正前）
+   */
+  movePriority?: number;
+
+  /**
+   * 攻撃側特性の modifyPriority を反映した技の優先度（いたずらごころなど）
+   * 技の実行時に入る。じょおうのいげんなどの preventsMove で使う
+   */
+  effectivePriority?: number;
+
+  /**
+   * 防御側の特性名（日本語名）
+   * オーラ系とオーラブレイクの相互作用などで使用
+   */
+  defenderAbilityName?: string;
+
+  /**
+   * 攻撃側（技の使用者）の最新の状態。ランク・HP・状態異常を参照できる
+   * 行動順の判定では、行動するポケモン自身が入る
+   */
+  attacker?: BattlePokemonStatus;
+
+  /**
+   * 防御側（技を受ける側）の最新の状態
+   */
+  defender?: BattlePokemonStatus;
+
+  /**
+   * 攻撃側のランク補正前の実数値
+   * 行動順の判定では、行動するポケモン自身の実数値が入る
+   */
+  attackerStats?: BattleStatValues;
+
+  /**
+   * 防御側のランク補正前の実数値
+   */
+  defenderStats?: BattleStatValues;
+
+  /**
+   * このヒットのタイプ相性倍率（0, 0.25, 0.5, 1, 2, 4）
+   * ダメージ計算中（isImmuneToType / modifyDamageDealt / modifyDamage / modifyBasePower）で設定される
+   */
+  typeEffectiveness?: number;
+
+  /**
+   * 技全体のタイプ相性倍率（技のタイプを決めたあとの値。防御側特性の isImmuneToType も含む）
+   * 0 なら技が相手に効かない。ダメージ技の executeMove で、技の beforeDamage の前に設定される
+   * （シャドースチールは 0 ならランクを奪わない）
+   */
+  moveTypeEffectiveness?: number;
+
+  /**
+   * このターン、技の使用者が最後に行動するかどうか（アナライズ）
+   */
+  isLastToMove?: boolean;
+
+  /**
+   * 何回目のヒットか（0始まり）。連続技・おやこあいの2発目以降で1以上になる
+   */
+  hitIndex?: number;
+
+  /**
+   * 追加効果の発動確率に掛ける倍率（てんのめぐみ = 2）
+   * rollSecondaryEffect が参照する
+   */
+  secondaryEffectChanceMultiplier?: number;
+
+  /**
+   * 相手に対する追加効果を発動させないかどうか（りんぷん）
+   * rollSecondaryEffect が参照する
+   */
+  secondaryEffectsSuppressed?: boolean;
+
+  /**
+   * 無視する攻撃側のランク（てんねんの防御側など）
+   * ダメージ計算・命中判定で、ここに含まれるランクを0として扱う
+   */
+  ignoredAttackerRanks?: ReadonlySet<StatType>;
+
+  /**
+   * 無視する防御側のランク（なしくずし、てんねんの攻撃側、しんがんなど）
+   * ダメージ計算・命中判定で、ここに含まれるランクを0として扱う
+   */
+  ignoredDefenderRanks?: ReadonlySet<StatType>;
 }

@@ -86,6 +86,17 @@ describe('StruggleEffect', () => {
     expect(result).toBeNull();
   });
 
+  it('タイプなしの技である（本家と同じ）', () => {
+    // Arrange
+    const effect = new StruggleEffect();
+
+    // Act
+    const typeless = effect.typeless;
+
+    // Assert
+    expect(typeless).toBe(true);
+  });
+
   it('わるあがきとして登録されている', () => {
     // Arrange
     MoveRegistry.initialize();

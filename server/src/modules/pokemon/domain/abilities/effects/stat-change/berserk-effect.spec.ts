@@ -1,130 +1,140 @@
 import { BerserkEffect } from './berserk-effect';
-import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
-import { BattleContext } from '../../battle-context.interface';
-import { Weather, Field, BattleStatus, Battle } from '@/modules/battle/domain/entities/battle.entity';
-import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
+import { AbilityRegistry } from '../../ability-registry';
+import { HitResult } from '../../../battle-events/hit-result';
+import { createInMemoryBattle } from '../../../battle-events/__tests__/in-memory-battle';
 
-describe('BerserkEffect', () => {
-  let effect: BerserkEffect;
-  let pokemon: BattlePokemonStatus;
-  let battleContext: BattleContext;
-  let mockBattleRepository: jest.Mocked<IBattleRepository>;
-
-  beforeEach(() => {
-    effect = new BerserkEffect();
-    pokemon = new BattlePokemonStatus(
-      1, // id
-      1, // battleId
-      1, // trainedPokemonId
-      1, // trainerId
-      true, // isActive
-      100, // currentHp
-      100, // maxHp
-      0, // attackRank
-      0, // defenseRank
-      0, // specialAttackRank
-      0, // specialDefenseRank
-      0, // speedRank
-      0, // accuracyRank
-      0, // evasionRank
-      null, // statusCondition
-    );
-
-    mockBattleRepository = {
-      update: jest.fn(),
-      findById: jest.fn(),
-      create: jest.fn(),
-      findBattlePokemonStatusByBattleId: jest.fn(),
-      createBattlePokemonStatus: jest.fn(),
-      updateBattlePokemonStatus: jest.fn().mockResolvedValue(pokemon),
-      findActivePokemonByBattleIdAndTrainerId: jest.fn(),
-      findBattlePokemonStatusById: jest.fn(),
-      findBattlePokemonMovesByBattlePokemonStatusId: jest.fn(),
-      createBattlePokemonMove: jest.fn(),
-      updateBattlePokemonMove: jest.fn(),
-      findBattlePokemonMoveById: jest.fn(),
-    } as jest.Mocked<IBattleRepository>;
-
-    battleContext = {
-      battle: new Battle(1, 1, 2, 1, 2, 1, Weather.None, Field.None, BattleStatus.Active, null),
-      battleRepository: mockBattleRepository,
-    };
+describe('BerserkEffect（ぎゃくじょう）', () => {
+  const hit = (damage: number, hpBefore: number): HitResult => ({
+    damage,
+    hpBefore,
+    hitIndex: 0,
+    hitCount: 1,
+    isContact: true,
+    moveTypeName: 'ノーマル',
+    moveCategory: 'Physical',
+    targetFainted: false,
   });
 
-  describe('onAfterTakingDamage', () => {
-    it('should increase special attack rank by 1 when HP is at half or below', async () => {
-      const pokemonAtHalf = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 50, 100, 0, 0, 0, 0, 0, 0, 0, null,
-      );
-      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(pokemonAtHalf);
+  beforeEach(() => {
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+  });
 
-      await effect.onAfterTakingDamage(pokemonAtHalf, 0, battleContext);
+  afterEach(() => {
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+  });
 
-      expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        specialAttackRank: 1,
-      });
-    });
-
-    it('should increase special attack rank by 1 when HP is below half', async () => {
-      const pokemonBelowHalf = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 49, 100, 0, 0, 0, 0, 0, 0, 0, null,
-      );
-      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(pokemonBelowHalf);
-
-      await effect.onAfterTakingDamage(pokemonBelowHalf, 0, battleContext);
-
-      expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        specialAttackRank: 1,
-      });
-    });
-
-    it('should not increase special attack rank when HP is above half', async () => {
-      const pokemonAboveHalf = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 51, 100, 0, 0, 0, 0, 0, 0, 0, null,
-      );
-      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(pokemonAboveHalf);
-
-      await effect.onAfterTakingDamage(pokemonAboveHalf, 0, battleContext);
-
-      expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
-    });
-
-    it('should not modify when battleRepository is undefined', async () => {
-      const contextWithoutRepository: BattleContext = {
-        ...battleContext,
-        battleRepository: undefined,
-      };
-      const pokemonAtHalf = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 50, 100, 0, 0, 0, 0, 0, 0, 0, null,
+  describe('onAfterMoveHit', () => {
+    it('技を受けてHPが半分を上回る状態から半分以下になったら、特攻を1段階上げる', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(
+        {},
+        { ability: 'ぎゃくじょう', status: { currentHp: 50 } },
       );
 
-      await effect.onAfterTakingDamage(pokemonAtHalf, 0, contextWithoutRepository);
-
-      expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
-    });
-
-    it('should cap special attack rank at 6', async () => {
-      const pokemonAtHalf = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 50, 100, 0, 0, 5, 0, 0, 0, 0, null,
+      // Act
+      const message = await new BerserkEffect().onAfterMoveHit(
+        get(2),
+        get(1),
+        hit(30, 80),
+        context(),
       );
-      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(pokemonAtHalf);
 
-      await effect.onAfterTakingDamage(pokemonAtHalf, 0, battleContext);
-
-      expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        specialAttackRank: 6,
-      });
+      // Assert
+      expect(get(2).specialAttackRank).toBe(1);
+      expect(message).toBe('Special Attack rose!');
     });
 
-    it('should not update when rank does not change', async () => {
-      const pokemonAtHalf = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 50, 100, 0, 0, 6, 0, 0, 0, 0, null,
+    it('技を受ける前からHPが半分以下なら、特攻を上げない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(
+        {},
+        { ability: 'ぎゃくじょう', status: { currentHp: 30 } },
       );
-      mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(pokemonAtHalf);
 
-      await effect.onAfterTakingDamage(pokemonAtHalf, 0, battleContext);
+      // Act
+      const message = await new BerserkEffect().onAfterMoveHit(
+        get(2),
+        get(1),
+        hit(20, 50),
+        context(),
+      );
 
-      expect(mockBattleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+      // Assert
+      expect(get(2).specialAttackRank).toBe(0);
+      expect(message).toBeNull();
     });
+
+    it('技を受けてもHPが半分を上回っていれば、特攻を上げない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(
+        {},
+        { ability: 'ぎゃくじょう', status: { currentHp: 51 } },
+      );
+
+      // Act
+      const message = await new BerserkEffect().onAfterMoveHit(
+        get(2),
+        get(1),
+        hit(49, 100),
+        context(),
+      );
+
+      // Assert
+      expect(get(2).specialAttackRank).toBe(0);
+      expect(message).toBeNull();
+    });
+
+    it('ひんしになったら、特攻を上げない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(
+        {},
+        { ability: 'ぎゃくじょう', status: { currentHp: 0 } },
+      );
+
+      // Act
+      const message = await new BerserkEffect().onAfterMoveHit(
+        get(2),
+        get(1),
+        hit(100, 100),
+        context(),
+      );
+
+      // Assert
+      expect(get(2).specialAttackRank).toBe(0);
+      expect(message).toBeNull();
+    });
+
+    it('特攻ランクが+6なら、ランクは変わらない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(
+        {},
+        { ability: 'ぎゃくじょう', status: { currentHp: 50, specialAttackRank: 6 } },
+      );
+
+      // Act
+      const message = await new BerserkEffect().onAfterMoveHit(
+        get(2),
+        get(1),
+        hit(50, 100),
+        context(),
+      );
+
+      // Assert
+      expect(get(2).specialAttackRank).toBe(6);
+      expect(message).toBeNull();
+    });
+  });
+
+  it('タイプ相性で技を無効にしたときの onAfterTakingDamage は持たない（HPが半分以下でも上げない）', () => {
+    // Arrange
+    const effect = new BerserkEffect();
+
+    // Act
+    const hasHook = 'onAfterTakingDamage' in effect;
+
+    // Assert
+    expect(hasHook).toBe(false);
   });
 });

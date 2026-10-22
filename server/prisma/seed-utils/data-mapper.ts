@@ -154,12 +154,13 @@ const extractLocalizedName = (
   for (const lang of JAPANESE_LANGUAGE_CODES) {
     const match = names.find(entry => entry.language.name === lang);
     if (match) {
-      return match.name;
+      // PokeAPI には末尾に空白が付いた名前がある（例: 「サイコブレイド 」）
+      return match.name.trim();
     }
   }
   const english = names.find(entry => entry.language.name === ENGLISH_LANGUAGE_CODE);
   if (english) {
-    return english.name;
+    return english.name.trim();
   }
   return toTitleCase(fallback);
 };

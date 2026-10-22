@@ -26,7 +26,11 @@ import {
   AbilityTrigger,
   AbilityCategory,
 } from '@/modules/pokemon/domain/entities/ability.entity';
-import { TeamMemberInfo } from '@/modules/trainer/domain/trainer.repository.interface';
+import {
+  ITrainedPokemonRepository,
+  TRAINED_POKEMON_REPOSITORY_TOKEN,
+  TeamMemberInfo,
+} from '@/modules/trainer/domain/trainer.repository.interface';
 import { Nature } from '../../domain/logic/stat-calculator';
 
 describe('StartBattleUseCase', () => {
@@ -34,6 +38,7 @@ describe('StartBattleUseCase', () => {
   let battleRepository: jest.Mocked<IBattleRepository>;
   let teamRepository: jest.Mocked<ITeamRepository>;
   let moveRepository: jest.Mocked<IMoveRepository>;
+  let trainedPokemonRepository: jest.Mocked<ITrainedPokemonRepository>;
 
   beforeEach(async () => {
     const mockBattleRepository: jest.Mocked<IBattleRepository> = {
@@ -60,6 +65,11 @@ describe('StartBattleUseCase', () => {
       findByPokemonId: jest.fn(),
     };
 
+    const mockTrainedPokemonRepository: jest.Mocked<ITrainedPokemonRepository> = {
+      findById: jest.fn(),
+      findByTrainerId: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StartBattleUseCase,
@@ -75,6 +85,10 @@ describe('StartBattleUseCase', () => {
           provide: MOVE_REPOSITORY_TOKEN,
           useValue: mockMoveRepository,
         },
+        {
+          provide: TRAINED_POKEMON_REPOSITORY_TOKEN,
+          useValue: mockTrainedPokemonRepository,
+        },
       ],
     }).compile();
 
@@ -82,6 +96,7 @@ describe('StartBattleUseCase', () => {
     battleRepository = module.get(BATTLE_REPOSITORY_TOKEN);
     teamRepository = module.get(TEAM_REPOSITORY_TOKEN);
     moveRepository = module.get(MOVE_REPOSITORY_TOKEN);
+    trainedPokemonRepository = module.get(TRAINED_POKEMON_REPOSITORY_TOKEN);
 
     // MoveRepositoryのモックをデフォルトで空の配列を返すように設定
     moveRepository.findByPokemonId.mockResolvedValue([]);
@@ -621,6 +636,8 @@ describe('StartBattleUseCase', () => {
           attackRank: -1,
         }),
       );
+      // 相手の特性（クリアボディ・ばんけんなど）を調べるため、育成ポケモンリポジトリを渡す
+      expect(trainedPokemonRepository.findById).toHaveBeenCalled();
 
       abilityRegistryGetSpy.mockRestore();
     });

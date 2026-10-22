@@ -2,6 +2,7 @@ import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 import { Weather } from '@/modules/battle/domain/entities/battle.entity';
+import { getContextWeather } from '../../context-weather';
 
 /**
  * 天候依存の HP 回復特性の基底クラス
@@ -26,7 +27,7 @@ export abstract class BaseWeatherHealEffect implements IAbilityEffect {
       return;
     }
 
-    if (battleContext.battle.weather !== this.weather) {
+    if (getContextWeather(battleContext) !== this.weather) {
       return;
     }
 

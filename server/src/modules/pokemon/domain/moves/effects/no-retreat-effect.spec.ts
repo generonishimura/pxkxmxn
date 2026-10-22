@@ -1,10 +1,8 @@
 import { NoRetreatEffect } from './no-retreat-effect';
-import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { BaseMultiHitEffect } from './base-multi-hit-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
-import { Move, MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
-import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 
 describe('NoRetreatEffect', () => {
   const createBattlePokemonStatus = (
@@ -39,60 +37,58 @@ describe('NoRetreatEffect', () => {
     };
   };
 
-  const createMove = (): Move => {
-    return {
-      id: 1,
-      name: 'はいすいのじん',
-      nameEn: 'no-retreat',
-      type: { id: 1, name: 'はがね' } as Type,
-      category: 'Physical' as MoveCategory,
-      power: 60,
-      accuracy: 100,
-      pp: 5,
-      priority: 0,
-      description: null,
-    } as Move;
-  };
-
-  it('beforeDamage で multiHitCount を 2 に設定する', async () => {
+  it('連続技ではない（攻撃技ではなく変化技）', () => {
+    // Act
     const effect = new NoRetreatEffect();
-    const attacker = createBattlePokemonStatus();
-    const defender = createBattlePokemonStatus({ id: 2 });
-    const ctx = createBattleContext();
-    const move = createMove();
 
-    await effect.beforeDamage(attacker, defender, move, ctx);
-
-    expect(ctx.multiHitCount).toBe(2);
+    // Assert
+    expect(effect).not.toBeInstanceOf(BaseMultiHitEffect);
   });
 
-  it('onHit で相手にひるみを付与する', async () => {
+  it('onUse で自分の攻撃・防御・特攻・特防・素早さを1段階ずつ上げる', async () => {
+    // Arrange
     const effect = new NoRetreatEffect();
-    const attacker = createBattlePokemonStatus();
+    const attacker = createBattlePokemonStatus({ attackRank: 1, speedRank: -1 });
     const defender = createBattlePokemonStatus({ id: 2 });
     const ctx = createBattleContext();
 
-    const result = await effect.onHit(attacker, defender, ctx);
+    // Act
+    const result = await effect.onUse(attacker, defender, ctx);
 
-    expect(result).toBe('flinched!');
-    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
-      statusCondition: StatusCondition.Flinch,
+    // Assert
+    expect(result).toBe("user's stats rose!");
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(attacker.id, {
+      attackRank: 2,
+      defenseRank: 1,
+      specialAttackRank: 1,
+      specialDefenseRank: 1,
+      speedRank: 0,
     });
   });
 
-  it('既に状態異常がある場合はひるみを付与しない', async () => {
+  it('5つの能力がすべて+6のときは何も起こらない', async () => {
+    // Arrange
     const effect = new NoRetreatEffect();
-    const attacker = createBattlePokemonStatus();
-    const defender = createBattlePokemonStatus({ id: 2, statusCondition: StatusCondition.Burn });
+    const attacker = createBattlePokemonStatus({
+      attackRank: 6,
+      defenseRank: 6,
+      specialAttackRank: 6,
+      specialDefenseRank: 6,
+      speedRank: 6,
+    });
+    const defender = createBattlePokemonStatus({ id: 2 });
     const ctx = createBattleContext();
 
-    const result = await effect.onHit(attacker, defender, ctx);
+    // Act
+    const result = await effect.onUse(attacker, defender, ctx);
 
+    // Assert
     expect(result).toBeNull();
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
   it('battleRepository が無い場合は null', async () => {
+    // Arrange
     const effect = new NoRetreatEffect();
     const attacker = createBattlePokemonStatus();
     const defender = createBattlePokemonStatus({ id: 2 });
@@ -100,8 +96,10 @@ describe('NoRetreatEffect', () => {
       battle: new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null),
     };
 
-    const result = await effect.onHit(attacker, defender, ctx);
+    // Act
+    const result = await effect.onUse(attacker, defender, ctx);
 
+    // Assert
     expect(result).toBeNull();
   });
 });

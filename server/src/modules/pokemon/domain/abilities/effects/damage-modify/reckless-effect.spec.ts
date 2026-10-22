@@ -1,77 +1,54 @@
 import { RecklessEffect } from './reckless-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
-import { Weather, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
+import { Battle, BattleStatus, Weather } from '@/modules/battle/domain/entities/battle.entity';
 
 describe('RecklessEffect', () => {
-  let effect: RecklessEffect;
-  let pokemon: BattlePokemonStatus;
-  let battleContext: BattleContext;
-
-  beforeEach(() => {
-    effect = new RecklessEffect();
-    pokemon = {
-      id: 1,
-      battleId: 1,
-      trainedPokemonId: 1,
-      trainerId: 1,
-      isActive: true,
-      currentHp: 100,
-      maxHp: 100,
-      attackRank: 0,
-      defenseRank: 0,
-      specialAttackRank: 0,
-      specialDefenseRank: 0,
-      speedRank: 0,
-      accuracyRank: 0,
-      evasionRank: 0,
-      statusCondition: null,
-    } as BattlePokemonStatus;
-
-    battleContext = {
-      battle: {
-        id: 1,
-        trainer1Id: 1,
-        trainer2Id: 2,
-        team1Id: 1,
-        team2Id: 2,
-        turn: 1,
-        weather: Weather.None,
-        field: null,
-        status: BattleStatus.Active,
-        winnerTrainerId: null,
-      },
-      hasRecoil: true,
-    };
+  const pokemon = new BattlePokemonStatus(1, 1, 1, 1, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, null);
+  const createContext = (hasRecoil?: boolean): BattleContext => ({
+    battle: new Battle(1, 1, 2, 1, 2, 1, Weather.None, null, BattleStatus.Active, null),
+    hasRecoil,
   });
 
-  describe('modifyDamageDealt', () => {
-    it('should return 1.2x damage for moves with recoil', () => {
-      const result = effect.modifyDamageDealt(pokemon, 100, battleContext);
-      expect(result).toBe(120); // 100 * 1.2 = 120
+  describe('modifyBasePower', () => {
+    it('反動のある技は威力を1.2倍（4915/4096）にする', () => {
+      // Act
+      const result = new RecklessEffect().modifyBasePower(pokemon, 120, createContext(true));
+
+      // Assert
+      expect(result).toBe(144);
     });
 
-    it('should return undefined for moves without recoil', () => {
-      const contextWithoutRecoil: BattleContext = {
-        ...battleContext,
-        hasRecoil: false,
-      };
-      const result = effect.modifyDamageDealt(pokemon, 100, contextWithoutRecoil);
+    it('4096分率の丸めで計算する（100 → 120）', () => {
+      // Act
+      const result = new RecklessEffect().modifyBasePower(pokemon, 100, createContext(true));
+
+      // Assert
+      expect(result).toBe(120);
+    });
+
+    it('反動のない技は補正しない', () => {
+      // Act
+      const result = new RecklessEffect().modifyBasePower(pokemon, 120, createContext(false));
+
+      // Assert
       expect(result).toBeUndefined();
     });
 
-    it('should return undefined when hasRecoil is not provided', () => {
-      const contextWithoutRecoilFlag: BattleContext = {
-        ...battleContext,
-        hasRecoil: undefined,
-      };
-      const result = effect.modifyDamageDealt(pokemon, 100, contextWithoutRecoilFlag);
-      expect(result).toBeUndefined();
-    });
+    it('コンテキストがない場合は補正しない', () => {
+      // Act
+      const result = new RecklessEffect().modifyBasePower(pokemon, 120, undefined);
 
-    it('should return undefined when battleContext is not provided', () => {
-      const result = effect.modifyDamageDealt(pokemon, 100, undefined);
+      // Assert
       expect(result).toBeUndefined();
     });
+  });
+
+  it('ダメージ段階の補正（modifyDamageDealt）は持たない', () => {
+    // Act
+    const effect = new RecklessEffect();
+
+    // Assert
+    expect('modifyDamageDealt' in effect).toBe(false);
   });
 });

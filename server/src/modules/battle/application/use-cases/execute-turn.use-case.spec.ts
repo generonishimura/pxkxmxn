@@ -70,6 +70,7 @@ describe('ExecuteTurnUseCase', () => {
 
     const mockTypeEffectivenessRepository: jest.Mocked<ITypeEffectivenessRepository> = {
       getTypeEffectivenessMap: jest.fn(),
+      findTypeByName: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({

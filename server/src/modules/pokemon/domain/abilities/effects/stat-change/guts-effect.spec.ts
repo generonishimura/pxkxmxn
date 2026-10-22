@@ -216,9 +216,8 @@ describe('GutsEffect', () => {
 
       await effect.onEntry(pokemon, battleContext);
 
-      expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        attackRank: 6,
-      });
+      // ランクが変わらないので書き込まない
+      expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
   });
 });

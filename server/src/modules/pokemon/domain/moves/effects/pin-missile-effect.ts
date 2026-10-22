@@ -1,7 +1,7 @@
 import { BaseMultiHitEffect } from './base-multi-hit-effect';
 
 /**
- * 「ダブルニードル」の特殊効果実装
+ * ミサイルばり（Pin Missile）技の効果
  *
  * 効果: 2-5回連続攻撃 (2-5 hits)
  */

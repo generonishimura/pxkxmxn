@@ -193,10 +193,8 @@ describe('IntimidateEffect', () => {
 
       await effect.onEntry(pokemon, battleContext);
 
-      // Math.max(-6, -6 - 1) = Math.max(-6, -7) = -6
-      expect(mockRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(opponentPokemon.id, {
-        attackRank: -6, // 下限は-6
-      });
+      // ランクが変わらないので書き込まない
+      expect(mockRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
     it('攻撃ランクが-5の場合、-6になる', async () => {

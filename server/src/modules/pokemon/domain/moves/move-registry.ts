@@ -12,7 +12,6 @@ import { PsychicEffect } from './effects/psychic-effect';
 import { ThunderEffect } from './effects/thunder-effect';
 import { ThunderShockEffect } from './effects/thunder-shock-effect';
 import { FurySwipesEffect } from './effects/fury-swipes-effect';
-import { PeckEffect } from './effects/peck-effect';
 import { PinMissileEffect } from './effects/pin-missile-effect';
 import { DoubleEdgeEffect } from './effects/double-edge-effect';
 import { TakeDownEffect } from './effects/take-down-effect';
@@ -239,6 +238,27 @@ import { HighJumpKickEffect } from './effects/high-jump-kick-effect';
 import { StruggleEffect } from './effects/struggle-effect';
 import { SecretPowerEffect } from './effects/secret-power-effect';
 import { DecorateEffect } from './effects/decorate-effect';
+// 連続技（Issue #48 一部）
+import { TwoToFiveHitEffect } from './effects/two-to-five-hit-effect';
+import { TwoHitEffect } from './effects/two-hit-effect';
+import { TripleDiveEffect } from './effects/triple-dive-effect';
+import { TwineedleEffect } from './effects/twineedle-effect';
+// 威力・タイプが変わる技（Issue #96, #99, #100 一部）
+import { VenoshockEffect } from './effects/venoshock-effect';
+import { HexEffect } from './effects/hex-effect';
+import { StoredPowerEffect } from './effects/stored-power-effect';
+import { WeatherBallEffect } from './effects/weather-ball-effect';
+// 威力が変わる技（Issue #123, #129 一部）
+import { FacadeEffect } from './effects/facade-effect';
+import { PunishmentEffect } from './effects/punishment-effect';
+import { PowerTripEffect } from './effects/power-trip-effect';
+// 相手がねむりのときだけ当たる吸収技（Issue #97 一部）
+import { DreamEaterEffect } from './effects/dream-eater-effect';
+// 能力の参照先を変える技・相手のランクを無視する技（Issue #129 一部）
+import { FoulPlayEffect } from './effects/foul-play-effect';
+import { ChipAwayEffect } from './effects/chip-away-effect';
+// 相手のランクを奪う技（Issue #129 一部）
+import { SpectralThiefEffect } from './effects/spectral-thief-effect';
 
 /**
  * 技のレジストリ
@@ -265,7 +285,7 @@ export class MoveRegistry {
       // 技の特殊効果ロジックを登録
       // DBのnameをキーとして、対応するロジッククラスを登録
       this.registry.set('かえんほうしゃ', new FlamethrowerEffect());
-      this.registry.set('10まんボルト', new ThunderboltEffect());
+      this.registry.set('１０まんボルト', new ThunderboltEffect());
       this.registry.set('どくどく', new ToxicEffect());
       this.registry.set('れいとうビーム', new IceBeamEffect());
       this.registry.set('ねむりごな', new SleepPowderEffect());
@@ -277,8 +297,6 @@ export class MoveRegistry {
       this.registry.set('かみなり', new ThunderEffect());
       this.registry.set('でんきショック', new ThunderShockEffect());
       this.registry.set('みだれひっかき', new FurySwipesEffect());
-      this.registry.set('つつく', new PeckEffect());
-      this.registry.set('ダブルニードル', new PinMissileEffect());
       this.registry.set('すてみタックル', new DoubleEdgeEffect());
       this.registry.set('とっしん', new TakeDownEffect());
       // ステータス変化系の変化技
@@ -286,8 +304,7 @@ export class MoveRegistry {
       this.registry.set('かたくなる', new HardenEffect());
       this.registry.set('つるぎのまい', new SwordsDanceEffect());
       // 天候変更系の変化技
-      this.registry.set('あめをよぶ', new RainDanceEffect());
-      this.registry.set('あまごい', new RainDanceEffect()); // Issue #115: あめをよぶの別表記
+      this.registry.set('あまごい', new RainDanceEffect());
       this.registry.set('にほんばれ', new SunnyDayEffect());
       this.registry.set('すなあらし', new SandstormMoveEffect());
       this.registry.set('あられ', new HailMoveEffect());
@@ -560,6 +577,55 @@ export class MoveRegistry {
       this.registry.set('おさきにどうぞ', noOpEffect);
       this.registry.set('さきおくり', noOpEffect);
       this.registry.set('スポットライト', noOpEffect);
+      // 連続技（Issue #48 一部）
+      // 追加効果のない2〜5回攻撃・2回攻撃の技は、それぞれ1つのインスタンスを共有
+      const twoToFiveHitEffect = new TwoToFiveHitEffect();
+      const twoHitEffect = new TwoHitEffect();
+      this.registry.set('ミサイルばり', new PinMissileEffect());
+      this.registry.set('おうふくビンタ', twoToFiveHitEffect);
+      this.registry.set('れんぞくパンチ', twoToFiveHitEffect);
+      this.registry.set('みだれづき', twoToFiveHitEffect);
+      this.registry.set('とげキャノン', twoToFiveHitEffect);
+      this.registry.set('たまなげ', twoToFiveHitEffect);
+      this.registry.set('ボーンラッシュ', twoToFiveHitEffect);
+      this.registry.set('つっぱり', twoToFiveHitEffect);
+      this.registry.set('タネマシンガン', twoToFiveHitEffect);
+      this.registry.set('つららばり', twoToFiveHitEffect);
+      this.registry.set('ロックブラスト', twoToFiveHitEffect);
+      this.registry.set('スイープビンタ', twoToFiveHitEffect);
+      // みずしゅりけん: サトシゲッコウガの3回攻撃・威力20は対象外
+      this.registry.set('みずしゅりけん', twoToFiveHitEffect);
+      this.registry.set('にどげり', twoHitEffect);
+      this.registry.set('ホネブーメラン', twoHitEffect);
+      this.registry.set('ダブルアタック', twoHitEffect);
+      this.registry.set('ダブルチョップ', twoHitEffect);
+      this.registry.set('ギアソーサー', twoHitEffect);
+      // ドラゴンアロー: シングルバトルでは相手1体に2回当たる
+      this.registry.set('ドラゴンアロー', twoHitEffect);
+      this.registry.set('ダブルウイング', twoHitEffect);
+      this.registry.set('ツインビーム', twoHitEffect);
+      this.registry.set('タキオンカッター', twoHitEffect);
+      this.registry.set('ダブルニードル', new TwineedleEffect());
+      this.registry.set('トリプルダイブ', new TripleDiveEffect());
+      // 威力・タイプが変わる技（Issue #96, #99, #100 一部）
+      this.registry.set('ベノムショック', new VenoshockEffect());
+      this.registry.set('たたりめ', new HexEffect());
+      this.registry.set('アシストパワー', new StoredPowerEffect());
+      this.registry.set('ウェザーボール', new WeatherBallEffect());
+      // 威力が変わる技（Issue #123, #129 一部）
+      this.registry.set('からげんき', new FacadeEffect());
+      this.registry.set('おしおき', new PunishmentEffect());
+      this.registry.set('つけあがる', new PowerTripEffect());
+      // 相手がねむりのときだけ当たる吸収技（Issue #97 一部）
+      this.registry.set('ゆめくい', new DreamEaterEffect());
+      // 能力の参照先を変える技・相手のランクを無視する技（Issue #129 一部）
+      const chipAwayEffect = new ChipAwayEffect();
+      this.registry.set('イカサマ', new FoulPlayEffect());
+      this.registry.set('なしくずし', chipAwayEffect);
+      this.registry.set('せいなるつるぎ', chipAwayEffect);
+      this.registry.set('ＤＤラリアット', chipAwayEffect);
+      // 相手のランクを奪う技（Issue #129 一部）
+      this.registry.set('シャドースチール', new SpectralThiefEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,

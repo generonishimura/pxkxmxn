@@ -1,6 +1,8 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
+import { applyStatChanges } from '../../../battle-events/stat-change';
+import { resolveAbilityName } from '../../../battle-events/ability-lookup';
 
 /**
  * ステータスランクの種類
@@ -22,20 +24,6 @@ export type StatType =
  */
 export abstract class BaseStatBoostEffect implements IAbilityEffect {
   /**
-   * ステータスタイプからBattlePokemonStatusのプロパティ名へのマッピング
-   * メソッド呼び出しごとのオブジェクト生成を避けるため、クラスレベルで定義
-   */
-  private static readonly statRankPropMap: Record<StatType, keyof BattlePokemonStatus> = {
-    attack: 'attackRank',
-    defense: 'defenseRank',
-    specialAttack: 'specialAttackRank',
-    specialDefense: 'specialDefenseRank',
-    speed: 'speedRank',
-    accuracy: 'accuracyRank',
-    evasion: 'evasionRank',
-  };
-
-  /**
    * 変更するステータスの種類
    */
   protected abstract readonly statType: StatType;
@@ -54,19 +42,13 @@ export abstract class BaseStatBoostEffect implements IAbilityEffect {
       return;
     }
 
-    // 現在のランクを取得
-    const currentRank = pokemon.getStatRank(this.statType);
-
-    // 新しいランクを計算（-6から+6の範囲内で）
-    const newRank = Math.max(-6, Math.min(6, currentRank + this.rankChange));
-
-    // statTypeからプロパティ名を取得してupdateDataを構築
-    const propName = BaseStatBoostEffect.statRankPropMap[this.statType];
-    const updateData: Partial<BattlePokemonStatus> = {
-      [propName]: newRank,
-    } as Partial<BattlePokemonStatus>;
-
-    // 自分のステータスランクを更新
-    await battleContext.battleRepository.updateBattlePokemonStatus(pokemon.id, updateData);
+    // 自分のランクを変える。原因はこの特性と持ち主（相手のびんじょうなどが反応する）
+    const abilityName = await resolveAbilityName(pokemon, battleContext);
+    await applyStatChanges(
+      pokemon,
+      [{ statType: this.statType, rankChange: this.rankChange }],
+      battleContext,
+      { source: { pokemon, abilityName, kind: 'ability', name: abilityName } },
+    );
   }
 }

@@ -2,7 +2,7 @@ import { BaseWeatherMoveEffect } from './base/base-weather-move-effect';
 import { Weather } from '@/modules/battle/domain/entities/battle.entity';
 
 /**
- * 「あめをよぶ」の特殊効果実装
+ * 「あまごい」の特殊効果実装
  *
  * 効果: 雨を降らせる
  */

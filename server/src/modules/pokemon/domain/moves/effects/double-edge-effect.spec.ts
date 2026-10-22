@@ -69,9 +69,9 @@ describe('DoubleEdgeEffect', () => {
   });
 
   describe('afterDamage', () => {
-    it('与えたダメージの1/3を反動ダメージとして適用する', async () => {
+    it('与えたダメージの33%を反動ダメージとして適用する', async () => {
       const damage = 90; // 与えたダメージ
-      const expectedRecoilDamage = Math.floor(damage / 3); // 90 / 3 = 30
+      const expectedRecoilDamage = 30; // 90 * 0.33 = 29.7 -> 30
 
       const result = await effect.afterDamage(attacker, defender, damage, battleContext);
 
@@ -94,7 +94,7 @@ describe('DoubleEdgeEffect', () => {
 
     it('反動ダメージがHPを0未満にしない', async () => {
       const damage = 300; // 与えたダメージ
-      const expectedRecoilDamage = Math.floor(damage / 3); // 300 / 3 = 100
+      const dealtRecoilDamage = 50; // 300 * 0.33 = 99 だが、残りHPの50だけ減る
       const attackerWithLowHp = {
         ...attacker,
         currentHp: 50,
@@ -105,22 +105,33 @@ describe('DoubleEdgeEffect', () => {
       const result = await effect.afterDamage(attackerWithLowHp, defender, damage, battleContext);
 
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        currentHp: 0, // 50 - 100 = -50 -> capped at 0
+        currentHp: 0, // 50 - 99 = -49 -> capped at 0
       });
-      expect(result).toBe(`反動で${expectedRecoilDamage}ダメージを受けた`);
+      expect(result).toBe(`反動で${dealtRecoilDamage}ダメージを受けた`);
     });
 
-    it('反動ダメージを切り捨てて計算する', async () => {
-      const damage = 10; // 10 / 3 = 3.333... -> 3
-      const expectedRecoilDamage = Math.floor(damage / 3); // 3
+    it('反動ダメージを四捨五入して計算する', async () => {
+      const damage = 50; // 50 * 0.33 = 16.5 -> 17
+      const expectedRecoilDamage = 17;
 
       const result = await effect.afterDamage(attacker, defender, damage, battleContext);
 
       expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
-        currentHp: 100 - expectedRecoilDamage, // 100 - 3 = 97
+        currentHp: 100 - expectedRecoilDamage, // 100 - 17 = 83
+      });
+      expect(result).toBe(`反動で${expectedRecoilDamage}ダメージを受けた`);
+    });
+
+    it('反動の割合は1/3ではなく33%で計算する（本家と同じ）', async () => {
+      const damage = 152; // 152 * 0.33 = 50.16 -> 50（1/3 なら 50.67 -> 51）
+      const expectedRecoilDamage = 50;
+
+      const result = await effect.afterDamage(attacker, defender, damage, battleContext);
+
+      expect(mockBattleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
+        currentHp: 100 - expectedRecoilDamage, // 100 - 50 = 50
       });
       expect(result).toBe(`反動で${expectedRecoilDamage}ダメージを受けた`);
     });
   });
 });
-

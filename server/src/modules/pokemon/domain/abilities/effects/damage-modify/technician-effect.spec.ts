@@ -1,95 +1,48 @@
 import { TechnicianEffect } from './technician-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
-import { BattleContext } from '../../battle-context.interface';
-import { Weather, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
 
 describe('TechnicianEffect', () => {
-  let effect: TechnicianEffect;
-  let pokemon: BattlePokemonStatus;
-  let battleContext: BattleContext;
+  const pokemon = new BattlePokemonStatus(1, 1, 1, 1, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, null);
 
-  beforeEach(() => {
-    effect = new TechnicianEffect();
-    pokemon = {
-      id: 1,
-      battleId: 1,
-      trainedPokemonId: 1,
-      trainerId: 1,
-      isActive: true,
-      currentHp: 100,
-      maxHp: 100,
-      attackRank: 0,
-      defenseRank: 0,
-      specialAttackRank: 0,
-      specialDefenseRank: 0,
-      speedRank: 0,
-      accuracyRank: 0,
-      evasionRank: 0,
-      statusCondition: null,
-    } as BattlePokemonStatus;
+  describe('modifyBasePower', () => {
+    it('威力60の技は威力を1.5倍（6144/4096）にする', () => {
+      // Act
+      const result = new TechnicianEffect().modifyBasePower(pokemon, 60);
 
-    battleContext = {
-      battle: {
-        id: 1,
-        trainer1Id: 1,
-        trainer2Id: 2,
-        team1Id: 1,
-        team2Id: 2,
-        turn: 1,
-        weather: Weather.None,
-        field: null,
-        status: BattleStatus.Active,
-        winnerTrainerId: null,
-      },
-      movePower: 60,
-    };
+      // Assert
+      expect(result).toBe(90);
+    });
+
+    it('威力60未満の技も4096分率で補正する（25 → 37.5 は五捨五超入で37）', () => {
+      // Act
+      const result = new TechnicianEffect().modifyBasePower(pokemon, 25);
+
+      // Assert
+      expect(result).toBe(37);
+    });
+
+    it('威力61以上の技は補正しない', () => {
+      // Act
+      const result = new TechnicianEffect().modifyBasePower(pokemon, 61);
+
+      // Assert
+      expect(result).toBeUndefined();
+    });
+
+    it('ヒットごとの威力（おやこあいの追加ヒットなど）で判定する', () => {
+      // Act
+      const result = new TechnicianEffect().modifyBasePower(pokemon, 20);
+
+      // Assert
+      expect(result).toBe(30);
+    });
   });
 
-  describe('modifyDamageDealt', () => {
-    it('should return 1.5x damage for moves with power 60', () => {
-      const result = effect.modifyDamageDealt(pokemon, 100, battleContext);
-      expect(result).toBe(150); // 100 * 1.5 = 150
-    });
+  it('ダメージ段階の補正（modifyDamageDealt）は持たない', () => {
+    // Act
+    const effect = new TechnicianEffect();
 
-    it('should return 1.5x damage for moves with power less than 60', () => {
-      const contextWithLowPower: BattleContext = {
-        ...battleContext,
-        movePower: 40,
-      };
-      const result = effect.modifyDamageDealt(pokemon, 100, contextWithLowPower);
-      expect(result).toBe(150);
-    });
-
-    it('should return undefined for moves with power greater than 60', () => {
-      const contextWithHighPower: BattleContext = {
-        ...battleContext,
-        movePower: 70,
-      };
-      const result = effect.modifyDamageDealt(pokemon, 100, contextWithHighPower);
-      expect(result).toBeUndefined();
-    });
-
-    it('should return undefined when movePower is null', () => {
-      const contextWithNullPower: BattleContext = {
-        ...battleContext,
-        movePower: null,
-      };
-      const result = effect.modifyDamageDealt(pokemon, 100, contextWithNullPower);
-      expect(result).toBeUndefined();
-    });
-
-    it('should return undefined when movePower is not provided', () => {
-      const contextWithoutPower: BattleContext = {
-        ...battleContext,
-        movePower: undefined,
-      };
-      const result = effect.modifyDamageDealt(pokemon, 100, contextWithoutPower);
-      expect(result).toBeUndefined();
-    });
-
-    it('should return undefined when battleContext is not provided', () => {
-      const result = effect.modifyDamageDealt(pokemon, 100, undefined);
-      expect(result).toBeUndefined();
-    });
+    // Assert
+    expect('modifyDamageDealt' in effect).toBe(false);
   });
 });
