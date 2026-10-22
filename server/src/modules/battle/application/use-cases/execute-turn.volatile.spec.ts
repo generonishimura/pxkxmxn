@@ -351,6 +351,23 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
       expect(calls()[0]).toMatchObject({ moveId: TACKLE.id });
       expect(statuses.get(1).volatileState.encore).toBeUndefined();
     });
+
+    it('アンコールが解けたあとは、ほかの制限（ちょうはつ）があっても、解けたアンコールで技を止めない', async () => {
+      // Arrange
+      const { useCase, calls } = setup({
+        movesOf1: [
+          new BattlePokemonMove(1, 1, TACKLE.id, 10, 10),
+          new BattlePokemonMove(3, 1, SCRATCH.id, 0, 10),
+        ],
+        volatileOf1: { encore: { moveId: SCRATCH.id, turns: 2 }, tauntTurns: 2 },
+      });
+
+      // Act
+      await useCase.execute(params({ trainerId: 1, moveId: TACKLE.id }));
+
+      // Assert
+      expect(calls()[0]).toMatchObject({ moveId: TACKLE.id });
+    });
   });
 
   describe('技の欄', () => {

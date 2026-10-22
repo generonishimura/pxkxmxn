@@ -434,6 +434,8 @@ export class ExecuteTurnUseCase {
       } else {
         // アンコールされた技の PP がなくなったら、アンコールは解ける
         await this.battleRepository.patchVolatileState(active.id, { encore: null });
+        // 以降の技の制限の判定が、解けたアンコールを見ないように読み直す
+        active = (await this.battleRepository.findBattlePokemonStatusById(active.id)) ?? active;
       }
     }
 
