@@ -1,4 +1,6 @@
+import 'dotenv/config';
 import { PrismaClient } from '../generated/prisma/client';
+import { createPrismaAdapter } from '../src/shared/prisma/create-prisma-adapter';
 import {
   buildTypeEffectivenessMatrix,
   createAbilitySeedData,
@@ -14,7 +16,7 @@ import { getAbilityMetadata } from './seed-utils/ability-mapping';
 import { PokeApiClient } from './seed-utils/pokeapi-client';
 import { log, warn, error } from './seed-utils/logger';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
 const pokeApi = new PokeApiClient();
 
 const EXCLUDED_TYPE_NAMES = new Set(['unknown', 'shadow']);

@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@generated/prisma/client';
+import { createPrismaAdapter } from './create-prisma-adapter';
 
 /**
  * PrismaService
@@ -7,6 +8,10 @@ import { PrismaClient } from '@generated/prisma/client';
  */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  constructor() {
+    super({ adapter: createPrismaAdapter() });
+  }
+
   /**
    * モジュール初期化時にPrisma Clientを接続
    */

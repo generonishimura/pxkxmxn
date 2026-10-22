@@ -3,6 +3,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import * as dotenv from 'dotenv';
 import { PrismaClient } from '@generated/prisma/client';
+import { createPrismaAdapter } from '../shared/prisma/create-prisma-adapter';
 
 // 環境変数を読み込む
 dotenv.config();
@@ -128,7 +129,7 @@ async function checkPrismaClient(): Promise<void> {
 }
 
 async function checkDatabaseConnection(): Promise<void> {
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
   try {
     // Prismaクライアントを使用してデータベース接続をテスト
     await prisma.$connect();
