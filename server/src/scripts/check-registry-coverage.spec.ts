@@ -5,6 +5,7 @@
 
 import * as dotenv from 'dotenv';
 import { PrismaClient } from '@generated/prisma/client';
+import { createPrismaAdapter } from '../shared/prisma/create-prisma-adapter';
 import { AbilityRegistry } from '../modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '../modules/pokemon/domain/moves/move-registry';
 import { hasSpecialEffect } from './move-utils';
@@ -12,7 +13,7 @@ import { hasSpecialEffect } from './move-utils';
 // 環境変数を読み込む
 dotenv.config();
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
 
 /**
  * 特性レジストリの網羅性をチェック
