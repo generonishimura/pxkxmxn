@@ -115,7 +115,7 @@ export interface IAbilityEffect {
    * @param rankChange ランク変化量（負の値は下降）
    * @param battleContext バトルコンテキスト
    * @returns 受けられる場合はtrue、無効化する場合はfalse、判定しない場合はundefined
-   *          典型用途: クリアボディ / ホワイトスモーク（全ステ低下無効）、はとむね（防御低下無効）など
+   *          典型用途: クリアボディ / しろいけむり（全ステ低下無効）、はとむね（防御低下無効）など
    */
   canReceiveStatChange?(
     _pokemon: BattlePokemonStatus,

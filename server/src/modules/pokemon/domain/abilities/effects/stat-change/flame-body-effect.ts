@@ -2,7 +2,7 @@ import { BaseContactStatusConditionEffect } from '../base/base-contact-status-co
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 
 /**
- * もうふう（Flame Body）特性の効果
+ * ほのおのからだ（Flame Body）特性の効果
  * 接触技を受けたとき、30%の確率で相手をやけどにする
  */
 export class FlameBodyEffect extends BaseContactStatusConditionEffect {
