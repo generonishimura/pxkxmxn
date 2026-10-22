@@ -1,4 +1,5 @@
 import { ValidationException } from '../../../../shared/domain/exceptions/validation.exception';
+import { SideState, emptySideState } from '../state/side-state';
 
 /**
  * Battleエンティティ
@@ -26,6 +27,10 @@ export class Battle {
     public readonly field: Field | null,
     public readonly status: BattleStatus,
     public readonly winnerTrainerId: number | null,
+    /**
+     * 陣営ごとの場の状態（リフレクター・まきびしなど）と、両陣営にかかる場の状態（トリックルームなど）
+     */
+    public readonly sideState: SideState = emptySideState(),
   ) {
     // IDのバリデーション
     if (id < Battle.MIN_ID) {

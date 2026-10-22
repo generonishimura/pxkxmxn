@@ -72,7 +72,7 @@ describe('ShoreUpEffect', () => {
     const result = await effect.onUse(attacker, defender, ctx);
 
     // Assert
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
     expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 });

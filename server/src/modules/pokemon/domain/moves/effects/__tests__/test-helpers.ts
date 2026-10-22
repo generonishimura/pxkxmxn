@@ -31,6 +31,8 @@ export const createBattlePokemonStatus = (
     accuracyRank: overrides?.accuracyRank ?? 0,
     evasionRank: overrides?.evasionRank ?? 0,
     statusCondition: overrides?.statusCondition ?? null,
+    volatileState: overrides?.volatileState ?? {},
+    persistentState: overrides?.persistentState ?? {},
   } as BattlePokemonStatus;
 };
 

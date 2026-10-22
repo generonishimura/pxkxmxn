@@ -3,12 +3,14 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../../battle-context.interface';
 import { Weather } from '@/modules/battle/domain/entities/battle.entity';
 import { getContextWeather } from '../../context-weather';
+import { applyHeal } from '../../../battle-events/heal';
 
 /**
  * かんそうはだ（Dry Skin）特性の効果
  * - みずタイプの技を無効化し、最大 HP の 1/4 を回復する
  * - ほのおタイプの技で受けるダメージが 1.25 倍になる
  * - ターン終了時、雨なら最大 HP の 1/8 を回復し、晴れなら最大 HP の 1/8 のダメージを受ける
+ * - 回復は applyHeal で行う（かいふくふうじ中は回復しない）
  *
  * 注: ほのお技の弱点は、技の威力補正ではなくダメージ計算の最終段で 1.25 倍を掛けて近似する
  */
@@ -58,10 +60,11 @@ export class DrySkinEffect extends BaseTypeAbsorbEffect {
     }
 
     const amount = Math.max(1, Math.floor(currentStatus.maxHp * DrySkinEffect.WEATHER_HP_RATIO));
-    const newHp =
-      weather === Weather.Rain
-        ? Math.min(currentStatus.maxHp, currentStatus.currentHp + amount)
-        : Math.max(0, currentStatus.currentHp - amount);
+    if (weather === Weather.Rain) {
+      await applyHeal(currentStatus, amount, battleContext);
+      return;
+    }
+    const newHp = Math.max(0, currentStatus.currentHp - amount);
 
     if (newHp === currentStatus.currentHp) {
       return;

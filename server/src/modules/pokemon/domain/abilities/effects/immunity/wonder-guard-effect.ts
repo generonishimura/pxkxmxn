@@ -11,10 +11,9 @@ import { BattleContext } from '../../battle-context.interface';
  * - 変化技はダメージ計算を通らないので、無効にしない（本家と同じ）
  * - わるあがきは無効にしない（本家と同じ）。わるあがきはタイプなし（相性1倍）なので、ゴーストタイプのヌケニンにも当たる
  * - かたやぶりで無視される（エンジンが判定する）
- *
- * 注: エンジンは、この特性でダメージが0になっても技の追加効果（onHit）と自分への効果
- *     （afterDamage）を止めない。たとえば10まんボルトを無効にしてもまひの判定が残り、
- *     りゅうせいぐんを無効にされても使った側の特攻が下がる（本家は技そのものが失敗する）
+ * - 無効にした技は、追加効果（onHit。10まんボルトのまひなど）と使用者への効果（afterDamage。反動など）も
+ *   起こさない（本家は技そのものが失敗する）。エンジンが、技全体のタイプ相性（moveTypeEffectiveness）が 0 の
+ *   ときにこれらを呼ばない
  */
 export class WonderGuardEffect implements IAbilityEffect {
   private static readonly STRUGGLE_MOVE_NAME = 'わるあがき';

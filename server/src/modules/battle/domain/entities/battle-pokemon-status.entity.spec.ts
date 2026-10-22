@@ -1,6 +1,8 @@
 import { BattlePokemonStatus } from './battle-pokemon-status.entity';
 import { StatusCondition } from './status-condition.enum';
 import { ValidationException } from '../../../../shared/domain/exceptions/validation.exception';
+import { VolatileState } from '../state/volatile-state';
+import { PersistentPokemonState } from '../state/persistent-state';
 
 describe('BattlePokemonStatus', () => {
   const createBattlePokemonStatus = (
@@ -58,9 +60,7 @@ describe('BattlePokemonStatus', () => {
     });
 
     it('currentHpが負の値の場合、ValidationExceptionを投げる', () => {
-      expect(() => createBattlePokemonStatus({ currentHp: -1 })).toThrow(
-        ValidationException,
-      );
+      expect(() => createBattlePokemonStatus({ currentHp: -1 })).toThrow(ValidationException);
     });
 
     it('currentHpがmaxHpを超える場合、ValidationExceptionを投げる', () => {
@@ -70,15 +70,11 @@ describe('BattlePokemonStatus', () => {
     });
 
     it('ランクが-6未満の場合、ValidationExceptionを投げる', () => {
-      expect(() => createBattlePokemonStatus({ attackRank: -7 })).toThrow(
-        ValidationException,
-      );
+      expect(() => createBattlePokemonStatus({ attackRank: -7 })).toThrow(ValidationException);
     });
 
     it('ランクが+6超過の場合、ValidationExceptionを投げる', () => {
-      expect(() => createBattlePokemonStatus({ attackRank: 7 })).toThrow(
-        ValidationException,
-      );
+      expect(() => createBattlePokemonStatus({ attackRank: 7 })).toThrow(ValidationException);
     });
 
     it('すべてのランクが-6から+6の範囲内の場合、正常に作成できる', () => {
@@ -106,5 +102,81 @@ describe('BattlePokemonStatus', () => {
       expect(status.isFainted()).toBe(false);
     });
   });
-});
 
+  describe('volatileState', () => {
+    it('指定しないときは空の状態を持つ', () => {
+      // Act
+      const status = createBattlePokemonStatus();
+
+      // Assert
+      expect(status.volatileState).toEqual({});
+    });
+
+    it('指定した状態を持つ', () => {
+      // Arrange
+      const volatileState: VolatileState = { leechSeed: true, tauntTurns: 3 };
+
+      // Act
+      const status = new BattlePokemonStatus(
+        1,
+        1,
+        1,
+        1,
+        true,
+        100,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        volatileState,
+      );
+
+      // Assert
+      expect(status.volatileState).toEqual({ leechSeed: true, tauntTurns: 3 });
+    });
+  });
+
+  describe('persistentState', () => {
+    it('指定しないときは空の状態を持つ', () => {
+      // Act
+      const status = createBattlePokemonStatus();
+
+      // Assert
+      expect(status.persistentState).toEqual({});
+    });
+
+    it('指定した状態を持つ', () => {
+      // Arrange
+      const persistentState: PersistentPokemonState = { disguiseBusted: true, sleepTurns: 2 };
+
+      // Act
+      const status = new BattlePokemonStatus(
+        1,
+        1,
+        1,
+        1,
+        true,
+        100,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        {},
+        persistentState,
+      );
+
+      // Assert
+      expect(status.persistentState).toEqual({ disguiseBusted: true, sleepTurns: 2 });
+    });
+  });
+});

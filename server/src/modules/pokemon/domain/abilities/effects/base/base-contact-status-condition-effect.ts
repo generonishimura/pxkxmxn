@@ -1,6 +1,7 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
+import { HitResult } from '../../../battle-events/hit-result';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 import { isContactMove } from '../../../moves/move-flags';
 import {
@@ -14,6 +15,8 @@ import {
  * どくのトゲ（Poison Point）、せいでんき（Static）、ほのおのからだ（Flame Body）、ほうし（Effect Spore）などで使用
  *
  * 各特性は、このクラスを継承してパラメータを設定するだけで実装できる
+ * 防御側の onDamagingHit フックで、接触したヒットごとに判定する（連続技ではヒットのたびに判定する。
+ * 本家の onDamagingHit と同じ）
  */
 export abstract class BaseContactStatusConditionEffect implements IAbilityEffect {
   /**
@@ -68,8 +71,26 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
   }
 
   /**
-   * 接触技を受けたときに状態異常を付与する
-   * MoveExecutorServiceから呼び出される
+   * 攻撃技が当たったヒットのたびに、接触していれば状態異常の付与を判定する
+   *
+   * @param holder 防御側のポケモン（特性を持つ側。ダメージ反映後の状態）
+   * @param attacker 攻撃側のポケモン（状態異常を付与される側）
+   * @param _hit このヒットの情報（接触の判定は battleContext で行う）
+   * @param battleContext バトルコンテキスト
+   * @returns 付与した場合は「<特性名> activated!」、付与しなかった場合は null
+   */
+  async onDamagingHit(
+    holder: BattlePokemonStatus,
+    attacker: BattlePokemonStatus,
+    _hit: HitResult,
+    battleContext?: BattleContext,
+  ): Promise<string | null> {
+    const applied = await this.applyContactStatusCondition(holder, attacker, battleContext);
+    return applied ? `${battleContext?.defenderAbilityName} activated!` : null;
+  }
+
+  /**
+   * 接触技を受けたときに状態異常を付与する（onDamagingHit から、ヒットごとに呼ぶ）
    *
    * @param defender 防御側のポケモン（状態異常を付与される側）
    * @param attacker 攻撃側のポケモン（状態異常を付与する側）

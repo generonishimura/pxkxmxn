@@ -1,15 +1,41 @@
-import { BaseStatusConditionImmunityEffect } from './base/base-status-condition-immunity-effect';
-import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { IAbilityEffect } from '../ability-effect.interface';
+import { BattleContext } from '../battle-context.interface';
+import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
+import { EffectSource } from '../../battle-events/effect-source';
+import type { VolatileKind } from '../../battle-events/volatile-infliction';
+import type { StatType } from '../../moves/effects/base/base-stat-change-effect';
+
+/**
+ * どんかんで受けない一時的な状態（メロメロ・ちょうはつ）
+ */
+const IMMUNE_VOLATILE_KINDS: ReadonlySet<VolatileKind> = new Set<VolatileKind>([
+  'attract',
+  'taunt',
+]);
 
 /**
  * どんかん（Oblivious）特性の効果
- * メロメロ・あくび無効化
- * 注: メロメロとあくびは状態異常ではないため、実装を簡略化してねむり無効化として実装
- * （実際のゲームではメロメロ・あくびは状態異常とは別のメカニズムだが、ここでは状態異常として扱う）
+ * メロメロ・ちょうはつを受けない（canReceiveVolatile）。いかくで攻撃が下がらない（第 8 世代から）
+ * 相手の技で付与されるときは、かたやぶりで無視される（canApplyVolatile が判定する）
+ * 注: すでにメロメロ・ちょうはつの状態で、なかまづくりなどでどんかんになったときに解ける効果はない
  */
-export class ObliviousEffect extends BaseStatusConditionImmunityEffect {
-  // 注: 実際のゲームではメロメロ・あくびは別のメカニズムだが、
-  // ここでは簡略化のため、ねむり無効化として実装
-  // 将来的にメロメロ・あくびのメカニズムが実装されたら、それに対応する
-  protected readonly immuneStatusConditions = [StatusCondition.Sleep] as const;
+export class ObliviousEffect implements IAbilityEffect {
+  canReceiveVolatile(
+    _holder: BattlePokemonStatus,
+    kind: VolatileKind,
+    _battleContext?: BattleContext,
+    _source?: EffectSource,
+  ): boolean | undefined {
+    return IMMUNE_VOLATILE_KINDS.has(kind) ? false : undefined;
+  }
+
+  canReceiveStatChange(
+    _pokemon: BattlePokemonStatus,
+    statType: StatType,
+    rankChange: number,
+    _battleContext?: BattleContext,
+    source?: EffectSource,
+  ): boolean | undefined {
+    return source?.name === 'いかく' && statType === 'attack' && rankChange < 0 ? false : undefined;
+  }
 }

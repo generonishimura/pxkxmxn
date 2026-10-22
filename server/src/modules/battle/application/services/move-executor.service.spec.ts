@@ -24,6 +24,7 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { BaseStatChangeEffect } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
+import { NO_CRITICAL_HIT_RANDOM } from '../__tests__/battle-engine-harness';
 
 /**
  * 命中時に必ず相手の防御を1段階下げるテスト用の技効果
@@ -63,6 +64,8 @@ describe('MoveExecutorService', () => {
       merged.accuracyRank,
       merged.evasionRank,
       merged.statusCondition,
+      merged.volatileState,
+      merged.persistentState,
     );
   };
 
@@ -143,6 +146,10 @@ describe('MoveExecutorService', () => {
     findBattlePokemonMoveById: jest
       .fn()
       .mockResolvedValue(new BattlePokemonMove(BATTLE_POKEMON_MOVE_ID, ATTACKER_ID, 1, 10, 10)),
+    patchVolatileState: jest.fn(),
+    patchPersistentState: jest.fn(),
+    patchSideConditions: jest.fn(),
+    patchGlobalFieldState: jest.fn(),
   });
 
   const setup = (defenderAbilityName: string, moveEffect: IMoveEffect) => {
@@ -192,6 +199,7 @@ describe('MoveExecutorService', () => {
       trainedPokemonRepository,
       moveRepository,
       typeEffectivenessRepository,
+      NO_CRITICAL_HIT_RANDOM,
     );
     const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
 

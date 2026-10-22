@@ -3,14 +3,45 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 
 describe('TangledFeetEffect', () => {
-  const createPokemon = (statusCondition: StatusCondition | null): BattlePokemonStatus =>
-    new BattlePokemonStatus(1, 1, 1, 1, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, statusCondition);
+  const createPokemon = (
+    statusCondition: StatusCondition | null,
+    confusionTurns?: number,
+  ): BattlePokemonStatus =>
+    new BattlePokemonStatus(
+      1,
+      1,
+      1,
+      1,
+      true,
+      100,
+      100,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      statusCondition,
+      confusionTurns === undefined ? {} : { confusionTurns },
+    );
 
   const effect = new TangledFeetEffect();
 
   it('こんらん状態のとき回避補正 0.5 を返す（相手の命中率が半分になる）', () => {
     // Arrange
-    const pokemon = createPokemon(StatusCondition.Confusion);
+    const pokemon = createPokemon(null, 3);
+
+    // Act
+    const result = effect.modifyEvasion(pokemon, 100);
+
+    // Assert
+    expect(result).toBe(0.5);
+  });
+
+  it('まひしていてもこんらんしていれば補正する', () => {
+    // Arrange
+    const pokemon = createPokemon(StatusCondition.Paralysis, 2);
 
     // Act
     const result = effect.modifyEvasion(pokemon, 100);

@@ -14,8 +14,14 @@ import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-regi
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
+import { isEmptyObject } from '../../domain/state/state-field-parser';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
+import { VolatileResidualProcessor } from './volatile-residual-processor';
+// 場の状態・設置技・交代の仕組み（Issue #110 #135 一部）
+import { FieldResidualProcessor } from './field-residual-processor';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #119 #135 一部）
+import { resolveBattlePokemonTraits } from '@/modules/pokemon/domain/battle-events/battle-traits';
 
 /**
  * StatusConditionProcessorService
@@ -23,44 +29,72 @@ import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indi
  */
 @Injectable()
 export class StatusConditionProcessorService {
-  // もうどく・ねむり・こんらんのターン数を追跡（バトルID -> バトルポケモンステータスID -> ターン数）
+  // もうどく・ねむりのターン数を追跡（バトルID -> バトルポケモンステータスID -> ターン数）
+  // こんらん・ひるみは volatileState にある（confusionTurns は技を出そうとするたびに減り、flinched はターン終了時に消える）
   private badPoisonTurnCounts: Map<number, Map<number, number>> = new Map();
   private sleepTurnCounts: Map<number, Map<number, number>> = new Map();
-  private confusionTurnCounts: Map<number, Map<number, number>> = new Map();
+
+  private readonly volatileResiduals: VolatileResidualProcessor;
+  private readonly fieldResiduals: FieldResidualProcessor;
 
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
     @Inject(TRAINED_POKEMON_REPOSITORY_TOKEN)
     private readonly trainedPokemonRepository: ITrainedPokemonRepository,
-  ) {}
+  ) {
+    this.volatileResiduals = new VolatileResidualProcessor(
+      battleRepository,
+      trainedPokemonRepository,
+    );
+    this.fieldResiduals = new FieldResidualProcessor(battleRepository, trainedPokemonRepository);
+  }
 
   /**
    * ターン終了時の特性効果と状態異常を処理
+   *
+   * 0. 残りが 1 の天候を終わらせる（そのターンはすなあらしのダメージを受けない）
+   * 1. すなあらしのダメージ（場の全員）
+   * 2. ねがいごと（陣営）
+   * 3. グラスフィールドの回復（地面にいるポケモン）
+   * 4. 場のポケモンごとに: アクアリング・ねをはる・やどりぎのタネ → 状態異常（ねむりの解除・どく・やけど）→
+   *    あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた → 特性の onTurnEnd
+   * 5. 残りが 1 のフィールドを終わらせる
    */
-  async processTurnEndAbilities(battle: Battle): Promise<void> {
+  async processTurnEndAbilities(battleAtTurnEnd: Battle): Promise<void> {
+    const battle = await this.fieldResiduals.endExpiringWeather(battleAtTurnEnd);
     const battleStatuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
     const activePokemon = battleStatuses.filter(s => s.isActive);
 
     // 場の特性を考慮した天候（ノーてんき・エアロックが場にいれば天候なし）
     // ひんしのポケモンの特性は天候を消さない（本家の suppressingWeather と同じ）
-    const activeAbilityNames = await Promise.all(
-      activePokemon
-        .filter(status => !status.isFainted())
-        .map(async status => {
-          const trainedPokemon = await this.trainedPokemonRepository.findById(
-            status.trainedPokemonId,
-          );
-          return trainedPokemon?.ability?.name;
-        }),
-    );
+    // 実効の特性（特性の上書き・いえき・かがくへんかガスを反映）
+    const effectiveAbilityNames = new Map<number, string | undefined>();
+    for (const status of activePokemon) {
+      const traits = await resolveBattlePokemonTraits(status, {
+        battleRepository: this.battleRepository,
+        trainedPokemonRepository: this.trainedPokemonRepository,
+      });
+      effectiveAbilityNames.set(status.id, traits?.abilityName);
+    }
+    const activeAbilityNames = activePokemon
+      .filter(status => !status.isFainted())
+      .map(status => effectiveAbilityNames.get(status.id));
     const weather = resolveEffectiveWeather(battle.weather, activeAbilityNames);
+    const fieldContext: BattleContext = {
+      battle,
+      battleRepository: this.battleRepository,
+      trainedPokemonRepository: this.trainedPokemonRepository,
+      weather,
+      field: battle.field,
+    };
+    await this.volatileResiduals.applyWeatherDamage(activePokemon, weather, fieldContext);
+    await this.volatileResiduals.applyWish(battle, fieldContext);
+    await this.fieldResiduals.applyGrassyTerrainHeal(battle, activePokemon, fieldContext);
 
     for (const status of activePokemon) {
-      const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
-      const abilityEffect = trainedPokemon?.ability
-        ? AbilityRegistry.get(trainedPokemon.ability.name)
-        : undefined;
+      const abilityName = effectiveAbilityNames.get(status.id);
+      const abilityEffect = abilityName ? AbilityRegistry.get(abilityName) : undefined;
       const battleContext: BattleContext = {
         battle,
         battleRepository: this.battleRepository,
@@ -69,8 +103,29 @@ export class StatusConditionProcessorService {
         field: battle.field,
       };
 
-      // 状態異常によるダメージ処理
-      await this.processStatusConditionDamage(battle.id, status, battleContext, abilityEffect);
+      // 状態異常のダメージより前の一時的な状態（アクアリング・ねをはる・やどりぎのタネ）
+      const opponent = activePokemon.find(other => other.trainerId !== status.trainerId);
+      if (!isEmptyObject(status.volatileState)) {
+        await this.volatileResiduals.applyBeforeStatusDamage(status, opponent, battleContext);
+      }
+
+      // 状態異常によるダメージ処理（天候・ねがいごと・一時的な状態で HP が変わるので、読み直したものを使う）
+      const beforeStatusDamage =
+        (await this.battleRepository.findBattlePokemonStatusById(status.id)) ?? status;
+      if (beforeStatusDamage.isFainted()) {
+        continue;
+      }
+      await this.processStatusConditionDamage(
+        battle.id,
+        beforeStatusDamage,
+        battleContext,
+        abilityEffect,
+      );
+
+      // 状態異常のダメージよりあとの一時的な状態（あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた）
+      if (!isEmptyObject(status.volatileState)) {
+        await this.volatileResiduals.applyAfterStatusDamage(status, battleContext);
+      }
 
       // 状態異常ダメージを反映した最新のステータスを読み直す
       // 古いステータスのまま特性が HP を書くと、状態異常ダメージが上書きされてしまうため
@@ -84,6 +139,8 @@ export class StatusConditionProcessorService {
         await abilityEffect.onTurnEnd(latestStatus, battleContext);
       }
     }
+
+    await this.fieldResiduals.endExpiringTerrain(battle);
   }
 
   /**
@@ -95,6 +152,10 @@ export class StatusConditionProcessorService {
     battleContext: BattleContext,
     abilityEffect: IAbilityEffect | undefined,
   ): Promise<void> {
+    // ねむっていなければ、ねむりのターン数を捨てる（さわぐ・めざましビンタなどで起きたあと、次のねむりを 0 から数える）
+    if (status.statusCondition !== StatusCondition.Sleep) {
+      this.sleepTurnCounts.get(battleId)?.delete(status.id);
+    }
     if (!status.statusCondition || status.statusCondition === StatusCondition.None) {
       return;
     }
@@ -130,35 +191,6 @@ export class StatusConditionProcessorService {
       }
 
       battleMap.set(status.id, sleepTurnCount + sleepStep);
-    }
-
-    // ひるみの自動解除（ターン終了時に必ず解除、ねむりと同様のパターンで早期リターン）
-    if (status.statusCondition === StatusCondition.Flinch) {
-      await this.battleRepository.updateBattlePokemonStatus(status.id, {
-        statusCondition: StatusCondition.None,
-      });
-      return; // 早期リターンにより後続のダメージ計算をスキップ
-    }
-
-    // こんらんのターン数を取得・更新
-    let confusionTurnCount = 0;
-    if (status.statusCondition === StatusCondition.Confusion) {
-      if (!this.confusionTurnCounts.has(battleId)) {
-        this.confusionTurnCounts.set(battleId, new Map());
-      }
-      const battleMap = this.confusionTurnCounts.get(battleId)!;
-      confusionTurnCount = battleMap.get(status.id) || 0;
-
-      // こんらんの自動解除判定
-      if (StatusConditionHandler.shouldClearConfusion(confusionTurnCount)) {
-        await this.battleRepository.updateBattlePokemonStatus(status.id, {
-          statusCondition: StatusCondition.None,
-        });
-        battleMap.delete(status.id);
-        return; // 早期リターンにより後続のダメージ計算をスキップ
-      }
-
-      battleMap.set(status.id, confusionTurnCount + 1);
     }
 
     // ダメージを計算（ポイズンヒールなどの特性で変える。マジックガードなら減らさない）

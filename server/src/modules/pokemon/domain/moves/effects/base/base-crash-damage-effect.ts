@@ -9,8 +9,9 @@ import { applyMaxHpSelfDamage } from './apply-max-hp-self-damage';
  *
  * 第5世代以降の仕様（最大HPの1/2）に合わせている
  *
- * 注: エンジンは命中判定で外れたときだけ onMiss を呼ぶため、タイプ相性で無効化
- *     （ゴーストタイプ相手など）されたときの自傷は発生しない
+ * エンジンは、命中判定で外れたときと、まもる系に防がれたときに onMiss を呼ぶ（本家の onMoveFail）
+ *
+ * 注: タイプ相性で無効化（ゴーストタイプ相手など）されたときは onMiss を呼ばないため、自傷は発生しない
  */
 export abstract class BaseCrashDamageEffect implements IMoveEffect {
   /**

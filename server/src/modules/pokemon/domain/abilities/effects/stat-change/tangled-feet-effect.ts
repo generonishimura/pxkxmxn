@@ -1,11 +1,11 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
-import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { isConfused } from '@/modules/battle/domain/logic/volatile-status-condition';
 
 /**
  * ちどりあし（Tangled Feet）特性の効果
- * こんらん状態のとき、相手の技の命中率を半分にする
+ * こんらん状態（volatileState.confusionTurns がある）のとき、相手の技の命中率を半分にする
  *
  * `modifyEvasion` は 0-1 の値を返し、`accuracy-calculator.ts` で
  * `effectiveAccuracy * (1 - modifiedEvasion)` の形で適用される。
@@ -23,7 +23,7 @@ export class TangledFeetEffect implements IAbilityEffect {
     _accuracy: number,
     _battleContext?: BattleContext,
   ): number | undefined {
-    if (pokemon.statusCondition !== StatusCondition.Confusion) {
+    if (!isConfused(pokemon)) {
       return undefined;
     }
     return TangledFeetEffect.CONFUSION_EVASION_BOOST;

@@ -294,6 +294,33 @@ describe('AccuracyCalculator', () => {
       expect(defenderAbilityEffect.modifyEvasion).toHaveBeenCalled();
     });
 
+    it.each([
+      ['しょうりのほし', 0.95], // 100 × 1.1 = 110 → 回避の補正で 99（先に 100 に丸めると 90）
+      ['ふくがん', 0.95], // 100 × 1.3 = 130 → 回避の補正で 117 → 100（先に 100 に丸めると 90）
+    ])(
+      '%s で 100 を超えた命中率は、回避の補正のあとで 100 に制限される',
+      (attackerAbility, randomValue) => {
+        // Arrange
+        const attacker = createBattlePokemonStatus();
+        const defender = createBattlePokemonStatus();
+        AbilityRegistry.register('テスト回避10%', { modifyEvasion: () => 0.1 });
+        const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(randomValue);
+
+        // Act
+        const result = AccuracyCalculator.checkHit(
+          100,
+          attacker,
+          defender,
+          attackerAbility,
+          'テスト回避10%',
+        );
+
+        // Assert
+        expect(result).toBe(true);
+        randomSpy.mockRestore();
+      },
+    );
+
     it('特性による補正により実効命中率が100を超える場合は100%に制限される', () => {
       const attacker = createBattlePokemonStatus({ accuracyRank: 0 });
       const defender = createBattlePokemonStatus({ evasionRank: 0 });

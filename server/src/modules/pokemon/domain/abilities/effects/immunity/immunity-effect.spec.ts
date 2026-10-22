@@ -41,27 +41,46 @@ describe('ImmunityEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });
 
   describe('canReceiveStatusCondition', () => {
     it('should return false for Poison status condition', () => {
-      const result = effect.canReceiveStatusCondition(pokemon, StatusCondition.Poison, battleContext);
+      const result = effect.canReceiveStatusCondition(
+        pokemon,
+        StatusCondition.Poison,
+        battleContext,
+      );
       expect(result).toBe(false);
     });
 
     it('should return false for BadPoison status condition', () => {
-      const result = effect.canReceiveStatusCondition(pokemon, StatusCondition.BadPoison, battleContext);
+      const result = effect.canReceiveStatusCondition(
+        pokemon,
+        StatusCondition.BadPoison,
+        battleContext,
+      );
       expect(result).toBe(false);
     });
 
     it('should return true for other status conditions', () => {
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Burn, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Freeze, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Paralysis, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Sleep, battleContext)).toBe(true);
-      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Flinch, battleContext)).toBe(true);
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Burn, battleContext)).toBe(
+        true,
+      );
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Freeze, battleContext)).toBe(
+        true,
+      );
+      expect(
+        effect.canReceiveStatusCondition(pokemon, StatusCondition.Paralysis, battleContext),
+      ).toBe(true);
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Sleep, battleContext)).toBe(
+        true,
+      );
+      expect(effect.canReceiveStatusCondition(pokemon, StatusCondition.Flinch, battleContext)).toBe(
+        true,
+      );
     });
   });
 });

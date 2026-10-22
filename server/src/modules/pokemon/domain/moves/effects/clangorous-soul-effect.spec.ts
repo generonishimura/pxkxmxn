@@ -58,7 +58,7 @@ describe('ClangorousSoulEffect', () => {
     });
   });
 
-  it('現在 HP が最大 HP の 33% 以下なら失敗する', async () => {
+  it('現在 HP が最大 HP の 33%（切り捨て）以下なら失敗する', async () => {
     // Arrange
     const effect = new ClangorousSoulEffect();
     const attacker = createBattlePokemonStatus({ currentHp: 33, maxHp: 100 });
@@ -69,7 +69,7 @@ describe('ClangorousSoulEffect', () => {
     const result = await effect.onUse(attacker, defender, ctx);
 
     // Assert
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
@@ -94,7 +94,22 @@ describe('ClangorousSoulEffect', () => {
     });
   });
 
-  it('現在 HP が最大 HP の 33% を超えていれば成功する（最大 HP 300、現在 HP 100）', async () => {
+  it('現在 HP が支払う HP（最大 HP 300 なら 99）と同じなら失敗する', async () => {
+    // Arrange
+    const effect = new ClangorousSoulEffect();
+    const attacker = createBattlePokemonStatus({ currentHp: 99, maxHp: 300 });
+    const defender = createBattlePokemonStatus({ id: 2 });
+    const ctx = createBattleContext();
+
+    // Act
+    const result = await effect.onUse(attacker, defender, ctx);
+
+    // Assert
+    expect(result).toBe('But it failed');
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
+  });
+
+  it('現在 HP が支払う HP を超えていれば成功する（最大 HP 300、現在 HP 100）', async () => {
     // Arrange
     const effect = new ClangorousSoulEffect();
     const attacker = createBattlePokemonStatus({ currentHp: 100, maxHp: 300 });
@@ -147,7 +162,7 @@ describe('ClangorousSoulEffect', () => {
     const result = await effect.onUse(attacker, defender, ctx);
 
     // Assert
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 
@@ -168,7 +183,7 @@ describe('ClangorousSoulEffect', () => {
     const result = await effect.onUse(attacker, defender, ctx);
 
     // Assert
-    expect(result).toBeNull();
+    expect(result).toBe('But it failed');
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
   });
 

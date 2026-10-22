@@ -56,6 +56,21 @@ describe('BaseWeatherHealEffect', () => {
     });
   });
 
+  it('かいふくふうじ中は回復しない', async () => {
+    // Arrange
+    const effect = new TestRainHeal();
+    const pokemon = new BattlePokemonStatus(1, 1, 1, 1, true, 50, 160, 0, 0, 0, 0, 0, 0, 0, null, {
+      healBlockTurns: 2,
+    });
+    const ctx = createBattleContext(Weather.Rain);
+
+    // Act
+    await effect.onTurnEnd(pokemon, ctx);
+
+    // Assert
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
+  });
+
   it('対象外の天候では回復しない', async () => {
     const effect = new TestRainHeal();
     const pokemon = createBattlePokemonStatus({ currentHp: 50 });

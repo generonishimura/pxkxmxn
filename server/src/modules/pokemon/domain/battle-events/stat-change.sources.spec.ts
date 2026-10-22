@@ -7,6 +7,7 @@ import { SandAttackEffect } from '../moves/effects/sand-attack-effect';
 import { NastyPlotEffect } from '../moves/effects/nasty-plot-effect';
 import { DragonDanceEffect } from '../moves/effects/dragon-dance-effect';
 import { TearfulLookEffect } from '../moves/effects/tearful-look-effect';
+import { TickleEffect } from '../moves/effects/tickle-effect';
 import { AncientPowerEffect } from '../moves/effects/ancient-power-effect';
 import { EffectSource } from './effect-source';
 import { StatChange } from './stat-change';
@@ -144,6 +145,44 @@ describe('能力ランクを変える効果と、変化のフック', () => {
 
     // Assert
     expect(get(1).attackRank).toBe(-1);
+  });
+
+  describe('能力の低下を防ぐ特性（しろいけむり・かいりきバサミ）は、相手のランクを下げるどの経路でも効く', () => {
+    it('技の追加効果（サイコキネシス）の特防の低下を、しろいけむりで防ぐ', async () => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      const { context, get } = createInMemoryBattle({}, { ability: 'しろいけむり' });
+
+      // Act
+      await new PsychicEffect().onHit(get(1), get(2), context({ moveName: 'サイコキネシス' }));
+
+      // Assert
+      expect(get(2).specialDefenseRank).toBe(0);
+    });
+
+    it('くすぐるは、かいりきバサミの相手の攻撃だけ下げられず、防御は下げる', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({}, { ability: 'かいりきバサミ' });
+
+      // Act
+      await new TickleEffect().onUse(get(1), get(2), context());
+
+      // Assert
+      expect(get(2).attackRank).toBe(0);
+      expect(get(2).defenseRank).toBe(-1);
+    });
+
+    it('なみだめは、かいりきバサミの相手の攻撃だけ下げられず、特攻は下げる', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({}, { ability: 'かいりきバサミ' });
+
+      // Act
+      await new TearfulLookEffect().onUse(get(1), get(2), context());
+
+      // Assert
+      expect(get(2).attackRank).toBe(0);
+      expect(get(2).specialAttackRank).toBe(-1);
+    });
   });
 
   it('接触技を受けたときに相手のランクを下げる特性（ぬめぬめ）', async () => {

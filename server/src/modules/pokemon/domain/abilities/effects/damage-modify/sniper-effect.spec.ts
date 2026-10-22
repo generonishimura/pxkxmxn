@@ -40,6 +40,7 @@ describe('SniperEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
       isCriticalHit: true,
     };

@@ -1,7 +1,9 @@
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { MoldBreakerEffect } from '@/modules/pokemon/domain/abilities/effects/mold-breaker-effect';
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
+import { TwineedleEffect } from '@/modules/pokemon/domain/moves/effects/twineedle-effect';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
+import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { ATTACKER_ID, DEFENDER_ID, setupMoveExecutor } from './__tests__/move-executor-test-setup';
 
 describe('MoveExecutorService - ヒットとひんしのイベント', () => {
@@ -59,6 +61,7 @@ describe('MoveExecutorService - ヒットとひんしのイベント', () => {
         moveTypeName: 'ノーマル',
         moveCategory: 'Physical',
         targetFainted: false,
+        isCriticalHit: false,
       });
     });
 
@@ -211,6 +214,164 @@ describe('MoveExecutorService - ヒットとひんしのイベント', () => {
       expect(message).toBe(
         'Used ほのおのパンチ and dealt 15 damage (hit 2 times) ゆうばく activated!',
       );
+    });
+  });
+
+  describe('ヒットごとに発動する接触時の特性（せいでんき・ぬめぬめ・くだけるよろいなど）', () => {
+    it('くだけるよろい: 連続技ではヒットごとに発動し、下がった防御を次のヒットのダメージ計算に使う', async () => {
+      // Arrange
+      const { execute, calculate, statuses } = setupMoveExecutor({
+        defenderAbility: 'くだけるよろい',
+        moveEffect: twoHits,
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(calculate).toHaveBeenCalledTimes(2);
+      expect(calculate.mock.calls[1][0].defender.defenseRank).toBe(-1);
+      expect(statuses.get(DEFENDER_ID)?.defenseRank).toBe(-2);
+      expect(statuses.get(DEFENDER_ID)?.speedRank).toBe(4);
+      expect(message).toBe(
+        'Used ほのおのパンチ and dealt 20 damage (hit 2 times) くだけるよろい activated! くだけるよろい activated!',
+      );
+    });
+
+    it('ぬめぬめ: 連続技の接触では、ヒットごとに攻撃側の素早さを下げる', async () => {
+      // Arrange
+      const { execute, statuses } = setupMoveExecutor({
+        defenderAbility: 'ぬめぬめ',
+        moveEffect: twoHits,
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID)?.speedRank).toBe(-2);
+    });
+
+    it('せいでんき: 連続技ではヒットごとに確率を判定する（1回目で外れても2回目でまひにできる）', async () => {
+      // Arrange
+      // 1回目のヒットの判定は 0.5（30% から外れる）、2回目は 0.1（30% に入る）
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.5).mockReturnValueOnce(0.1);
+      const { execute, statuses } = setupMoveExecutor({
+        defenderAbility: 'せいでんき',
+        moveEffect: twoHits,
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID)?.statusCondition).toBe(StatusCondition.Paralysis);
+      expect(message).toBe(
+        'Used ほのおのパンチ and dealt 20 damage (hit 2 times) せいでんき activated!',
+      );
+    });
+  });
+
+  describe('技の onDamagingHit（ヒットごとの追加効果）', () => {
+    it('ダメージを与えたヒットごとに、防御側特性の onDamagingHit より先に呼ばれる', async () => {
+      // Arrange
+      const calls: string[] = [];
+      const onMoveDamagingHit = jest.fn(
+        async (_attacker: BattlePokemonStatus, _defender: BattlePokemonStatus, hit: HitResult) => {
+          calls.push(`move:${hit.hitIndex}`);
+          return null;
+        },
+      );
+      AbilityRegistry.register('テストじきゅうりょく', {
+        onDamagingHit: async (_holder, _attacker, hit) => {
+          calls.push(`ability:${hit.hitIndex}`);
+          return null;
+        },
+      });
+      const { execute } = setupMoveExecutor({
+        defenderAbility: 'テストじきゅうりょく',
+        moveEffect: { ...twoHits, onDamagingHit: onMoveDamagingHit },
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(calls).toEqual(['move:0', 'ability:0', 'move:1', 'ability:1']);
+      const [attacker, defender] = onMoveDamagingHit.mock.calls[1];
+      expect(attacker.id).toBe(ATTACKER_ID);
+      expect(defender.currentHp).toBe(80);
+    });
+
+    it('ダブルニードル: どくの判定をヒットごとに行う（1回目で外れても2回目でどくにできる）', async () => {
+      // Arrange
+      // 1回目のヒットの判定は 0.5（20% から外れる）、2回目は 0.1（20% に入る）
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.5).mockReturnValueOnce(0.1);
+      const { execute, statuses } = setupMoveExecutor({ moveEffect: new TwineedleEffect() });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(statuses.get(DEFENDER_ID)?.statusCondition).toBe(StatusCondition.Poison);
+      expect(message).toBe('Used ほのおのパンチ and dealt 20 damage (hit 2 times) was poisoned!');
+    });
+  });
+
+  describe('技が相手に効かないとき（タイプ相性・ふしぎなまもりなどで無効）', () => {
+    it('ふしぎなまもりで無効にされたら、技の追加効果（onHit）と使用者への効果（afterDamage）を起こさない', async () => {
+      // Arrange
+      // テスト用の相性表は空なので、ほのおのパンチは等倍。ふしぎなまもりは効果ばつぐん以外を無効にする
+      const onHit = jest.fn().mockResolvedValue('was paralyzed!');
+      const afterDamage = jest.fn().mockResolvedValue("'s Sp. Atk fell!");
+      const { execute } = setupMoveExecutor({
+        defenderAbility: 'ふしぎなまもり',
+        moveEffect: { onHit, afterDamage },
+        damage: 0,
+      });
+
+      // Act
+      const message = await execute();
+
+      // Assert
+      expect(onHit).not.toHaveBeenCalled();
+      expect(afterDamage).not.toHaveBeenCalled();
+      expect(message).toBe('Used ほのおのパンチ and dealt 0 damage');
+    });
+
+    it('タイプ相性で無効なときも、技の追加効果（onHit）と使用者への効果（afterDamage）を起こさない', async () => {
+      // Arrange
+      const onHit = jest.fn().mockResolvedValue('was paralyzed!');
+      const afterDamage = jest.fn().mockResolvedValue(null);
+      const { execute, typeEffectivenessRepository } = setupMoveExecutor({
+        moveEffect: { onHit, afterDamage },
+        damage: 0,
+      });
+      // ノーマル（ID 1）の技は、ノーマル（ID 1）の相手に効かない（テスト用の相性表）
+      typeEffectivenessRepository.getTypeEffectivenessMap.mockResolvedValue(new Map([['1-1', 0]]));
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(onHit).not.toHaveBeenCalled();
+      expect(afterDamage).not.toHaveBeenCalled();
+    });
+
+    it('効果ばつぐんならふしぎなまもりでも無効にならず、追加効果を起こす', async () => {
+      // Arrange
+      const onHit = jest.fn().mockResolvedValue(null);
+      const { execute, typeEffectivenessRepository } = setupMoveExecutor({
+        defenderAbility: 'ふしぎなまもり',
+        moveEffect: { onHit },
+      });
+      typeEffectivenessRepository.getTypeEffectivenessMap.mockResolvedValue(new Map([['1-1', 2]]));
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(onHit).toHaveBeenCalledTimes(1);
     });
   });
 

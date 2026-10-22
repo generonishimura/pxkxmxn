@@ -81,4 +81,60 @@ describe('WakeUpSlapEffect', () => {
 
     expect(result).toBeNull();
   });
+
+  describe('威力（modifyMovePower）', () => {
+    const attacker = createBattlePokemonStatus();
+    const contextWithPower = (
+      defender: BattlePokemonStatus,
+      defenderEffectiveStatus?: StatusCondition,
+    ): BattleContext => ({
+      ...createBattleContext(),
+      movePower: 70,
+      defender,
+      defenderEffectiveStatus,
+    });
+
+    it('相手がねむりなら、威力が 2 倍になる', () => {
+      // Arrange
+      const effect = new WakeUpSlapEffect();
+      const defender = createBattlePokemonStatus({ id: 2, statusCondition: StatusCondition.Sleep });
+
+      // Act
+      const power = effect.modifyMovePower(attacker, defender, contextWithPower(defender));
+
+      // Assert
+      expect(power).toBe(140);
+    });
+
+    it('相手がねむりとして扱われる（ぜったいねむり）なら、状態異常がなくても威力が 2 倍になる', () => {
+      // Arrange
+      const effect = new WakeUpSlapEffect();
+      const defender = createBattlePokemonStatus({ id: 2 });
+
+      // Act
+      const power = effect.modifyMovePower(
+        attacker,
+        defender,
+        contextWithPower(defender, StatusCondition.Sleep),
+      );
+
+      // Assert
+      expect(power).toBe(140);
+    });
+
+    it('相手がねむり以外（まひ）なら、威力は変わらない', () => {
+      // Arrange
+      const effect = new WakeUpSlapEffect();
+      const defender = createBattlePokemonStatus({
+        id: 2,
+        statusCondition: StatusCondition.Paralysis,
+      });
+
+      // Act
+      const power = effect.modifyMovePower(attacker, defender, contextWithPower(defender));
+
+      // Assert
+      expect(power).toBeUndefined();
+    });
+  });
 });

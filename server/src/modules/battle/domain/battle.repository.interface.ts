@@ -1,6 +1,10 @@
 import { Battle } from './entities/battle.entity';
 import { BattlePokemonStatus } from './entities/battle-pokemon-status.entity';
 import { BattlePokemonMove } from './entities/battle-pokemon-move.entity';
+import { StatePatch } from './state/state-field-parser';
+import { VolatileState } from './state/volatile-state';
+import { PersistentPokemonState } from './state/persistent-state';
+import { GlobalFieldState, SideConditions } from './state/side-state';
 
 /**
  * Battleリポジトリのインターフェース
@@ -52,6 +56,39 @@ export interface IBattleRepository {
   ): Promise<BattlePokemonStatus>;
 
   /**
+   * ポケモンの VolatileState の一部だけを書き換える
+   * 最新の行を読み直して patch を当てるので、同じターンに先に書かれたキーは消えない
+   * undefined か null を渡したキーは取り除く
+   */
+  patchVolatileState(
+    statusId: number,
+    patch: StatePatch<VolatileState>,
+  ): Promise<BattlePokemonStatus>;
+
+  /**
+   * ポケモンの PersistentPokemonState の一部だけを書き換える（読み直しは patchVolatileState と同じ）
+   */
+  patchPersistentState(
+    statusId: number,
+    patch: StatePatch<PersistentPokemonState>,
+  ): Promise<BattlePokemonStatus>;
+
+  /**
+   * トレーナーの陣営の SideConditions の一部だけを書き換える
+   * 最新の行を読み直して patch を当てるので、同じターンに先に書かれたキーは消えない
+   */
+  patchSideConditions(
+    battleId: number,
+    trainerId: number,
+    patch: StatePatch<SideConditions>,
+  ): Promise<Battle>;
+
+  /**
+   * 両陣営にかかる GlobalFieldState の一部だけを書き換える（読み直しは patchSideConditions と同じ）
+   */
+  patchGlobalFieldState(battleId: number, patch: StatePatch<GlobalFieldState>): Promise<Battle>;
+
+  /**
    * アクティブなポケモンを取得（バトル中で場に出ているポケモン）
    */
   findActivePokemonByBattleIdAndTrainerId(
@@ -83,8 +120,13 @@ export interface IBattleRepository {
 
   /**
    * バトル中のポケモンの技を更新（PPを更新）
+   * moveId と maxPp を渡すと、技の欄の技そのものを書き換える（スケッチ。交代しても戻らない）。
+   * 交代で戻る入れ替え（ものまね・へんしん）は volatileState.moveSlotOverrides に置く
    */
-  updateBattlePokemonMove(id: number, data: { currentPp: number }): Promise<BattlePokemonMove>;
+  updateBattlePokemonMove(
+    id: number,
+    data: { currentPp: number; moveId?: number; maxPp?: number },
+  ): Promise<BattlePokemonMove>;
 
   /**
    * IDでバトル中のポケモンの技を取得

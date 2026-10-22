@@ -32,7 +32,13 @@ describe('HadronEngineEffect', () => {
   describe('onEntry', () => {
     it('場に出たときエレキフィールドを展開する', async () => {
       // Arrange
-      const mockBattleRepository = { update: jest.fn().mockResolvedValue(undefined) };
+      const mockBattleRepository = {
+        update: jest.fn().mockResolvedValue(undefined),
+        findById: jest.fn().mockResolvedValue(null),
+        // 天候・フィールドが変わったことを場のポケモンに知らせるときに引く
+        findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([]),
+        patchGlobalFieldState: jest.fn(),
+      };
       const ctx: BattleContext = {
         battle: createBattle(Field.None),
         battleRepository: mockBattleRepository as unknown as BattleContext['battleRepository'],
@@ -49,7 +55,13 @@ describe('HadronEngineEffect', () => {
 
     it('既にエレキフィールドの場合は更新しない', async () => {
       // Arrange
-      const mockBattleRepository = { update: jest.fn().mockResolvedValue(undefined) };
+      const mockBattleRepository = {
+        update: jest.fn().mockResolvedValue(undefined),
+        findById: jest.fn().mockResolvedValue(null),
+        // 天候・フィールドが変わったことを場のポケモンに知らせるときに引く
+        findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([]),
+        patchGlobalFieldState: jest.fn(),
+      };
       const ctx: BattleContext = {
         battle: createBattle(Field.ElectricTerrain),
         battleRepository: mockBattleRepository as unknown as BattleContext['battleRepository'],

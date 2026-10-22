@@ -777,7 +777,7 @@ export class VoltAbsorbEffect extends BaseTypeAbsorbEffect {
    - パラメータ: 対象タイプ、倍率
 
 3. **BaseHpThresholdEffect** - HP閾値による効果
-   - 例: こんじょう、しんりょく
+   - 例: しんりょく
    - パラメータ: HP閾値、発動条件、効果内容
 
 4. **BaseWeatherDependentDamageEffect** - 天候依存のダメージ修正

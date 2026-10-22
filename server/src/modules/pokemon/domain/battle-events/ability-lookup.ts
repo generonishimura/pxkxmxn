@@ -1,12 +1,14 @@
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../abilities/battle-context.interface';
 import type { IAbilityEffect } from '../abilities/ability-effect.interface';
+import { resolveBattleAbilityName } from './battle-traits';
 
 /**
- * ポケモンの特性名を求める
- * コンテキストの attacker / defender と同じポケモンなら attackerAbilityName / defenderAbilityName を使い、
- * それ以外は育成ポケモンリポジトリから引く
- * @returns 特性名、わからない場合はundefined
+ * ポケモンの実効の特性名を求める（特性の上書き・いえき・かがくへんかガスを反映）
+ * コンテキストの attacker / defender と同じポケモンなら attackerAbilityName / defenderAbilityName を使い
+ * （エンジンが実効の特性名を入れている）、それ以外はリポジトリから引いて求める
+ * 注: 技の処理の中で書き換えた特性（スキルスワップなど）は、同じ技のコンテキストの特性名には反映されない
+ * @returns 特性名、特性が効いていない・わからない場合はundefined
  */
 export const resolveAbilityName = async (
   pokemon: BattlePokemonStatus,
@@ -18,10 +20,28 @@ export const resolveAbilityName = async (
   if (battleContext.defender?.id === pokemon.id && battleContext.defenderAbilityName) {
     return battleContext.defenderAbilityName;
   }
-  const trainedPokemon = await battleContext.trainedPokemonRepository?.findById(
-    pokemon.trainedPokemonId,
+  // コンテキストに場のポケモン（攻撃側・防御側）がいれば、その実効の特性でかがくへんかガスを判定する（リポジトリを引かない）。
+  // 控えのポケモン（引っ込んだあとに当たるみらいよちの使用者）は、かがくへんかガスで特性を消さない
+  const known = [
+    { pokemon: battleContext.attacker, abilityName: battleContext.attackerAbilityName },
+    { pokemon: battleContext.defender, abilityName: battleContext.defenderAbilityName },
+  ].flatMap(({ pokemon: other, abilityName }) =>
+    other && other.id !== pokemon.id
+      ? [
+          {
+            baseAbilityName: abilityName,
+            volatileState: {},
+            fainted: other.currentHp <= 0,
+            active: other.isActive,
+          },
+        ]
+      : [],
   );
-  return trainedPokemon?.ability?.name;
+  return resolveBattleAbilityName(
+    pokemon,
+    battleContext,
+    known.length > 0 ? { others: known } : {},
+  );
 };
 
 /**
@@ -40,11 +60,17 @@ export const getAbilityEffect = async (
 
 /**
  * 相手を対象にする効果で、対象の特性が使い手のかたやぶり系の特性に無視されるか
+ * battleContext は技のコンテキスト（きんしのちからの breaksMoldFor が moveCategory を見る）
  */
 export const isIgnoredByMoldBreaker = async (
   sourceAbilityName: string | undefined,
   targetAbilityName: string | undefined,
+  battleContext?: BattleContext,
 ): Promise<boolean> => {
   const { AbilityRegistry } = await import('../abilities/ability-registry');
-  return AbilityRegistry.isIgnoredByMoldBreaker(sourceAbilityName, targetAbilityName);
+  return AbilityRegistry.isIgnoredByMoldBreaker(
+    sourceAbilityName,
+    targetAbilityName,
+    battleContext,
+  );
 };

@@ -2,7 +2,12 @@ import { BaseTypeImmunityWithStatBoostEffect } from './base-type-immunity-with-s
 import { StatType } from './base-stat-boost-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
-import { Weather, Field, BattleStatus, Battle } from '@/modules/battle/domain/entities/battle.entity';
+import {
+  Weather,
+  Field,
+  BattleStatus,
+  Battle,
+} from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
 
 class TestLightningRodLike extends BaseTypeImmunityWithStatBoostEffect {
@@ -36,6 +41,10 @@ describe('BaseTypeImmunityWithStatBoostEffect', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     } as jest.Mocked<IBattleRepository>;
 
     battleContext = {
@@ -79,7 +88,21 @@ describe('BaseTypeImmunityWithStatBoostEffect', () => {
     const effect = new TestLightningRodLike();
     battleContext.moveTypeName = 'でんき';
     const maxRankPokemon = new BattlePokemonStatus(
-      1, 1, 1, 1, true, 100, 100, 0, 0, 6, 0, 0, 0, 0, null,
+      1,
+      1,
+      1,
+      1,
+      true,
+      100,
+      100,
+      0,
+      0,
+      6,
+      0,
+      0,
+      0,
+      0,
+      null,
     );
     mockBattleRepository.findBattlePokemonStatusById.mockResolvedValue(maxRankPokemon);
 

@@ -73,6 +73,10 @@ describe('BaseOpponentStatChangeEffect', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     };
   };
 
@@ -112,10 +116,7 @@ describe('BaseOpponentStatChangeEffect', () => {
 
       await effect.onEntry(pokemon, battleContext);
 
-      expect(battleRepository.findActivePokemonByBattleIdAndTrainerId).toHaveBeenCalledWith(
-        1,
-        2,
-      );
+      expect(battleRepository.findActivePokemonByBattleIdAndTrainerId).toHaveBeenCalledWith(1, 2);
       expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
@@ -139,10 +140,7 @@ describe('BaseOpponentStatChangeEffect', () => {
 
       await effect.onEntry(pokemon, battleContext);
 
-      expect(battleRepository.findActivePokemonByBattleIdAndTrainerId).toHaveBeenCalledWith(
-        1,
-        2,
-      );
+      expect(battleRepository.findActivePokemonByBattleIdAndTrainerId).toHaveBeenCalledWith(1, 2);
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
         defenseRank: 1,
       });
@@ -235,10 +233,7 @@ describe('BaseOpponentStatChangeEffect', () => {
 
       await effect.onEntry(pokemon, battleContext);
 
-      expect(battleRepository.findActivePokemonByBattleIdAndTrainerId).toHaveBeenCalledWith(
-        1,
-        2,
-      );
+      expect(battleRepository.findActivePokemonByBattleIdAndTrainerId).toHaveBeenCalledWith(1, 2);
     });
 
     it('trainer2Idのポケモンが場に出た場合、trainer1Idのポケモンのランクを変更', async () => {
@@ -259,11 +254,7 @@ describe('BaseOpponentStatChangeEffect', () => {
 
       await effect.onEntry(pokemon, battleContext);
 
-      expect(battleRepository.findActivePokemonByBattleIdAndTrainerId).toHaveBeenCalledWith(
-        1,
-        1,
-      );
+      expect(battleRepository.findActivePokemonByBattleIdAndTrainerId).toHaveBeenCalledWith(1, 1);
     });
   });
 });
-

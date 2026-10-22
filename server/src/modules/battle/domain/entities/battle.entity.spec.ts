@@ -1,5 +1,6 @@
 import { Battle, Weather, Field, BattleStatus } from './battle.entity';
 import { ValidationException } from '../../../../shared/domain/exceptions/validation.exception';
+import { SideState } from '../state/side-state';
 
 describe('Battle', () => {
   const createBattle = (
@@ -52,9 +53,7 @@ describe('Battle', () => {
     });
 
     it('trainer1Idとtrainer2Idが同じ場合、ValidationExceptionを投げる', () => {
-      expect(() => createBattle({ trainer1Id: 1, trainer2Id: 1 })).toThrow(
-        ValidationException,
-      );
+      expect(() => createBattle({ trainer1Id: 1, trainer2Id: 1 })).toThrow(ValidationException);
     });
 
     it('team1Idが0以下の場合、ValidationExceptionを投げる', () => {
@@ -68,9 +67,7 @@ describe('Battle', () => {
     });
 
     it('team1Idとteam2Idが同じ場合、ValidationExceptionを投げる', () => {
-      expect(() => createBattle({ team1Id: 1, team2Id: 1 })).toThrow(
-        ValidationException,
-      );
+      expect(() => createBattle({ team1Id: 1, team2Id: 1 })).toThrow(ValidationException);
     });
 
     it('turnが0以下の場合、ValidationExceptionを投げる', () => {
@@ -88,5 +85,25 @@ describe('Battle', () => {
       expect(battle.winnerTrainerId).toBeNull();
     });
   });
-});
 
+  describe('sideState', () => {
+    it('指定しないときは空の状態を持つ', () => {
+      // Act
+      const battle = createBattle();
+
+      // Assert
+      expect(battle.sideState).toEqual({});
+    });
+
+    it('指定した状態を持つ', () => {
+      // Arrange
+      const sideState: SideState = { sides: { '1': { reflectTurns: 5 } } };
+
+      // Act
+      const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null, sideState);
+
+      // Assert
+      expect(battle.sideState).toEqual({ sides: { '1': { reflectTurns: 5 } } });
+    });
+  });
+});

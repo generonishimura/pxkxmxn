@@ -12,6 +12,7 @@ import { Ability } from '@/modules/pokemon/domain/entities/ability.entity';
 import { Gender } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 import { Nature } from '@/modules/battle/domain/logic/stat-calculator';
 import { AbilityRegistry } from '../../ability-registry';
+import { HitResult } from '../../../battle-events/hit-result';
 
 /**
  * テスト用の具象クラス（どくを付与）
@@ -46,7 +47,11 @@ describe('BaseContactStatusConditionEffect', () => {
     );
   };
 
-  const createType = (id: number, name: string = `Type${id}`, nameEn: string = `Type${id}En`): Type => {
+  const createType = (
+    id: number,
+    name: string = `Type${id}`,
+    nameEn: string = `Type${id}En`,
+  ): Type => {
     return new Type(id, name, nameEn);
   };
 
@@ -114,6 +119,10 @@ describe('BaseContactStatusConditionEffect', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     };
   };
 
@@ -252,10 +261,7 @@ describe('BaseContactStatusConditionEffect', () => {
       const attacker = createBattlePokemonStatus({ id: 2 });
       const battleRepository = createMockBattleRepository();
       const trainedPokemonRepository = createMockTrainedPokemonRepository(
-        createTrainedPokemon(
-          2,
-          createPokemon(2, createType(1, 'ほのお'), createType(2, 'はがね')),
-        ),
+        createTrainedPokemon(2, createPokemon(2, createType(1, 'ほのお'), createType(2, 'はがね'))),
       );
       const battleContext: BattleContext = {
         battle: new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null),
@@ -303,5 +309,71 @@ describe('BaseContactStatusConditionEffect', () => {
       expect(result).toBe(damage);
     });
   });
-});
 
+  describe('onDamagingHit', () => {
+    const hit: HitResult = {
+      damage: 10,
+      hpBefore: 100,
+      hitIndex: 0,
+      hitCount: 1,
+      isContact: true,
+      moveTypeName: 'ノーマル',
+      moveCategory: 'Physical',
+      targetFainted: false,
+    };
+
+    it('状態異常を付与したら「<特性名> activated!」を返す', async () => {
+      // Arrange
+      const effect = new TestPoisonContactEffect();
+      const battleRepository = createMockBattleRepository();
+      const battleContext: BattleContext = {
+        battle: new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null),
+        battleRepository,
+        trainedPokemonRepository: createMockTrainedPokemonRepository(
+          createTrainedPokemon(2, createPokemon(2, createType(1, 'ほのお'))),
+        ),
+        moveCategory: 'Physical',
+        defenderAbilityName: 'テストどくのトゲ',
+      };
+
+      // Act
+      const message = await effect.onDamagingHit(
+        createBattlePokemonStatus(),
+        createBattlePokemonStatus({ id: 2 }),
+        hit,
+        battleContext,
+      );
+
+      // Assert
+      expect(message).toBe('テストどくのトゲ activated!');
+      expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, {
+        statusCondition: StatusCondition.Poison,
+      });
+    });
+
+    it('付与しなかったら null を返す', async () => {
+      // Arrange
+      const effect = new TestPoisonContactEffect();
+      const battleRepository = createMockBattleRepository();
+      const battleContext: BattleContext = {
+        battle: new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null),
+        battleRepository,
+        trainedPokemonRepository: createMockTrainedPokemonRepository(null),
+        moveCategory: 'Physical',
+        defenderAbilityName: 'テストどくのトゲ',
+      };
+
+      // Act
+      const message = await effect.onDamagingHit(
+        createBattlePokemonStatus(),
+        createBattlePokemonStatus({ id: 2, statusCondition: StatusCondition.Burn }),
+        hit,
+        battleContext,
+      );
+
+      // Assert
+      expect(message).toBeNull();
+      expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
+    });
+  });
+});

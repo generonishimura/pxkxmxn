@@ -76,7 +76,8 @@ describe('状態異常を付与する効果と、付与のフック', () => {
     await new FireFangEffect().onHit(get(1), get(2), context({ moveName: 'ほのおのキバ' }));
 
     // Assert
-    expect(get(2).statusCondition).toBe(StatusCondition.Flinch);
+    expect(get(2).volatileState.flinched).toBe(true);
+    expect(get(2).statusCondition).toBe(StatusCondition.Burn);
     expect(onStatusInflicted.mock.calls[0][2]?.pokemon?.id).toBe(1);
   });
 

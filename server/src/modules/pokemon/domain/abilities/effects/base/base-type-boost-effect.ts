@@ -1,6 +1,7 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
+import { hasType } from '@/modules/pokemon/domain/battle-events/battle-traits';
 
 /**
  * タイプ一致時の威力上昇の基底クラス
@@ -28,20 +29,8 @@ export abstract class BaseTypeBoostEffect implements IAbilityEffect {
       return false;
     }
 
-    // 育成ポケモンを取得
-    const trainedPokemon = await battleContext.trainedPokemonRepository.findById(
-      pokemon.trainedPokemonId,
-    );
-
-    if (!trainedPokemon) {
-      return false;
-    }
-
-    // メインタイプまたはサブタイプが一致するかチェック
-    const primaryTypeName = trainedPokemon.pokemon.primaryType.name;
-    const secondaryTypeName = trainedPokemon.pokemon.secondaryType?.name;
-
-    return primaryTypeName === moveTypeName || secondaryTypeName === moveTypeName;
+    // 実効のタイプ（みずびたし・へんげんじざい・フォルムなどを反映）に技のタイプがあるか
+    return hasType(pokemon, moveTypeName, battleContext);
   }
 
   /**
@@ -69,4 +58,3 @@ export abstract class BaseTypeBoostEffect implements IAbilityEffect {
     return Math.floor(damage * this.damageMultiplier);
   }
 }
-

@@ -2,12 +2,14 @@ import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 import { Field } from '@/modules/battle/domain/entities/battle.entity';
+import { setTerrain } from '../../../battle-events/field-state';
 
 /**
  * フィールド変更の基底クラス
  * 場に出すときにフィールドを変更する汎用的な実装
  *
  * 各特性は、このクラスを継承して変更するフィールドを設定するだけで実装できる
+ * setTerrain で 5 ターンの残りターン数を書く
  */
 export abstract class BaseFieldEffect implements IAbilityEffect {
   /**
@@ -20,21 +22,9 @@ export abstract class BaseFieldEffect implements IAbilityEffect {
    * フィールドを変更
    */
   async onEntry(_pokemon: BattlePokemonStatus, battleContext?: BattleContext): Promise<void> {
-    // バトルリポジトリがない場合は処理しない
-    if (!battleContext?.battleRepository) {
+    if (!battleContext) {
       return;
     }
-
-    const battle = battleContext.battle;
-
-    // 既に同じフィールドの場合は変更しない
-    if (battle.field === this.field) {
-      return;
-    }
-
-    // フィールドを変更
-    await battleContext.battleRepository.update(battle.id, {
-      field: this.field,
-    });
+    await setTerrain(battleContext, this.field);
   }
 }

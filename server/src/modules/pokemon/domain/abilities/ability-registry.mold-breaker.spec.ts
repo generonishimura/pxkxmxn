@@ -1,5 +1,7 @@
 import { AbilityRegistry } from './ability-registry';
 import { MoldBreakerEffect } from './effects/mold-breaker-effect';
+import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
+import { BattleContext } from './battle-context.interface';
 
 describe('AbilityRegistry.hasMoldBreaker', () => {
   beforeEach(() => {
@@ -82,5 +84,59 @@ describe('AbilityRegistry.isIgnoredByMoldBreaker', () => {
 
     // Assert
     expect(result).toBe(false);
+  });
+});
+
+describe('AbilityRegistry - 技によってかたやぶりになる特性（breaksMoldFor）', () => {
+  const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
+  const statusMove: BattleContext = { battle, moveCategory: 'Status' };
+  const physicalMove: BattleContext = { battle, moveCategory: 'Physical' };
+
+  beforeEach(() => {
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+    // きんしのちから相当: 変化技のときだけ相手の特性を無視する
+    AbilityRegistry.register('テストのきんし', {
+      breaksMoldFor: ctx => ctx?.moveCategory === 'Status',
+    });
+  });
+
+  afterEach(() => {
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+  });
+
+  it('breaksMoldFor が true を返す技では、かたやぶりとして扱う', () => {
+    // Act
+    const result = AbilityRegistry.hasMoldBreaker('テストのきんし', statusMove);
+
+    // Assert
+    expect(result).toBe(true);
+  });
+
+  it('breaksMoldFor が true を返さない技では、かたやぶりとして扱わない', () => {
+    // Act
+    const result = AbilityRegistry.hasMoldBreaker('テストのきんし', physicalMove);
+
+    // Assert
+    expect(result).toBe(false);
+  });
+
+  it('isIgnoredByMoldBreaker にもコンテキストが渡る', () => {
+    // Act
+    const statusResult = AbilityRegistry.isIgnoredByMoldBreaker(
+      'テストのきんし',
+      'じゅうなん',
+      statusMove,
+    );
+    const physicalResult = AbilityRegistry.isIgnoredByMoldBreaker(
+      'テストのきんし',
+      'じゅうなん',
+      physicalMove,
+    );
+
+    // Assert
+    expect(statusResult).toBe(true);
+    expect(physicalResult).toBe(false);
   });
 });

@@ -69,6 +69,7 @@ describe('BaseMultipleStatusConditionEffect', () => {
 
     const mockBattleRepository = {
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(undefined),
+      patchVolatileState: jest.fn().mockResolvedValue(undefined),
     };
 
     const mockTrainedPokemonRepository = {
@@ -91,7 +92,7 @@ describe('BaseMultipleStatusConditionEffect', () => {
   };
 
   describe('onHit', () => {
-    it('最初に成功した状態異常を付与する', async () => {
+    it('ひるみと状態異常は両方とも付与する（ひるみは volatileState に書く）', async () => {
       const effect = new TestMultipleStatusEffect();
       const attacker = createBattlePokemonStatus();
       const defender = createBattlePokemonStatus();
@@ -99,15 +100,46 @@ describe('BaseMultipleStatusConditionEffect', () => {
 
       const result = await effect.onHit(attacker, defender, battleContext);
 
-      // 最初の状態異常（ひるみ）が付与される
-      expect(result).toBe('flinched!');
+      expect(result).toBe('flinched! was burned!');
+      expect(battleContext.battleRepository?.patchVolatileState).toHaveBeenCalledWith(defender.id, {
+        flinched: true,
+      });
       expect(battleContext.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(
         defender.id,
-        { statusCondition: StatusCondition.Flinch },
+        { statusCondition: StatusCondition.Burn },
       );
     });
 
-    it('既に状態異常がある場合は付与しない', async () => {
+    it('状態異常は最初に成功したものだけを付与する', async () => {
+      class TwoMajorStatusEffect extends BaseMultipleStatusConditionEffect {
+        protected readonly statusConditions: readonly StatusConditionConfig[] = [
+          {
+            statusCondition: StatusCondition.Burn,
+            chance: 1,
+            immuneTypes: [],
+            message: 'was burned!',
+          },
+          {
+            statusCondition: StatusCondition.Paralysis,
+            chance: 1,
+            immuneTypes: [],
+            message: 'is paralyzed!',
+          },
+        ];
+      }
+      const battleContext = createBattleContext();
+
+      const result = await new TwoMajorStatusEffect().onHit(
+        createBattlePokemonStatus(),
+        createBattlePokemonStatus(),
+        battleContext,
+      );
+
+      expect(result).toBe('was burned!');
+      expect(battleContext.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledTimes(1);
+    });
+
+    it('既に状態異常がある場合は、ひるみだけ付与する', async () => {
       const effect = new TestMultipleStatusEffect();
       const attacker = createBattlePokemonStatus();
       const defender = createBattlePokemonStatus({
@@ -117,7 +149,7 @@ describe('BaseMultipleStatusConditionEffect', () => {
 
       const result = await effect.onHit(attacker, defender, battleContext);
 
-      expect(result).toBeNull();
+      expect(result).toBe('flinched!');
       expect(battleContext.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
@@ -142,10 +174,10 @@ describe('BaseMultipleStatusConditionEffect', () => {
 
       // ひるみは免疫タイプがないので付与される
       expect(result).toBe('flinched!');
-      expect(battleContext.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(
-        defender.id,
-        { statusCondition: StatusCondition.Flinch },
-      );
+      expect(battleContext.battleRepository?.patchVolatileState).toHaveBeenCalledWith(defender.id, {
+        flinched: true,
+      });
+      expect(battleContext.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
 
     // 旧テスト群は 100 試行で 10-34 件のヒットを期待する統計テストで、二項分布の
@@ -156,17 +188,31 @@ describe('BaseMultipleStatusConditionEffect', () => {
         jest.restoreAllMocks();
       });
 
-      it('1 つ目の効果（ひるみ）の確率を通過したらそれが適用される', async () => {
+      it('1 つ目の効果（ひるみ）の確率だけを通過したらひるみが適用される', async () => {
         const effect = new FireFangEffect();
         const attacker = createBattlePokemonStatus();
         const defender = createBattlePokemonStatus();
         const battleContext = createBattleContext();
-        // 1つ目のロールで成功
-        jest.spyOn(Math, 'random').mockReturnValue(0.05);
+        // 1回目: 0.05 で通す、2回目: 0.5 で外す
+        jest.spyOn(Math, 'random').mockReturnValueOnce(0.05).mockReturnValueOnce(0.5);
 
         const result = await effect.onHit(attacker, defender, battleContext);
 
         expect(result).toBe('flinched!');
+      });
+
+      it('ひるみとやけどの両方の確率を通過したら両方とも適用される（本家と同じ）', async () => {
+        const effect = new FireFangEffect();
+        const battleContext = createBattleContext();
+        jest.spyOn(Math, 'random').mockReturnValue(0.05);
+
+        const result = await effect.onHit(
+          createBattlePokemonStatus(),
+          createBattlePokemonStatus(),
+          battleContext,
+        );
+
+        expect(result).toBe('flinched! was burned!');
       });
 
       it('1 つ目を外し 2 つ目（やけど）が通れば 2 つ目が適用される', async () => {
@@ -223,4 +269,3 @@ describe('BaseMultipleStatusConditionEffect', () => {
     });
   });
 });
-

@@ -64,6 +64,7 @@ describe('BaseStatusConditionEffect', () => {
 
     const mockBattleRepository = {
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(undefined),
+      patchVolatileState: jest.fn().mockResolvedValue(undefined),
     };
 
     const mockTrainedPokemonRepository = {
@@ -147,10 +148,9 @@ describe('BaseStatusConditionEffect', () => {
       const result = await testEffect.onHit(attacker, defender, battleContext);
 
       expect(result).toBe('flinched!');
-      expect(battleContext.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(
-        defender.id,
-        { statusCondition: StatusCondition.Flinch },
-      );
+      expect(battleContext.battleRepository?.patchVolatileState).toHaveBeenCalledWith(defender.id, {
+        flinched: true,
+      });
     });
 
     describe('エアスラッシュ（30%でひるみ）', () => {

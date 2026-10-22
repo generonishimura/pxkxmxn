@@ -42,7 +42,7 @@ describe('StenchEffect（あくしゅう）', () => {
       );
 
       // Assert
-      expect(get(2).statusCondition).toBe(StatusCondition.Flinch);
+      expect(get(2).volatileState.flinched).toBe(true);
       expect(message).toBe('flinched!');
     });
 
@@ -78,7 +78,7 @@ describe('StenchEffect（あくしゅう）', () => {
       );
 
       // Assert
-      expect(get(2).statusCondition).toBe(StatusCondition.Flinch);
+      expect(get(2).volatileState.flinched).toBe(true);
     });
 
     it('相手の追加効果が無効（りんぷん）なら、ひるませない', async () => {

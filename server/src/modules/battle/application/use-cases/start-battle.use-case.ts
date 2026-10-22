@@ -8,15 +8,35 @@ import {
   ITrainedPokemonRepository,
   TEAM_REPOSITORY_TOKEN,
   TRAINED_POKEMON_REPOSITORY_TOKEN,
+  TeamMemberInfo,
 } from '@/modules/trainer/domain/trainer.repository.interface';
 import {
   IMoveRepository,
   MOVE_REPOSITORY_TOKEN,
 } from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { Battle } from '../../domain/entities/battle.entity';
-import { StatCalculator, TrainedPokemonStats } from '../../domain/logic/stat-calculator';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
+import { updateVolatileState } from '../../domain/state/volatile-state';
+// タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #119 #135 一部）
+import {
+  battleAbilityNameOf,
+  battleMaxHpOf,
+  battleStatsOf,
+} from '../../domain/logic/battle-pokemon-traits';
+import { NEUTRALIZING_GAS_ABILITY_NAME } from '../../domain/logic/effective-traits';
+import { PrimalWeatherReleaser } from '../services/primal-weather-releaser';
+
+/**
+ * 先発の onEntry を先に呼ぶ特性（大きいほど先。ほかの特性は 0）
+ * - イリュージョン: 本家の BeforeSwitchIn。先発全員の BeforeSwitchIn が、どの SwitchIn よりも先に済む
+ * - かがくへんかガス・テラスチェンジ: 本家の onSwitchInPriority 2
+ */
+const LEAD_ENTRY_PRIORITY: Readonly<Record<string, number>> = {
+  イリュージョン: 3,
+  [NEUTRALIZING_GAS_ABILITY_NAME]: 2,
+  テラスチェンジ: 2,
+};
 
 /**
  * StartBattleUseCase
@@ -24,12 +44,18 @@ import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemo
  *
  * 処理内容:
  * 1. Battleエンティティの作成
- * 2. 両チームのポケモン状態（BattlePokemonStatus）を初期化
- * 3. 最初のポケモンを場に出す（position=1のポケモン）
- * 4. 特性のOnEntry効果を発動
+ * 2. 両チームのポケモン状態（BattlePokemonStatus）を初期化し、最初のポケモンを場に出す（position=1のポケモン）
+ * 3. 両方の先発が場に出てから、先発の特性のOnEntry効果を、イリュージョン → かがくへんかガス・テラスチェンジ → 素早さの高い順に発動
+ * 4. 効かなくなった特性のゲンシ天候を終わらせる
  */
 @Injectable()
 export class StartBattleUseCase {
+  /**
+   * 先発の switchedInTurn。ターン N に交代で出たポケモンは N になり、出てから最初に
+   * 行動するのは N + 1。先発はターン 1 から行動するので 0 にする
+   */
+  private static readonly STARTER_SWITCHED_IN_TURN = 0;
+
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
@@ -66,128 +92,160 @@ export class StartBattleUseCase {
     // 2. 両チームのポケモン情報を取得
     const team1Members = await this.teamRepository.findMembersByTeamId(team1Id);
     const team2Members = await this.teamRepository.findMembersByTeamId(team2Id);
+    // 場に出たときの特性で、場のポケモンの実効の特性（かがくへんかガス）を求めるのに使う
+    const trainedPokemons = new Map(
+      [...team1Members, ...team2Members].map(member => [
+        member.trainedPokemon.id,
+        member.trainedPokemon,
+      ]),
+    );
 
-    // 3. 各ポケモンのBattlePokemonStatusを作成
-    for (const member of team1Members) {
-      const trainedPokemon = member.trainedPokemon;
-
-      // ステータスを計算
-      const stats = this.calculateStats(trainedPokemon);
-      const calculatedStats = StatCalculator.calculate(stats);
-
-      // BattlePokemonStatusを作成
-      const battleStatus = await this.battleRepository.createBattlePokemonStatus({
-        battleId: battle.id,
-        trainedPokemonId: trainedPokemon.id,
-        trainerId: trainer1Id,
-        currentHp: calculatedStats.hp,
-        maxHp: calculatedStats.hp,
-      });
-
-      // ポケモンが覚えている技を取得してBattlePokemonMoveを作成
-      await this.initializePokemonMoves(battleStatus.id, trainedPokemon.pokemon.id);
-
-      // 最初のポケモン（position=1）を場に出す
-      if (member.position === 1) {
-        await this.battleRepository.updateBattlePokemonStatus(battleStatus.id, {
-          isActive: true,
-        });
-
-        // 特性のOnEntry効果を発動
-        if (trainedPokemon.ability) {
-          await this.triggerAbilityOnEntry(battleStatus.id, trainedPokemon.ability.name, battle);
+    // 3. 両チームのすべてのポケモンの BattlePokemonStatus を作り、先発（position=1）を場に出す。
+    // 先発の onEntry は、両方の先発が場に出てから呼ぶ（かわりもの・トレースが相手を、イリュージョンが手持ちを見つけられる）
+    const leadStatusIds: number[] = [];
+    for (const [members, trainerId] of [
+      [team1Members, trainer1Id],
+      [team2Members, trainer2Id],
+    ] as const) {
+      for (const member of members) {
+        const leadStatusId = await this.createBattlePokemonStatus(battle, member, trainerId);
+        // 特性のないポケモンは onEntry を呼ばない
+        if (leadStatusId !== undefined && member.trainedPokemon.ability) {
+          leadStatusIds.push(leadStatusId);
         }
       }
     }
 
-    for (const member of team2Members) {
-      const trainedPokemon = member.trainedPokemon;
-
-      // ステータスを計算
-      const stats = this.calculateStats(trainedPokemon);
-      const calculatedStats = StatCalculator.calculate(stats);
-
-      // BattlePokemonStatusを作成
-      const battleStatus = await this.battleRepository.createBattlePokemonStatus({
-        battleId: battle.id,
-        trainedPokemonId: trainedPokemon.id,
-        trainerId: trainer2Id,
-        currentHp: calculatedStats.hp,
-        maxHp: calculatedStats.hp,
-      });
-
-      // ポケモンが覚えている技を取得してBattlePokemonMoveを作成
-      await this.initializePokemonMoves(battleStatus.id, trainedPokemon.pokemon.id);
-
-      // 最初のポケモン（position=1）を場に出す
-      if (member.position === 1) {
-        await this.battleRepository.updateBattlePokemonStatus(battleStatus.id, {
-          isActive: true,
-        });
-
-        // 特性のOnEntry効果を発動
-        if (trainedPokemon.ability) {
-          await this.triggerAbilityOnEntry(battleStatus.id, trainedPokemon.ability.name, battle);
-        }
-      }
+    // 4. 先発の特性の onEntry を、イリュージョン → かがくへんかガス・テラスチェンジ → 素早さの高い順に呼ぶ（本家の順。
+    // イリュージョンは BeforeSwitchIn なので、どの SwitchIn よりも先。かがくへんかガス・テラスチェンジは
+    // onSwitchInPriority 2 で先に出るので、相手のゲンシ天候などは始まらず、かわりものはテラスタルフォルムを写す）
+    for (const statusId of await this.orderLeadsForEntry(
+      battle.id,
+      leadStatusIds,
+      trainedPokemons,
+    )) {
+      await this.triggerAbilityOnEntry(statusId, trainedPokemons, battle);
     }
+
+    // 5. 先発の onEntry で始まったゲンシ天候の特性が、あとから効かなくなっていれば天候を終わらせる
+    await new PrimalWeatherReleaser(
+      this.battleRepository,
+      this.trainedPokemonRepository,
+    ).releaseIfAbilityLost(battle.id);
 
     return battle;
   }
 
   /**
-   * TrainedPokemonからステータス情報を計算
+   * ポケモン 1 匹分の BattlePokemonStatus と技を作り、先発（position=1）なら場に出す
+   * @returns 先発なら BattlePokemonStatus の ID、控えなら undefined
    */
-  private calculateStats(trainedPokemon: TrainedPokemon): TrainedPokemonStats {
-    return {
-      baseHp: trainedPokemon.pokemon.baseHp,
-      baseAttack: trainedPokemon.pokemon.baseAttack,
-      baseDefense: trainedPokemon.pokemon.baseDefense,
-      baseSpecialAttack: trainedPokemon.pokemon.baseSpecialAttack,
-      baseSpecialDefense: trainedPokemon.pokemon.baseSpecialDefense,
-      baseSpeed: trainedPokemon.pokemon.baseSpeed,
-      level: trainedPokemon.level,
-      ivHp: trainedPokemon.ivHp,
-      ivAttack: trainedPokemon.ivAttack,
-      ivDefense: trainedPokemon.ivDefense,
-      ivSpecialAttack: trainedPokemon.ivSpecialAttack,
-      ivSpecialDefense: trainedPokemon.ivSpecialDefense,
-      ivSpeed: trainedPokemon.ivSpeed,
-      evHp: trainedPokemon.evHp,
-      evAttack: trainedPokemon.evAttack,
-      evDefense: trainedPokemon.evDefense,
-      evSpecialAttack: trainedPokemon.evSpecialAttack,
-      evSpecialDefense: trainedPokemon.evSpecialDefense,
-      evSpeed: trainedPokemon.evSpeed,
-      nature: trainedPokemon.nature,
+  private async createBattlePokemonStatus(
+    battle: Battle,
+    member: TeamMemberInfo,
+    trainerId: number,
+  ): Promise<number | undefined> {
+    const trainedPokemon = member.trainedPokemon;
+
+    // 最大 HP を計算（フォルムが変わるポケモンは、表の既定のフォルムの HP の種族値で計算する）
+    const maxHp = battleMaxHpOf(trainedPokemon, undefined);
+
+    // BattlePokemonStatusを作成
+    const battleStatus = await this.battleRepository.createBattlePokemonStatus({
+      battleId: battle.id,
+      trainedPokemonId: trainedPokemon.id,
+      trainerId,
+      currentHp: maxHp,
+      maxHp,
+    });
+
+    // ポケモンが覚えている技を取得してBattlePokemonMoveを作成
+    await this.initializePokemonMoves(battleStatus.id, trainedPokemon.pokemon.id);
+
+    if (member.position !== 1) {
+      return undefined;
+    }
+    // 最初のポケモン（position=1）を場に出す
+    await this.battleRepository.updateBattlePokemonStatus(battleStatus.id, {
+      isActive: true,
+      volatileState: updateVolatileState(battleStatus.volatileState, {
+        switchedInTurn: StartBattleUseCase.STARTER_SWITCHED_IN_TURN,
+      }),
+    });
+    return battleStatus.id;
+  }
+
+  /**
+   * 先発の onEntry を呼ぶ順（実効の特性の LEAD_ENTRY_PRIORITY の大きい順 → 素早さの高い順。同じならトレーナー 1 から）
+   * 注: 素早さは実数値だけで比べる（ランク・特性・持ち物の補正と、同じ素早さの乱数は見ない）
+   */
+  private async orderLeadsForEntry(
+    battleId: number,
+    leadStatusIds: readonly number[],
+    trainedPokemons: ReadonlyMap<number, TrainedPokemon>,
+  ): Promise<number[]> {
+    if (leadStatusIds.length <= 1) {
+      return [...leadStatusIds];
+    }
+    const statuses = await this.battleRepository.findBattlePokemonStatusByBattleId(battleId);
+    const refs = (statuses ?? []).flatMap(status => {
+      const trainedPokemon = trainedPokemons.get(status.trainedPokemonId);
+      return status.isActive && trainedPokemon ? [{ trainedPokemon, status }] : [];
+    });
+    const keyOf = (statusId: number) => {
+      const ref = refs.find(other => other.status.id === statusId);
+      if (!ref) {
+        return { priority: 0, speed: 0 };
+      }
+      const abilityName = battleAbilityNameOf(ref.trainedPokemon, ref.status, refs);
+      return {
+        priority: abilityName ? (LEAD_ENTRY_PRIORITY[abilityName] ?? 0) : 0,
+        speed: battleStatsOf(ref.trainedPokemon, ref.status).speed,
+      };
     };
+    const keys = new Map(leadStatusIds.map(id => [id, keyOf(id)]));
+    return [...leadStatusIds].sort((a, b) => {
+      const keyA = keys.get(a)!;
+      const keyB = keys.get(b)!;
+      return keyB.priority - keyA.priority || keyB.speed - keyA.speed;
+    });
   }
 
   /**
    * 特性のOnEntry効果を発動
+   * 特性は、場にいる相手のかがくへんかガスで消えていれば発動しない（実効の特性）
+   * @param trainedPokemons 両チームの育成ポケモン（TrainedPokemon の ID ごと）
    */
   private async triggerAbilityOnEntry(
     battleStatusId: number,
-    abilityName: string,
+    trainedPokemons: ReadonlyMap<number, TrainedPokemon>,
     battle: Battle,
   ): Promise<void> {
-    const abilityEffect = AbilityRegistry.get(abilityName);
+    // BattlePokemonStatusを取得
+    const battleStatus =
+      (await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id)) ?? [];
+    const status = battleStatus.find(s => s.id === battleStatusId);
+    const trainedPokemon = status ? trainedPokemons.get(status.trainedPokemonId) : undefined;
+
+    if (!status || !trainedPokemon) {
+      return;
+    }
+    const others = battleStatus.flatMap(other => {
+      const otherTrainedPokemon = trainedPokemons.get(other.trainedPokemonId);
+      return other.isActive && other.id !== status.id && otherTrainedPokemon
+        ? [{ trainedPokemon: otherTrainedPokemon, status: other }]
+        : [];
+    });
+    const abilityName = battleAbilityNameOf(trainedPokemon, status, others);
+    const abilityEffect = abilityName ? AbilityRegistry.get(abilityName) : undefined;
     if (!abilityEffect?.onEntry) {
       return;
     }
 
-    // BattlePokemonStatusを取得
-    const battleStatus = await this.battleRepository.findBattlePokemonStatusByBattleId(battle.id);
-    const status = battleStatus.find(s => s.id === battleStatusId);
-
-    if (!status) {
-      return;
-    }
-
-    // 特性効果を発動
+    // 特性効果を発動（先に呼んだ先発の onEntry で変わった天候などを読めるよう、バトルを読み直す）
     // 相手の特性（クリアボディ・ばんけんなど）を調べられるよう、育成ポケモンリポジトリも渡す
     await abilityEffect.onEntry(status, {
-      battle,
+      battle: (await this.battleRepository.findById(battle.id)) ?? battle,
       battleRepository: this.battleRepository,
       trainedPokemonRepository: this.trainedPokemonRepository,
     });

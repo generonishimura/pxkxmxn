@@ -1,7 +1,12 @@
 import { DefiantEffect } from './defiant-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
-import { Weather, Field, BattleStatus, Battle } from '@/modules/battle/domain/entities/battle.entity';
+import {
+  Weather,
+  Field,
+  BattleStatus,
+  Battle,
+} from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
 
 describe('DefiantEffect', () => {
@@ -62,6 +67,10 @@ describe('DefiantEffect', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     } as jest.Mocked<IBattleRepository>;
 
     battleContext = {
@@ -73,7 +82,21 @@ describe('DefiantEffect', () => {
   describe('onTurnEnd', () => {
     it('should increase attack rank by 2 when pokemon has stat decrease', async () => {
       const pokemonWithDecrease = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 100, 100, -1, 0, 0, 0, 0, 0, 0, null,
+        1,
+        1,
+        1,
+        1,
+        true,
+        100,
+        100,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
       );
 
       await effect.onTurnEnd(pokemonWithDecrease, battleContext);
@@ -85,7 +108,21 @@ describe('DefiantEffect', () => {
 
     it('should not increase attack rank when pokemon has no stat decrease', async () => {
       const pokemonWithoutDecrease = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, null,
+        1,
+        1,
+        1,
+        1,
+        true,
+        100,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
       );
 
       await effect.onTurnEnd(pokemonWithoutDecrease, battleContext);
@@ -99,7 +136,21 @@ describe('DefiantEffect', () => {
         battleRepository: undefined,
       };
       const pokemonWithDecrease = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 100, 100, -1, 0, 0, 0, 0, 0, 0, null,
+        1,
+        1,
+        1,
+        1,
+        true,
+        100,
+        100,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
       );
 
       await effect.onTurnEnd(pokemonWithDecrease, contextWithoutRepository);
@@ -109,7 +160,21 @@ describe('DefiantEffect', () => {
 
     it('should cap attack rank at 6', async () => {
       const pokemonWithHighRank = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 100, 100, 5, -1, 0, 0, 0, 0, 0, null,
+        1,
+        1,
+        1,
+        1,
+        true,
+        100,
+        100,
+        5,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
       );
 
       await effect.onTurnEnd(pokemonWithHighRank, battleContext);
@@ -121,7 +186,21 @@ describe('DefiantEffect', () => {
 
     it('should not update when rank does not change', async () => {
       const pokemonAtMax = new BattlePokemonStatus(
-        1, 1, 1, 1, true, 100, 100, 6, -1, 0, 0, 0, 0, 0, null,
+        1,
+        1,
+        1,
+        1,
+        true,
+        100,
+        100,
+        6,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
       );
 
       await effect.onTurnEnd(pokemonAtMax, battleContext);

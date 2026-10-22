@@ -26,7 +26,9 @@ export class ThermalExchangeEffect extends BaseStatusConditionImmunityEffect {
     if (!battleContext || hit.moveTypeName !== 'ほのお' || holder.currentHp <= 0) {
       return null;
     }
-    if (await isIgnoredByMoldBreaker(battleContext.attackerAbilityName, 'ねつこうかん')) {
+    if (
+      await isIgnoredByMoldBreaker(battleContext.attackerAbilityName, 'ねつこうかん', battleContext)
+    ) {
       return null;
     }
 

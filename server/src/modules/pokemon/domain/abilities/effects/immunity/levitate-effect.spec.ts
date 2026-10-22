@@ -40,6 +40,7 @@ describe('LevitateEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });
@@ -59,4 +60,3 @@ describe('LevitateEffect', () => {
     });
   });
 });
-

@@ -88,6 +88,10 @@ describe('追加効果の判定（rollSecondaryEffect への接続）', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     };
     const trainedPokemonRepository: jest.Mocked<ITrainedPokemonRepository> = {
       findById: jest.fn().mockResolvedValue(trainedPokemon),

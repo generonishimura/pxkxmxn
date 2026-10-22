@@ -1,7 +1,12 @@
 import { PsychicSurgeEffect } from './psychic-surge-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
-import { Weather, Field, BattleStatus, Battle } from '@/modules/battle/domain/entities/battle.entity';
+import {
+  Weather,
+  Field,
+  BattleStatus,
+  Battle,
+} from '@/modules/battle/domain/entities/battle.entity';
 import { IBattleRepository } from '@/modules/battle/domain/battle.repository.interface';
 
 describe('PsychicSurgeEffect', () => {
@@ -31,9 +36,22 @@ describe('PsychicSurgeEffect', () => {
     );
 
     mockBattleRepository = {
-      update: jest.fn().mockResolvedValue(
-        new Battle(1, 1, 2, 1, 2, 1, Weather.None, Field.PsychicTerrain, BattleStatus.Active, null),
-      ),
+      update: jest
+        .fn()
+        .mockResolvedValue(
+          new Battle(
+            1,
+            1,
+            2,
+            1,
+            2,
+            1,
+            Weather.None,
+            Field.PsychicTerrain,
+            BattleStatus.Active,
+            null,
+          ),
+        ),
       findById: jest.fn(),
       create: jest.fn(),
       findBattlePokemonStatusByBattleId: jest.fn(),
@@ -45,6 +63,10 @@ describe('PsychicSurgeEffect', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     } as jest.Mocked<IBattleRepository>;
 
     battleContext = {

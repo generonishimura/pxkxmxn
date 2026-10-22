@@ -259,6 +259,150 @@ import { FoulPlayEffect } from './effects/foul-play-effect';
 import { ChipAwayEffect } from './effects/chip-away-effect';
 // 相手のランクを奪う技（Issue #129 一部）
 import { SpectralThiefEffect } from './effects/spectral-thief-effect';
+// 遅れて効く技（Issue #104 #107 #110 一部）
+import { YawnEffect } from './effects/yawn-effect';
+import { PerishSongEffect } from './effects/perish-song-effect';
+import { WishEffect } from './effects/wish-effect';
+// 実数値を分け合う・入れ替える技（Issue #103 一部）
+import { GuardSplitEffect } from './effects/guard-split-effect';
+import { PowerSplitEffect } from './effects/power-split-effect';
+import { SpeedSwapEffect } from './effects/speed-swap-effect';
+// ほかの技をまねる・呼ぶ技（Issue #103 一部）
+import { MimicEffect } from './effects/mimic-effect';
+import { SketchEffect } from './effects/sketch-effect';
+import { MetronomeEffect } from './effects/metronome-effect';
+import { MirrorMoveEffect } from './effects/mirror-move-effect';
+import { AssistEffect } from './effects/assist-effect';
+import { SnatchEffect } from './effects/snatch-effect';
+// 別の技を出す技（Issue #103, #104, #117 一部）
+import { MeFirstEffect } from './effects/me-first-effect';
+import { CopycatEffect } from './effects/copycat-effect';
+import { InstructEffect } from './effects/instruct-effect';
+import { SleepTalkEffect } from './effects/sleep-talk-effect';
+import { NaturePowerEffect } from './effects/nature-power-effect';
+// 何ターンかにわたる技（Issue #97, #107, #123 一部）
+import { UproarEffect } from './effects/uproar-effect';
+import { GeomancyEffect } from './effects/geomancy-effect';
+import { BeakBlastEffect } from './effects/beak-blast-effect';
+// PP を減らす技（Issue #103, #107 一部）
+import { SpiteEffect } from './effects/spite-effect';
+import { GrudgeEffect } from './effects/grudge-effect';
+// 一時的な状態を付与する変化技（Issue #103 一部）
+import { LockOnEffect } from './effects/lock-on-effect';
+import { ForesightEffect } from './effects/foresight-effect';
+import { AttractEffect } from './effects/attract-effect';
+import { TormentEffect } from './effects/torment-effect';
+import { ImprisonEffect } from './effects/imprison-effect';
+// 一時的な状態を書く技（Issue #103 一部）
+import { StockpileEffect } from './effects/stockpile-effect';
+import { PowerTrickEffect } from './effects/power-trick-effect';
+import { OdorSleuthEffect } from './effects/odor-sleuth-effect';
+import { MiracleEyeEffect } from './effects/miracle-eye-effect';
+import { TarShotEffect } from './effects/tar-shot-effect';
+import { OctolockEffect } from './effects/octolock-effect';
+// 一時的な状態を付与する技（Issue #104, #107 一部）
+import { LeechSeedEffect } from './effects/leech-seed-effect';
+import { NightmareEffect } from './effects/nightmare-effect';
+import { CurseEffect } from './effects/curse-effect';
+import { DestinyBondEffect } from './effects/destiny-bond-effect';
+import { DisableEffect } from './effects/disable-effect';
+import { PowerShiftEffect } from './effects/power-shift-effect';
+// 一時的な状態を付与する技（Issue #107 一部）
+import { EncoreEffect } from './effects/encore-effect';
+import { TauntEffect } from './effects/taunt-effect';
+import { IngrainEffect } from './effects/ingrain-effect';
+import { HealBlockEffect } from './effects/heal-block-effect';
+import { AquaRingEffect } from './effects/aqua-ring-effect';
+import { MagnetRiseEffect } from './effects/magnet-rise-effect';
+// 相手に一時的な状態をかける技（Issue #107 一部）
+import { TelekinesisEffect } from './effects/telekinesis-effect';
+import { PowderEffect } from './effects/powder-effect';
+// たくわえた力で回復する技（Issue #110 一部）
+import { SwallowEffect } from './effects/swallow-effect';
+// 相手の陣営に置く設置技（Issue #102, #108 一部）
+import { SpikesEffect } from './effects/spikes-effect';
+import { StealthRockEffect } from './effects/stealth-rock-effect';
+import { StickyWebEffect } from './effects/sticky-web-effect';
+import { ToxicSpikesEffect } from './effects/toxic-spikes-effect';
+// 場の状態を変える技・ひんしの手持ちを復活させる技（Issue #103, #107, #110 一部）
+import { RevivalBlessingEffect } from './effects/revival-blessing-effect';
+import { GravityEffect } from './effects/gravity-effect';
+import { TrickRoomEffect } from './effects/trick-room-effect';
+import { WonderRoomEffect } from './effects/wonder-room-effect';
+import { GrassyTerrainEffect } from './effects/grassy-terrain-effect';
+// 壁・どろあそび・みずあそび・コートチェンジ（Issue #103, #107 一部）
+import { ReflectEffect } from './effects/reflect-effect';
+import { LightScreenEffect } from './effects/light-screen-effect';
+import { MudSportEffect } from './effects/mud-sport-effect';
+import { WaterSportEffect } from './effects/water-sport-effect';
+import { CourtChangeEffect } from './effects/court-change-effect';
+// 陣営にターン数のある状態を張る技（Issue #107, #111 一部）
+import { TailwindEffect } from './effects/tailwind-effect';
+import { AuroraVeilEffect } from './effects/aurora-veil-effect';
+import { LuckyChantEffect } from './effects/lucky-chant-effect';
+// 交代にかかわる技（Issue #102, #103 一部）
+import { WhirlwindEffect } from './effects/whirlwind-effect';
+import { RoarEffect } from './effects/roar-effect';
+import { BatonPassEffect } from './effects/baton-pass-effect';
+import { PartingShotEffect } from './effects/parting-shot-effect';
+import { FairyLockEffect } from './effects/fairy-lock-effect';
+import { TeleportEffect } from './effects/teleport-effect';
+// 逃げられなくする技・交代する技（Issue #103, #110 一部）
+import { MeanLookEffect } from './effects/mean-look-effect';
+import { BlockEffect } from './effects/block-effect';
+import { SpiderWebEffect } from './effects/spider-web-effect';
+import { ShedTailEffect } from './effects/shed-tail-effect';
+import { ChillyReceptionEffect } from './effects/chilly-reception-effect';
+import { LunarDanceEffect } from './effects/lunar-dance-effect';
+// 急所ランクを上げる技（Issue #111 一部）
+import { FocusEnergyEffect } from './effects/focus-energy-effect';
+import { LaserFocusEffect } from './effects/laser-focus-effect';
+// 技をはね返す技（Issue #107 一部）
+import { MagicCoatEffect } from './effects/magic-coat-effect';
+// まもる系の技（Issue #102, #103, #107 一部）
+import { ProtectEffect } from './effects/protect-effect';
+import { KingsShieldEffect } from './effects/kings-shield-effect';
+import { ObstructEffect } from './effects/obstruct-effect';
+import { SilkTrapEffect } from './effects/silk-trap-effect';
+import { BurningBulwarkEffect } from './effects/burning-bulwark-effect';
+// まもる系の技（Issue #107, #108 一部）
+import { DetectEffect } from './effects/detect-effect';
+import { WideGuardEffect } from './effects/wide-guard-effect';
+import { QuickGuardEffect } from './effects/quick-guard-effect';
+import { EndureEffect } from './effects/endure-effect';
+import { BanefulBunkerEffect } from './effects/baneful-bunker-effect';
+// まもる系の技（トリックガード・ニードルガード・たたみがえし）（Issue #120 一部）
+import { CraftyShieldEffect } from './effects/crafty-shield-effect';
+import { SpikyShieldEffect } from './effects/spiky-shield-effect';
+import { MatBlockEffect } from './effects/mat-block-effect';
+// 特性を書き換える・消す技（Issue #103, #119 一部）
+import { SkillSwapEffect } from './effects/skill-swap-effect';
+import { DoodleEffect } from './effects/doodle-effect';
+import { RolePlayEffect } from './effects/role-play-effect';
+import { GastroAcidEffect } from './effects/gastro-acid-effect';
+import { WorrySeedEffect } from './effects/worry-seed-effect';
+import { SimpleBeamEffect } from './effects/simple-beam-effect';
+// 特性を書き換える技（Issue #119 一部）
+import { EntrainmentEffect } from './effects/entrainment-effect';
+// うのミサイルのフォルムチェンジを起こすための技（Issue #135 一部）
+import { DiveEffect } from './effects/dive-effect';
+// 相手の姿を写す技（Issue #112 一部）
+import { TransformEffect } from './effects/transform-effect';
+// タイプを書き換える技（Issue #103 一部）
+import { ReflectTypeEffect } from './effects/reflect-type-effect';
+import { MagicPowderEffect } from './effects/magic-powder-effect';
+import { TrickOrTreatEffect } from './effects/trick-or-treat-effect';
+import { ForestsCurseEffect } from './effects/forests-curse-effect';
+// 技のタイプを変える場の状態（Issue #107 一部）
+import { IonDelugeEffect } from './effects/ion-deluge-effect';
+// タイプを変える技（Issue #107, #110, #114 一部）
+import { ElectrifyEffect } from './effects/electrify-effect';
+import { RoostEffect } from './effects/roost-effect';
+import { ConversionEffect } from './effects/conversion-effect';
+import { Conversion2Effect } from './effects/conversion2-effect';
+import { SoakEffect } from './effects/soak-effect';
+// フィールドに合わせて使用者のタイプを変える技（Issue #117 一部）
+import { CamouflageEffect } from './effects/camouflage-effect';
 
 /**
  * 技のレジストリ
@@ -626,6 +770,152 @@ export class MoveRegistry {
       this.registry.set('ＤＤラリアット', chipAwayEffect);
       // 相手のランクを奪う技（Issue #129 一部）
       this.registry.set('シャドースチール', new SpectralThiefEffect());
+      // 遅れて効く技（Issue #104 #107 #110 一部）
+      this.registry.set('あくび', new YawnEffect());
+      this.registry.set('ほろびのうた', new PerishSongEffect());
+      this.registry.set('ねがいごと', new WishEffect());
+      // 実数値を分け合う・入れ替える技（Issue #103 一部）
+      this.registry.set('ガードシェア', new GuardSplitEffect());
+      this.registry.set('パワーシェア', new PowerSplitEffect());
+      this.registry.set('スピードスワップ', new SpeedSwapEffect());
+      // ほかの技をまねる・呼ぶ技（Issue #103 一部）
+      this.registry.set('ものまね', new MimicEffect());
+      this.registry.set('スケッチ', new SketchEffect());
+      this.registry.set('ゆびをふる', new MetronomeEffect());
+      this.registry.set('オウムがえし', new MirrorMoveEffect());
+      this.registry.set('ねこのて', new AssistEffect());
+      this.registry.set('よこどり', new SnatchEffect());
+      // 別の技を出す技（Issue #103, #104, #117 一部）
+      this.registry.set('さきどり', new MeFirstEffect());
+      this.registry.set('まねっこ', new CopycatEffect());
+      this.registry.set('さいはい', new InstructEffect());
+      this.registry.set('ねごと', new SleepTalkEffect());
+      this.registry.set('しぜんのちから', new NaturePowerEffect());
+      // 何ターンかにわたる技（Issue #97, #107, #123 一部）
+      this.registry.set('さわぐ', new UproarEffect());
+      this.registry.set('ジオコントロール', new GeomancyEffect());
+      this.registry.set('くちばしキャノン', new BeakBlastEffect());
+      // PP を減らす技（Issue #103, #107 一部）
+      this.registry.set('うらみ', new SpiteEffect());
+      this.registry.set('おんねん', new GrudgeEffect());
+      // 一時的な状態を付与する変化技（Issue #103 一部）
+      const lockOnEffect = new LockOnEffect();
+      this.registry.set('こころのめ', lockOnEffect);
+      this.registry.set('ロックオン', lockOnEffect);
+      this.registry.set('みやぶる', new ForesightEffect());
+      this.registry.set('メロメロ', new AttractEffect());
+      this.registry.set('いちゃもん', new TormentEffect());
+      this.registry.set('ふういん', new ImprisonEffect());
+      // 一時的な状態を書く技（Issue #103 一部）
+      this.registry.set('たくわえる', new StockpileEffect());
+      this.registry.set('パワートリック', new PowerTrickEffect());
+      this.registry.set('かぎわける', new OdorSleuthEffect());
+      this.registry.set('ミラクルアイ', new MiracleEyeEffect());
+      this.registry.set('タールショット', new TarShotEffect());
+      this.registry.set('たこがため', new OctolockEffect());
+      // 一時的な状態を付与する技（Issue #104, #107 一部）
+      this.registry.set('やどりぎのタネ', new LeechSeedEffect());
+      this.registry.set('あくむ', new NightmareEffect());
+      this.registry.set('のろい', new CurseEffect());
+      this.registry.set('みちづれ', new DestinyBondEffect());
+      this.registry.set('かなしばり', new DisableEffect());
+      this.registry.set('パワーシフト', new PowerShiftEffect());
+      // 一時的な状態を付与する技（Issue #107 一部）
+      this.registry.set('アンコール', new EncoreEffect());
+      this.registry.set('ちょうはつ', new TauntEffect());
+      this.registry.set('ねをはる', new IngrainEffect());
+      this.registry.set('かいふくふうじ', new HealBlockEffect());
+      this.registry.set('アクアリング', new AquaRingEffect());
+      this.registry.set('でんじふゆう', new MagnetRiseEffect());
+      // 相手に一時的な状態をかける技（Issue #107 一部）
+      this.registry.set('テレキネシス', new TelekinesisEffect());
+      this.registry.set('ふんじん', new PowderEffect());
+      // たくわえた力で回復する技（Issue #110 一部）
+      this.registry.set('のみこむ', new SwallowEffect());
+      // 相手の陣営に置く設置技（Issue #102, #108 一部）
+      this.registry.set('まきびし', new SpikesEffect());
+      this.registry.set('ステルスロック', new StealthRockEffect());
+      this.registry.set('ねばねばネット', new StickyWebEffect());
+      this.registry.set('どくびし', new ToxicSpikesEffect());
+      // 場の状態を変える技・ひんしの手持ちを復活させる技（Issue #103, #107, #110 一部）
+      this.registry.set('さいきのいのり', new RevivalBlessingEffect());
+      this.registry.set('じゅうりょく', new GravityEffect());
+      this.registry.set('トリックルーム', new TrickRoomEffect());
+      this.registry.set('ワンダールーム', new WonderRoomEffect());
+      this.registry.set('グラスフィールド', new GrassyTerrainEffect());
+      // 壁・どろあそび・みずあそび・コートチェンジ（Issue #103, #107 一部）
+      this.registry.set('リフレクター', new ReflectEffect());
+      this.registry.set('ひかりのかべ', new LightScreenEffect());
+      this.registry.set('どろあそび', new MudSportEffect());
+      this.registry.set('みずあそび', new WaterSportEffect());
+      this.registry.set('コートチェンジ', new CourtChangeEffect());
+      // 陣営にターン数のある状態を張る技（Issue #107, #111 一部）
+      this.registry.set('おいかぜ', new TailwindEffect());
+      this.registry.set('オーロラベール', new AuroraVeilEffect());
+      this.registry.set('おまじない', new LuckyChantEffect());
+      // 交代にかかわる技（Issue #102, #103 一部）
+      this.registry.set('ふきとばし', new WhirlwindEffect());
+      this.registry.set('ほえる', new RoarEffect());
+      this.registry.set('バトンタッチ', new BatonPassEffect());
+      this.registry.set('すてゼリフ', new PartingShotEffect());
+      this.registry.set('フェアリーロック', new FairyLockEffect());
+      this.registry.set('テレポート', new TeleportEffect());
+      // 逃げられなくする技・交代する技（Issue #103, #110 一部）
+      this.registry.set('くろいまなざし', new MeanLookEffect());
+      this.registry.set('とおせんぼう', new BlockEffect());
+      this.registry.set('クモのす', new SpiderWebEffect());
+      this.registry.set('しっぽきり', new ShedTailEffect());
+      this.registry.set('さむいギャグ', new ChillyReceptionEffect());
+      this.registry.set('みかづきのまい', new LunarDanceEffect());
+      // 急所ランクを上げる技（Issue #111 一部）
+      this.registry.set('きあいだめ', new FocusEnergyEffect());
+      this.registry.set('とぎすます', new LaserFocusEffect());
+      // 技をはね返す技（Issue #107 一部）
+      this.registry.set('マジックコート', new MagicCoatEffect());
+      // まもる系の技（Issue #102, #103, #107 一部）
+      this.registry.set('まもる', new ProtectEffect());
+      this.registry.set('キングシールド', new KingsShieldEffect());
+      this.registry.set('ブロッキング', new ObstructEffect());
+      this.registry.set('スレッドトラップ', new SilkTrapEffect());
+      this.registry.set('かえんのまもり', new BurningBulwarkEffect());
+      // まもる系の技（Issue #107, #108 一部）
+      this.registry.set('みきり', new DetectEffect());
+      this.registry.set('ワイドガード', new WideGuardEffect());
+      this.registry.set('ファストガード', new QuickGuardEffect());
+      this.registry.set('こらえる', new EndureEffect());
+      this.registry.set('トーチカ', new BanefulBunkerEffect());
+      // まもる系の技（トリックガード・ニードルガード・たたみがえし）（Issue #120 一部）
+      this.registry.set('トリックガード', new CraftyShieldEffect());
+      this.registry.set('ニードルガード', new SpikyShieldEffect());
+      this.registry.set('たたみがえし', new MatBlockEffect());
+      // 特性を書き換える・消す技（Issue #103, #119 一部）
+      this.registry.set('スキルスワップ', new SkillSwapEffect());
+      this.registry.set('うつしえ', new DoodleEffect());
+      this.registry.set('なりきり', new RolePlayEffect());
+      this.registry.set('いえき', new GastroAcidEffect());
+      this.registry.set('なやみのタネ', new WorrySeedEffect());
+      this.registry.set('シンプルビーム', new SimpleBeamEffect());
+      // 特性を書き換える技（Issue #119 一部）
+      this.registry.set('なかまづくり', new EntrainmentEffect());
+      // うのミサイルのフォルムチェンジを起こすための技（Issue #135 一部）
+      this.registry.set('ダイビング', new DiveEffect());
+      // 相手の姿を写す技（Issue #112 一部）
+      this.registry.set('へんしん', new TransformEffect());
+      // タイプを書き換える技（Issue #103 一部）
+      this.registry.set('ミラータイプ', new ReflectTypeEffect());
+      this.registry.set('まほうのこな', new MagicPowderEffect());
+      this.registry.set('ハロウィン', new TrickOrTreatEffect());
+      this.registry.set('もりののろい', new ForestsCurseEffect());
+      // 技のタイプを変える場の状態（Issue #107 一部）
+      this.registry.set('プラズマシャワー', new IonDelugeEffect());
+      // タイプを変える技（Issue #107, #110, #114 一部）
+      this.registry.set('そうでん', new ElectrifyEffect());
+      this.registry.set('はねやすめ', new RoostEffect());
+      this.registry.set('テクスチャー', new ConversionEffect());
+      this.registry.set('テクスチャー２', new Conversion2Effect());
+      this.registry.set('みずびたし', new SoakEffect());
+      // フィールドに合わせて使用者のタイプを変える技（Issue #117 一部）
+      this.registry.set('ほごしょく', new CamouflageEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,

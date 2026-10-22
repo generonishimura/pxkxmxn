@@ -1,6 +1,7 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
+import { HitResult } from '../../../battle-events/hit-result';
 import { StatType } from './base-opponent-stat-change-effect';
 import { isContactMove } from '../../../moves/move-flags';
 import { applyStatChanges } from '../../../battle-events/stat-change';
@@ -24,7 +25,8 @@ export interface ContactStatChange {
  * 接触技を受けたときに能力ランクを変更する基底クラス
  * ぬめぬめ（Gooey）、カーリーヘアー（Tangling Hair）、くだけるよろい（Weak Armor）などで使用
  *
- * MoveExecutorService が接触時に呼び出す applyContactStatusCondition フックを利用する。
+ * 防御側の onDamagingHit フックで、ヒットごとに判定する（連続技ではヒットのたびに判定し、変えたランクを
+ * 次のヒットのダメージ計算に使う。本家の onDamagingHit と同じ）。
  * ランクは applyStatChanges で変える。対象が攻撃側でランクを下げる場合は、攻撃側の特性
  * （canReceiveStatChange・reflectsStatDrops など）で無効化・反射を判定する。
  * 発動条件は trigger で選ぶ。'contact' は isContactMove（技フラグの contact）、'physical' は物理技で判定する。
@@ -57,8 +59,26 @@ export abstract class BaseContactStatChangeEffect implements IAbilityEffect {
   }
 
   /**
-   * 接触技を受けたときに能力ランクを変更する
-   * MoveExecutorServiceから呼び出される
+   * 攻撃技が当たったヒットのたびに、発動条件を満たしていれば能力ランクを変更する
+   *
+   * @param holder 防御側のポケモン（特性を持つ側。ダメージ反映後の状態）
+   * @param attacker 攻撃側のポケモン
+   * @param _hit このヒットの情報（発動条件の判定は battleContext で行う）
+   * @param battleContext バトルコンテキスト
+   * @returns 能力ランクを変更した場合は「<特性名> activated!」、変更しなかった場合は null
+   */
+  async onDamagingHit(
+    holder: BattlePokemonStatus,
+    attacker: BattlePokemonStatus,
+    _hit: HitResult,
+    battleContext?: BattleContext,
+  ): Promise<string | null> {
+    const applied = await this.applyContactStatusCondition(holder, attacker, battleContext);
+    return applied ? `${battleContext?.defenderAbilityName} activated!` : null;
+  }
+
+  /**
+   * 発動条件を満たしていれば能力ランクを変更する（onDamagingHit から、ヒットごとに呼ぶ）
    *
    * @param defender 防御側のポケモン（特性を持つ側）
    * @param attacker 攻撃側のポケモン

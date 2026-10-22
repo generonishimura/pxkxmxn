@@ -2,15 +2,28 @@ import { IMoveEffect } from '../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { getEffectiveStatusCondition } from '../../battle-events/effective-status';
 
 /**
  * 「めざましビンタ」の特殊効果実装
  *
- * 効果: 相手が眠り状態のときに命中させると相手の眠り状態を解除する
- * 注: 相手が眠り状態のときに威力が2倍になる効果は、技の威力を動的に修正する
- *     仕組みが未整備なため別処理（ダメージ計算側）で扱う
+ * 効果: 相手がねむりのとき、威力が 2 倍になる（70 → 140）。命中させると相手のねむりを解除する
+ * - 相手の特性がぜったいねむりなら、状態異常がなくても威力が 2 倍になる（起こしはしない。本家と同じ）
  */
 export class WakeUpSlapEffect implements IMoveEffect {
+  modifyMovePower(
+    _attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): number | undefined {
+    const basePower = battleContext.movePower;
+    const asleep = getEffectiveStatusCondition(defender, battleContext) === StatusCondition.Sleep;
+    if (basePower === null || basePower === undefined || !asleep) {
+      return undefined;
+    }
+    return basePower * 2;
+  }
+
   async onHit(
     _attacker: BattlePokemonStatus,
     defender: BattlePokemonStatus,

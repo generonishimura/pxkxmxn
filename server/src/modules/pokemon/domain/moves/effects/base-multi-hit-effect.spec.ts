@@ -97,6 +97,7 @@ describe('BaseMultiHitEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
     };
   });
@@ -173,4 +174,3 @@ describe('BaseMultiHitEffect', () => {
     });
   });
 });
-

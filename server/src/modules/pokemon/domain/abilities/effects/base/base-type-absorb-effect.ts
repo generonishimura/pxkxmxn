@@ -1,12 +1,14 @@
 import { BaseTypeImmunityEffect } from './base-type-immunity-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
+import { applyHeal } from '../../../battle-events/heal';
 
 /**
  * タイプ吸収の基底クラス
  * 特定のタイプの技を無効化し、HPを回復する汎用的な実装
  *
  * 各特性は、このクラスを継承して無効化するタイプと回復量を設定するだけで実装できる
+ * 回復は applyHeal で行う（かいふくふうじ中は、技は無効にするが回復しない）
  */
 export abstract class BaseTypeAbsorbEffect extends BaseTypeImmunityEffect {
   /**
@@ -43,18 +45,14 @@ export abstract class BaseTypeAbsorbEffect extends BaseTypeImmunityEffect {
     const healAmount = Math.floor(pokemon.maxHp * this.healRatio);
 
     // 現在のHPを取得（最新の状態を取得するため）
-    const currentStatus = await battleContext.battleRepository.findBattlePokemonStatusById(pokemon.id);
+    const currentStatus = await battleContext.battleRepository.findBattlePokemonStatusById(
+      pokemon.id,
+    );
     if (!currentStatus) {
       return;
     }
 
-    // HP回復（最大HPを超えないように）
-    const newHp = Math.min(currentStatus.maxHp, currentStatus.currentHp + healAmount);
-
-    // HPを更新
-    await battleContext.battleRepository.updateBattlePokemonStatus(pokemon.id, {
-      currentHp: newHp,
-    });
+    // HP回復（最大HPを超えない。かいふくふうじ中は回復しない）
+    await applyHeal(currentStatus, healAmount, battleContext);
   }
 }
-

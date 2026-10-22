@@ -1,36 +1,13 @@
-import { IMoveEffect } from '../move-effect.interface';
-import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
-import { BattleContext } from '../../abilities/battle-context.interface';
 import { Field } from '@/modules/battle/domain/entities/battle.entity';
+import { BaseTerrainMoveEffect } from './base/base-terrain-move-effect';
 
 /**
- * 「ミストフィールド」の特殊効果実装
+ * ミストフィールド（Misty Terrain）技の効果
  *
- * 効果: 5ターン間、地面にいるポケモンを状態異常から守る
+ * 5 ターンの間、地面にいるポケモンは状態異常・こんらんにならず、地面にいる相手へのドラゴン技の威力が半分になる。
+ * フィールドの効果と終わりはエンジンが行う。すでにミストフィールドなら失敗する（But it failed）
  */
-export class MistyTerrainEffect implements IMoveEffect {
-  async onUse(
-    _attacker: BattlePokemonStatus,
-    _defender: BattlePokemonStatus,
-    battleContext: BattleContext,
-  ): Promise<string | null> {
-    if (!battleContext.battleRepository) {
-      return null;
-    }
-
-    const battle = battleContext.battle;
-
-    // 既にミストフィールドの場合は変更しない
-    if (battle.field === Field.MistyTerrain) {
-      return null;
-    }
-
-    // フィールドをミストフィールドに変更
-    await battleContext.battleRepository.update(battle.id, {
-      field: Field.MistyTerrain,
-    });
-
-    return 'Misty Terrain was set up!';
-  }
+export class MistyTerrainEffect extends BaseTerrainMoveEffect {
+  protected readonly field = Field.MistyTerrain;
+  protected readonly message = 'Misty Terrain was set up!';
 }
-

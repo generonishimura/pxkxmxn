@@ -56,9 +56,11 @@ describe('BaseWeatherMoveEffect', () => {
     } as BattlePokemonStatus;
 
     mockBattleRepository = {
-      update: jest.fn().mockResolvedValue(
-        new Battle(1, 1, 2, 1, 2, 1, Weather.Rain, null, BattleStatus.Active, null),
-      ),
+      update: jest
+        .fn()
+        .mockResolvedValue(
+          new Battle(1, 1, 2, 1, 2, 1, Weather.Rain, null, BattleStatus.Active, null),
+        ),
       findById: jest.fn(),
       create: jest.fn(),
       findBattlePokemonStatusByBattleId: jest.fn(),
@@ -70,6 +72,10 @@ describe('BaseWeatherMoveEffect', () => {
       createBattlePokemonMove: jest.fn(),
       updateBattlePokemonMove: jest.fn(),
       findBattlePokemonMoveById: jest.fn(),
+      patchVolatileState: jest.fn(),
+      patchPersistentState: jest.fn(),
+      patchSideConditions: jest.fn(),
+      patchGlobalFieldState: jest.fn(),
     } as jest.Mocked<IBattleRepository>;
 
     battleContext = {
@@ -89,7 +95,7 @@ describe('BaseWeatherMoveEffect', () => {
       expect(result).toBe('It started to rain!');
     });
 
-    it('should not change weather when already the same weather', async () => {
+    it('すでに同じ天候なら失敗し、天候を書かない', async () => {
       const effect = new TestRainWeatherMoveEffect();
       const contextWithRain: BattleContext = {
         ...battleContext,
@@ -98,10 +104,11 @@ describe('BaseWeatherMoveEffect', () => {
           weather: Weather.Rain,
         },
       };
+      mockBattleRepository.findById.mockResolvedValue(contextWithRain.battle);
       const result = await effect.onUse(attacker, defender, contextWithRain);
 
       expect(mockBattleRepository.update).not.toHaveBeenCalled();
-      expect(result).toBeNull();
+      expect(result).toBe('But it failed');
     });
 
     it('should return null when battleRepository is undefined', async () => {
@@ -134,4 +141,3 @@ describe('BaseWeatherMoveEffect', () => {
     });
   });
 });
-

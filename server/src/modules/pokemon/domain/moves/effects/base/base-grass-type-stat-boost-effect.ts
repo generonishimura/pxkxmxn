@@ -2,13 +2,14 @@ import { IMoveEffect } from '../../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../../abilities/battle-context.interface';
 import { StatType, STAT_RANK_PROP_MAP, STAT_NAME_MAP } from './base-stat-change-effect';
+import { hasType } from '@/modules/pokemon/domain/battle-events/battle-traits';
 
 /**
  * 場にいるくさタイプのポケモン全員の能力ランクを上げる変化技の基底クラス
  *
  * 例: たがやす（攻撃+1, 特攻+1）、フラワーガード（防御+1）
  *
- * - 自分と相手のタイプを trainedPokemonRepository から取得し、くさタイプの側だけ能力を上げる
+ * - 自分と相手の実効のタイプ（hasType）を見て、くさタイプの側だけ能力を上げる
  * - どちらもくさタイプでない場合は失敗（null を返す）
  * - 各ステータス変化は独立して試行（一つが既に上限でも他は変化する）
  */
@@ -78,16 +79,7 @@ export abstract class BaseGrassTypeStatBoostEffect implements IMoveEffect {
     target: BattlePokemonStatus,
     battleContext: BattleContext,
   ): Promise<boolean> {
-    const trainedPokemon = await battleContext.trainedPokemonRepository?.findById(
-      target.trainedPokemonId,
-    );
-    if (!trainedPokemon) {
-      return false;
-    }
-    const grass = BaseGrassTypeStatBoostEffect.GRASS_TYPE_NAME;
-    return (
-      trainedPokemon.pokemon.primaryType.name === grass ||
-      trainedPokemon.pokemon.secondaryType?.name === grass
-    );
+    // 実効のタイプ（みずびたし・もりののろいなどを反映）
+    return hasType(target, BaseGrassTypeStatBoostEffect.GRASS_TYPE_NAME, battleContext);
   }
 }

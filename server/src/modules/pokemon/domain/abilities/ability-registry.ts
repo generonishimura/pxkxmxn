@@ -1,4 +1,5 @@
 import { IAbilityEffect } from './ability-effect.interface';
+import type { BattleContext } from './battle-context.interface';
 import { IntimidateEffect } from './effects/stat-change/intimidate-effect';
 import { SwiftSwimEffect } from './effects/stat-change/swift-swim-effect';
 import { ChlorophyllEffect } from './effects/stat-change/chlorophyll-effect';
@@ -21,7 +22,6 @@ import { LeafGuardEffect } from './effects/immunity/leaf-guard-effect';
 import { ObliviousEffect } from './effects/oblivious-effect';
 import { MultiscaleEffect } from './effects/damage-modify/multiscale-effect';
 import { GutsEffect } from './effects/stat-change/guts-effect';
-import { GutsHpThresholdEffect } from './effects/stat-change/kongyou-effect';
 import { ThickFatEffect } from './effects/damage-modify/thick-fat-effect';
 import { HeatproofEffect } from './effects/damage-modify/heatproof-effect';
 import { SpeedBoostEffect } from './effects/stat-change/speed-boost-effect';
@@ -203,6 +203,101 @@ import { ContraryEffect } from './effects/stat-change/contrary-effect';
 import { MirrorArmorEffect } from './effects/stat-change/mirror-armor-effect';
 import { GuardDogEffect } from './effects/stat-change/guard-dog-effect';
 import { OpportunistEffect } from './effects/stat-change/opportunist-effect';
+// 性別・相手の能力・交代・ひんしで発動する特性（Issue #135 一部）
+import { StakeoutEffect } from './effects/damage-modify/stakeout-effect';
+import { InnardsOutEffect } from './effects/other/innards-out-effect';
+import { RivalryEffect } from './effects/damage-modify/rivalry-effect';
+import { DownloadEffect } from './effects/stat-change/download-effect';
+// 状態異常・素早さ・タイプ相性で発動する特性（Issue #135 一部）
+import { GutsAttackBoostEffect } from './effects/damage-modify/guts-attack-boost-effect';
+import { QuickDrawEffect } from './effects/other/quick-draw-effect';
+import { TeraShellEffect } from './effects/damage-modify/tera-shell-effect';
+// 接触技で両者をほろびのうた状態にする特性（Issue #135 一部）
+import { PerishBodyEffect } from './effects/other/perish-body-effect';
+// ひるみ・ねむりとして扱う特性（Issue #135 一部）
+import { SteadfastEffect } from './effects/stat-change/steadfast-effect';
+import { ComatoseEffect } from './effects/immunity/comatose-effect';
+// 相手の技をまねて出す特性（Issue #135 一部）
+import { DancerEffect } from './effects/other/dancer-effect';
+// 技を出す前に行動を止める特性（Issue #135 一部）
+import { TruantEffect } from './effects/other/truant-effect';
+// 相手の技の PP を余分に減らす特性（Issue #135 一部）
+import { PressureEffect } from './effects/other/pressure-effect';
+// 相手を一時的な状態にする特性（Issue #135 一部）
+import { CuteCharmEffect } from './effects/other/cute-charm-effect';
+import { CursedBodyEffect } from './effects/other/cursed-body-effect';
+// 場に出てからのターン数で変わる特性（Issue #135 一部）
+import { SlowStartEffect } from './effects/other/slow-start-effect';
+// 一時的な状態を使う特性（Issue #135 一部）
+import { AromaVeilEffect } from './effects/immunity/aroma-veil-effect';
+import { PoisonPuppeteerEffect } from './effects/other/poison-puppeteer-effect';
+import { GorillaTacticsEffect } from './effects/damage-modify/gorilla-tactics-effect';
+import { ElectromorphosisEffect } from './effects/other/electromorphosis-effect';
+import { WindPowerEffect } from './effects/other/wind-power-effect';
+// 物理技を受けたら相手の陣営にどくびしを置く特性（Issue #135 一部）
+import { ToxicDebrisEffect } from './effects/other/toxic-debris-effect';
+// ゲンシ天候の特性・そうだいしょう（Issue #135 一部）
+import { PrimordialSeaEffect } from './effects/weather/primordial-sea-effect';
+import { DesolateLandEffect } from './effects/weather/desolate-land-effect';
+import { DeltaStreamEffect } from './effects/weather/delta-stream-effect';
+import { SupremeOverlordEffect } from './effects/damage-modify/supreme-overlord-effect';
+// 陣営の守りに関わる特性（Issue #135 一部）
+import { InfiltratorEffect } from './effects/other/infiltrator-effect';
+import { ScreenCleanerEffect } from './effects/other/screen-cleaner-effect';
+// 交代させない・逃げられなくする・自分から交代する特性（Issue #135 一部）
+import { SuctionCupsEffect } from './effects/other/suction-cups-effect';
+import { ShadowTagEffect } from './effects/other/shadow-tag-effect';
+import { MagnetPullEffect } from './effects/other/magnet-pull-effect';
+import { ArenaTrapEffect } from './effects/other/arena-trap-effect';
+import { EmergencyExitEffect } from './effects/other/emergency-exit-effect';
+// 急所に当たらない特性（Issue #135 一部）
+import { BattleArmorEffect } from './effects/other/battle-armor-effect';
+// 急所に関わる特性（Issue #135 一部）
+import { SuperLuckEffect } from './effects/other/super-luck-effect';
+import { MercilessEffect } from './effects/other/merciless-effect';
+import { AngerPointEffect } from './effects/stat-change/anger-point-effect';
+// 変化技の命中・行動順・はね返しに関わる特性（Issue #135 一部）
+import { WonderSkinEffect } from './effects/other/wonder-skin-effect';
+import { MagicBounceEffect } from './effects/other/magic-bounce-effect';
+import { MyceliumMightEffect } from './effects/other/mycelium-might-effect';
+// まもる系を通り抜ける特性（Issue #135 一部）
+import { UnseenFistEffect } from './effects/other/unseen-fist-effect';
+// 特性を書き換える・消す特性（Issue #135 一部）
+import { TraceEffect } from './effects/other/trace-effect';
+import { MummyEffect } from './effects/other/mummy-effect';
+import { LingeringAromaEffect } from './effects/other/lingering-aroma-effect';
+import { WanderingSpiritEffect } from './effects/other/wandering-spirit-effect';
+import { NeutralizingGasEffect } from './effects/other/neutralizing-gas-effect';
+// フォルムを変える特性（Issue #135 一部）
+import { ForecastEffect } from './effects/form-change/forecast-effect';
+import { ZenModeEffect } from './effects/form-change/zen-mode-effect';
+import { StanceChangeEffect } from './effects/form-change/stance-change-effect';
+import { ShieldsDownEffect } from './effects/form-change/shields-down-effect';
+import { SchoolingEffect } from './effects/form-change/schooling-effect';
+// フォルムチェンジの特性（Issue #135 一部）
+import { DisguiseEffect } from './effects/other/disguise-effect';
+import { IceFaceEffect } from './effects/other/ice-face-effect';
+import { PowerConstructEffect } from './effects/other/power-construct-effect';
+import { BattleBondEffect } from './effects/stat-change/battle-bond-effect';
+import { GulpMissileEffect } from './effects/other/gulp-missile-effect';
+// フォルムを変える特性: はらぺこスイッチ・マイティチェンジ・テラスチェンジ（Issue #135 一部）
+import { HungerSwitchEffect } from './effects/other/hunger-switch-effect';
+import { ZeroToHeroEffect } from './effects/other/zero-to-hero-effect';
+import { TeraShiftEffect } from './effects/other/tera-shift-effect';
+// 姿を写す・化ける特性（Issue #135 一部）
+import { ImposterEffect } from './effects/other/imposter-effect';
+import { IllusionEffect } from './effects/other/illusion-effect';
+// 自分のタイプ・技のタイプを変える特性（Issue #135 一部）
+import { ColorChangeEffect } from './effects/other/color-change-effect';
+import { ProteanEffect } from './effects/other/protean-effect';
+import { NormalizeEffect } from './effects/other/normalize-effect';
+import { RefrigerateEffect } from './effects/other/refrigerate-effect';
+// タイプを変える特性: -スキン系・リベロ・ぎたい（Issue #135 一部）
+import { PixilateEffect } from './effects/other/pixilate-effect';
+import { AerilateEffect } from './effects/other/aerilate-effect';
+import { GalvanizeEffect } from './effects/other/galvanize-effect';
+import { LiberoEffect } from './effects/other/libero-effect';
+import { MimicryEffect } from './effects/other/mimicry-effect';
 
 /**
  * 特性レジストリ
@@ -279,7 +374,6 @@ export class AbilityRegistry {
       // 天候依存の回避率ブースト（Issue #84 一部）
       this.registry.set('すながくれ', new SandVeilEffect());
       this.registry.set('ゆきがくれ', new SnowCloakEffect());
-      this.registry.set('こんじょう', new GutsHpThresholdEffect());
       this.registry.set('しんりょく', new ShinryokuEffect());
       this.registry.set('もうか', new MoukaEffect());
       this.registry.set('げきりゅう', new GekiryuuEffect());
@@ -505,6 +599,107 @@ export class AbilityRegistry {
       this.registry.set('ミラーアーマー', new MirrorArmorEffect());
       this.registry.set('ばんけん', new GuardDogEffect());
       this.registry.set('びんじょう', new OpportunistEffect());
+      // 性別・相手の能力・交代・ひんしで発動する特性（Issue #135 一部）
+      this.registry.set('はりこみ', new StakeoutEffect());
+      this.registry.set('とびだすなかみ', new InnardsOutEffect());
+      this.registry.set('とうそうしん', new RivalryEffect());
+      this.registry.set('ダウンロード', new DownloadEffect());
+      // 状態異常・素早さ・タイプ相性で発動する特性（Issue #135 一部）
+      this.registry.set('こんじょう', new GutsAttackBoostEffect());
+      this.registry.set('クイックドロウ', new QuickDrawEffect());
+      this.registry.set('テラスシェル', new TeraShellEffect());
+      // 接触技で両者をほろびのうた状態にする特性（Issue #135 一部）
+      this.registry.set('ほろびのボディ', new PerishBodyEffect());
+      // ひるみ・ねむりとして扱う特性（Issue #135 一部）
+      this.registry.set('ふくつのこころ', new SteadfastEffect());
+      this.registry.set('ぜったいねむり', new ComatoseEffect());
+      // 相手の技をまねて出す特性（Issue #135 一部）
+      this.registry.set('おどりこ', new DancerEffect());
+      // 技を出す前に行動を止める特性（Issue #135 一部）
+      this.registry.set('なまけ', new TruantEffect());
+      // 相手の技の PP を余分に減らす特性（Issue #135 一部）
+      this.registry.set('プレッシャー', new PressureEffect());
+      // 相手を一時的な状態にする特性（Issue #135 一部）
+      this.registry.set('メロメロボディ', new CuteCharmEffect());
+      this.registry.set('のろわれボディ', new CursedBodyEffect());
+      // 場に出てからのターン数で変わる特性（Issue #135 一部）
+      this.registry.set('スロースタート', new SlowStartEffect());
+      // 一時的な状態を使う特性（Issue #135 一部）
+      this.registry.set('アロマベール', new AromaVeilEffect());
+      this.registry.set('どくくぐつ', new PoisonPuppeteerEffect());
+      this.registry.set('ごりむちゅう', new GorillaTacticsEffect());
+      this.registry.set('でんきにかえる', new ElectromorphosisEffect());
+      this.registry.set('ふうりょくでんき', new WindPowerEffect());
+      // 物理技を受けたら相手の陣営にどくびしを置く特性（Issue #135 一部）
+      this.registry.set('どくげしょう', new ToxicDebrisEffect());
+      // ゲンシ天候の特性・そうだいしょう（Issue #135 一部）
+      this.registry.set('はじまりのうみ', new PrimordialSeaEffect());
+      this.registry.set('おわりのだいち', new DesolateLandEffect());
+      this.registry.set('デルタストリーム', new DeltaStreamEffect());
+      this.registry.set('そうだいしょう', new SupremeOverlordEffect());
+      // 陣営の守りに関わる特性（Issue #135 一部）
+      this.registry.set('すりぬけ', new InfiltratorEffect());
+      this.registry.set('バリアフリー', new ScreenCleanerEffect());
+      // 交代させない・逃げられなくする・自分から交代する特性（Issue #135 一部）
+      // にげごしはききかいひと同効果のため EmergencyExitEffect を共有
+      const emergencyExit = new EmergencyExitEffect();
+      this.registry.set('きゅうばん', new SuctionCupsEffect());
+      this.registry.set('かげふみ', new ShadowTagEffect());
+      this.registry.set('じりょく', new MagnetPullEffect());
+      this.registry.set('ありじごく', new ArenaTrapEffect());
+      this.registry.set('にげごし', emergencyExit);
+      this.registry.set('ききかいひ', emergencyExit);
+      // 急所に当たらない特性（Issue #135 一部）
+      // シェルアーマーはカブトアーマーと同効果のため BattleArmorEffect を共有
+      const battleArmor = new BattleArmorEffect();
+      this.registry.set('カブトアーマー', battleArmor);
+      this.registry.set('シェルアーマー', battleArmor);
+      // 急所に関わる特性（Issue #135 一部）
+      this.registry.set('きょううん', new SuperLuckEffect());
+      this.registry.set('ひとでなし', new MercilessEffect());
+      this.registry.set('いかりのつぼ', new AngerPointEffect());
+      // 変化技の命中・行動順・はね返しに関わる特性（Issue #135 一部）
+      this.registry.set('ミラクルスキン', new WonderSkinEffect());
+      this.registry.set('マジックミラー', new MagicBounceEffect());
+      this.registry.set('きんしのちから', new MyceliumMightEffect());
+      // まもる系を通り抜ける特性（Issue #135 一部）
+      this.registry.set('ふかしのこぶし', new UnseenFistEffect());
+      // 特性を書き換える・消す特性（Issue #135 一部）
+      this.registry.set('トレース', new TraceEffect());
+      this.registry.set('ミイラ', new MummyEffect());
+      this.registry.set('とれないにおい', new LingeringAromaEffect());
+      this.registry.set('さまようたましい', new WanderingSpiritEffect());
+      this.registry.set('かがくへんかガス', new NeutralizingGasEffect());
+      // フォルムを変える特性（Issue #135 一部）
+      this.registry.set('てんきや', new ForecastEffect());
+      this.registry.set('ダルマモード', new ZenModeEffect());
+      this.registry.set('バトルスイッチ', new StanceChangeEffect());
+      this.registry.set('リミットシールド', new ShieldsDownEffect());
+      this.registry.set('ぎょぐん', new SchoolingEffect());
+      // フォルムチェンジの特性（Issue #135 一部）
+      this.registry.set('ばけのかわ', new DisguiseEffect());
+      this.registry.set('アイスフェイス', new IceFaceEffect());
+      this.registry.set('スワームチェンジ', new PowerConstructEffect());
+      this.registry.set('きずなへんげ', new BattleBondEffect());
+      this.registry.set('うのミサイル', new GulpMissileEffect());
+      // フォルムを変える特性: はらぺこスイッチ・マイティチェンジ・テラスチェンジ（Issue #135 一部）
+      this.registry.set('はらぺこスイッチ', new HungerSwitchEffect());
+      this.registry.set('マイティチェンジ', new ZeroToHeroEffect());
+      this.registry.set('テラスチェンジ', new TeraShiftEffect());
+      // 姿を写す・化ける特性（Issue #135 一部）
+      this.registry.set('かわりもの', new ImposterEffect());
+      this.registry.set('イリュージョン', new IllusionEffect());
+      // 自分のタイプ・技のタイプを変える特性（Issue #135 一部）
+      this.registry.set('へんしょく', new ColorChangeEffect());
+      this.registry.set('へんげんじざい', new ProteanEffect());
+      this.registry.set('ノーマルスキン', new NormalizeEffect());
+      this.registry.set('フリーズスキン', new RefrigerateEffect());
+      // タイプを変える特性: -スキン系・リベロ・ぎたい（Issue #135 一部）
+      this.registry.set('フェアリースキン', new PixilateEffect());
+      this.registry.set('スカイスキン', new AerilateEffect());
+      this.registry.set('エレキスキン', new GalvanizeEffect());
+      this.registry.set('リベロ', new LiberoEffect());
+      this.registry.set('ぎたい', new MimicryEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
@@ -547,18 +742,21 @@ export class AbilityRegistry {
 
   /**
    * 攻撃側がかたやぶり系の特性を持っているかチェック
-   * かたやぶり系の特性（breaksMold が true の特性）は、防御側の特性効果を無視する
+   * かたやぶり系の特性（breaksMold が true の特性）は、防御側の特性効果を無視する。
+   * breaksMoldFor を持つ特性（きんしのちから）は、技のコンテキストで true を返したときだけ無視する
    * @param attackerAbilityName 攻撃側の特性名
+   * @param battleContext 技のコンテキスト（moveCategory など。breaksMoldFor に渡す）
    * @returns かたやぶり系の特性を持っている場合はtrue、そうでない場合はfalse
    */
-  static hasMoldBreaker(attackerAbilityName?: string): boolean {
+  static hasMoldBreaker(attackerAbilityName?: string, battleContext?: BattleContext): boolean {
     if (!attackerAbilityName) {
       return false;
     }
     if (attackerAbilityName === this.MOLD_BREAKER_ABILITY_NAME) {
       return true;
     }
-    return this.registry.get(attackerAbilityName)?.breaksMold === true;
+    const effect = this.registry.get(attackerAbilityName);
+    return effect?.breaksMold === true || effect?.breaksMoldFor?.(battleContext) === true;
   }
 
   /**
@@ -566,13 +764,15 @@ export class AbilityRegistry {
    * unaffectedByMoldBreaker が true の特性（プリズムアーマーなど）は無視されない
    * @param attackerAbilityName 攻撃側の特性名
    * @param defenderAbilityName 防御側の特性名
+   * @param battleContext 技のコンテキスト（breaksMoldFor に渡す）
    * @returns 防御側の特性を無視する場合はtrue
    */
   static isIgnoredByMoldBreaker(
     attackerAbilityName?: string,
     defenderAbilityName?: string,
+    battleContext?: BattleContext,
   ): boolean {
-    if (!this.hasMoldBreaker(attackerAbilityName)) {
+    if (!this.hasMoldBreaker(attackerAbilityName, battleContext)) {
       return false;
     }
     if (!defenderAbilityName) {

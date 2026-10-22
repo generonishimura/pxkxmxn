@@ -40,6 +40,7 @@ describe('ThickFatEffect', () => {
         field: null,
         status: BattleStatus.Active,
         winnerTrainerId: null,
+        sideState: {},
       },
       moveTypeName: 'ほのお',
     };
@@ -89,4 +90,3 @@ describe('ThickFatEffect', () => {
     });
   });
 });
-

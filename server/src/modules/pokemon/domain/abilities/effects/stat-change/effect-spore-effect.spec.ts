@@ -89,6 +89,8 @@ describe('EffectSporeEffect', () => {
   const createBattleRepository = (): jest.Mocked<IBattleRepository> =>
     ({
       updateBattlePokemonStatus: jest.fn(),
+      // ねむりの付与で、場の誰かがさわいでいないかを確かめる
+      findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([]),
     }) as unknown as jest.Mocked<IBattleRepository>;
 
   afterEach(() => {

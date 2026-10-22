@@ -27,6 +27,29 @@ describe('PoisonHealEffect（ポイズンヒール）', () => {
       },
     );
 
+    it('かいふくふうじ中は回復しないが、どくのダメージも受けない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({
+        status: {
+          currentHp: 50,
+          statusCondition: StatusCondition.Poison,
+          volatileState: { healBlockTurns: 2 },
+        },
+      });
+
+      // Act
+      const damage = await new PoisonHealEffect().modifyStatusDamage(
+        get(1),
+        StatusCondition.Poison,
+        12,
+        context(),
+      );
+
+      // Assert
+      expect(damage).toBe(0);
+      expect(get(1).currentHp).toBe(50);
+    });
+
     it('回復量は切り捨てで、最低1回復する', async () => {
       // Arrange
       const { context, get } = createInMemoryBattle({

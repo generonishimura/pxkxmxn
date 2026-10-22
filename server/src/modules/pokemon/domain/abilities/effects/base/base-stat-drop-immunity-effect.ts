@@ -8,7 +8,8 @@ import { StatType } from './base-opponent-stat-change-effect';
  * はとむね（防御）、かいりきバサミ（攻撃）、するどいめ（命中率）などで使用
  *
  * `canReceiveStatChange` フックで、対象の能力を下げようとする能力変化を無効化する。
- * `BaseOpponentStatChangeMoveEffect` 等の能力変化を適用する側で本フックが参照される。
+ * 本フックは、能力ランクを変える共通の処理 `applyStatChanges`（battle-events/stat-change.ts）が、
+ * 相手が起こした低下に対してだけ能力ごとに呼ぶ。複数の能力を下げる技では、対象の能力だけが防がれる。
  *
  * 各特性は、このクラスを継承して対象の能力を設定するだけで実装できる
  */

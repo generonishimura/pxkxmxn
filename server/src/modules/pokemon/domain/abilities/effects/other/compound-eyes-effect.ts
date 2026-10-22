@@ -15,13 +15,15 @@ export class CompoundEyesEffect implements IAbilityEffect {
    * @param accuracy 現在の命中率（0-100）
    * @param _battleContext バトルコンテキスト
    * @returns 修正後の命中率（1.3倍）
+   *
+   * 100 を超えても、ここでは上限を付けない。防御側の回避の補正より前に上がった分を消さないため。
+   * 最終的な 0〜100 の制限は AccuracyCalculator.checkHit が行う
    */
   modifyAccuracy(
     _pokemon: BattlePokemonStatus,
     accuracy: number,
     _battleContext?: BattleContext,
   ): number | undefined {
-    // 命中率を1.3倍にする（上限100）
-    return Math.min(100, Math.floor(accuracy * CompoundEyesEffect.ACCURACY_MULTIPLIER));
+    return Math.floor(accuracy * CompoundEyesEffect.ACCURACY_MULTIPLIER);
   }
 }

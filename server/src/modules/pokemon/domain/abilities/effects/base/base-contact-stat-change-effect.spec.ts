@@ -14,6 +14,7 @@ import {
 } from '@/modules/pokemon/domain/entities/ability.entity';
 import { Nature } from '@/modules/battle/domain/logic/stat-calculator';
 import { AbilityRegistry } from '../../ability-registry';
+import { HitResult } from '../../../battle-events/hit-result';
 
 /**
  * テスト用の具象クラス（攻撃側の素早さを1段階下げる）
@@ -70,6 +71,10 @@ describe('BaseContactStatChangeEffect', () => {
     createBattlePokemonMove: jest.fn(),
     updateBattlePokemonMove: jest.fn(),
     findBattlePokemonMoveById: jest.fn(),
+    patchVolatileState: jest.fn(),
+    patchPersistentState: jest.fn(),
+    patchSideConditions: jest.fn(),
+    patchGlobalFieldState: jest.fn(),
   });
 
   const createTrainedPokemonRepository = (
@@ -310,6 +315,57 @@ describe('BaseContactStatChangeEffect', () => {
       // Assert
       expect(result).toBe(true);
       expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(2, { speedRank: -1 });
+    });
+  });
+
+  describe('onDamagingHit', () => {
+    const hit: HitResult = {
+      damage: 10,
+      hpBefore: 100,
+      hitIndex: 0,
+      hitCount: 1,
+      isContact: true,
+      moveTypeName: 'ノーマル',
+      moveCategory: 'Physical',
+      targetFainted: false,
+    };
+
+    it('ランクを変えたら「<特性名> activated!」を返す', async () => {
+      // Arrange
+      const effect = new TestDefenderMultiChangeEffect();
+      const battleRepository = createMockBattleRepository();
+      const context = {
+        ...createContext(battleRepository, 'Physical'),
+        defenderAbilityName: 'テストくだけるよろい',
+      };
+
+      // Act
+      const message = await effect.onDamagingHit(createStatus(1), createStatus(2), hit, context);
+
+      // Assert
+      expect(message).toBe('テストくだけるよろい activated!');
+      expect(battleRepository.updateBattlePokemonStatus).toHaveBeenCalledWith(1, {
+        defenseRank: -1,
+        speedRank: 2,
+      });
+    });
+
+    it('発動しなかったら null を返す', async () => {
+      // Arrange
+      const effect = new TestAttackerSpeedDropEffect();
+      const battleRepository = createMockBattleRepository();
+
+      // Act
+      const message = await effect.onDamagingHit(
+        createStatus(1),
+        createStatus(2, { currentHp: 0 }),
+        hit,
+        createContext(battleRepository, 'Physical'),
+      );
+
+      // Assert
+      expect(message).toBeNull();
+      expect(battleRepository.updateBattlePokemonStatus).not.toHaveBeenCalled();
     });
   });
 

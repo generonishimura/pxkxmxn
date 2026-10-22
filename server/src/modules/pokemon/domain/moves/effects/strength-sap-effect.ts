@@ -1,10 +1,9 @@
 import { IMoveEffect } from '../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
-import { StatCalculator } from '@/modules/battle/domain/logic/stat-calculator';
-import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 import { BaseOpponentStatChangeMoveEffect } from './base/base-opponent-stat-change-move-effect';
 import { applyDrainHeal } from '../../battle-events/drain-heal';
+import { battleStatsOf } from '@/modules/battle/domain/logic/battle-pokemon-traits';
 
 /**
  * ちからをすいとる の後半（相手の攻撃ランク -1）
@@ -38,7 +37,7 @@ export class StrengthSapEffect implements IMoveEffect {
     }
 
     if (defender.attackRank <= -6) {
-      return null;
+      return 'But it failed';
     }
 
     const defenderTrainedPokemon = await battleContext.trainedPokemonRepository.findById(
@@ -50,7 +49,8 @@ export class StrengthSapEffect implements IMoveEffect {
 
     const messages: string[] = [];
 
-    const attack = this.calculateAttack(defenderTrainedPokemon);
+    // 実数値はフォルム・パワートリック・へんしんなどの上書きを反映する（本家の getStat の storedStats）
+    const attack = battleStatsOf(defenderTrainedPokemon, defender).attack;
     const healAmount = Math.max(1, Math.floor(attack * defender.getStatMultiplier('attack')));
     const { healed, damaged } = await applyDrainHeal(attacker, defender, healAmount, battleContext);
     if (healed > 0) {
@@ -66,33 +66,5 @@ export class StrengthSapEffect implements IMoveEffect {
     }
 
     return messages.length > 0 ? messages.join(' ') : null;
-  }
-
-  /**
-   * 育成個体から攻撃の実数値（ランク補正なし）を計算する
-   */
-  private calculateAttack(trainedPokemon: TrainedPokemon): number {
-    return StatCalculator.calculate({
-      baseHp: trainedPokemon.pokemon.baseHp,
-      baseAttack: trainedPokemon.pokemon.baseAttack,
-      baseDefense: trainedPokemon.pokemon.baseDefense,
-      baseSpecialAttack: trainedPokemon.pokemon.baseSpecialAttack,
-      baseSpecialDefense: trainedPokemon.pokemon.baseSpecialDefense,
-      baseSpeed: trainedPokemon.pokemon.baseSpeed,
-      level: trainedPokemon.level,
-      ivHp: trainedPokemon.ivHp,
-      ivAttack: trainedPokemon.ivAttack,
-      ivDefense: trainedPokemon.ivDefense,
-      ivSpecialAttack: trainedPokemon.ivSpecialAttack,
-      ivSpecialDefense: trainedPokemon.ivSpecialDefense,
-      ivSpeed: trainedPokemon.ivSpeed,
-      evHp: trainedPokemon.evHp,
-      evAttack: trainedPokemon.evAttack,
-      evDefense: trainedPokemon.evDefense,
-      evSpecialAttack: trainedPokemon.evSpecialAttack,
-      evSpecialDefense: trainedPokemon.evSpecialDefense,
-      evSpeed: trainedPokemon.evSpeed,
-      nature: trainedPokemon.nature,
-    }).attack;
   }
 }
