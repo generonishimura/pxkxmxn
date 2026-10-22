@@ -1237,7 +1237,7 @@ return joinStatChangeMessages(result);
 #### forceSwitch（技のプロパティ）と preventsForcedSwitch（特性のプロパティ）
 
 - 型: `readonly forceSwitch?: boolean`（`IMoveEffect`）、`readonly preventsForcedSwitch?: boolean`（`IAbilityEffect`）
-- 参照する場所: `MoveExecutorService`。変化技は、相手がひんし・控えなし・ねをはる・`preventsForcedSwitch`（かたやぶりで無視される）なら `onUse` の前に失敗する。攻撃技は、ダメージを与えて相手が残り、交代させられるときだけ。相手の陣営に `forcedSwitch` を書き、行動のすぐあとにランダムな控えと入れ替える
+- 参照する場所: `MoveExecutorService`。変化技は、相手がひんし・控えなし・ねをはる・`preventsForcedSwitch`（かたやぶりで無視される）なら `onUse` の前に失敗する。攻撃技は、ダメージを与えて相手が残り、交代させられるときだけ（みがわりに当たったとき・使用者がさめはだなどでひんしになったときは交代させない）。相手の陣営に `forcedSwitch` を書き、行動のすぐあとにランダムな控えと入れ替える
 - 使う技・特性: ほえる・ふきとばし（変化技、優先度 -6 は DB の値）、ドラゴンテール・ともえなげ（攻撃技）、きゅうばん（`preventsForcedSwitch = true`）、ばんけん（作成済み）
 
 ```ts

@@ -354,6 +354,12 @@ import { SpiderWebEffect } from './effects/spider-web-effect';
 import { ShedTailEffect } from './effects/shed-tail-effect';
 import { ChillyReceptionEffect } from './effects/chilly-reception-effect';
 import { LunarDanceEffect } from './effects/lunar-dance-effect';
+// 攻撃して交代する技・攻撃して相手を交代させる技
+import { UTurnEffect } from './effects/u-turn-effect';
+import { VoltSwitchEffect } from './effects/volt-switch-effect';
+import { FlipTurnEffect } from './effects/flip-turn-effect';
+import { DragonTailEffect } from './effects/dragon-tail-effect';
+import { CircleThrowEffect } from './effects/circle-throw-effect';
 // 急所ランクを上げる技（Issue #111 一部）
 import { FocusEnergyEffect } from './effects/focus-energy-effect';
 import { LaserFocusEffect } from './effects/laser-focus-effect';
@@ -867,6 +873,12 @@ export class MoveRegistry {
       this.registry.set('しっぽきり', new ShedTailEffect());
       this.registry.set('さむいギャグ', new ChillyReceptionEffect());
       this.registry.set('みかづきのまい', new LunarDanceEffect());
+      // 攻撃して交代する技・攻撃して相手を交代させる技
+      this.registry.set('とんぼがえり', new UTurnEffect());
+      this.registry.set('ボルトチェンジ', new VoltSwitchEffect());
+      this.registry.set('クイックターン', new FlipTurnEffect());
+      this.registry.set('ドラゴンテール', new DragonTailEffect());
+      this.registry.set('ともえなげ', new CircleThrowEffect());
       // 急所ランクを上げる技（Issue #111 一部）
       this.registry.set('きあいだめ', new FocusEnergyEffect());
       this.registry.set('とぎすます', new LaserFocusEffect());
