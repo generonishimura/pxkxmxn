@@ -42,13 +42,22 @@ export class StatusConditionProcessorService {
       // 状態異常によるダメージ処理
       await this.processStatusConditionDamage(battle.id, status);
 
+      // 状態異常ダメージを反映した最新のステータスを読み直す
+      // 古いステータスのまま特性が HP を書くと、状態異常ダメージが上書きされてしまうため
+      const latestStatus = await this.battleRepository.findBattlePokemonStatusById(status.id);
+      if (!latestStatus || latestStatus.isFainted()) {
+        continue;
+      }
+
       // 特性効果の処理
-      const trainedPokemon = await this.trainedPokemonRepository.findById(status.trainedPokemonId);
+      const trainedPokemon = await this.trainedPokemonRepository.findById(
+        latestStatus.trainedPokemonId,
+      );
 
       if (trainedPokemon?.ability) {
         const abilityEffect = AbilityRegistry.get(trainedPokemon.ability.name);
         if (abilityEffect?.onTurnEnd) {
-          await abilityEffect.onTurnEnd(status, {
+          await abilityEffect.onTurnEnd(latestStatus, {
             battle,
             battleRepository: this.battleRepository,
           });

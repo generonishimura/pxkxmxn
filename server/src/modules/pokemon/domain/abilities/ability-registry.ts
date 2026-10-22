@@ -81,6 +81,41 @@ import { BerserkEffect } from './effects/stat-change/berserk-effect';
 import { HyperCutterEffect } from './effects/stat-change/hyper-cutter-effect';
 import { KeenEyeEffect } from './effects/stat-change/keen-eye-effect';
 import { FurCoatEffect } from './effects/damage-modify/fur-coat-effect';
+import { RoughSkinEffect } from './effects/other/rough-skin-effect';
+import { AftermathEffect } from './effects/other/aftermath-effect';
+import { GooeyEffect } from './effects/stat-change/gooey-effect';
+import { TanglingHairEffect } from './effects/stat-change/tangling-hair-effect';
+import { WeakArmorEffect } from './effects/stat-change/weak-armor-effect';
+import { EffectSporeEffect } from './effects/stat-change/effect-spore-effect';
+import { TransistorEffect } from './effects/damage-modify/transistor-effect';
+import { DragonsMawEffect } from './effects/damage-modify/dragons-maw-effect';
+import { RockyPayloadEffect } from './effects/damage-modify/rocky-payload-effect';
+import { GrassPeltEffect } from './effects/damage-modify/grass-pelt-effect';
+import { IceScalesEffect } from './effects/damage-modify/ice-scales-effect';
+import { SolarPowerEffect } from './effects/damage-modify/solar-power-effect';
+import { DefeatistEffect } from './effects/damage-modify/defeatist-effect';
+import { VesselOfRuinEffect } from './effects/damage-modify/vessel-of-ruin-effect';
+import { SwordOfRuinEffect } from './effects/damage-modify/sword-of-ruin-effect';
+import { TabletsOfRuinEffect } from './effects/damage-modify/tablets-of-ruin-effect';
+import { BeadsOfRuinEffect } from './effects/damage-modify/beads-of-ruin-effect';
+import { FlowerGiftEffect } from './effects/damage-modify/flower-gift-effect';
+import { PurifyingSaltEffect } from './effects/immunity/purifying-salt-effect';
+import { ElectricSurgeEffect } from './effects/weather/electric-surge-effect';
+import { OrichalcumPulseEffect } from './effects/weather/orichalcum-pulse-effect';
+import { HadronEngineEffect } from './effects/weather/hadron-engine-effect';
+import { IntrepidSwordEffect } from './effects/stat-change/intrepid-sword-effect';
+import { DauntlessShieldEffect } from './effects/stat-change/dauntless-shield-effect';
+import { SupersweetSyrupEffect } from './effects/stat-change/supersweet-syrup-effect';
+import { EarthEaterEffect } from './effects/immunity/earth-eater-effect';
+import { DrySkinEffect } from './effects/immunity/dry-skin-effect';
+import { WellBakedBodyEffect } from './effects/immunity/well-baked-body-effect';
+import { TangledFeetEffect } from './effects/stat-change/tangled-feet-effect';
+import { StallEffect } from './effects/stat-change/stall-effect';
+import { BadDreamsEffect } from './effects/other/bad-dreams-effect';
+import { MoodyEffect } from './effects/stat-change/moody-effect';
+import { VictoryStarEffect } from './effects/other/victory-star-effect';
+import { SweetVeilEffect } from './effects/immunity/sweet-veil-effect';
+import { PastelVeilEffect } from './effects/immunity/pastel-veil-effect';
 
 /**
  * 特性レジストリ
@@ -226,6 +261,71 @@ export class AbilityRegistry {
       this.registry.set('するどいめ', new KeenEyeEffect());
       // ファーコート: 物理ダメージ半減（Issue #84 一部、ふしぎなうろこと同パターン）
       this.registry.set('ファーコート', new FurCoatEffect());
+      // 接触時に発動する特性（Issue #135 一部）
+      this.registry.set('さめはだ', new RoughSkinEffect());
+      this.registry.set('ゆうばく', new AftermathEffect());
+      this.registry.set('ぬめぬめ', new GooeyEffect());
+      this.registry.set('カーリーヘアー', new TanglingHairEffect());
+      this.registry.set('くだけるよろい', new WeakArmorEffect());
+      this.registry.set('ほうし', new EffectSporeEffect());
+      // ダメージ補正特性（タイプ・天候・HP）（Issue #135 一部）
+      this.registry.set('トランジスタ', new TransistorEffect());
+      this.registry.set('りゅうのあぎと', new DragonsMawEffect());
+      this.registry.set('いわはこび', new RockyPayloadEffect());
+      this.registry.set('くさのけがわ', new GrassPeltEffect());
+      this.registry.set('こおりのりんぷん', new IceScalesEffect());
+      this.registry.set('サンパワー', new SolarPowerEffect());
+      this.registry.set('よわき', new DefeatistEffect());
+      // わざわい系・フラワーギフト・きよめのしお（Issue #135 一部）
+      this.registry.set('わざわいのうつわ', new VesselOfRuinEffect());
+      this.registry.set('わざわいのつるぎ', new SwordOfRuinEffect());
+      this.registry.set('わざわいのおふだ', new TabletsOfRuinEffect());
+      this.registry.set('わざわいのたま', new BeadsOfRuinEffect());
+      this.registry.set('フラワーギフト', new FlowerGiftEffect());
+      this.registry.set('きよめのしお', new PurifyingSaltEffect());
+      // 登場時・無効化系の特性（Issue #135 一部）
+      this.registry.set('エレキメイカー', new ElectricSurgeEffect());
+      this.registry.set('ひひいろのこどう', new OrichalcumPulseEffect());
+      this.registry.set('ハドロンエンジン', new HadronEngineEffect());
+      this.registry.set('ふとうのけん', new IntrepidSwordEffect());
+      this.registry.set('ふくつのたて', new DauntlessShieldEffect());
+      this.registry.set('かんろなミツ', new SupersweetSyrupEffect());
+      this.registry.set('どしょく', new EarthEaterEffect());
+      this.registry.set('かんそうはだ', new DrySkinEffect());
+      this.registry.set('こんがりボディ', new WellBakedBodyEffect());
+      // その他の特性（Issue #135 一部）
+      this.registry.set('ちどりあし', new TangledFeetEffect());
+      this.registry.set('あとだし', new StallEffect());
+      this.registry.set('ナイトメア', new BadDreamsEffect());
+      this.registry.set('ムラっけ', new MoodyEffect());
+      this.registry.set('しょうりのほし', new VictoryStarEffect());
+      this.registry.set('スイートベール', new SweetVeilEffect());
+      this.registry.set('パステルベール', new PastelVeilEffect());
+      // メタルプロテクト: クリアボディと同効果、ファントムガード: マルチスケイルと同効果
+      this.registry.set('メタルプロテクト', clearBody);
+      this.registry.set('ファントムガード', new MultiscaleEffect());
+      // シングルバトルで効果のない特性・技（ダブル専用含む）（Issue #135 一部）
+      // 情報表示のみ・野生バトル専用・ダブルバトル専用の特性は NoBattleEffectAbility を共有
+      this.registry.set('きけんよち', noBattleEffect);
+      this.registry.set('よちむ', noBattleEffect);
+      this.registry.set('たまひろい', noBattleEffect);
+      this.registry.set('プラス', noBattleEffect);
+      this.registry.set('マイナス', noBattleEffect);
+      this.registry.set('いやしのこころ', noBattleEffect);
+      this.registry.set('フレンドガード', noBattleEffect);
+      this.registry.set('テレパシー', noBattleEffect);
+      this.registry.set('フラワーベール', noBattleEffect);
+      this.registry.set('きょうせい', noBattleEffect);
+      this.registry.set('バッテリー', noBattleEffect);
+      this.registry.set('レシーバー', noBattleEffect);
+      this.registry.set('かがくのちから', noBattleEffect);
+      this.registry.set('スクリューおびれ', noBattleEffect);
+      this.registry.set('すじがねいり', noBattleEffect);
+      this.registry.set('パワースポット', noBattleEffect);
+      this.registry.set('きみょうなくすり', noBattleEffect);
+      this.registry.set('しれいとう', noBattleEffect);
+      this.registry.set('きょうえん', noBattleEffect);
+      this.registry.set('おもてなし', noBattleEffect);
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

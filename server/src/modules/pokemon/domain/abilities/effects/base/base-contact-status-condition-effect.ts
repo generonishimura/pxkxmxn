@@ -5,7 +5,7 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 
 /**
  * 接触技を受けたときに状態異常を付与する基底クラス
- * どくのトゲ（Poison Point）、せいでんき（Static）、ほのおのからだ（Flame Body）などで使用
+ * どくのトゲ（Poison Point）、せいでんき（Static）、ほのおのからだ（Flame Body）、ほうし（Effect Spore）などで使用
  *
  * 各特性は、このクラスを継承してパラメータを設定するだけで実装できる
  */
@@ -13,7 +13,11 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
   /**
    * ダメージ修正（この特性はダメージを修正しない）
    */
-  modifyDamage(_pokemon: BattlePokemonStatus, damage: number, _battleContext?: BattleContext): number {
+  modifyDamage(
+    _pokemon: BattlePokemonStatus,
+    damage: number,
+    _battleContext?: BattleContext,
+  ): number {
     return damage;
   }
   /**
@@ -30,6 +34,32 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
    * 状態異常を付与できないタイプ（免疫タイプ）
    */
   protected abstract readonly immuneTypes: readonly string[];
+
+  /**
+   * 付与する状態異常を抽選する
+   * 既定では chance の確率で statusCondition を返す（chanceが1.0の場合は必ず返す）。
+   * ほうし（Effect Spore）のように複数の状態異常から選ぶ特性は、このメソッドを上書きする。
+   *
+   * @returns 付与する状態異常、付与しない場合はnull
+   */
+  protected selectStatusCondition(): StatusCondition | null {
+    if (this.chance < 1.0 && Math.random() >= this.chance) {
+      return null;
+    }
+    return this.statusCondition;
+  }
+
+  /**
+   * 抽選した状態異常ごとの免疫タイプを返す
+   * 既定では状態異常に関係なく immuneTypes を返す。
+   * ほうし（Effect Spore）のように状態異常ごとに効かないタイプが違う特性は、このメソッドを上書きする。
+   *
+   * @param _statusCondition 抽選で選ばれた状態異常
+   * @returns その状態異常を付与できないタイプ
+   */
+  protected immuneTypesFor(_statusCondition: StatusCondition): readonly string[] {
+    return this.immuneTypes;
+  }
 
   /**
    * 接触技を受けたときに状態異常を付与する
@@ -67,11 +97,18 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       return false;
     }
 
-    // タイプによる免疫チェック
+    // 確率判定と付与する状態異常の決定
+    const statusCondition = this.selectStatusCondition();
+    if (statusCondition === null) {
+      return false;
+    }
+
+    // タイプによる免疫チェック（選ばれた状態異常ごとに判定する）
+    const immuneTypes = this.immuneTypesFor(statusCondition);
     const hasImmuneType =
-      this.immuneTypes.includes(attackerTrainedPokemon.pokemon.primaryType.name) ||
+      immuneTypes.includes(attackerTrainedPokemon.pokemon.primaryType.name) ||
       (attackerTrainedPokemon.pokemon.secondaryType &&
-        this.immuneTypes.includes(attackerTrainedPokemon.pokemon.secondaryType.name));
+        immuneTypes.includes(attackerTrainedPokemon.pokemon.secondaryType.name));
     if (hasImmuneType) {
       return false;
     }
@@ -84,7 +121,7 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       if (abilityEffect?.canReceiveStatusCondition) {
         const canReceive = abilityEffect.canReceiveStatusCondition(
           attacker,
-          this.statusCondition,
+          statusCondition,
           battleContext,
         );
         // canReceiveがfalseの場合は無効化（undefinedの場合は判定しない）
@@ -94,17 +131,11 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       }
     }
 
-    // 確率判定（chanceが1.0の場合は必ず付与）
-    if (this.chance < 1.0 && Math.random() >= this.chance) {
-      return false;
-    }
-
     // 状態異常を付与
     await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {
-      statusCondition: this.statusCondition,
+      statusCondition,
     });
 
     return true;
   }
 }
-

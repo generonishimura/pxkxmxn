@@ -209,6 +209,36 @@ import { TakeHeartEffect } from './effects/take-heart-effect';
 import { DefogEffect } from './effects/defog-effect';
 import { CaptivateEffect } from './effects/captivate-effect';
 import { SnowscapeEffect } from './effects/snowscape-effect';
+import { RecoverEffect } from './effects/recover-effect';
+import { SoftBoiledEffect } from './effects/soft-boiled-effect';
+import { MilkDrinkEffect } from './effects/milk-drink-effect';
+import { SlackOffEffect } from './effects/slack-off-effect';
+import { HealOrderEffect } from './effects/heal-order-effect';
+import { MorningSunEffect } from './effects/morning-sun-effect';
+import { SynthesisEffect } from './effects/synthesis-effect';
+import { MoonlightEffect } from './effects/moonlight-effect';
+import { ShoreUpEffect } from './effects/shore-up-effect';
+import { HealPulseEffect } from './effects/heal-pulse-effect';
+import { FloralHealingEffect } from './effects/floral-healing-effect';
+import { JungleHealingEffect } from './effects/jungle-healing-effect';
+import { LifeDewEffect } from './effects/life-dew-effect';
+import { LunarBlessingEffect } from './effects/lunar-blessing-effect';
+import { PurifyEffect } from './effects/purify-effect';
+import { StrengthSapEffect } from './effects/strength-sap-effect';
+import { VictoryDanceEffect } from './effects/victory-dance-effect';
+import { SpicyExtractEffect } from './effects/spicy-extract-effect';
+import { TidyUpEffect } from './effects/tidy-up-effect';
+import { ClangorousSoulEffect } from './effects/clangorous-soul-effect';
+import { VenomDrenchEffect } from './effects/venom-drench-effect';
+import { RototillerEffect } from './effects/rototiller-effect';
+import { FlowerShieldEffect } from './effects/flower-shield-effect';
+import { MagneticFluxEffect } from './effects/magnetic-flux-effect';
+import { GearUpEffect } from './effects/gear-up-effect';
+import { JumpKickEffect } from './effects/jump-kick-effect';
+import { HighJumpKickEffect } from './effects/high-jump-kick-effect';
+import { StruggleEffect } from './effects/struggle-effect';
+import { SecretPowerEffect } from './effects/secret-power-effect';
+import { DecorateEffect } from './effects/decorate-effect';
 
 /**
  * 技のレジストリ
@@ -481,6 +511,55 @@ export class MoveRegistry {
       this.registry.set('きりばらい', new DefogEffect());
       this.registry.set('ゆうわく', new CaptivateEffect());
       this.registry.set('ゆきげしき', new SnowscapeEffect());
+      // HP回復技（自分を回復）（Issue #110 一部）
+      this.registry.set('じこさいせい', new RecoverEffect());
+      this.registry.set('タマゴうみ', new SoftBoiledEffect());
+      this.registry.set('ミルクのみ', new MilkDrinkEffect());
+      this.registry.set('なまける', new SlackOffEffect());
+      this.registry.set('かいふくしれい', new HealOrderEffect());
+      this.registry.set('あさのひざし', new MorningSunEffect());
+      this.registry.set('こうごうせい', new SynthesisEffect());
+      this.registry.set('つきのひかり', new MoonlightEffect());
+      this.registry.set('すなあつめ', new ShoreUpEffect());
+      // 回復・状態異常回復技（相手/自分）（Issue #103, #110 一部）
+      this.registry.set('いやしのはどう', new HealPulseEffect());
+      this.registry.set('フラワーヒール', new FloralHealingEffect());
+      this.registry.set('ジャングルヒール', new JungleHealingEffect());
+      this.registry.set('いのちのしずく', new LifeDewEffect());
+      this.registry.set('みかづきのいのり', new LunarBlessingEffect());
+      this.registry.set('じょうか', new PurifyEffect());
+      this.registry.set('ちからをすいとる', new StrengthSapEffect());
+      // 能力変化技（Issue #103, #108 一部）
+      this.registry.set('しょうりのまい', new VictoryDanceEffect());
+      this.registry.set('ハバネロエキス', new SpicyExtractEffect());
+      this.registry.set('おかたづけ', new TidyUpEffect());
+      this.registry.set('ソウルビート', new ClangorousSoulEffect());
+      this.registry.set('ベノムトラップ', new VenomDrenchEffect());
+      // タイプ・特性条件つき能力変化技（Issue #103 一部）
+      this.registry.set('たがやす', new RototillerEffect());
+      this.registry.set('フラワーガード', new FlowerShieldEffect());
+      this.registry.set('じばそうさ', new MagneticFluxEffect());
+      this.registry.set('アシストギア', new GearUpEffect());
+      this.registry.set('ハッピータイム', noOpEffect);
+      // 外したとき・最大HP基準の反動技と ひみつのちから（Issue #127, #129 一部）
+      this.registry.set('とびげり', new JumpKickEffect());
+      this.registry.set('とびひざげり', new HighJumpKickEffect());
+      this.registry.set('わるあがき', new StruggleEffect());
+      this.registry.set('ひみつのちから', new SecretPowerEffect());
+      // シングルバトルで効果のない特性・技（ダブル専用含む）（Issue #102, #103, #107 一部）
+      // 味方や複数の相手が必要なダブルバトル専用の技は NoOpEffect を共有
+      this.registry.set('サイドチェンジ', noOpEffect);
+      this.registry.set('てだすけ', noOpEffect);
+      // デコレーションは相手も対象にできるため、シングルバトルでも相手の攻撃と特攻が上がる
+      this.registry.set('デコレーション', new DecorateEffect());
+      this.registry.set('コーチング', noOpEffect);
+      this.registry.set('アロマミスト', noOpEffect);
+      this.registry.set('ドラゴンエール', noOpEffect);
+      this.registry.set('このゆびとまれ', noOpEffect);
+      this.registry.set('いかりのこな', noOpEffect);
+      this.registry.set('おさきにどうぞ', noOpEffect);
+      this.registry.set('さきおくり', noOpEffect);
+      this.registry.set('スポットライト', noOpEffect);
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
