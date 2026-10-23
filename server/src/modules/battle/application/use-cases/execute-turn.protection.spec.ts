@@ -420,7 +420,8 @@ describe('ExecuteTurnUseCase - まもる系', () => {
       await special.runTurn({ moveId: WATER_GUN.id }, { moveId: guardId('テストのまもる') });
 
       // Assert
-      expect(contact.status(2).currentHp).toBe(124);
+      // 通り抜けたときのダメージは 1/4（36 → 9。チャンピオンズの値。SV は等倍）
+      expect(contact.status(2).currentHp).toBe(151);
       expect(special.status(2).currentHp).toBe(160);
     });
   });

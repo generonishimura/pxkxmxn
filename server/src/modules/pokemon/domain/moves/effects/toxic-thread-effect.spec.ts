@@ -60,7 +60,7 @@ describe('ToxicThreadEffect', () => {
     };
   };
 
-  it('どくを付与しすばやさを1段階下げる', async () => {
+  it('どくを付与しすばやさを2段階下げる（チャンピオンズの値。SV は1段階）', async () => {
     const effect = new ToxicThreadEffect();
     const attacker = createBattlePokemonStatus();
     const defender = createBattlePokemonStatus({ id: 2 });
@@ -73,7 +73,7 @@ describe('ToxicThreadEffect', () => {
       statusCondition: StatusCondition.Poison,
     });
     expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
-      speedRank: -1,
+      speedRank: -2,
     });
   });
 
@@ -93,7 +93,7 @@ describe('ToxicThreadEffect', () => {
       statusCondition: StatusCondition.Poison,
     });
     expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
-      speedRank: -1,
+      speedRank: -2,
     });
   });
 
@@ -110,7 +110,7 @@ describe('ToxicThreadEffect', () => {
       statusCondition: StatusCondition.Poison,
     });
     expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
-      speedRank: -1,
+      speedRank: -2,
     });
   });
 
@@ -128,6 +128,19 @@ describe('ToxicThreadEffect', () => {
     });
     expect(ctx.battleRepository?.updateBattlePokemonStatus).not.toHaveBeenCalledWith(defender.id, {
       speedRank: expect.any(Number),
+    });
+  });
+
+  it('すばやさが -5 のときは、-6 までしか下げない', async () => {
+    const effect = new ToxicThreadEffect();
+    const attacker = createBattlePokemonStatus();
+    const defender = createBattlePokemonStatus({ id: 2, speedRank: -5 });
+    const ctx = createBattleContext();
+
+    await effect.onUse(attacker, defender, ctx);
+
+    expect(ctx.battleRepository?.updateBattlePokemonStatus).toHaveBeenCalledWith(defender.id, {
+      speedRank: -6,
     });
   });
 
@@ -199,7 +212,7 @@ describe('ToxicThreadEffect', () => {
       // Assert
       expect(result).toBe('Speed fell!');
       expect(get(2).statusCondition).toBeNull();
-      expect(get(2).speedRank).toBe(-1);
+      expect(get(2).speedRank).toBe(-2);
     });
   });
 
@@ -227,7 +240,7 @@ describe('ToxicThreadEffect', () => {
       expect(message).not.toContain('Speed fell!');
     });
 
-    it('あまのじゃくの相手は、すばやさが1段階上がる', async () => {
+    it('あまのじゃくの相手は、すばやさが2段階上がる', async () => {
       // Arrange
       const { context, get } = createInMemoryBattle({}, { ability: 'あまのじゃく' });
 
@@ -239,7 +252,7 @@ describe('ToxicThreadEffect', () => {
       );
 
       // Assert
-      expect(get(2).speedRank).toBe(1);
+      expect(get(2).speedRank).toBe(2);
       expect(message).toContain('Speed rose!');
     });
 
@@ -256,7 +269,7 @@ describe('ToxicThreadEffect', () => {
 
       // Assert
       expect(get(2).speedRank).toBe(0);
-      expect(get(1).speedRank).toBe(-1);
+      expect(get(1).speedRank).toBe(-2);
       expect(get(2).statusCondition).toBe(StatusCondition.Poison);
       expect(message).toContain('ミラーアーマー reflected the stat drop!');
     });

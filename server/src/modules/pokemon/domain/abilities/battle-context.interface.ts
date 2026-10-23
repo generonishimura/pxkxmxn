@@ -112,6 +112,12 @@ export interface BattleContext {
   isCriticalHit?: boolean;
 
   /**
+   * 相手のまもる系を、使用者の特性（ふかしのこぶし）で通り抜けたか
+   * true なら DamageCalculator がダメージを 1/4 にする（チャンピオンズの値。SV は等倍）
+   */
+  brokeThroughProtection?: boolean;
+
+  /**
    * 反動ダメージ、または外したときの自傷がある技かどうか（技の hasRecoil）
    * すてみなどの特性で使用
    */

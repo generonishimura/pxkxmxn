@@ -1,4 +1,5 @@
 import {
+  CHAMPIONS_MOVE_OVERRIDES,
   MoveOverride,
   applyMoveOverride,
   diffMoveOverride,
@@ -126,6 +127,40 @@ describe('champions-overrides', () => {
 
       // Assert
       expect(unused).toEqual(['りんごさｎ']);
+    });
+  });
+
+  describe('CHAMPIONS_MOVE_OVERRIDES', () => {
+    it('チャンピオンズで値が変わった技（Issue #259）だけが、チャンピオンズの値で入っている', () => {
+      // Arrange
+      // キーは DB の name（PokeAPI の ja-Hrkt 名）。Ｇのちからの Ｇ は全角
+      const expected: Record<string, MoveOverride> = {
+        りんごさん: { power: 90 },
+        くちばしキャノン: { power: 120 },
+        ボーンラッシュ: { power: 30 },
+        クラブハンマー: { accuracy: 95 },
+        ほのおのムチ: { power: 90 },
+        であいがしら: { power: 100 },
+        Ｇのちから: { power: 90 },
+        ひゃっきやこう: { power: 65 },
+        ナイトバースト: { power: 90 },
+        ひょうざんおろし: { power: 120 },
+        バリアーラッシュ: { power: 90 },
+        かげぬい: { power: 90 },
+        みずあめボム: { accuracy: 90 },
+        トロピカルキック: { power: 85 },
+        きりさく: { power: 80 },
+        ねらいうち: { power: 85 },
+        スターアサルト: { power: 170 },
+        せいちょう: { typeName: 'grass' },
+        トラバサミ: { typeName: 'steel' },
+        ねがいごと: { pp: 8 },
+        ちからをすいとる: { pp: 8 },
+        ゴールドラッシュ: { accuracy: 95 },
+      };
+
+      // Act & Assert
+      expect(CHAMPIONS_MOVE_OVERRIDES).toEqual(expected);
     });
   });
 });

@@ -295,7 +295,7 @@ describe('StatusConditionProcessorService - ターン終了時の一時的な状
       expect(get(1).volatileState.partialTrap).toBeUndefined();
     });
 
-    it('しおづけは最大 HP の 1/8、みず・はがねタイプには 1/4 のダメージ', async () => {
+    it('しおづけは最大 HP の 1/16、みず・はがねタイプには 1/8 のダメージ（チャンピオンズの値。SV は 1/8・1/4）', async () => {
       // Act
       const { get } = await runTurnEnd(
         { status: { volatileState: { saltCure: true } } },
@@ -303,8 +303,19 @@ describe('StatusConditionProcessorService - ターン終了時の一時的な状
       );
 
       // Assert
+      expect(get(1).currentHp).toBe(94);
+      expect(get(2).currentHp).toBe(88);
+    });
+
+    it('しおづけは、はがねタイプにも最大 HP の 1/8 のダメージ', async () => {
+      // Act
+      const { get } = await runTurnEnd({
+        types: ['はがね'],
+        status: { volatileState: { saltCure: true } },
+      });
+
+      // Assert
       expect(get(1).currentHp).toBe(88);
-      expect(get(2).currentHp).toBe(75);
     });
 
     it.each([

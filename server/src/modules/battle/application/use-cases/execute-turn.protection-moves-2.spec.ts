@@ -223,8 +223,31 @@ describe('ExecuteTurnUseCase - トリックガード・ニードルガード・�
       await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPIKY_SHIELD.id });
 
       // Assert
-      expect(engine.status(2).currentHp).toBe(124);
+      // 通り抜けたときのダメージは 1/4（36 → 9。チャンピオンズの値。SV は等倍）
+      expect(engine.status(2).currentHp).toBe(151);
       expect(engine.status(1).currentHp).toBe(160);
+    });
+
+    it('相手が守っていなければ、ダメージは等倍のまま', async () => {
+      // Arrange
+      const engine = setup({ attackerAbility: 'ふかしのこぶし' });
+
+      // Act
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: SPLASH.id });
+
+      // Assert
+      expect(engine.status(2).currentHp).toBe(124);
+    });
+
+    it('攻撃技を防がないトリックガードの相手には、ダメージは等倍のまま', async () => {
+      // Arrange
+      const engine = setup({ attackerAbility: 'ふかしのこぶし' });
+
+      // Act
+      await engine.runTurn({ moveId: TACKLE.id }, { moveId: CRAFTY_SHIELD.id });
+
+      // Assert
+      expect(engine.status(2).currentHp).toBe(124);
     });
 
     it('接触技は相手のたたみがえしを通り抜ける', async () => {
@@ -240,7 +263,8 @@ describe('ExecuteTurnUseCase - トリックガード・ニードルガード・�
       await engine.runTurn({ moveId: TACKLE.id }, { moveId: MAT_BLOCK.id });
 
       // Assert
-      expect(engine.status(2).currentHp).toBe(124);
+      // 陣営を守る技を通り抜けたときも、ダメージは 1/4
+      expect(engine.status(2).currentHp).toBe(151);
     });
 
     it('接触しない技は相手のニードルガードに防がれる', async () => {

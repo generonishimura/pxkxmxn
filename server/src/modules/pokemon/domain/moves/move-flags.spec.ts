@@ -50,6 +50,27 @@ describe('MoveFlags', () => {
       // Assert
       expect(result).toBe(true);
     });
+
+    it.each(['ドラゴンクロー', 'シャドークロー'])(
+      '%s は切る技（slicing）になる（チャンピオンズの変更。SV は切る技ではない）',
+      moveName => {
+        // Arrange & Act
+        const flags = MoveFlags.get(moveName);
+
+        // Assert
+        expect(flags.has('slicing')).toBe(true);
+        expect(flags.has('contact')).toBe(true);
+      },
+    );
+
+    it('でんこうそうげき（ダブルショック）はパンチ技になる（チャンピオンズの変更。SV はパンチ技ではない）', () => {
+      // Arrange & Act
+      const flags = MoveFlags.get('でんこうそうげき');
+
+      // Assert
+      expect(flags.has('punch')).toBe(true);
+      expect(flags.has('contact')).toBe(true);
+    });
   });
 
   describe('targetsOpponent', () => {
