@@ -27,3 +27,48 @@ export const rollSecondaryEffect = (
   }
   return Math.random() < effectiveChance;
 };
+
+/**
+ * ひるみの追加効果をもともと持つ技（Pokemon Showdown の secondaries に flinch があるもの）
+ * これらの技には、あくしゅう・おうじゃのしるしのひるみを足さない
+ */
+const FLINCH_SECONDARY_MOVE_NAMES: ReadonlySet<string> = new Set([
+  'エアスラッシュ',
+  'おどろかす',
+  'かみつく',
+  'ホネこんぼう',
+  'あくのはどう',
+  'ダブルパンツァー',
+  'ドラゴンダイブ',
+  'じんつうりき',
+  'ねこだまし',
+  'もえあがるいかり',
+  'ほのおのキバ',
+  'ずつき',
+  'ハートスタンプ',
+  'ひっさつまえば',
+  'こおりのキバ',
+  'つららおとし',
+  'アイアンヘッド',
+  'ひょうざんおろし',
+  'ニードルアーム',
+  'いわなだれ',
+  'まわしげり',
+  'ゴッドバード',
+  'いびき',
+  'ハードローラー',
+  'ふみつけ',
+  'かみなりのキバ',
+  '３ぼんのや',
+  'たつまき',
+  'はやてがえし',
+  'たきのぼり',
+  'しねんのずつき',
+  'びりびりちくちく',
+]);
+
+/**
+ * 技がもともとひるみの追加効果を持つか（あくしゅう・おうじゃのしるしは、この技にはひるみを足さない。本家と同じ）
+ */
+export const hasFlinchSecondary = (moveName: string | undefined): boolean =>
+  moveName !== undefined && FLINCH_SECONDARY_MOVE_NAMES.has(moveName);
