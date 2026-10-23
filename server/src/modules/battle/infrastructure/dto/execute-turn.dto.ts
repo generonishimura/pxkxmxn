@@ -1,4 +1,12 @@
-import { IsInt, Min, IsNotEmpty, ValidateNested, ValidateIf } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  Min,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 /**
@@ -21,6 +29,13 @@ export class TrainerActionDto {
   @ValidateIf(o => !o.moveId)
   @IsNotEmpty({ message: 'Either moveId or switchPokemonId must be provided' })
   switchPokemonId?: number;
+
+  /**
+   * 技といっしょにメガシンカする（1 回のバトルで 1 回だけ。交代とはいっしょに選べない）
+   */
+  @IsOptional()
+  @IsBoolean()
+  megaEvolve?: boolean;
 }
 
 /**
