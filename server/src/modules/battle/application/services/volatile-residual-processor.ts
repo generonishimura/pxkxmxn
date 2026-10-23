@@ -34,9 +34,21 @@ const SANDSTORM_IMMUNE_ABILITIES: readonly string[] = [
 ];
 
 /**
- * しおづけのダメージが 1/4 になるタイプ
+ * しおづけのダメージが大きくなるタイプ
  */
 const SALT_CURE_WEAK_TYPES: readonly string[] = ['みず', 'はがね'];
+
+/**
+ * しおづけのダメージの分母（最大 HP の 1/n）
+ * チャンピオンズの値。SV は 8（みず・はがねは 4）
+ */
+const SALT_CURE_DIVISOR = 16;
+
+/**
+ * しおづけのダメージの分母（みず・はがねタイプ）
+ * チャンピオンズの値。SV は 4
+ */
+const SALT_CURE_WEAK_DIVISOR = 8;
 
 /**
  * VolatileResidualProcessor
@@ -46,7 +58,7 @@ const SALT_CURE_WEAK_TYPES: readonly string[] = ['みず', 'はがね'];
  * - applyWeatherDamage: すなあらし（最大 HP の 1/16。天候の残りターン数があるときだけ）
  * - applyWish: ねがいごと（wish.turns が 1 の陣営の場のポケモンを回復）
  * - applyBeforeStatusDamage: アクアリング・ねをはる（1/16 回復）→ やどりぎのタネ（1/8 を吸う）
- * - applyAfterStatusDamage: あくむ（1/4）→ のろい（1/4）→ バインド（1/8）→ しおづけ（1/8、みず・はがねは 1/4）→
+ * - applyAfterStatusDamage: あくむ（1/4）→ のろい（1/4）→ バインド（1/8）→ しおづけ（1/16、みず・はがねは 1/8）→
  *   たこがため（防御・特防 -1）→ あくび（残り 1 でねむり）→ ほろびのうた（0 でひんし、それ以外は 1 減らす）。
  *   バインド・たこがためは、かけたポケモンがひんし・場にいなければ、効果なしで解ける
  *
@@ -207,12 +219,12 @@ export class VolatileResidualProcessor {
       }
     }
 
-    // しおづけ: 1/8（みず・はがねタイプは 1/4）
+    // しおづけ: 1/16（みず・はがねタイプは 1/8）
     if (latest.volatileState.saltCure === true) {
       const weak = (await resolveTypeNames(latest, battleContext)).some(name =>
         SALT_CURE_WEAK_TYPES.includes(name),
       );
-      await damage(weak ? 4 : 8);
+      await damage(weak ? SALT_CURE_WEAK_DIVISOR : SALT_CURE_DIVISOR);
     }
 
     // たこがため: 防御・特防 -1（たこがためを使ったポケモンが起こした、技による変化として扱う）。

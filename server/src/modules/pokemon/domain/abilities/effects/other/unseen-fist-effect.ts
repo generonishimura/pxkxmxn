@@ -7,6 +7,8 @@ import { isContactMove } from '@/modules/pokemon/domain/moves/move-flags';
  * ふかしのこぶし（Unseen Fist）特性の効果
  * 自分の接触技が、相手のまもる系（まもる・ニードルガード・キングシールド・たたみがえし・ファストガードなど）を
  * 通り抜ける。通り抜けたときは、ニードルガードのダメージなど接触したときの守りの効果も受けない
+ * 通り抜けたときのダメージは 1/4 になる（チャンピオンズの値。SV は等倍）。
+ * 1/4 は MoveExecutorService が battleContext.brokeThroughProtection を立て、DamageCalculator が掛ける
  *
  * 変化技を防ぐトリックガードは通り抜けない（本家と同じ。変化技で接触する技はない）
  */

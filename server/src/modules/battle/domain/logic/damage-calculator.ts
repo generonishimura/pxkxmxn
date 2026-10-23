@@ -29,6 +29,12 @@ import {
 import { CRITICAL_HIT_DAMAGE_MULTIPLIER } from './critical-hit';
 
 /**
+ * まもる系を特性（ふかしのこぶし）で通り抜けたときのダメージの補正（4096 分率で 1/4）
+ * チャンピオンズの値。SV は等倍（補正なし）
+ */
+const PROTECTION_BYPASS_DAMAGE_MODIFIER = 1024;
+
+/**
  * Moveの情報
  */
 export interface MoveInfo {
@@ -383,11 +389,17 @@ export class DamageCalculator {
 
     // 壁（リフレクター・ひかりのかべ・オーロラベール）。本家の ModifyDamage と同じく最後に掛け、最低 1
     const screenModifier = this.resolveScreenModifier(params);
-    if (screenModifier !== undefined) {
-      return Math.max(1, modifyByFixedPoint(finalDamage, screenModifier));
+    const screenedDamage =
+      screenModifier === undefined
+        ? finalDamage
+        : Math.max(1, modifyByFixedPoint(finalDamage, screenModifier));
+
+    // まもる系を特性（ふかしのこぶし）で通り抜けたときの 1/4。本家の zBrokeProtect と同じく壁のあとに掛け、最低 1
+    if (params.battleContext?.brokeThroughProtection === true) {
+      return Math.max(1, modifyByFixedPoint(screenedDamage, PROTECTION_BYPASS_DAMAGE_MODIFIER));
     }
 
-    return finalDamage;
+    return screenedDamage;
   }
 
   /**

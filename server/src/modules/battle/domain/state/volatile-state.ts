@@ -303,7 +303,7 @@ export type VolatileState = {
   readonly throatChopTurns?: number;
   /** しめつける系のバインド状態 */
   readonly partialTrap?: PartialTrap;
-  /** しおづけ（ターン終了時に最大 HP の 1/8、みず・はがねは 1/4 のダメージ） */
+  /** しおづけ（ターン終了時に最大 HP の 1/16、みず・はがねは 1/8 のダメージ。チャンピオンズの値。SV は 1/8・1/4） */
   readonly saltCure?: boolean;
   /** くちばしキャノンをためている（このターンに接触技を受けると、相手をやけどにする） */
   readonly beakBlast?: boolean;

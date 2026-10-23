@@ -1819,7 +1819,8 @@ export class MoveExecutorService {
   /**
    * 相手のまもる系で技が防がれるかを判定し、防がれたら結果を返す（本家の onTryHit）
    * 接触した技なら、守りの効果（キングシールドの攻撃 -1・ニードルガードのダメージ・トーチカのどくなど）を使用者に与える
-   * 使用者の特性の bypassesProtection（ふかしのこぶし）が true なら通り抜ける
+   * 使用者の特性の bypassesProtection（ふかしのこぶし）が true なら通り抜ける。通り抜けたときは
+   * battleContext.brokeThroughProtection を true にし、ダメージを 1/4 にする（チャンピオンズの値。SV は等倍）
    * @returns 防がれたときの結果。防がれなければ undefined
    */
   private async blockByProtection(params: {
@@ -1831,18 +1832,25 @@ export class MoveExecutorService {
     battleContext: BattleContext;
   }): Promise<MoveUseResult | undefined> {
     const { battle, move, attacker, defender, battleContext } = params;
-    const guard = findBlockingGuard({
-      protection: defender.volatileState.protection,
-      side: getSideConditions(battle.sideState, defender.trainerId),
-      move: {
-        moveName: move.name,
-        category: move.category,
-        effectivePriority: battleContext.effectivePriority ?? move.priority,
-        bypassesProtect:
-          params.attackerAbilityEffect?.bypassesProtection?.(attacker, battleContext) === true,
-      },
-    });
+    const bypassesProtect =
+      params.attackerAbilityEffect?.bypassesProtection?.(attacker, battleContext) === true;
+    const findGuard = (bypasses: boolean) =>
+      findBlockingGuard({
+        protection: defender.volatileState.protection,
+        side: getSideConditions(battle.sideState, defender.trainerId),
+        move: {
+          moveName: move.name,
+          category: move.category,
+          effectivePriority: battleContext.effectivePriority ?? move.priority,
+          bypassesProtect: bypasses,
+        },
+      });
+    const guard = findGuard(bypassesProtect);
     if (guard === undefined) {
+      // 特性がなければ防がれていた守りを通り抜けたときは、ダメージを 1/4 にする（チャンピオンズの値。SV は等倍）
+      if (bypassesProtect && findGuard(false) !== undefined) {
+        battleContext.brokeThroughProtection = true;
+      }
       return undefined;
     }
     const contactMessage = isContactMove(battleContext)
