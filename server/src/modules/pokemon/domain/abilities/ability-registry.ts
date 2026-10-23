@@ -246,6 +246,7 @@ import { InfiltratorEffect } from './effects/other/infiltrator-effect';
 import { ScreenCleanerEffect } from './effects/other/screen-cleaner-effect';
 // 交代させない・逃げられなくする・自分から交代する特性（Issue #135 一部）
 import { SuctionCupsEffect } from './effects/other/suction-cups-effect';
+import { StickyHoldEffect } from './effects/other/sticky-hold-effect';
 import { ShadowTagEffect } from './effects/other/shadow-tag-effect';
 import { MagnetPullEffect } from './effects/other/magnet-pull-effect';
 import { ArenaTrapEffect } from './effects/other/arena-trap-effect';
@@ -652,6 +653,8 @@ export class AbilityRegistry {
       // にげごしはききかいひと同効果のため EmergencyExitEffect を共有
       const emergencyExit = new EmergencyExitEffect();
       this.registry.set('きゅうばん', new SuctionCupsEffect());
+      // 持ち物を奪われない特性（Issue #118）
+      this.registry.set('ねんちゃく', new StickyHoldEffect());
       this.registry.set('かげふみ', new ShadowTagEffect());
       this.registry.set('じりょく', new MagnetPullEffect());
       this.registry.set('ありじごく', new ArenaTrapEffect());
