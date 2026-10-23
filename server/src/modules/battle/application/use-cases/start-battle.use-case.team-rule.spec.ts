@@ -19,7 +19,12 @@ describe('StartBattleUseCase - 手持ちのルール（チャンピオンズの�
   const TEAM2_ID = 20;
 
   /**
-   * 手持ちの 1 体（全国図鑑の番号は省略すると id と同じ）
+   * レギュレーション M-C で使えるポケモンの全国図鑑の番号（手持ちの 1 体の番号を省略したときに使う）
+   */
+  const ALLOWED_DEX = [3, 6, 9, 15, 18, 24, 25, 26, 36, 38];
+
+  /**
+   * 手持ちの 1 体（全国図鑑の番号は省略すると、id の 1 の位で ALLOWED_DEX から選ぶ）
    */
   const memberOf = (
     teamId: number,
@@ -35,7 +40,7 @@ describe('StartBattleUseCase - 手持ちのルール（チャンピオンズの�
       teamId === TEAM1_ID ? TRAINER1_ID : TRAINER2_ID,
       new Pokemon(
         id,
-        options.nationalDex ?? id,
+        options.nationalDex ?? ALLOWED_DEX[id % ALLOWED_DEX.length],
         'テスト',
         'Test',
         typeOf('ノーマル'),
@@ -202,5 +207,71 @@ describe('StartBattleUseCase - 手持ちのルール（チャンピオンズの�
       message: 'A team cannot have two pokemon with the same National Pokédex number: 479',
     });
     expect(engine.battleRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('今のレギュレーション（M-C）で使えないポケモンがいるチームなら、何も書き込まずに ValidationException で弾く', async () => {
+    // Arrange: ミュウツー（150）は M-C で使えない
+    const engine = createUseCase({
+      [TEAM1_ID]: validTeam(TEAM1_ID),
+      [TEAM2_ID]: [
+        memberOf(TEAM2_ID, 21, 1),
+        memberOf(TEAM2_ID, 22, 2, { nationalDex: 150 }),
+        memberOf(TEAM2_ID, 23, 3),
+      ],
+    });
+
+    // Act
+    const error = await errorOf(engine.start);
+
+    // Assert
+    expect(error).toBeInstanceOf(ValidationException);
+    expect(error).toMatchObject({
+      field: 'team2Id',
+      message: 'テスト (National Pokédex number 150) cannot be used in Regulation M-C',
+    });
+    expect(engine.battleRepository.create).not.toHaveBeenCalled();
+    expect(engine.battleRepository.createBattlePokemonStatus).not.toHaveBeenCalled();
+  });
+
+  it('今のレギュレーション（M-C）で使えない持ち物を持つポケモンがいるチームなら、何も書き込まずに ValidationException で弾く', async () => {
+    // Arrange: こだわりハチマキは M-C で使えない
+    const engine = createUseCase({
+      [TEAM1_ID]: [
+        memberOf(TEAM1_ID, 11, 1, { heldItem: 'こだわりハチマキ' }),
+        memberOf(TEAM1_ID, 12, 2),
+        memberOf(TEAM1_ID, 13, 3),
+      ],
+      [TEAM2_ID]: validTeam(TEAM2_ID),
+    });
+
+    // Act
+    const error = await errorOf(engine.start);
+
+    // Assert
+    expect(error).toBeInstanceOf(ValidationException);
+    expect(error).toMatchObject({
+      field: 'team1Id',
+      message: 'The held item こだわりハチマキ cannot be used in Regulation M-C',
+    });
+    expect(engine.battleRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('使えるポケモンと持ち物（メガストーンを含む）だけのチームなら、弾かずにバトルを作りにいく', async () => {
+    // Arrange
+    const engine = createUseCase({
+      [TEAM1_ID]: [
+        memberOf(TEAM1_ID, 11, 1, { nationalDex: 6, heldItem: 'リザードナイトＸ' }),
+        memberOf(TEAM1_ID, 12, 2, { nationalDex: 727, heldItem: 'オボンのみ' }),
+        memberOf(TEAM1_ID, 13, 3, { nationalDex: 998 }),
+      ],
+      [TEAM2_ID]: validTeam(TEAM2_ID),
+    });
+
+    // Act: create のモックは何も返さないので、バトルを作ったあとの処理で止まる
+    const error = await errorOf(engine.start);
+
+    // Assert
+    expect(error).not.toBeInstanceOf(ValidationException);
+    expect(engine.battleRepository.create).toHaveBeenCalledTimes(1);
   });
 });
