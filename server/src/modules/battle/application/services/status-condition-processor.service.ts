@@ -11,6 +11,7 @@ import {
   TRAINED_POKEMON_REPOSITORY_TOKEN,
 } from '@/modules/trainer/domain/trainer.repository.interface';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
@@ -57,7 +58,7 @@ export class StatusConditionProcessorService {
    * 1. すなあらしのダメージ（場の全員）
    * 2. ねがいごと（陣営）
    * 3. グラスフィールドの回復（地面にいるポケモン）
-   * 4. 場のポケモンごとに: アクアリング・ねをはる・やどりぎのタネ → 状態異常（ねむりの解除・どく・やけど）→
+   * 4. 場のポケモンごとに: 持ち物（たべのこし など）→ アクアリング・ねをはる・やどりぎのタネ → 状態異常（ねむりの解除・どく・やけど）→
    *    あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた → 特性の onTurnEnd
    * 5. 残りが 1 のフィールドを終わらせる
    */
@@ -102,6 +103,17 @@ export class StatusConditionProcessorService {
         weather,
         field: battle.field,
       };
+
+      // 持ち物（たべのこし など）。本家と同じく、アクアリングや状態異常のダメージより先に起きる。
+      // 天候・ねがいごと・グラスフィールドで HP が変わるので、読み直したものを渡す
+      const itemEffect = getItemEffect(status);
+      if (itemEffect?.onTurnEnd) {
+        const beforeItem =
+          (await this.battleRepository.findBattlePokemonStatusById(status.id)) ?? status;
+        if (!beforeItem.isFainted()) {
+          await itemEffect.onTurnEnd(beforeItem, battleContext);
+        }
+      }
 
       // 状態異常のダメージより前の一時的な状態（アクアリング・ねをはる・やどりぎのタネ）
       const opponent = activePokemon.find(other => other.trainerId !== status.trainerId);
