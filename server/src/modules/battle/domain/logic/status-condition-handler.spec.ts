@@ -210,26 +210,22 @@ describe('StatusConditionHandler', () => {
   });
 
   describe('shouldClearSleep', () => {
-    it('1ターン目は33%の確率で解除', () => {
-      const results: boolean[] = [];
-      for (let i = 0; i < 100; i++) {
-        results.push(StatusConditionHandler.shouldClearSleep(0));
-      }
-      const trueCount = results.filter(r => r).length;
-      // 33%の確率なので、20%以上45%以下になることが期待される
-      expect(trueCount).toBeGreaterThan(20);
-      expect(trueCount).toBeLessThan(45);
+    afterEach(() => {
+      jest.restoreAllMocks();
     });
 
-    it('2ターン目は50%の確率で解除', () => {
-      const results: boolean[] = [];
-      for (let i = 0; i < 100; i++) {
-        results.push(StatusConditionHandler.shouldClearSleep(1));
-      }
-      const trueCount = results.filter(r => r).length;
-      // 50%の確率なので、35%以上65%以下になることが期待される
-      expect(trueCount).toBeGreaterThan(35);
-      expect(trueCount).toBeLessThan(65);
+    it('1ターン目は乱数が 0.33 未満なら解除（33%）', () => {
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.32).mockReturnValueOnce(0.33);
+
+      expect(StatusConditionHandler.shouldClearSleep(0)).toBe(true);
+      expect(StatusConditionHandler.shouldClearSleep(0)).toBe(false);
+    });
+
+    it('2ターン目は乱数が 0.5 未満なら解除（50%）', () => {
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.49).mockReturnValueOnce(0.5);
+
+      expect(StatusConditionHandler.shouldClearSleep(1)).toBe(true);
+      expect(StatusConditionHandler.shouldClearSleep(1)).toBe(false);
     });
 
     it('3ターン目以降は必ず解除', () => {
