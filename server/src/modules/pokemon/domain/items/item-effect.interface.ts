@@ -109,4 +109,20 @@ export interface ItemOnlyEffect {
     target: FieldTurnsTarget,
     turns: number,
   ): number | undefined;
+
+  /**
+   * 持ち主が HP を吸い取って回復する量を変える（おおきなねっこ）
+   * applyDrainHeal（吸収技・やどりぎのタネ・ちからをすいとる）と、ターン終了時のアクアリング・ねをはるの回復が呼ぶ。
+   * ヘドロえきで回復のかわりに受けるダメージも、変えたあとの量になる
+   * @param holder 回復するポケモン（持ち物を持っているポケモン）
+   * @param amount 回復する量
+   * @returns 変えた量、変えないなら undefined
+   */
+  modifyDrainHeal?(holder: BattlePokemonStatus, amount: number): number | undefined;
+
+  /**
+   * 持ち主がかけたバインド状態（しめつける・まきつくなど）のターン終了時のダメージの分母（しめつけバンドは 6。ふつうは 8）
+   * VolatileResidualProcessor が、しめつけたポケモン（partialTrap.sourceStatusId）の持ち物で読む
+   */
+  readonly partialTrapDamageDivisor?: number;
 }

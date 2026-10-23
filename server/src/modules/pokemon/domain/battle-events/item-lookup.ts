@@ -52,3 +52,11 @@ export const resolveFieldTurns = (
   target: FieldTurnsTarget,
   turns: number,
 ): number => (source && getItemEffect(source)?.modifyFieldTurns?.(source, target, turns)) ?? turns;
+
+/**
+ * HP を吸い取って回復する量（回復するポケモンの持ち物の modifyDrainHeal を反映する。おおきなねっこ）
+ * @param healer 回復するポケモン
+ * @param amount 持ち物の補正の前の量
+ */
+export const resolveDrainHealAmount = (healer: BattlePokemonStatus, amount: number): number =>
+  getItemEffect(healer)?.modifyDrainHeal?.(healer, amount) ?? amount;

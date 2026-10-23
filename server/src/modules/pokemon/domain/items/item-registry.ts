@@ -34,6 +34,8 @@ import {
   SmoothRockEffect,
 } from './effects/base-weather-rock-item-effect';
 import { TerrainExtenderEffect } from './effects/terrain-extender-effect';
+import { BigRootEffect } from './effects/big-root-effect';
+import { BindingBandEffect } from './effects/binding-band-effect';
 
 /**
  * 持ち物のレジストリ
@@ -86,6 +88,8 @@ export class ItemRegistry {
     this.registry.set('さらさらいわ', new SmoothRockEffect());
     this.registry.set('しめったいわ', new DampRockEffect());
     this.registry.set('グランドコート', new TerrainExtenderEffect());
+    this.registry.set('おおきなねっこ', new BigRootEffect());
+    this.registry.set('しめつけバンド', new BindingBandEffect());
   }
 
   /**

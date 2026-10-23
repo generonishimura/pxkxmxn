@@ -597,6 +597,8 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `switchesOutAfterHit`（プロパティ） | `MoveExecutorService.scheduleItemSwitches`（防御側）。技のあとの交代 | 相手の攻撃技が当たったあと、持ち主がひんしでなく控えがいれば、持ち物を使い切って `pendingChoice: { reason: 'ejectButton' }` を書く。ドラゴンテールなどで交代させられるときは使わない。使ったら、相手の `selfSwitch` とききかいひは起きない。使う持ち物: だっしゅつボタン |
 | `forcesAttackerOutAfterHit`（プロパティ） | 同上（防御側） | 相手の攻撃技が当たったあと、持ち主と攻撃側がひんしでなく、攻撃側に控えがいれば、持ち物を使い切る。攻撃側がねをはっておらず `preventsForcedSwitch` の特性でもなければ、攻撃側の陣営に `forcedSwitch` を書き、攻撃側の `selfSwitch` は起きない。使う持ち物: レッドカード |
 | `modifyFieldTurns(holder, target, turns)` | `setWeather` / `setTerrain`（`source` を渡したとき）、`BaseSideConditionMoveEffect.onUse` | 持ち主が出した天候・フィールド・陣営の守りの残りターン数を変える。`target` は `{ kind: 'weather', weather }` / `{ kind: 'terrain', field }` / `{ kind: 'sideCondition', key }`。補助関数 `resolveFieldTurns(source, target, turns)`（`item-lookup.ts`）（ひかりのねんど・あついいわ・つめたいいわ・さらさらいわ・しめったいわ・グランドコート） |
+| `modifyDrainHeal(holder, amount)` | `applyDrainHeal`（回復する側）、`VolatileResidualProcessor.applyBeforeStatusDamage`（アクアリング・ねをはる） | 吸い取って回復する量を変える。ヘドロえきのダメージも変わる。補助関数 `resolveDrainHealAmount(healer, amount)`（おおきなねっこ） |
+| `partialTrapDamageDivisor`（プロパティ） | `VolatileResidualProcessor.applyAfterStatusDamage` | しめつけたポケモン（`partialTrap.sourceStatusId`）の持ち物で、バインドのダメージの分母を変える（既定 8。しめつけバンドは 6） |
 
 ```ts
 // きあいのタスキ

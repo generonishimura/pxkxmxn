@@ -1,6 +1,7 @@
 import { AbilityRegistry } from '../abilities/ability-registry';
 import { applyDrainHeal, calculateDrainAmount } from './drain-heal';
 import { createInMemoryBattle } from './__tests__/in-memory-battle';
+import { ItemRegistry } from '../items/item-registry';
 
 describe('吸収技の回復', () => {
   beforeEach(() => {
@@ -8,6 +9,8 @@ describe('吸収技の回復', () => {
     AbilityRegistry.initialize();
     AbilityRegistry.register('テストヘドロえき', { reversesDrainHeal: true });
     AbilityRegistry.register('テストマジックガード', { preventsIndirectDamage: true });
+    ItemRegistry.initialize();
+    ItemRegistry.register('テストの吸収2倍', { modifyDrainHeal: (_holder, amount) => amount * 2 });
   });
 
   afterEach(() => {
@@ -75,6 +78,33 @@ describe('吸収技の回復', () => {
       // Assert
       expect(result).toEqual({ healed: 0, damaged: 0 });
       expect(get(1).currentHp).toBe(70);
+    });
+
+    it('回復する側の持ち物の modifyDrainHeal で、回復する量を変える', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({
+        status: { currentHp: 50, persistentState: { item: 'テストの吸収2倍' } },
+      });
+
+      // Act
+      const result = await applyDrainHeal(get(1), get(2), 10, context());
+
+      // Assert
+      expect(result).toEqual({ healed: 20, damaged: 0 });
+    });
+
+    it('ヘドロえきのダメージも、回復する側の持ち物の modifyDrainHeal で変わる', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(
+        { status: { currentHp: 70, persistentState: { item: 'テストの吸収2倍' } } },
+        { ability: 'テストヘドロえき' },
+      );
+
+      // Act
+      const result = await applyDrainHeal(get(1), get(2), 10, context());
+
+      // Assert
+      expect(result).toEqual({ healed: 0, damaged: 20 });
     });
 
     it('ひんしのポケモンは回復しない', async () => {

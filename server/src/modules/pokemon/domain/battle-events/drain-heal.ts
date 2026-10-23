@@ -3,6 +3,8 @@ import { BattleContext } from '../abilities/battle-context.interface';
 import { getAbilityEffect, resolveAbilityName } from './ability-lookup';
 import { applyIndirectDamage } from './indirect-damage';
 import { isHealBlocked } from './heal';
+// 素早さ・場の状態・交代の持ち物（Issue #264 一部）
+import { resolveDrainHealAmount } from './item-lookup';
 
 /**
  * 吸収技の回復の結果
@@ -30,20 +32,22 @@ export const calculateDrainAmount = (damage: number, ratio: number): number =>
  *   このダメージは applyIndirectDamage で与えるため、マジックガードで防がれる
  * - ヘドロえきはかたやぶりでは無視されない
  * - 回復する側がひんし・かいふくふうじ中なら回復しない。最大HPを超えて回復しない
+ * - 回復する量は、回復する側の持ち物の modifyDrainHeal で変わる（おおきなねっこで 1.3 倍。ヘドロえきのダメージも変わる）
  *
  * @param healer 回復するポケモン（最新の状態を渡す）
  * @param drainedFrom HPを吸い取られたポケモン
- * @param amount 回復する量（calculateDrainAmount などで求める）
+ * @param baseAmount 回復する量（calculateDrainAmount などで求める。持ち物の補正の前）
  */
 export const applyDrainHeal = async (
   healer: BattlePokemonStatus,
   drainedFrom: BattlePokemonStatus,
-  amount: number,
+  baseAmount: number,
   battleContext: BattleContext,
 ): Promise<DrainHealResult> => {
-  if (!battleContext.battleRepository || amount <= 0 || healer.currentHp <= 0) {
+  if (!battleContext.battleRepository || baseAmount <= 0 || healer.currentHp <= 0) {
     return { healed: 0, damaged: 0 };
   }
+  const amount = resolveDrainHealAmount(healer, baseAmount);
 
   const drainedAbility = await getAbilityEffect(
     await resolveAbilityName(drainedFrom, battleContext),
