@@ -110,6 +110,24 @@ export class FoulPlayEffect implements IMoveEffect {
 }
 ```
 
+### modifyMoveCategory / contactWhenPhysical（プロパティ）
+
+- シグネチャ: `modifyMoveCategory?(attacker, defender, battleContext): 'Physical' | 'Special' | undefined`
+- 呼ばれる場所: `MoveExecutorService.createHitContext`。技のコンテキストを作るときに 1 回（本家の onModifyMove）。返した分類を `battleContext.moveCategory` に入れ、ダメージ計算の `move.category` とヒットの情報（`HitResult.moveCategory`）に使う
+- `contactWhenPhysical: true` の技は、物理技になったときに技フラグ（`battleContext.moveFlags`）に `contact` を足す
+- 使う技: シェルアームズ（威力 90 のダメージ式の途中までを物理・特殊で比べる。同じなら半々。物理なら接触）、てんこがすめつぼうのひかり（ランク込みの攻撃 > 特攻なら物理）
+- `battleContext.attackerStats` / `defenderStats` は実数値の上書きを反映した、ランク補正の前の値です。ランクは `status.getStatMultiplier(stat)` で掛けます
+
+```ts
+modifyMoveCategory(attacker: BattlePokemonStatus, _d: BattlePokemonStatus, ctx: BattleContext) {
+  const stats = ctx.attackerStats;
+  if (!stats) return undefined;
+  const atk = Math.floor(stats.attack * attacker.getStatMultiplier('attack'));
+  const spa = Math.floor(stats.specialAttack * attacker.getStatMultiplier('specialAttack'));
+  return atk > spa ? 'Physical' : 'Special'; // てんこがすめつぼうのひかり
+}
+```
+
 ### ignoresBurnPenalty（プロパティ）
 
 - 型: `readonly ignoresBurnPenalty?: boolean`

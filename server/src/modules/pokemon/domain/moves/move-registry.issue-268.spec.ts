@@ -8,6 +8,8 @@ import { DireClawEffect } from './effects/dire-claw-effect';
 import { LashOutEffect } from './effects/lash-out-effect';
 import { BurningJealousyEffect } from './effects/burning-jealousy-effect';
 import { RageFistEffect } from './effects/rage-fist-effect';
+import { ShellSideArmEffect } from './effects/shell-side-arm-effect';
+import { LightThatBurnsTheSkyEffect } from './effects/light-that-burns-the-sky-effect';
 
 describe('MoveRegistry: Issue #268 の技', () => {
   beforeEach(() => {
@@ -24,6 +26,8 @@ describe('MoveRegistry: Issue #268 の技', () => {
     ['うっぷんばらし', LashOutEffect],
     ['しっとのほのお', BurningJealousyEffect],
     ['ふんどのこぶし', RageFistEffect],
+    ['シェルアームズ', ShellSideArmEffect],
+    ['てんこがすめつぼうのひかり', LightThatBurnsTheSkyEffect],
   ])('%s が登録されている', (moveName, effectClass) => {
     // Act
     const effect = MoveRegistry.get(moveName);

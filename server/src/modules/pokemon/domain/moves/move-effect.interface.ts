@@ -216,6 +216,23 @@ export interface IMoveEffect {
   ): number | undefined;
 
   /**
+   * 物理技か特殊技かを、使用者・相手の能力で決め直す効果（例: シェルアームズ、てんこがすめつぼうのひかり。本家の onModifyMove）
+   * 技のコンテキストを作るときに 1 回呼ばれる（battleContext.attackerStats / defenderStats は実数値の上書きを反映した値）。
+   * 返した分類は、コンテキストの moveCategory・ダメージ計算・ヒットの情報に使う
+   * @returns 決めた分類、変えない場合は undefined
+   */
+  modifyMoveCategory?(
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): 'Physical' | 'Special' | undefined;
+
+  /**
+   * modifyMoveCategory で物理技になったとき、接触技として扱うかどうか（例: シェルアームズ）
+   */
+  readonly contactWhenPhysical?: boolean;
+
+  /**
    * 無視する防御側のランク（例: なしくずし = ['defense', 'specialDefense', 'evasion']）
    */
   readonly ignoredDefenderRanks?: readonly StatType[];

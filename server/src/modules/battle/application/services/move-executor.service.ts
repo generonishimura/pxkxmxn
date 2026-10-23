@@ -30,7 +30,7 @@ import { Move } from '@/modules/pokemon/domain/entities/move.entity';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
-import { MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-flags';
+import { MoveFlag, MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-flags';
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
 import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
@@ -1285,13 +1285,15 @@ export class MoveExecutorService {
     // タイプ一致・相性に使う実効のタイプ（みずびたし・はねやすめ・ハロウィン・フォルムなどを反映）
     const attackerTypes = await this.typesOf(attackerTrainedPokemon, attacker);
     const defenderTypes = await this.typesOf(defenderTrainedPokemon, defender);
+    // 技の modifyMoveCategory で決め直した分類（シェルアームズなど。createHitContext で決める）
+    const moveCategory = battleContext.moveCategory ?? move.category;
     const createDamageParams = (
       power: number | null,
       baseDamageRatio?: number,
     ): DamageCalculationParams => ({
       attacker: currentAttacker,
       defender: updatedDefender,
-      move: { power, typeId: moveType.id, category: move.category, accuracy: move.accuracy },
+      move: { power, typeId: moveType.id, category: moveCategory, accuracy: move.accuracy },
       moveType,
       attackerTypes,
       defenderTypes,
@@ -1374,7 +1376,7 @@ export class MoveExecutorService {
       hitCount,
       isContact: isContactMove(battleContext),
       moveTypeName: moveType.name,
-      moveCategory: move.category,
+      moveCategory,
       targetFainted: updatedDefender.isFainted(),
       isCriticalHit,
     });
@@ -2489,7 +2491,16 @@ export class MoveExecutorService {
         { depth: (params.called?.depth ?? 0) + 1, trace: params.trace, options: params.options },
       );
 
-    const baseFlags = MoveFlags.get(move.name);
+    // 物理・特殊を技の効果で決め直す（シェルアームズ・てんこがすめつぼうのひかり。本家の onModifyMove）
+    const category = params.moveEffect?.modifyMoveCategory?.(attacker, defender, context);
+    if (category !== undefined) {
+      context.moveCategory = category;
+    }
+    const madeContact =
+      category === 'Physical' && params.moveEffect?.contactWhenPhysical === true;
+    const baseFlags = madeContact
+      ? new Set<MoveFlag>([...MoveFlags.get(move.name), 'contact'])
+      : MoveFlags.get(move.name);
     context.moveFlags =
       params.attackerAbilityEffect?.modifyMoveFlags?.(attacker, baseFlags, context) ?? baseFlags;
 
