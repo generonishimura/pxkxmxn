@@ -65,4 +65,19 @@ export interface ItemOnlyEffect {
     hit: HitResult,
     battleContext: BattleContext,
   ): Promise<string | null>;
+
+  /**
+   * 防御側: 相手の攻撃技を受けたあと、持ち主が控えと交代し、持ち物を使い切る（だっしゅつボタン）
+   * 参照する場所: MoveExecutorService の技のあとの交代（ききかいひと同じ場所）。持ち主がひんしでなく、控えがいて、
+   * ドラゴンテールなどで交代させられないときだけ。使ったら、相手のとんぼがえりなどの交代は起きない
+   */
+  readonly switchesOutAfterHit?: boolean;
+
+  /**
+   * 防御側: 相手の攻撃技を受けたあと、攻撃側を控えとランダムに入れ替え、持ち物を使い切る（レッドカード）
+   * 参照する場所: MoveExecutorService の技のあとの交代。持ち主と攻撃側がひんしでなく、攻撃側に控えがいて、
+   * 持ち主がドラゴンテールなどで交代させられないときだけ。攻撃側がねをはっている・preventsForcedSwitch の特性なら、
+   * 入れ替えないが持ち物は使い切る（本家と同じ）。入れ替えたら、攻撃側のとんぼがえりなどの交代は起きない
+   */
+  readonly forcesAttackerOutAfterHit?: boolean;
 }

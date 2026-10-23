@@ -20,6 +20,8 @@ import { RockyHelmetEffect } from './effects/rocky-helmet-effect';
 import { KingsRockEffect } from './effects/kings-rock-effect';
 import { ShellBellEffect } from './effects/shell-bell-effect';
 import { AirBalloonEffect } from './effects/air-balloon-effect';
+import { EjectButtonEffect } from './effects/eject-button-effect';
+import { RedCardEffect } from './effects/red-card-effect';
 
 /**
  * 持ち物のレジストリ
@@ -60,6 +62,8 @@ export class ItemRegistry {
     this.registry.set('おうじゃのしるし', new KingsRockEffect());
     this.registry.set('かいがらのすず', new ShellBellEffect());
     this.registry.set('ふうせん', new AirBalloonEffect());
+    this.registry.set('だっしゅつボタン', new EjectButtonEffect());
+    this.registry.set('レッドカード', new RedCardEffect());
   }
 
   /**

@@ -42,7 +42,11 @@ import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
 import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called-move';
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
-import { getItemEffect, resolveItemName } from '@/modules/pokemon/domain/battle-events/item-lookup';
+import {
+  consumeItem,
+  getItemEffect,
+  resolveItemName,
+} from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { getGlobalFieldState, getSideConditions } from '../../domain/state/side-state';
 import {
   STRUGGLE_MOVE_NAME,
@@ -1728,9 +1732,11 @@ export class MoveExecutorService {
           })
         : [];
 
-    // 交代（とんぼがえり・ドラゴンテール・ききかいひ）。当たったとき（ばけのかわで防がれたときを含む）だけ。
-    // ドラゴンテールの強制交代が先に決まり、そのときききかいひは発動しない（本家の forceSwitchFlag）。
+    // 交代（とんぼがえり・ドラゴンテール・だっしゅつボタン・レッドカード・ききかいひ）。当たったとき
+    // （ばけのかわで防がれたときを含む）だけ。
+    // ドラゴンテールの強制交代が先に決まり、そのとき持ち物とききかいひは発動しない（本家の forceSwitchFlag）。
     // 使用者がさめはだなどでひんしになったら、相手を交代させない（本家の forceSwitch の source.hp > 0）
+    const switchItemMessages: string[] = [];
     if (landed) {
       const latestDefender = await this.battleRepository.findBattlePokemonStatusById(defender.id);
       const latestAttacker = await this.battleRepository.findBattlePokemonStatusById(attacker.id);
@@ -1740,8 +1746,20 @@ export class MoveExecutorService {
         latestAttacker !== null &&
         !latestAttacker.isFainted() &&
         (await this.canForceOut(battle, latestDefender, defenderAbilityEffect));
+      const itemSwitch =
+        !forced && latestDefender !== null && latestAttacker !== null
+          ? await this.scheduleItemSwitches(
+              battle,
+              latestDefender,
+              latestAttacker,
+              attackerAbilityEffect,
+              battleContext,
+            )
+          : { holderSwitched: false, attackerForcedOut: false, messages: [] };
+      switchItemMessages.push(...itemSwitch.messages);
       const exited =
         !forced &&
+        !itemSwitch.holderSwitched &&
         (await this.scheduleEmergencyExit(battle, defender.id, hpBeforeMove, defenderEventEffect));
       await this.scheduleSwitchesAfterMove({
         battle,
@@ -1750,7 +1768,7 @@ export class MoveExecutorService {
         defenderId: defender.id,
         forcesOut: forced,
         battleContext,
-        selfSwitchBlocked: exited,
+        selfSwitchBlocked: exited || itemSwitch.holderSwitched || itemSwitch.attackerForcedOut,
         defenderAbilityEffect,
       });
     }
@@ -1759,7 +1777,7 @@ export class MoveExecutorService {
     const criticalHitMessage = criticalHitCount > 0 ? ' A critical hit!' : '';
     const enduredMessage = endured ? ' The opponent endured the hit!' : '';
     const eventMessage = hitEventMessages.map(message => ` ${message}`).join('');
-    const afterMoveMessage = [...afterMoveMessages, ...faintMessages]
+    const afterMoveMessage = [...afterMoveMessages, ...faintMessages, ...switchItemMessages]
       .map(message => ` ${message}`)
       .join('');
     return {
@@ -2085,6 +2103,68 @@ export class MoveExecutorService {
     await this.battleRepository.patchSideConditions(battle.id, attacker.trainerId, {
       pendingChoice: { reason: selfSwitch === true ? 'pivot' : selfSwitch },
     });
+  }
+
+  /**
+   * 攻撃技を受けた防御側の持ち物による交代を予約する（ドラゴンテールなどで防御側が交代させられないときに呼ぶ）
+   * - だっしゅつボタン（switchesOutAfterHit）: 持ち主がひんしでなく、控えがいれば、持ち物を使い切って
+   *   持ち主の陣営に pendingChoice（ejectButton）を書く
+   * - レッドカード（forcesAttackerOutAfterHit）: 持ち主と攻撃側がひんしでなく、攻撃側が場にいて控えがいれば、
+   *   持ち物を使い切る。攻撃側がねをはっておらず、preventsForcedSwitch の特性（きゅうばん）でなければ、
+   *   攻撃側の陣営に forcedSwitch を書く（ねをはる・きゅうばんでも持ち物は使い切る。本家の DragOut）
+   * 持ち物はかたやぶりで無視されない
+   * 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
+   * @returns 持ち主が交代するか、攻撃側を入れ替えるか、メッセージ
+   */
+  private async scheduleItemSwitches(
+    battle: Battle,
+    holder: BattlePokemonStatus,
+    attacker: BattlePokemonStatus,
+    attackerAbilityEffect: IAbilityEffect | undefined,
+    battleContext: BattleContext,
+  ): Promise<{ holderSwitched: boolean; attackerForcedOut: boolean; messages: string[] }> {
+    const none = { holderSwitched: false, attackerForcedOut: false, messages: [] };
+    const itemEffect = getItemEffect(holder);
+    if (holder.isFainted() || holder.trainerId === attacker.trainerId) {
+      return none;
+    }
+
+    if (
+      itemEffect?.switchesOutAfterHit === true &&
+      (await this.hasSwitchTarget(battle.id, holder.trainerId))
+    ) {
+      const itemName = await consumeItem(holder, battleContext);
+      await this.battleRepository.patchSideConditions(battle.id, holder.trainerId, {
+        pendingChoice: { reason: 'ejectButton' },
+      });
+      return {
+        holderSwitched: true,
+        attackerForcedOut: false,
+        messages: [`The opponent is switched out with the ${itemName}!`],
+      };
+    }
+
+    if (
+      itemEffect?.forcesAttackerOutAfterHit === true &&
+      !attacker.isFainted() &&
+      attacker.isActive &&
+      (await this.hasSwitchTarget(battle.id, attacker.trainerId))
+    ) {
+      const itemName = await consumeItem(holder, battleContext);
+      const message = `The opponent held up its ${itemName} against the attacker!`;
+      if (
+        attacker.volatileState.ingrain === true ||
+        attackerAbilityEffect?.preventsForcedSwitch === true
+      ) {
+        return { holderSwitched: false, attackerForcedOut: false, messages: [message] };
+      }
+      await this.battleRepository.patchSideConditions(battle.id, attacker.trainerId, {
+        forcedSwitch: true,
+      });
+      return { holderSwitched: false, attackerForcedOut: true, messages: [message] };
+    }
+
+    return none;
   }
 
   /**

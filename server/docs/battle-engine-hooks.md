@@ -553,6 +553,8 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | --- | --- | --- |
 | `endureHit(holder, damage, ctx): Promise<string \| null>` | `MoveExecutorService.runMoveBody` のヒットのループ（防御側）。HP を減らす前 | ひんしになるダメージ（`damage >= holder.currentHp`）を受けるとき、メッセージを返すと HP が 1 残る。こらえるで残るヒット・みがわりに当たったヒット・特性で防いだヒットでは呼ばない（本家の `onDamage` と同じく、こらえるが先）。使う持ち物: きあいのタスキ、きあいのハチマキ |
 | `onSourceAfterMoveHit(holder, target, hit, ctx): Promise<string \| null>` | `MoveExecutorService.runAfterMoveHooks`（攻撃側）。技全体で 1 回 | 防御側の `onAfterMoveHit` の攻撃側版（本家の `onAfterMoveSecondarySelf`）。合計ダメージが 1 以上で、持ち主がひんしでないとき、防御側の特性の `onAfterMoveHit` のあと・攻撃側の特性の `onKnockOut` の前に呼ぶ。`hit.damage` は合計。みがわりにだけ当たったときは呼ばない。使う持ち物: かいがらのすず |
+| `switchesOutAfterHit`（プロパティ） | `MoveExecutorService.scheduleItemSwitches`（防御側）。技のあとの交代 | 相手の攻撃技が当たったあと、持ち主がひんしでなく控えがいれば、持ち物を使い切って `pendingChoice: { reason: 'ejectButton' }` を書く。ドラゴンテールなどで交代させられるときは使わない。使ったら、相手の `selfSwitch` とききかいひは起きない。使う持ち物: だっしゅつボタン |
+| `forcesAttackerOutAfterHit`（プロパティ） | 同上（防御側） | 相手の攻撃技が当たったあと、持ち主と攻撃側がひんしでなく、攻撃側に控えがいれば、持ち物を使い切る。攻撃側がねをはっておらず `preventsForcedSwitch` の特性でもなければ、攻撃側の陣営に `forcedSwitch` を書き、攻撃側の `selfSwitch` は起きない。使う持ち物: レッドカード |
 
 ```ts
 // きあいのタスキ
@@ -1307,6 +1309,7 @@ export class RoarEffect implements IMoveEffect {
 - 参照する場所: `MoveExecutorService`（相手の攻撃技のあと）、`PokemonSwitcherService`（設置技・ターン終了時のダメージ）。HP が最大 HP の半分より上から半分以下（ひんしを除く）になり、控えがいれば `pendingChoice: { reason: 'emergencyExit' }` を書く。かたやぶりでは無視されない
 - 発動したら、相手のとんぼがえりなどの交代は起きない（本家と同じ）。そのターンにまだ行動していなければ行動しない
 - ドラゴンテール・ともえなげで交代させられるときは、強制交代が先に決まり、ききかいひは発動しない（本家の `forceSwitchFlag`）
+- だっしゅつボタン（持ち物の `switchesOutAfterHit`）で交代するときも、ききかいひは発動しない
 - 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
 - 使う特性: ききかいひ・にげごし
 
