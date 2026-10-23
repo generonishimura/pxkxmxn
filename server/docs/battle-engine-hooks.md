@@ -580,6 +580,8 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `onSourceDamagingHit` | `MoveExecutorService.runMoveBody` のヒットのループ（攻撃側） | 攻撃側の特性の `onSourceDamagingHit` のあと |
 | `modifyFractionalPriority` | `ActionOrderDeterminerService.determine` | 特性の `modifyFractionalPriority` のあと。両方の値を優先度に足す（せんせいのツメ） |
 | `locksMoveChoice`（プロパティ） | `MoveLifecycle.recordMoveUse` | 特性と持ち物のどちらかが `true` なら、出した技に固定する（こだわりスカーフ） |
+| `onEntry` | `StartBattleUseCase`（先発）、`PokemonSwitcherService.executeSwitch`（交代で出たとき） | 先発は、すべての特性の `onEntry` のあとに、持ち物を持つ先発を素早さの順で呼ぶ。交代は、特性の `onEntry` のあと・相手の `onFoeEntry` の前（エレキシードなど） |
+| `onTerrainChange` | `notifyFieldChange`（`setTerrain` などがフィールドを変えたとき） | ポケモンごとに特性の `onTerrainChange` のあと。特性が消えていても呼ぶ（エレキシードなど） |
 
 - 今の持ち物は `PersistentPokemonState.item`、使い切った持ち物は `consumedItem` にあります。バトル開始時に `TrainedPokemon.heldItem` を `item` に写します
 - 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます

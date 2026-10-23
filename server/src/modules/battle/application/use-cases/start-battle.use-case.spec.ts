@@ -17,6 +17,7 @@ import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status
 import { BattlePokemonMove } from '../../domain/entities/battle-pokemon-move.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { ItemRegistry } from '@/modules/pokemon/domain/items/item-registry';
 import { TrainedPokemon, Gender } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 import { Pokemon } from '@/modules/pokemon/domain/entities/pokemon.entity';
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
@@ -934,6 +935,41 @@ describe('StartBattleUseCase', () => {
         expect(battleRepository.patchPersistentState).toHaveBeenCalledWith(7, {
           item: 'たべのこし',
         });
+      });
+
+      it('先発の持ち物の onEntry を、場に出た状態で呼ぶ（特性がなくても呼ぶ）', async () => {
+        // Arrange
+        const onEntry = jest.fn().mockResolvedValue(undefined);
+        ItemRegistry.register('テストの場に出る持ち物', { onEntry });
+        setupSingle('テストの場に出る持ち物');
+        const lead = new BattlePokemonStatus(
+          7,
+          1,
+          100,
+          trainer1Id,
+          true,
+          175,
+          175,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          null,
+          {},
+          { item: 'テストの場に出る持ち物' },
+        );
+        battleRepository.findBattlePokemonStatusByBattleId.mockResolvedValue([lead]);
+        battleRepository.findBattlePokemonStatusById.mockResolvedValue(lead);
+
+        // Act
+        await useCase.execute(trainer1Id, trainer2Id, team1Id, team2Id);
+
+        // Assert
+        expect(onEntry).toHaveBeenCalledWith(lead, expect.objectContaining({ battleRepository }));
+        ItemRegistry.initialize();
       });
 
       it('持ち物がなければ、今の持ち物を書かない', async () => {

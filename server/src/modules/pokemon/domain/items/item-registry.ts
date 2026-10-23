@@ -36,6 +36,12 @@ import {
 import { TerrainExtenderEffect } from './effects/terrain-extender-effect';
 import { BigRootEffect } from './effects/big-root-effect';
 import { BindingBandEffect } from './effects/binding-band-effect';
+import {
+  ElectricSeedEffect,
+  GrassySeedEffect,
+  MistySeedEffect,
+  PsychicSeedEffect,
+} from './effects/base-terrain-seed-item-effect';
 
 /**
  * 持ち物のレジストリ
@@ -90,6 +96,10 @@ export class ItemRegistry {
     this.registry.set('グランドコート', new TerrainExtenderEffect());
     this.registry.set('おおきなねっこ', new BigRootEffect());
     this.registry.set('しめつけバンド', new BindingBandEffect());
+    this.registry.set('エレキシード', new ElectricSeedEffect());
+    this.registry.set('グラスシード', new GrassySeedEffect());
+    this.registry.set('ミストシード', new MistySeedEffect());
+    this.registry.set('サイコシード', new PsychicSeedEffect());
   }
 
   /**

@@ -3,6 +3,7 @@ import { BattleContext } from '../abilities/battle-context.interface';
 import type { IAbilityEffect } from '../abilities/ability-effect.interface';
 import { getAbilityEffect } from './ability-lookup';
 import { resolveBattleAbilityName } from './battle-traits';
+import { getItemEffect } from './item-lookup';
 
 /**
  * 変わった場の状態の種類（天候・フィールド）
@@ -10,7 +11,8 @@ import { resolveBattleAbilityName } from './battle-traits';
 export type FieldChangeKind = 'weather' | 'terrain';
 
 /**
- * 天候・フィールドが変わったことを、場のひんしでないポケモンの特性（onWeatherChange / onTerrainChange）に知らせる
+ * 天候・フィールドが変わったことを、場のひんしでないポケモンの特性（onWeatherChange / onTerrainChange）と
+ * 持ち物（onTerrainChange）に知らせる
  * setWeather・setPrimalWeather・setTerrain が変えたあとと、エンジンが天候・フィールド・ゲンシ天候を終わらせたあとに呼ぶ。
  * 技・特性の実装から直接呼ぶ必要はない（場の状態を書く補助関数が呼ぶ）
  *
@@ -44,6 +46,14 @@ export const notifyFieldChange = async (
     const latest = hook ? await repository.findBattlePokemonStatusById(id) : null;
     if (effect && hook && latest && latest.currentHp > 0) {
       await hook.call(effect, latest, context);
+    }
+    // 持ち物の onTerrainChange（特性のあと。エレキシードなど）。持ち物は特性が消えていても呼ぶ
+    if (kind === 'terrain') {
+      const holder = await repository.findBattlePokemonStatusById(id);
+      const item = holder ? getItemEffect(holder) : undefined;
+      if (holder && holder.currentHp > 0 && item?.onTerrainChange) {
+        await item.onTerrainChange(holder, context);
+      }
     }
   }
 };

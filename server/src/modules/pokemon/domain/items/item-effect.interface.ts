@@ -43,6 +43,8 @@ export type IItemEffect = Pick<
   | 'onSourceDamagingHit'
   | 'locksMoveChoice'
   | 'modifyFractionalPriority'
+  | 'onEntry'
+  | 'onTerrainChange'
 > &
   ItemOnlyEffect;
 
