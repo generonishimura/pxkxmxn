@@ -48,6 +48,8 @@ import { StatusCureBerryEffect } from './effects/status-cure-berry-effect';
 import { createOranBerryEffect, createSitrusBerryEffect } from './effects/hp-restore-berry-effect';
 import { LeppaBerryEffect } from './effects/leppa-berry-effect';
 import { ResistBerryEffect } from './effects/resist-berry-effect';
+import { MentalHerbEffect } from './effects/mental-herb-effect';
+import { WhiteHerbEffect } from './effects/white-herb-effect';
 
 /**
  * 効果抜群の技のダメージを半分にするきのみと、そのタイプ
@@ -166,6 +168,10 @@ export class ItemRegistry {
     for (const [itemName, typeName] of SUPER_EFFECTIVE_RESIST_BERRIES) {
       this.registry.set(itemName, new ResistBerryEffect(typeName, true));
     }
+
+    // ハーブ
+    this.registry.set('メンタルハーブ', new MentalHerbEffect());
+    this.registry.set('しろいハーブ', new WhiteHerbEffect());
   }
 
   /**

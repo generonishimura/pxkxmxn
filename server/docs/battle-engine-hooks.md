@@ -599,6 +599,14 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 - 今の持ち物は `PersistentPokemonState.item`、使い切った持ち物は `consumedItem` にあります。バトル開始時に `TrainedPokemon.heldItem` を `item` に写します
 - 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます
 - きのみを食べたときなどは `consumeItem` で、`item` を消して `consumedItem` に残します
+- きのみ・ハーブ（`items/effects/`）が使うフック:
+  - 状態異常を治すきのみ（`StatusCureBerryEffect`）: `onStatusInflicted` と `onUpdate`
+  - HP を回復するきのみ（`HpRestoreBerryEffect`）・ヒメリのみ（`LeppaBerryEffect`）・メンタルハーブ（`MentalHerbEffect`）: `onUpdate`
+  - ダメージを半分にするきのみ（`ResistBerryEffect`）: `modifyDamage`（`typeEffectiveness`・`bypassesSubstitute` を見る）
+  - しろいハーブ（`WhiteHerbEffect`）: `onStatChanged` と `onUpdate`
+- 注: きのみは、相手のきんちょうかん（食べられなくなる）を見ていない。きんちょうかんがまだないため
+- 注: `applyIndirectDamage` と、ターン終了時の `onUpdate` で働いた持ち物のメッセージは、行動の結果に出ない（たべのこしと同じ）
+- 注: 半減きのみを食べたことは、メッセージに出ない（`modifyDamage` はダメージだけを返す）
 - 持ち物に新しいフックが要るときは、`IItemEffect` の `Pick` に足し、エンジンの呼ぶ場所もつなぎます
 - 決まったポケモンだけに効く持ち物（でんきだま・ながねぎ）は、`battleContext.attackerNationalDex`（技の使用者のもとの全国図鑑の番号）で判定します
 - 特性に同じ場面のフックがないときだけ、持ち物だけのフックを `ItemOnlyEffect`（`item-effect.interface.ts`）に足します
