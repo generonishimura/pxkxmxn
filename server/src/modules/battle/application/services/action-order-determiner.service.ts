@@ -70,7 +70,7 @@ export interface DeterminedAction {
  * 決定ルール:
  * 1. ポケモン交代は常に先に実行
  * 2. 技を使用する場合、優先度と速度を考慮
- * 3. 優先度が異なる場合は優先度が高い方が先（特性の modifyFractionalPriority で、同じ優先度の中の順番を変えられる）
+ * 3. 優先度が異なる場合は優先度が高い方が先（特性・持ち物の modifyFractionalPriority で、同じ優先度の中の順番を変えられる）
  * 4. 優先度が同じ場合は速度が高い方が先（おいかぜの陣営は素早さ 2 倍。トリックルームの間は遅い方が先）
  */
 @Injectable()
@@ -244,8 +244,15 @@ export class ActionOrderDeterminerService {
       trainer2Active,
       trainer2Context,
     );
-    trainer1Priority += trainer1FractionalPriority ?? 0;
-    trainer2Priority += trainer2FractionalPriority ?? 0;
+    // 持ち物の同じ優先度の中での順番（せんせいのツメ）。特性のあとに足す
+    const trainer1ItemFractionalPriority = getItemEffect(
+      trainer1Active,
+    )?.modifyFractionalPriority?.(trainer1Active, trainer1Context);
+    const trainer2ItemFractionalPriority = getItemEffect(
+      trainer2Active,
+    )?.modifyFractionalPriority?.(trainer2Active, trainer2Context);
+    trainer1Priority += (trainer1FractionalPriority ?? 0) + (trainer1ItemFractionalPriority ?? 0);
+    trainer2Priority += (trainer2FractionalPriority ?? 0) + (trainer2ItemFractionalPriority ?? 0);
 
     // 優先度が異なる場合は優先度が高い方が先（speedOnly なら優先度を見ない）
     if (!speedOnly && trainer1Priority !== trainer2Priority) {

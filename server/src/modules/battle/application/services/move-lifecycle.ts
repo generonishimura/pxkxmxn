@@ -23,6 +23,7 @@ import { MoveFlags } from '@/modules/pokemon/domain/moves/move-flags';
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { reducePp } from '@/modules/pokemon/domain/battle-events/pp';
 import { resolveAbilityName } from '@/modules/pokemon/domain/battle-events/ability-lookup';
+import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { getContextWeather } from '@/modules/pokemon/domain/abilities/context-weather';
 // まもる系の仕組み（Issue #102 #103 #107 #108 #120 一部）
 import { keepsProtectCount } from '../../domain/logic/protection';
@@ -133,7 +134,7 @@ export class MoveLifecycle {
 
   /**
    * 技を出したことを記録する（技を出す前の判定を通ったあと、技の処理の前）
-   * - 使用者: みちづれ・おんねんを消す、lastMoveId（変わったら consecutiveMoveCount も消す）、lastMoveTypeName、こだわり（locksMoveChoice の特性）、まもるの回数を消す
+   * - 使用者: みちづれ・おんねんを消す、lastMoveId（変わったら consecutiveMoveCount も消す）、lastMoveTypeName、こだわり（locksMoveChoice の特性・持ち物）、まもるの回数を消す
    * 呼ばれた技（isCalled）では、lastMoveTypeName だけを書き、ほかの記録は呼んだ技のままにする
    * （本家は呼ばれた技も lastMoveUsed にする。テクスチャー２が読む。lastMoveId は本家の lastMove で、呼んだ技のまま）
    * バトル全体の GlobalFieldState.lastMoveId は、技を出し終えたあとに MoveExecutorService.executeMove が書く
@@ -172,8 +173,12 @@ export class MoveLifecycle {
         patch.consecutiveMoveCount = null;
       }
     }
+    // こだわり: 特性（ごりむちゅう）か持ち物（こだわりスカーフ）が locksMoveChoice なら、出した技に固定する
+    const locksMoveChoice =
+      params.attackerAbilityEffect?.locksMoveChoice === true ||
+      getItemEffect(attacker)?.locksMoveChoice === true;
     if (
-      params.attackerAbilityEffect?.locksMoveChoice === true &&
+      locksMoveChoice &&
       state.choiceLockedMoveId === undefined &&
       move.name !== STRUGGLE_MOVE_NAME
     ) {

@@ -22,6 +22,10 @@ import { ShellBellEffect } from './effects/shell-bell-effect';
 import { AirBalloonEffect } from './effects/air-balloon-effect';
 import { EjectButtonEffect } from './effects/eject-button-effect';
 import { RedCardEffect } from './effects/red-card-effect';
+// 素早さ・場の状態・交代の持ち物（Issue #264 一部）
+import { ChoiceScarfEffect } from './effects/choice-scarf-effect';
+import { QuickClawEffect } from './effects/quick-claw-effect';
+import { IronBallEffect } from './effects/iron-ball-effect';
 
 /**
  * 持ち物のレジストリ
@@ -64,6 +68,10 @@ export class ItemRegistry {
     this.registry.set('ふうせん', new AirBalloonEffect());
     this.registry.set('だっしゅつボタン', new EjectButtonEffect());
     this.registry.set('レッドカード', new RedCardEffect());
+    // 素早さ・場の状態・交代の持ち物（Issue #264 一部）
+    this.registry.set('こだわりスカーフ', new ChoiceScarfEffect());
+    this.registry.set('せんせいのツメ', new QuickClawEffect());
+    this.registry.set('くろいてっきゅう', new IronBallEffect());
   }
 
   /**

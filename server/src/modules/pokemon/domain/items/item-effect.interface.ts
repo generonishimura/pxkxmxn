@@ -28,6 +28,8 @@ export type IItemEffect = Pick<
   | 'isImmuneToType'
   | 'onDamagingHit'
   | 'onSourceDamagingHit'
+  | 'locksMoveChoice'
+  | 'modifyFractionalPriority'
 > &
   ItemOnlyEffect;
 

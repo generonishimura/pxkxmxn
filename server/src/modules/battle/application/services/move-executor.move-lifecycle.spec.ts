@@ -1,4 +1,5 @@
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { ItemRegistry } from '@/modules/pokemon/domain/items/item-registry';
 import { Move, MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
@@ -20,6 +21,7 @@ describe('MoveExecutorService - 技の流れでエンジンが書く状態（Mov
   beforeEach(() => {
     AbilityRegistry.clear();
     AbilityRegistry.initialize();
+    ItemRegistry.initialize();
   });
 
   afterEach(() => {
@@ -49,6 +51,31 @@ describe('MoveExecutorService - 技の流れでエンジンが書く状態（Mov
 
       // Assert
       expect(statuses.get(ATTACKER_ID).volatileState.choiceLockedMoveId).toBe(1);
+    });
+
+    it('locksMoveChoice の持ち物なら、出した技に固定する（こだわりスカーフ）', async () => {
+      // Arrange
+      ItemRegistry.register('テストこだわりの持ち物', { locksMoveChoice: true });
+      const { execute, statuses } = setupMoveExecutor({
+        attacker: { persistentState: { item: 'テストこだわりの持ち物' } },
+      });
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID).volatileState.choiceLockedMoveId).toBe(1);
+    });
+
+    it('持ち物も特性も locksMoveChoice でなければ、技に固定しない', async () => {
+      // Arrange
+      const { execute, statuses } = setupMoveExecutor();
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(statuses.get(ATTACKER_ID).volatileState.choiceLockedMoveId).toBeUndefined();
     });
 
     it('まもる系でない技を出すと、まもるを続けた回数を消す', async () => {

@@ -575,10 +575,11 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `modifyEvasion` | `AccuracyCalculator.checkHit`（防御側） | 防御側の特性の `modifyEvasion` のあと。かたやぶりで無視されない |
 | `modifyCritRatio` | `MoveExecutorService.resolveCriticalHitStage`（攻撃側） | 攻撃側の特性の `modifyCritRatio` のあと。返した値は 0〜3 に収める |
 | `onAfterMoveSecondarySelf` | `MoveExecutorService.runMoveBody`（攻撃側） | 攻撃側の特性の `onAfterMoveSecondarySelf` のあと |
-| `isImmuneToType` | `DamageCalculator.calculate` / `calculateMoveEffectiveness`（防御側） | 防御側の特性のあと。特性がかたやぶりで無視されても、持ち物は見る |
 | `isImmuneToType` | `DamageCalculator.calculate` / `calculateMoveEffectiveness`（防御側） | 防御側の特性のあと。特性がかたやぶりで無視されても、持ち物は見る（ふうせん） |
 | `onDamagingHit` | `MoveExecutorService.runMoveBody` のヒットのループ（防御側） | 防御側の特性の `onDamagingHit` のあと、攻撃側の特性の `onSourceDamagingHit` の前。みがわりに当たったヒットでは呼ばない |
 | `onSourceDamagingHit` | `MoveExecutorService.runMoveBody` のヒットのループ（攻撃側） | 攻撃側の特性の `onSourceDamagingHit` のあと |
+| `modifyFractionalPriority` | `ActionOrderDeterminerService.determine` | 特性の `modifyFractionalPriority` のあと。両方の値を優先度に足す（せんせいのツメ） |
+| `locksMoveChoice`（プロパティ） | `MoveLifecycle.recordMoveUse` | 特性と持ち物のどちらかが `true` なら、出した技に固定する（こだわりスカーフ） |
 
 - 今の持ち物は `PersistentPokemonState.item`、使い切った持ち物は `consumedItem` にあります。バトル開始時に `TrainedPokemon.heldItem` を `item` に写します
 - 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます
@@ -1416,7 +1417,7 @@ modifyBasePower(_p: BattlePokemonStatus, power: number, ctx?: BattleContext): nu
 
 | 関数 | 場所 | 用途 |
 | --- | --- | --- |
-| `isGrounded({ typeNames, abilityName, itemName, volatileState, sideState })` | `battle/domain/logic/grounded.ts` | 地面にいるか（フィールド・まきびし・どくびし・ねばねばネット・ありじごく）。`itemName` は今の持ち物（`resolveItemName`）で、ふうせんなら地面にいない（じゅうりょく・ねをはるが先） |
+| `isGrounded({ typeNames, abilityName, itemName, volatileState, sideState })` | `battle/domain/logic/grounded.ts` | 地面にいるか（フィールド・まきびし・どくびし・ねばねばネット・ありじごく）。`itemName` は今の持ち物（`resolveItemName`）。じゅうりょく・ねをはる・くろいてっきゅうなら地面にいて、そうでなければふうせんで地面にいない |
 | `screenDamageModifier(side, category, { isCriticalHit, infiltrates })` | `battle/domain/logic/field-modifiers.ts` | 壁の補正（2048 か undefined） |
 | `sideSpeedMultiplier(side)` / `isTrickRoomActive(sideState)` / `movesBefore(a, b, trickRoom)` | 同上 | おいかぜ・トリックルームの行動順 |
 | `fieldBasePowerModifiers(params)` | 同上 | フィールド・どろあそび・みずあそびの威力補正 |

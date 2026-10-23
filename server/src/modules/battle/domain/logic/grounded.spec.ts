@@ -68,6 +68,7 @@ describe('isGrounded', () => {
     // Assert
     expect(grounded).toBe(true);
   });
+
   describe('ふうせん（持ち物）', () => {
     it('ふうせんを持っているポケモンは地面にいない', () => {
       // Act
@@ -116,6 +117,32 @@ describe('isGrounded', () => {
 
       // Assert
       expect(grounded).toBe(true);
+    });
+  });
+
+  describe('くろいてっきゅう', () => {
+    it.each([
+      ['ひこうタイプ', { typeNames: ['ひこう'], volatileState: {} }],
+      ['ふゆう', { typeNames: ['ゴースト'], abilityName: 'ふゆう', volatileState: {} }],
+      ['でんじふゆう', { typeNames: ['はがね'], volatileState: { magnetRiseTurns: 3 } }],
+    ])('持っていると、%sでも地面にいる', (_name, params) => {
+      // Act
+      const grounded = isGrounded({ ...params, itemName: 'くろいてっきゅう' });
+
+      // Assert
+      expect(grounded).toBe(true);
+    });
+
+    it('ほかの持ち物では、ひこうタイプは地面にいないまま', () => {
+      // Act
+      const grounded = isGrounded({
+        typeNames: ['ひこう'],
+        volatileState: {},
+        itemName: 'もくたん',
+      });
+
+      // Assert
+      expect(grounded).toBe(false);
     });
   });
 });
