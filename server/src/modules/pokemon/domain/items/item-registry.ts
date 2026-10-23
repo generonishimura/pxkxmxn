@@ -22,6 +22,27 @@ import { ShellBellEffect } from './effects/shell-bell-effect';
 import { AirBalloonEffect } from './effects/air-balloon-effect';
 import { EjectButtonEffect } from './effects/eject-button-effect';
 import { RedCardEffect } from './effects/red-card-effect';
+// 素早さ・場の状態・交代の持ち物（Issue #264 一部）
+import { ChoiceScarfEffect } from './effects/choice-scarf-effect';
+import { QuickClawEffect } from './effects/quick-claw-effect';
+import { IronBallEffect } from './effects/iron-ball-effect';
+import { LightClayEffect } from './effects/light-clay-effect';
+import {
+  DampRockEffect,
+  HeatRockEffect,
+  IcyRockEffect,
+  SmoothRockEffect,
+} from './effects/base-weather-rock-item-effect';
+import { TerrainExtenderEffect } from './effects/terrain-extender-effect';
+import { BigRootEffect } from './effects/big-root-effect';
+import { BindingBandEffect } from './effects/binding-band-effect';
+import {
+  ElectricSeedEffect,
+  GrassySeedEffect,
+  MistySeedEffect,
+  PsychicSeedEffect,
+} from './effects/base-terrain-seed-item-effect';
+import { ShedShellEffect } from './effects/shed-shell-effect';
 
 /**
  * 持ち物のレジストリ
@@ -64,6 +85,23 @@ export class ItemRegistry {
     this.registry.set('ふうせん', new AirBalloonEffect());
     this.registry.set('だっしゅつボタン', new EjectButtonEffect());
     this.registry.set('レッドカード', new RedCardEffect());
+    // 素早さ・場の状態・交代の持ち物（Issue #264 一部）
+    this.registry.set('こだわりスカーフ', new ChoiceScarfEffect());
+    this.registry.set('せんせいのツメ', new QuickClawEffect());
+    this.registry.set('くろいてっきゅう', new IronBallEffect());
+    this.registry.set('ひかりのねんど', new LightClayEffect());
+    this.registry.set('あついいわ', new HeatRockEffect());
+    this.registry.set('つめたいいわ', new IcyRockEffect());
+    this.registry.set('さらさらいわ', new SmoothRockEffect());
+    this.registry.set('しめったいわ', new DampRockEffect());
+    this.registry.set('グランドコート', new TerrainExtenderEffect());
+    this.registry.set('おおきなねっこ', new BigRootEffect());
+    this.registry.set('しめつけバンド', new BindingBandEffect());
+    this.registry.set('エレキシード', new ElectricSeedEffect());
+    this.registry.set('グラスシード', new GrassySeedEffect());
+    this.registry.set('ミストシード', new MistySeedEffect());
+    this.registry.set('サイコシード', new PsychicSeedEffect());
+    this.registry.set('きれいなぬけがら', new ShedShellEffect());
   }
 
   /**

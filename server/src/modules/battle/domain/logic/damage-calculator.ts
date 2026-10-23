@@ -17,7 +17,7 @@ import {
 } from './volatile-modifiers';
 // 場の状態・設置技・交代の仕組み（Issue #103 #107 #110 #135 一部）
 import { SideState, getGlobalFieldState, getSideConditions } from '../state/side-state';
-import { isAirborneAbility, isGrounded } from './grounded';
+import { isAirborneAbility, isGrounded, isGroundingItem } from './grounded';
 import {
   effectivePrimalWeather,
   fieldBasePowerModifiers,
@@ -417,6 +417,13 @@ export class DamageCalculator {
   }
 
   /**
+   * 防御側が、浮いていても地面にいるとみなされるか（じゅうりょくの間・くろいてっきゅうを持っている）
+   */
+  private static isForcedGrounded(params: DamageCalculationParams): boolean {
+    return this.isGravityActive(params) || isGroundingItem(resolveItemName(params.defender));
+  }
+
+  /**
    * じゅうりょくの間か
    */
   private static isGravityActive(params: DamageCalculationParams): boolean {
@@ -511,11 +518,11 @@ export class DamageCalculator {
     ) {
       return false;
     }
-    // じゅうりょくの間は、ふゆうでもじめん技を受ける（地面にいるため）
+    // じゅうりょくの間・くろいてっきゅうを持っている間は、ふゆうでもじめん技を受ける（地面にいるため）
     if (
       params.moveType.name === DamageCalculator.GROUND_TYPE_NAME &&
       isAirborneAbility(params.defenderAbilityName) &&
-      this.isGravityActive(params)
+      this.isForcedGrounded(params)
     ) {
       return false;
     }
@@ -674,9 +681,9 @@ export class DamageCalculator {
    * 2. 防御側の一時的な状態の倍率（タールショットのほのお 2 倍、でんじふゆう・テレキネシスのじめん 0 倍）
    */
   private static calculateFullTypeEffectiveness(params: DamageCalculationParams): number {
-    // じゅうりょくの間は、じめん技がひこうタイプ・でんじふゆう・テレキネシスにも当たる（地面にいるため）
+    // じゅうりょくの間・くろいてっきゅうを持っている間は、じめん技がひこうタイプ・でんじふゆう・テレキネシスにも当たる（地面にいるため）
     const groundedByGravity =
-      params.moveType.name === DamageCalculator.GROUND_TYPE_NAME && this.isGravityActive(params);
+      params.moveType.name === DamageCalculator.GROUND_TYPE_NAME && this.isForcedGrounded(params);
     const primal = effectivePrimalWeather(this.sideStateOf(params), [
       params.attackerAbilityName,
       params.defenderAbilityName,

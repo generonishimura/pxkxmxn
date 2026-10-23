@@ -16,7 +16,7 @@ import { HitResult } from '../../../battle-events/hit-result';
  */
 export class SeedSowerEffect implements IAbilityEffect {
   async onDamagingHit(
-    _holder: BattlePokemonStatus,
+    holder: BattlePokemonStatus,
     _attacker: BattlePokemonStatus,
     _hit: HitResult,
     battleContext?: BattleContext,
@@ -25,7 +25,7 @@ export class SeedSowerEffect implements IAbilityEffect {
       return null;
     }
     // 連続技の前のヒットで張っていることがあるため、setTerrain が最新のバトルの状態で判定する
-    return (await setTerrain(battleContext, Field.GrassyTerrain))
+    return (await setTerrain(battleContext, Field.GrassyTerrain, holder))
       ? 'Grassy Terrain was set up!'
       : null;
   }

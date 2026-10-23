@@ -16,6 +16,7 @@ import {
 } from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { Battle } from '../../domain/entities/battle.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 import { updateVolatileState } from '../../domain/state/volatile-state';
 // タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #119 #135 一部）
@@ -103,12 +104,17 @@ export class StartBattleUseCase {
     // 3. 両チームのすべてのポケモンの BattlePokemonStatus を作り、先発（position=1）を場に出す。
     // 先発の onEntry は、両方の先発が場に出てから呼ぶ（かわりもの・トレースが相手を、イリュージョンが手持ちを見つけられる）
     const leadStatusIds: number[] = [];
+    const itemLeadStatusIds: number[] = [];
     for (const [members, trainerId] of [
       [team1Members, trainer1Id],
       [team2Members, trainer2Id],
     ] as const) {
       for (const member of members) {
         const leadStatusId = await this.createBattlePokemonStatus(battle, member, trainerId);
+        // 持ち物のないポケモンは、持ち物の onEntry を呼ばない
+        if (leadStatusId !== undefined && member.trainedPokemon.heldItem) {
+          itemLeadStatusIds.push(leadStatusId);
+        }
         // 特性のないポケモンは onEntry を呼ばない
         if (leadStatusId !== undefined && member.trainedPokemon.ability) {
           leadStatusIds.push(leadStatusId);
@@ -125,6 +131,15 @@ export class StartBattleUseCase {
       trainedPokemons,
     )) {
       await this.triggerAbilityOnEntry(statusId, trainedPokemons, battle);
+    }
+
+    // 4.5. 先発の持ち物の onEntry を、特性のあとに素早さの高い順で呼ぶ（エレキシードなど。本家の onSwitchInPriority -1）
+    for (const statusId of await this.orderLeadsForEntry(
+      battle.id,
+      itemLeadStatusIds,
+      trainedPokemons,
+    )) {
+      await this.triggerItemOnEntry(statusId, battle);
     }
 
     // 5. 先発の onEntry で始まったゲンシ天候の特性が、あとから効かなくなっていれば天候を終わらせる
@@ -252,6 +267,21 @@ export class StartBattleUseCase {
     // 特性効果を発動（先に呼んだ先発の onEntry で変わった天候などを読めるよう、バトルを読み直す）
     // 相手の特性（クリアボディ・ばんけんなど）を調べられるよう、育成ポケモンリポジトリも渡す
     await abilityEffect.onEntry(status, {
+      battle: (await this.battleRepository.findById(battle.id)) ?? battle,
+      battleRepository: this.battleRepository,
+      trainedPokemonRepository: this.trainedPokemonRepository,
+    });
+  }
+
+  /**
+   * 持ち物の onEntry を呼ぶ（場に出たときに使う持ち物。ひんし・持ち物がなければ呼ばない）
+   */
+  private async triggerItemOnEntry(battleStatusId: number, battle: Battle): Promise<void> {
+    const status = await this.battleRepository.findBattlePokemonStatusById(battleStatusId);
+    if (!status || status.isFainted()) {
+      return;
+    }
+    await getItemEffect(status)?.onEntry?.(status, {
       battle: (await this.battleRepository.findById(battle.id)) ?? battle,
       battleRepository: this.battleRepository,
       trainedPokemonRepository: this.trainedPokemonRepository,

@@ -5,12 +5,14 @@ import {
   SIDE_TURN_COUNTER_KEYS,
   getSideConditions,
 } from '@/modules/battle/domain/state/side-state';
+import { resolveFieldTurns } from '../../../battle-events/item-lookup';
 
 /**
  * 自分の陣営にターン数のある守りを張る技の基底クラス
  * （リフレクター・ひかりのかべ・オーロラベール・おいかぜ・しんぴのまもり・しろいきり・おまじない）
  *
- * 使用者の陣営の SideConditions[key] に turns を書く。すでに張っていれば失敗する。
+ * 使用者の陣営の SideConditions[key] に turns を書く（使用者の持ち物の modifyFieldTurns で変わる。ひかりのねんどで 8）。
+ * すでに張っていれば失敗する。
  * 残りターン数はエンジンがターン終了時に減らし、効果（ダメージ半減・素早さ 2 倍など）もエンジンが行う
  */
 export abstract class BaseSideConditionMoveEffect implements IMoveEffect {
@@ -43,7 +45,7 @@ export abstract class BaseSideConditionMoveEffect implements IMoveEffect {
       return 'But it failed';
     }
     await repository.patchSideConditions(battle.id, attacker.trainerId, {
-      [this.key]: this.turns,
+      [this.key]: resolveFieldTurns(attacker, { kind: 'sideCondition', key: this.key }, this.turns),
     });
     return this.message;
   }

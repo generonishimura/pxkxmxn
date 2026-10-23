@@ -575,10 +575,13 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `modifyEvasion` | `AccuracyCalculator.checkHit`（防御側） | 防御側の特性の `modifyEvasion` のあと。かたやぶりで無視されない |
 | `modifyCritRatio` | `MoveExecutorService.resolveCriticalHitStage`（攻撃側） | 攻撃側の特性の `modifyCritRatio` のあと。返した値は 0〜3 に収める |
 | `onAfterMoveSecondarySelf` | `MoveExecutorService.runMoveBody`（攻撃側） | 攻撃側の特性の `onAfterMoveSecondarySelf` のあと |
-| `isImmuneToType` | `DamageCalculator.calculate` / `calculateMoveEffectiveness`（防御側） | 防御側の特性のあと。特性がかたやぶりで無視されても、持ち物は見る |
 | `isImmuneToType` | `DamageCalculator.calculate` / `calculateMoveEffectiveness`（防御側） | 防御側の特性のあと。特性がかたやぶりで無視されても、持ち物は見る（ふうせん） |
 | `onDamagingHit` | `MoveExecutorService.runMoveBody` のヒットのループ（防御側） | 防御側の特性の `onDamagingHit` のあと、攻撃側の特性の `onSourceDamagingHit` の前。みがわりに当たったヒットでは呼ばない |
 | `onSourceDamagingHit` | `MoveExecutorService.runMoveBody` のヒットのループ（攻撃側） | 攻撃側の特性の `onSourceDamagingHit` のあと |
+| `modifyFractionalPriority` | `ActionOrderDeterminerService.determine` | 特性の `modifyFractionalPriority` のあと。両方の値を優先度に足す（せんせいのツメ） |
+| `locksMoveChoice`（プロパティ） | `MoveLifecycle.recordMoveUse` | 特性と持ち物のどちらかが `true` なら、出した技に固定する（こだわりスカーフ） |
+| `onEntry` | `StartBattleUseCase`（先発）、`PokemonSwitcherService.executeSwitch`（交代で出たとき） | 先発は、すべての特性の `onEntry` のあとに、持ち物を持つ先発を素早さの順で呼ぶ。交代は、特性の `onEntry` のあと・相手の `onFoeEntry` の前（エレキシードなど） |
+| `onTerrainChange` | `notifyFieldChange`（`setTerrain` などがフィールドを変えたとき） | ポケモンごとに特性の `onTerrainChange` のあと。特性が消えていても呼ぶ（エレキシードなど） |
 
 - 今の持ち物は `PersistentPokemonState.item`、使い切った持ち物は `consumedItem` にあります。バトル開始時に `TrainedPokemon.heldItem` を `item` に写します
 - 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます
@@ -595,6 +598,10 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `onSourceAfterMoveHit(holder, target, hit, ctx): Promise<string \| null>` | `MoveExecutorService.runAfterMoveHooks`（攻撃側）。技全体で 1 回 | 防御側の `onAfterMoveHit` の攻撃側版（本家の `onAfterMoveSecondarySelf`）。合計ダメージが 1 以上で、持ち主がひんしでないとき、防御側の特性の `onAfterMoveHit` のあと・攻撃側の特性の `onKnockOut` の前に呼ぶ。`hit.damage` は合計。みがわりにだけ当たったときは呼ばない。使う持ち物: かいがらのすず |
 | `switchesOutAfterHit`（プロパティ） | `MoveExecutorService.scheduleItemSwitches`（防御側）。技のあとの交代 | 相手の攻撃技が当たったあと、持ち主がひんしでなく控えがいれば、持ち物を使い切って `pendingChoice: { reason: 'ejectButton' }` を書く。ドラゴンテールなどで交代させられるときは使わない。使ったら、相手の `selfSwitch` とききかいひは起きない。使う持ち物: だっしゅつボタン |
 | `forcesAttackerOutAfterHit`（プロパティ） | 同上（防御側） | 相手の攻撃技が当たったあと、持ち主と攻撃側がひんしでなく、攻撃側に控えがいれば、持ち物を使い切る。攻撃側がねをはっておらず `preventsForcedSwitch` の特性でもなければ、攻撃側の陣営に `forcedSwitch` を書き、攻撃側の `selfSwitch` は起きない。使う持ち物: レッドカード |
+| `modifyFieldTurns(holder, target, turns)` | `setWeather` / `setTerrain`（`source` を渡したとき）、`BaseSideConditionMoveEffect.onUse` | 持ち主が出した天候・フィールド・陣営の守りの残りターン数を変える。`target` は `{ kind: 'weather', weather }` / `{ kind: 'terrain', field }` / `{ kind: 'sideCondition', key }`。補助関数 `resolveFieldTurns(source, target, turns)`（`item-lookup.ts`）（ひかりのねんど・あついいわ・つめたいいわ・さらさらいわ・しめったいわ・グランドコート） |
+| `modifyDrainHeal(holder, amount)` | `applyDrainHeal`（回復する側）、`VolatileResidualProcessor.applyBeforeStatusDamage`（アクアリング・ねをはる） | 吸い取って回復する量を変える。ヘドロえきのダメージも変わる。補助関数 `resolveDrainHealAmount(healer, amount)`（おおきなねっこ） |
+| `partialTrapDamageDivisor`（プロパティ） | `VolatileResidualProcessor.applyAfterStatusDamage` | しめつけたポケモン（`partialTrap.sourceStatusId`）の持ち物で、バインドのダメージの分母を変える（既定 8。しめつけバンドは 6） |
+| `escapesTrapping`（プロパティ） | `PokemonSwitcherService.findSwitchBlocker` | `true` なら、逃げられない状態・バインド状態・ねをはる・相手の `trapsOpponent`・フェアリーロックでも交代できる（きれいなぬけがら） |
 
 ```ts
 // きあいのタスキ
@@ -1207,8 +1214,9 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 
 ### 11.1 天候・フィールド（setWeather / setTerrain / setPrimalWeather）
 
-- シグネチャ: `setWeather(ctx, weather, turns = 5): Promise<boolean>`、`setTerrain(ctx, field, turns = 5): Promise<boolean>`、`setPrimalWeather(ctx, holder, kind: 'heavyRain' | 'harshSunlight' | 'strongWinds'): Promise<boolean>`（`pokemon/domain/battle-events/field-state.ts`）。変えたら `true`
+- シグネチャ: `setWeather(ctx, weather, source?): Promise<boolean>`、`setTerrain(ctx, field, source?): Promise<boolean>`、`setPrimalWeather(ctx, holder, kind: 'heavyRain' | 'harshSunlight' | 'strongWinds'): Promise<boolean>`（`pokemon/domain/battle-events/field-state.ts`）。変えたら `true`
 - 呼ばれる場所: 技の `onUse`・特性の `onEntry` / `onDamagingHit` から呼ぶ。`weatherTurns` / `terrainTurns` が 1 のターン終了時に戻すのはエンジン（`FieldResidualProcessor`）
+- 残りターン数は 5。`source`（天候・フィールドを出したポケモン。技の使用者・特性の持ち主）を渡すと、その持ち物の `modifyFieldTurns` で変わる（あついいわ・グランドコートなどで 8）。基底クラスとすなはき・こぼれダネ・さむいギャグは渡している
 - 決まり: すでに同じ天候・フィールドなら何もしない。ゲンシ天候の間は `setWeather` が何もしない。`setPrimalWeather` はふつうの天候・別のゲンシ天候を上書きし、`holder` が場を離れたらエンジンが天候を終わらせる
 - 基底クラス: `BaseWeatherMoveEffect`（あまごいなど。すでに同じ天候のときとゲンシ天候の間は `But it failed`）、`BaseWeatherEffect`（あめふらしなど）、`BaseTerrainMoveEffect`（エレキフィールドなど。すでに同じフィールドなら `But it failed`）、`BaseFieldEffect`（エレキメイカーなど）、`BasePrimalWeatherEffect`（ゲンシ天候の特性）
 - 使う技・特性: グラスフィールド、さむいギャグ（ゆき。11.5 の `selfSwitch` と一緒に）、はじまりのうみ・おわりのだいち・デルタストリーム
@@ -1238,7 +1246,7 @@ export class PrimordialSeaEffect extends BasePrimalWeatherEffect {
 ### 11.2 陣営の守り（BaseSideConditionMoveEffect）
 
 - シグネチャ: `abstract class BaseSideConditionMoveEffect { key; turns; message }`（`pokemon/domain/moves/effects/base/base-side-condition-move-effect.ts`）。`key` は `SIDE_TURN_COUNTER_KEYS` のどれか
-- 呼ばれる場所: 技の `onUse`。使用者の陣営に `{ [key]: turns }` を書く。すでに張っていれば `But it failed`
+- 呼ばれる場所: 技の `onUse`。使用者の陣営に `{ [key]: turns }` を書く（使用者の持ち物の `modifyFieldTurns` で変わる。ひかりのねんどで壁が 8）。すでに張っていれば `But it failed`
 - 効果はエンジン: 壁は `DamageCalculator`（急所・すりぬけでは効かない）、おいかぜは行動順、しんぴのまもりは `canInflictStatus` / `canApplyVolatile`、しろいきりは `applyStatChanges`
 - 使う技: リフレクター（`reflectTurns`, 5）、ひかりのかべ（`lightScreenTurns`, 5）、オーロラベール（`auroraVeilTurns`, 5。あられ・ゆきでなければ失敗するので `shouldFail` も書く）、おいかぜ（`tailwindTurns`, 4）、おまじない（`luckyChantTurns`, 5）。しんぴのまもり・しろいきりは作成済み
 
@@ -1394,6 +1402,7 @@ trapsOpponent(_holder: BattlePokemonStatus, target: TrapTarget): boolean {
 ```
 
 - くろいまなざし・とおせんぼう・クモのすは `trappedByStatusId`（9.7）
+- 持ち物の `escapesTrapping`（きれいなぬけがら）を持つポケモンは、特性・状態にかかわらず交代できる（`findSwitchBlocker` が先に判定する）
 
 ### 11.7 手持ちの数（attackerFaintedAllyCount / countFaintedAllies）
 
@@ -1416,7 +1425,7 @@ modifyBasePower(_p: BattlePokemonStatus, power: number, ctx?: BattleContext): nu
 
 | 関数 | 場所 | 用途 |
 | --- | --- | --- |
-| `isGrounded({ typeNames, abilityName, itemName, volatileState, sideState })` | `battle/domain/logic/grounded.ts` | 地面にいるか（フィールド・まきびし・どくびし・ねばねばネット・ありじごく）。`itemName` は今の持ち物（`resolveItemName`）で、ふうせんなら地面にいない（じゅうりょく・ねをはるが先） |
+| `isGrounded({ typeNames, abilityName, itemName, volatileState, sideState })` | `battle/domain/logic/grounded.ts` | 地面にいるか（フィールド・まきびし・どくびし・ねばねばネット・ありじごく）。`itemName` は今の持ち物（`resolveItemName`）。じゅうりょく・ねをはる・くろいてっきゅうなら地面にいて、そうでなければふうせんで地面にいない |
 | `screenDamageModifier(side, category, { isCriticalHit, infiltrates })` | `battle/domain/logic/field-modifiers.ts` | 壁の補正（2048 か undefined） |
 | `sideSpeedMultiplier(side)` / `isTrickRoomActive(sideState)` / `movesBefore(a, b, trickRoom)` | 同上 | おいかぜ・トリックルームの行動順 |
 | `fieldBasePowerModifiers(params)` | 同上 | フィールド・どろあそび・みずあそびの威力補正 |
@@ -1444,7 +1453,7 @@ return grounded; // ありじごく（trapsOpponent では target.grounded が�
 | コートチェンジ | `swapSideConditions(ctx)`（11.4） |
 | さいきのいのり | `hasFaintedPartyMember` で失敗判定と `requestSwitch(ctx, attacker.trainerId, 'revivalBlessing')`（11.5） |
 | しっぽきり | `selfSwitch = 'shedTail'`。`onUse` で、控えなし・みがわりがある・`attacker.currentHp <= Math.ceil(attacker.maxHp / 2)` なら `But it failed` を返す（エンジンが交代を止める。ほかのメッセージで失敗するなら `ctx.selfSwitchCancelled = true` も立てる）。成功なら `Math.ceil(maxHp / 2)` を払い `substituteHp: Math.floor(maxHp / 4)` を書く |
-| さむいギャグ | `selfSwitch = true` と `setWeather(ctx, Weather.Hail)`（ゆきがないので近似。7 章） |
+| さむいギャグ | `selfSwitch = true` と `setWeather(ctx, Weather.Hail, attacker)`（ゆきがないので近似。7 章） |
 | ひかりのかべ | `BaseSideConditionMoveEffect`（`lightScreenTurns`, 5） |
 | おいかぜ | `BaseSideConditionMoveEffect`（`tailwindTurns`, 4） |
 | じゅうりょく | `gravityTurns: 5` と、場のポケモンの浮く状態・そらをとぶの消去（11.3） |

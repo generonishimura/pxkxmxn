@@ -8,6 +8,10 @@ import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
 import { applyHeal, fractionOfMaxHp } from '@/modules/pokemon/domain/battle-events/heal';
 import { applyDrainHeal } from '@/modules/pokemon/domain/battle-events/drain-heal';
+import {
+  getItemEffect,
+  resolveDrainHealAmount,
+} from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { applyStatChanges } from '@/modules/pokemon/domain/battle-events/stat-change';
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { resolveEffectiveStatusCondition } from '@/modules/pokemon/domain/battle-events/effective-status';
@@ -34,6 +38,11 @@ const SANDSTORM_IMMUNE_ABILITIES: readonly string[] = [
 ];
 
 /**
+ * バインド状態のダメージの分母（最大 HP の 1/8）
+ */
+const PARTIAL_TRAP_DAMAGE_DIVISOR = 8;
+
+/**
  * しおづけのダメージが大きくなるタイプ
  */
 const SALT_CURE_WEAK_TYPES: readonly string[] = ['みず', 'はがね'];
@@ -57,8 +66,8 @@ const SALT_CURE_WEAK_DIVISOR = 8;
  *
  * - applyWeatherDamage: すなあらし（最大 HP の 1/16。天候の残りターン数があるときだけ）
  * - applyWish: ねがいごと（wish.turns が 1 の陣営の場のポケモンを回復）
- * - applyBeforeStatusDamage: アクアリング・ねをはる（1/16 回復）→ やどりぎのタネ（1/8 を吸う）
- * - applyAfterStatusDamage: あくむ（1/4）→ のろい（1/4）→ バインド（1/8）→ しおづけ（1/16、みず・はがねは 1/8）→
+ * - applyBeforeStatusDamage: アクアリング・ねをはる（1/16 回復。おおきなねっこで 1.3 倍）→ やどりぎのタネ（1/8 を吸う）
+ * - applyAfterStatusDamage: あくむ（1/4）→ のろい（1/4）→ バインド（1/8。しめつけバンドで 1/6）→ しおづけ（1/16、みず・はがねは 1/8）→
  *   たこがため（防御・特防 -1）→ あくび（残り 1 でねむり）→ ほろびのうた（0 でひんし、それ以外は 1 減らす）。
  *   バインド・たこがためは、かけたポケモンがひんし・場にいなければ、効果なしで解ける
  *
@@ -142,12 +151,21 @@ export class VolatileResidualProcessor {
     battleContext: BattleContext,
   ): Promise<void> {
     let latest = await this.refresh(status);
+    // アクアリング・ねをはるの回復は、持ち物の modifyDrainHeal で変わる（おおきなねっこ）
     if (latest.volatileState.aquaRing === true) {
-      await applyHeal(latest, fractionOfMaxHp(latest, 16), battleContext);
+      await applyHeal(
+        latest,
+        resolveDrainHealAmount(latest, fractionOfMaxHp(latest, 16)),
+        battleContext,
+      );
       latest = await this.refresh(latest);
     }
     if (latest.volatileState.ingrain === true) {
-      await applyHeal(latest, fractionOfMaxHp(latest, 16), battleContext);
+      await applyHeal(
+        latest,
+        resolveDrainHealAmount(latest, fractionOfMaxHp(latest, 16)),
+        battleContext,
+      );
       latest = await this.refresh(latest);
     }
     if (latest.volatileState.leechSeed === true && !latest.isFainted() && opponent) {
@@ -199,7 +217,13 @@ export class VolatileResidualProcessor {
 
     // バインド: しめつけたポケモンがひんし・場にいなければ解ける（ダメージなし）。
     // そうでなければ残りターン数を 1 減らし、0 なら解ける（ダメージなし）。残っていれば 1/8
+    // （しめつけたポケモンの持ち物の partialTrapDamageDivisor で変わる。しめつけバンドは 1/6）
+    // 注: 本家はバインド状態になったときの持ち物で決めるが、ここではターン終了時の持ち物で決める
     const partialTrap = latest.volatileState.partialTrap;
+    const trapSource =
+      partialTrap !== undefined
+        ? await this.battleRepository.findBattlePokemonStatusById(partialTrap.sourceStatusId)
+        : null;
     if (
       partialTrap !== undefined &&
       !latest.isFainted() &&
@@ -215,7 +239,10 @@ export class VolatileResidualProcessor {
           partialTrap: turns > 0 ? { ...partialTrap, turns } : null,
         })) ?? latest;
       if (turns > 0) {
-        await damage(8);
+        await damage(
+          (trapSource && getItemEffect(trapSource)?.partialTrapDamageDivisor) ??
+            PARTIAL_TRAP_DAMAGE_DIVISOR,
+        );
       }
     }
 

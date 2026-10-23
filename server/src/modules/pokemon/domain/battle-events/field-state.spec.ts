@@ -11,12 +11,23 @@ import {
 } from './field-state';
 import { HAZARD_KEYS, getSideConditions } from '@/modules/battle/domain/state/side-state';
 import { createInMemoryBattle } from './__tests__/in-memory-battle';
+import { ItemRegistry } from '../items/item-registry';
 
 describe('天候・フィールドを出す', () => {
   beforeEach(() => {
     AbilityRegistry.clear();
     AbilityRegistry.initialize();
+    ItemRegistry.initialize();
+    ItemRegistry.register('テストの延長', {
+      modifyFieldTurns: (_holder, _target, turns) => turns + 3,
+    });
   });
+
+  afterEach(() => {
+    ItemRegistry.initialize();
+  });
+
+  const holding = { status: { persistentState: { item: 'テストの延長' } } };
 
   describe('setWeather', () => {
     it('天候を変え、残りターン数 5 を書く', async () => {
@@ -30,6 +41,30 @@ describe('天候・フィールドを出す', () => {
       const battle = (await battleRepository.findById(1))!;
       expect(changed).toBe(true);
       expect(battle.weather).toBe(Weather.Sandstorm);
+      expect(getGlobalFieldState(battle.sideState).weatherTurns).toBe(5);
+    });
+
+    it('出したポケモンの持ち物の modifyFieldTurns で、残りターン数を変える', async () => {
+      // Arrange
+      const { context, get, battleRepository } = createInMemoryBattle(holding);
+
+      // Act
+      await setWeather(context(), Weather.Rain, get(1));
+
+      // Assert
+      const battle = (await battleRepository.findById(1))!;
+      expect(getGlobalFieldState(battle.sideState).weatherTurns).toBe(8);
+    });
+
+    it('出したポケモンを渡さなければ、持ち物を見ない', async () => {
+      // Arrange
+      const { context, battleRepository } = createInMemoryBattle(holding);
+
+      // Act
+      await setWeather(context(), Weather.Rain);
+
+      // Assert
+      const battle = (await battleRepository.findById(1))!;
       expect(getGlobalFieldState(battle.sideState).weatherTurns).toBe(5);
     });
 
@@ -130,6 +165,18 @@ describe('天候・フィールドを出す', () => {
       expect(changed).toBe(true);
       expect(battle.field).toBe(Field.GrassyTerrain);
       expect(getGlobalFieldState(battle.sideState).terrainTurns).toBe(5);
+    });
+
+    it('出したポケモンの持ち物の modifyFieldTurns で、残りターン数を変える', async () => {
+      // Arrange
+      const { context, get, battleRepository } = createInMemoryBattle(holding);
+
+      // Act
+      await setTerrain(context(), Field.PsychicTerrain, get(1));
+
+      // Assert
+      const battle = (await battleRepository.findById(1))!;
+      expect(getGlobalFieldState(battle.sideState).terrainTurns).toBe(8);
     });
 
     it('すでに同じフィールドなら何もしない', async () => {

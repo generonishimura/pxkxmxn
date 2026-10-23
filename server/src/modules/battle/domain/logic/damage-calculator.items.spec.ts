@@ -185,4 +185,56 @@ describe('DamageCalculator - 持ち物', () => {
       expect(damage).toBeGreaterThan(0);
     });
   });
+
+  describe('くろいてっきゅう（地面にいる）', () => {
+    const GROUND = new Type(4, 'じめん', 'Ground');
+    const FLYING = new Type(6, 'ひこう', 'Flying');
+    const groundParams = (
+      defender: BattlePokemonStatus,
+      overrides: Partial<DamageCalculationParams> = {},
+    ): DamageCalculationParams =>
+      createParams({
+        defender,
+        move: { power: 100, typeId: GROUND.id, category: 'Physical', accuracy: 100 },
+        moveType: GROUND,
+        typeEffectiveness: new Map([['4-6', 0]]),
+        ...overrides,
+      });
+
+    it('持っているひこうタイプに、じめん技が等倍で当たる', async () => {
+      // Arrange
+      const expected = await DamageCalculator.calculate(groundParams(createStatus(2)));
+
+      // Act
+      const damage = await DamageCalculator.calculate(
+        groundParams(createStatus(2, 'くろいてっきゅう'), {
+          defenderTypes: { primary: FLYING, secondary: null },
+        }),
+      );
+
+      // Assert
+      expect(damage).toBe(expected);
+      expect(damage).toBeGreaterThan(0);
+    });
+
+    it('持っているふゆうのポケモンに、じめん技が当たる', async () => {
+      // Act
+      const damage = await DamageCalculator.calculate(
+        groundParams(createStatus(2, 'くろいてっきゅう'), { defenderAbilityName: 'ふゆう' }),
+      );
+
+      // Assert
+      expect(damage).toBeGreaterThan(0);
+    });
+
+    it('持っていないひこうタイプには、じめん技が当たらない', async () => {
+      // Act
+      const damage = await DamageCalculator.calculate(
+        groundParams(createStatus(2), { defenderTypes: { primary: FLYING, secondary: null } }),
+      );
+
+      // Assert
+      expect(damage).toBe(0);
+    });
+  });
 });

@@ -9,7 +9,7 @@ import { setWeather } from '../../../battle-events/field-state';
  * 変化技を使用したときに天候を変更する汎用的な実装
  *
  * 各技の特殊効果は、このクラスを継承して変更する天候を設定するだけで実装できる
- * setWeather で 5 ターンの残りターン数を書く。すでに同じ天候のときと、ゲンシ天候の間は失敗する（本家と同じ）
+ * setWeather で 5 ターンの残りターン数を書く（使用者の持ち物で 8 になる）。すでに同じ天候のときと、ゲンシ天候の間は失敗する（本家と同じ）
  */
 export abstract class BaseWeatherMoveEffect implements IMoveEffect {
   /**
@@ -27,7 +27,7 @@ export abstract class BaseWeatherMoveEffect implements IMoveEffect {
    * 天候を変更
    */
   async onUse(
-    _attacker: BattlePokemonStatus,
+    attacker: BattlePokemonStatus,
     _defender: BattlePokemonStatus,
     battleContext: BattleContext,
   ): Promise<string | null> {
@@ -37,6 +37,8 @@ export abstract class BaseWeatherMoveEffect implements IMoveEffect {
     }
 
     // すでに同じ天候のときと、ゲンシ天候の間（ふつうの天候で上書きできない）は失敗する
-    return (await setWeather(battleContext, this.weather)) ? this.message : 'But it failed';
+    return (await setWeather(battleContext, this.weather, attacker))
+      ? this.message
+      : 'But it failed';
   }
 }
