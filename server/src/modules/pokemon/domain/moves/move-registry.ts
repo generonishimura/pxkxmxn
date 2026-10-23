@@ -389,6 +389,10 @@ import { RolePlayEffect } from './effects/role-play-effect';
 import { GastroAcidEffect } from './effects/gastro-acid-effect';
 import { WorrySeedEffect } from './effects/worry-seed-effect';
 import { SimpleBeamEffect } from './effects/simple-beam-effect';
+// 持ち物を入れ替える・渡す・使えなくする技（Issue #118）
+import { TrickEffect } from './effects/trick-effect';
+import { BestowEffect } from './effects/bestow-effect';
+import { EmbargoEffect } from './effects/embargo-effect';
 // 特性を書き換える技（Issue #119 一部）
 import { EntrainmentEffect } from './effects/entrainment-effect';
 // うのミサイルのフォルムチェンジを起こすための技（Issue #135 一部）
@@ -958,6 +962,12 @@ export class MoveRegistry {
       this.registry.set('てんこがすめつぼうのひかり', new LightThatBurnsTheSkyEffect());
       this.registry.set('グラススライダー', new GrassyGlideEffect());
       this.registry.set('フリーズドライ', new FreezeDryEffect());
+      // 持ち物を入れ替える・渡す・使えなくする技（Issue #118）。すりかえはトリックと同効果のため TrickEffect を共有
+      const trick = new TrickEffect();
+      this.registry.set('トリック', trick);
+      this.registry.set('すりかえ', trick);
+      this.registry.set('ギフトパス', new BestowEffect());
+      this.registry.set('さしおさえ', new EmbargoEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,

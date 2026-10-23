@@ -7,7 +7,8 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
  *
  * - 技の固定と、固定された技以外を出せなくするのはエンジン（locksMoveChoice → choiceLockedMoveId。交代で解ける）
  * - 素早さは、行動順を決めるときに特性の補正のあとで掛ける（ActionOrderDeterminerService）
- * 注: 本家は、持ち物がなくなる（はたきおとす・トリックなど）とこだわりが解ける。ここでは交代するまで解けない
+ * - トリック・ギフトパスなどで持ち物が変わると、こだわりが解ける（battle-events/item-transfer.ts）
+ * 注: 本家は、さしおさえの間は固定した技以外も出せる。ここでは、さしおさえの間も固定が続く
  */
 export class ChoiceScarfEffect implements IItemEffect {
   readonly locksMoveChoice = true;
