@@ -50,6 +50,8 @@ const GROWL = move(15, 'なきごえ', MoveCategory.Status);
 const THRASH = move(16, 'あばれる');
 const OPPONENT_MOVE = move(12, 'はたく');
 const STRUGGLE = move(165, 'わるあがき');
+const FAKE_OUT = move(252, 'ねこだまし');
+const FIRST_IMPRESSION = move(660, 'であいがしら');
 
 /**
  * ExecuteTurnUseCase が、一時的な状態から行動を決めることを確かめる
@@ -114,7 +116,17 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
       [1, options.movesOf1 ?? [new BattlePokemonMove(1, 1, TACKLE.id, 10, 10)]],
       [2, [new BattlePokemonMove(2, 2, OPPONENT_MOVE.id, 10, 10)]],
     ]);
-    const allMoves = [TACKLE, SCRATCH, SWORDS_DANCE, GROWL, THRASH, OPPONENT_MOVE, STRUGGLE];
+    const allMoves = [
+      TACKLE,
+      SCRATCH,
+      SWORDS_DANCE,
+      GROWL,
+      THRASH,
+      OPPONENT_MOVE,
+      STRUGGLE,
+      FAKE_OUT,
+      FIRST_IMPRESSION,
+    ];
 
     const battleRepository: jest.Mocked<IBattleRepository> = {
       findById: jest.fn().mockResolvedValue(battle),
@@ -450,6 +462,60 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
 
       // Assert
       expect(calls()[0]).toMatchObject({ moveId: SWORDS_DANCE.id });
+    });
+
+    // チャンピオンズ: ねこだまし・であいがしらは、場に出た最初のターン以外は選べない（このテストのターンは 3）
+    describe.each([
+      ['ねこだまし', FAKE_OUT],
+      ['であいがしら', FIRST_IMPRESSION],
+    ])('%s', (_name, firstTurnMove) => {
+      it('場に出た次のターン（最初に行動するターン）なら選べる', async () => {
+        // Arrange
+        const { useCase, calls } = setup({
+          movesOf1: [
+            new BattlePokemonMove(1, 1, firstTurnMove.id, 10, 10),
+            new BattlePokemonMove(3, 1, TACKLE.id, 10, 10),
+          ],
+          volatileOf1: { switchedInTurn: 2 },
+        });
+
+        // Act
+        await useCase.execute(params({ trainerId: 1, moveId: firstTurnMove.id }));
+
+        // Assert
+        expect(calls()[0]).toMatchObject({ moveId: firstTurnMove.id });
+      });
+
+      it('最初のターンを過ぎたら選べず、ほかに出せる技がなければ、わるあがきを出す', async () => {
+        // Arrange
+        const { useCase, calls } = setup({
+          movesOf1: [new BattlePokemonMove(1, 1, firstTurnMove.id, 10, 10)],
+          volatileOf1: { switchedInTurn: 1 },
+        });
+
+        // Act
+        await useCase.execute(params({ trainerId: 1, moveId: firstTurnMove.id }));
+
+        // Assert
+        expect(calls()[0]).toMatchObject({ moveId: STRUGGLE.id });
+      });
+
+      it('最初のターンを過ぎても、ほかに出せる技があれば選んだ技のまま（技を出す前の判定で止まる）', async () => {
+        // Arrange
+        const { useCase, calls } = setup({
+          movesOf1: [
+            new BattlePokemonMove(1, 1, firstTurnMove.id, 10, 10),
+            new BattlePokemonMove(3, 1, TACKLE.id, 10, 10),
+          ],
+          volatileOf1: { switchedInTurn: 0 },
+        });
+
+        // Act
+        await useCase.execute(params({ trainerId: 1, moveId: firstTurnMove.id }));
+
+        // Assert
+        expect(calls()[0]).toMatchObject({ moveId: firstTurnMove.id });
+      });
     });
   });
 

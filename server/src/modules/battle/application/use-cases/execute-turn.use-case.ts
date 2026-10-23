@@ -29,6 +29,7 @@ import {
   MoveSlot,
   STRUGGLE_MOVE_NAME,
   findMoveSlot,
+  isPastFirstTurn,
   resolveForcedAction,
   resolveMoveSlots,
 } from '../../domain/logic/move-selection';
@@ -478,6 +479,7 @@ export class ExecuteTurnUseCase {
     opponent: BattlePokemonStatus,
   ): Promise<PlannedAction> {
     const gravity = getGlobalFieldState(battle.sideState).gravityTurns !== undefined;
+    const turn = battle.turn;
     const forced = resolveForcedAction(active.volatileState);
     if (forced && forced.kind !== 'encore') {
       const forcedMoveId = forced.moveId ?? action.moveId;
@@ -524,19 +526,19 @@ export class ExecuteTurnUseCase {
     }
     if (slot.currentPp <= 0) {
       return (
-        (await this.planStruggle(action, active, opponent, slots, gravity)) ?? {
+        (await this.planStruggle(action, active, opponent, slots, gravity, turn)) ?? {
           action: chosen,
           failure: 'Move has no PP left',
         }
       );
     }
     if (
-      this.hasSelectionRestriction(active, opponent, gravity) &&
-      !(await this.moveExecutor.isMoveSelectable(active, opponent, moveId, { gravity }))
+      this.hasSelectionRestriction(active, opponent, gravity, turn) &&
+      !(await this.moveExecutor.isMoveSelectable(active, opponent, moveId, { gravity, turn }))
     ) {
       // 制限で出せない技でも、ほかに出せる技があれば選んだまま出す（技を出す前の判定で止まる）
       return (
-        (await this.planStruggle(action, active, opponent, slots, gravity)) ?? {
+        (await this.planStruggle(action, active, opponent, slots, gravity, turn)) ?? {
           action: chosen,
           battlePokemonMoveId: slot.battlePokemonMoveId,
         }
@@ -633,15 +635,16 @@ export class ExecuteTurnUseCase {
     opponent: BattlePokemonStatus,
     slots: readonly MoveSlot[],
     gravity: boolean,
+    turn: number,
   ): Promise<PlannedAction | undefined> {
-    const restricted = this.hasSelectionRestriction(active, opponent, gravity);
+    const restricted = this.hasSelectionRestriction(active, opponent, gravity, turn);
     for (const slot of slots) {
       if (slot.currentPp <= 0) {
         continue;
       }
       if (
         !restricted ||
-        (await this.moveExecutor.isMoveSelectable(active, opponent, slot.moveId, { gravity }))
+        (await this.moveExecutor.isMoveSelectable(active, opponent, slot.moveId, { gravity, turn }))
       ) {
         return undefined;
       }
@@ -654,16 +657,18 @@ export class ExecuteTurnUseCase {
 
   /**
    * 技の選択を制限する状態があるか（ちょうはつ・かなしばり・いちゃもん・かいふくふうじ・じごくづき・こだわり・相手のふういん・
-   * じゅうりょく）。ないときは、技ごとの判定（技のリポジトリを引く）をしない
+   * じゅうりょく・最初のターンを過ぎたあとの、ねこだまし・であいがしら）。ないときは、技ごとの判定（技のリポジトリを引く）をしない
    */
   private hasSelectionRestriction(
     active: BattlePokemonStatus,
     opponent: BattlePokemonStatus,
     gravity: boolean,
+    turn: number,
   ): boolean {
     const state = active.volatileState;
     return (
       gravity ||
+      isPastFirstTurn(state, turn) ||
       state.tauntTurns !== undefined ||
       state.disable !== undefined ||
       state.torment === true ||

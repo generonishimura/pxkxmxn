@@ -10,6 +10,7 @@ import type { ExtraMoveBehavior } from './move-behaviors';
  * - noProtect: 相手を対象にする技のうち、flags に protect がない技（まもる系で防げない）
  * - breaksProtect: breaksProtect の技（当たると相手のまもる系を解く）
  * - spread: target が allAdjacent / allAdjacentFoes の技（ワイドガードで防がれる）
+ * - firstTurnOnly: チャンピオンズで、場に出た最初のターン以外は選べない技（Showdown の表ではなく、チャンピオンズの仕様）
  *
  * 追加方法: 該当する性質の配列に `'<DBの技名>', // <英語名>` を1行足す
  */
@@ -165,5 +166,9 @@ export const EXTRA_MOVE_BEHAVIOR_TABLE: Readonly<Record<ExtraMoveBehavior, reado
     'キラースピン', // Mortal Spin
     'ゴールドラッシュ', // Make It Rain
     'シャカシャカほう', // Matcha Gotcha
+  ],
+  firstTurnOnly: [
+    'ねこだまし', // Fake Out
+    'であいがしら', // First Impression
   ],
 };

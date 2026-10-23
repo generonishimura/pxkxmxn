@@ -4,6 +4,7 @@ import {
   MoveCandidate,
   findMoveRestriction,
   findMoveSlot,
+  isPastFirstTurn,
   moveRestrictionMessage,
   resolveForcedAction,
   resolveMoveSlots,
@@ -42,6 +43,52 @@ describe('move-selection', () => {
 
       // Assert
       expect(reason).toBeUndefined();
+    });
+
+    it('最初のターンを過ぎたら、ねこだましを出せない', () => {
+      // Act
+      const reason = findMoveRestriction({}, candidate({ moveName: 'ねこだまし' }), {
+        pastFirstTurn: true,
+      });
+
+      // Assert
+      expect(reason).toBe('firstTurnOnly');
+    });
+
+    it('最初のターンを過ぎていなければ、ねこだましを出せる', () => {
+      // Act
+      const reason = findMoveRestriction({}, candidate({ moveName: 'ねこだまし' }), {
+        pastFirstTurn: false,
+      });
+
+      // Assert
+      expect(reason).toBeUndefined();
+    });
+
+    it('最初のターンを過ぎても、firstTurnOnly でない技は出せる', () => {
+      // Act
+      const reason = findMoveRestriction({}, candidate(), { pastFirstTurn: true });
+
+      // Assert
+      expect(reason).toBeUndefined();
+    });
+
+    it.each([
+      [2, 3, false],
+      [2, 4, true],
+      [0, 1, false],
+      [0, 2, true],
+    ])(
+      '場に出たターン %i、今のターン %i なら、最初のターンを過ぎている: %s',
+      (switchedIn, turn, expected) => {
+        // Act / Assert
+        expect(isPastFirstTurn({ switchedInTurn: switchedIn }, turn)).toBe(expected);
+      },
+    );
+
+    it('場に出たターンが分からなければ、最初のターンを過ぎていないとみなす', () => {
+      // Act / Assert
+      expect(isPastFirstTurn({}, 5)).toBe(false);
     });
 
     it('じゅうりょくで出せないときのメッセージ', () => {

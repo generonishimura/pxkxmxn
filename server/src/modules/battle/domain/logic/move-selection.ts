@@ -20,6 +20,7 @@ export const STRUGGLE_MOVE_NAME = 'わるあがき';
  * - choiceLock: こだわり・ごりむちゅう（固定された技以外）
  * - cantUseTwice: デカハンマー・ブラッドムーン（続けて出せない）
  * - gravity: じゅうりょくの間の、MoveBehaviors の gravity の技（そらをとぶ・とびげりなど）
+ * - firstTurnOnly: 場に出た最初のターンを過ぎた後の、ねこだまし・であいがしら（チャンピオンズの仕様）
  */
 export type MoveRestrictionReason =
   | 'disable'
@@ -31,7 +32,8 @@ export type MoveRestrictionReason =
   | 'torment'
   | 'choiceLock'
   | 'cantUseTwice'
-  | 'gravity';
+  | 'gravity'
+  | 'firstTurnOnly';
 
 /**
  * 出せるかを判定する技
@@ -63,7 +65,16 @@ export interface MoveRestrictionOptions {
   readonly phase?: MoveRestrictionPhase;
   /** じゅうりょくの間か（GlobalFieldState.gravityTurns があるか） */
   readonly gravity?: boolean;
+  /** 場に出た最初のターンを過ぎているか（isPastFirstTurn の結果。firstTurnOnly の技を出せなくする） */
+  readonly pastFirstTurn?: boolean;
 }
+
+/**
+ * 場に出た最初のターン（出たターンの次のターン）を過ぎているか
+ * 場に出たターンが分からないとき（switchedInTurn がない）は、過ぎていないとみなす
+ */
+export const isPastFirstTurn = (user: VolatileState, turn: number): boolean =>
+  user.switchedInTurn !== undefined && turn !== user.switchedInTurn + 1;
 
 /**
  * 技を出せない理由を返す（出せるなら undefined）
@@ -84,6 +95,9 @@ export const findMoveRestriction = (
   }
   if (options.gravity === true && MoveBehaviors.has(move.moveName, 'gravity')) {
     return 'gravity';
+  }
+  if (options.pastFirstTurn === true && MoveBehaviors.has(move.moveName, 'firstTurnOnly')) {
+    return 'firstTurnOnly';
   }
   if (user.healBlockTurns !== undefined && MoveFlags.has(move.moveName, 'heal')) {
     return 'healBlock';
@@ -128,6 +142,7 @@ const RESTRICTION_LABELS: Readonly<Record<MoveRestrictionReason, string>> = {
   choiceLock: 'because it is locked into another move',
   cantUseTwice: 'twice in a row',
   gravity: 'because of gravity',
+  firstTurnOnly: 'after the first turn',
 };
 
 /**

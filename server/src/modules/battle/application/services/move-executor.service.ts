@@ -53,6 +53,7 @@ import { getGlobalFieldState, getSideConditions } from '../../domain/state/side-
 import {
   STRUGGLE_MOVE_NAME,
   findMoveRestriction,
+  isPastFirstTurn,
   findMoveSlot,
   moveRestrictionMessage,
   resolveMoveSlots,
@@ -555,14 +556,15 @@ export class MoveExecutorService {
 
   /**
    * 技を選べるか（技の制限を受けないか）を判定する（ExecuteTurnUseCase が、わるあがきを出すかの判定に使う）
-   * かなしばり・かいふくふうじ・じごくづき・ちょうはつ・相手のふういん・アンコール・いちゃもん・こだわり・じゅうりょくを見る
+   * かなしばり・かいふくふうじ・じごくづき・ちょうはつ・相手のふういん・アンコール・いちゃもん・こだわり・じゅうりょく・
+   * 最初のターンしか選べない技（options.turn を渡したとき）を見る
    * 技が見つからないときは選べるとみなす
    */
   async isMoveSelectable(
     user: BattlePokemonStatus,
     opponent: BattlePokemonStatus,
     moveId: number,
-    options: { readonly gravity?: boolean } = {},
+    options: { readonly gravity?: boolean; readonly turn?: number } = {},
   ): Promise<boolean> {
     const move = await this.moveRepository.findById(moveId);
     if (!move) {
@@ -574,6 +576,8 @@ export class MoveExecutorService {
       {
         imprisonedMoveIds: await this.beforeMoveChecker.findImprisonedMoveIds(opponent),
         gravity: options.gravity,
+        pastFirstTurn:
+          options.turn !== undefined && isPastFirstTurn(user.volatileState, options.turn),
       },
     );
     return restriction === undefined;
@@ -2566,8 +2570,7 @@ export class MoveExecutorService {
     if (category !== undefined) {
       context.moveCategory = category;
     }
-    const madeContact =
-      category === 'Physical' && params.moveEffect?.contactWhenPhysical === true;
+    const madeContact = category === 'Physical' && params.moveEffect?.contactWhenPhysical === true;
     const baseFlags = madeContact
       ? new Set<MoveFlag>([...MoveFlags.get(move.name), 'contact'])
       : MoveFlags.get(move.name);
