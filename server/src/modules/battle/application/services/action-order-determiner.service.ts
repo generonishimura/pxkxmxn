@@ -45,6 +45,10 @@ export interface ActionOrderParams {
   };
   trainer1Active: BattlePokemonStatus;
   trainer2Active: BattlePokemonStatus;
+  /**
+   * 両方が技を使うとき、技の優先度を見ずに素早さだけで並べる（メガシンカの順番。本家の megaEvo の行動は優先度を持たない）
+   */
+  speedOnly?: boolean;
 }
 
 /**
@@ -116,6 +120,7 @@ export class ActionOrderDeterminerService {
         params.trainer2Action,
         params.trainer1Active,
         params.trainer2Active,
+        params.speedOnly ?? false,
       );
       actions.push(...moveActions);
     } else if (params.trainer1Action.moveId) {
@@ -144,6 +149,7 @@ export class ActionOrderDeterminerService {
     trainer2Action: ActionOrderParams['trainer2Action'],
     trainer1Active: BattlePokemonStatus,
     trainer2Active: BattlePokemonStatus,
+    speedOnly: boolean,
   ): Promise<DeterminedAction[]> {
     // 技の優先度を取得
     const trainer1Move = await this.moveRepository.findById(trainer1Action.moveId!);
@@ -242,8 +248,8 @@ export class ActionOrderDeterminerService {
     trainer1Priority += trainer1FractionalPriority ?? 0;
     trainer2Priority += trainer2FractionalPriority ?? 0;
 
-    // 優先度が異なる場合は優先度が高い方が先
-    if (trainer1Priority !== trainer2Priority) {
+    // 優先度が異なる場合は優先度が高い方が先（speedOnly なら優先度を見ない）
+    if (!speedOnly && trainer1Priority !== trainer2Priority) {
       if (trainer1Priority > trainer2Priority) {
         return [
           {

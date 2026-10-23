@@ -101,11 +101,13 @@ export class BattleGateway implements OnGatewayConnection, OnGatewayDisconnect {
         trainerId: number;
         moveId?: number;
         switchPokemonId?: number;
+        megaEvolve?: boolean;
       };
       trainer2Action: {
         trainerId: number;
         moveId?: number;
         switchPokemonId?: number;
+        megaEvolve?: boolean;
       };
     },
   ) {

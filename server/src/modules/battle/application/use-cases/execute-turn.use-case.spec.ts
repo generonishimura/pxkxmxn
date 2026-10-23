@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecuteTurnUseCase, ExecuteTurnParams } from './execute-turn.use-case';
+import { MegaEvolutionService } from '../services/mega-evolution.service';
 import {
   IBattleRepository,
   BATTLE_REPOSITORY_TOKEN,
@@ -85,6 +86,7 @@ describe('ExecuteTurnUseCase', () => {
         StatusConditionProcessorService,
         PokemonSwitcherService,
         MoveExecutorService,
+        MegaEvolutionService,
         {
           provide: BATTLE_REPOSITORY_TOKEN,
           useValue: mockBattleRepository,

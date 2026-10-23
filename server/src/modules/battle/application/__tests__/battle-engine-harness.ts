@@ -36,6 +36,7 @@ import { WinnerCheckerService } from '../services/winner-checker.service';
 import { StatusConditionProcessorService } from '../services/status-condition-processor.service';
 import { PokemonSwitcherService } from '../services/pokemon-switcher.service';
 import { MoveExecutorService } from '../services/move-executor.service';
+import { MegaEvolutionService } from '../services/mega-evolution.service';
 import { ExecuteTurnUseCase } from '../use-cases/execute-turn.use-case';
 
 /**
@@ -398,12 +399,13 @@ export const createBattleEngine = (options: HarnessOptions) => {
     statusProcessor,
     switcher,
     moveExecutor,
+    new MegaEvolutionService(battleRepository, trainedPokemonRepository),
   );
 
-  /** 1 ターン進める（技の ID か、交代先の TrainedPokemon の ID） */
+  /** 1 ターン進める（技の ID か、交代先の TrainedPokemon の ID。技といっしょにメガシンカもできる） */
   const runTurn = (
-    action1: { moveId?: number; switchPokemonId?: number },
-    action2: { moveId?: number; switchPokemonId?: number },
+    action1: { moveId?: number; switchPokemonId?: number; megaEvolve?: boolean },
+    action2: { moveId?: number; switchPokemonId?: number; megaEvolve?: boolean },
   ) =>
     useCase.execute({
       battleId: 1,

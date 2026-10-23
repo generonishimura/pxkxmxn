@@ -34,11 +34,16 @@ import {
 } from '../../domain/logic/move-selection';
 import { switchBlockedMessage } from '../../domain/logic/switch-restriction';
 import { NotFoundException, InvalidStateException } from '@/shared/domain/exceptions';
-import { ActionOrderDeterminerService } from '../services/action-order-determiner.service';
+import {
+  ActionOrderDeterminerService,
+  DeterminedAction,
+} from '../services/action-order-determiner.service';
 import { WinnerCheckerService } from '../services/winner-checker.service';
 import { StatusConditionProcessorService } from '../services/status-condition-processor.service';
 import { PokemonSwitcherService } from '../services/pokemon-switcher.service';
 import { MoveExecutorService } from '../services/move-executor.service';
+import { MegaEvolutionService } from '../services/mega-evolution.service';
+import { MegaEvolution } from '../../domain/logic/mega-evolutions';
 
 /**
  * ターン実行の入力パラメータ
@@ -49,11 +54,13 @@ export interface ExecuteTurnParams {
     trainerId: number;
     moveId?: number; // 技を使用する場合
     switchPokemonId?: number; // ポケモンを交代する場合
+    megaEvolve?: boolean; // 技といっしょにメガシンカする場合
   };
   trainer2Action: {
     trainerId: number;
     moveId?: number; // 技を使用する場合
     switchPokemonId?: number; // ポケモンを交代する場合
+    megaEvolve?: boolean; // 技といっしょにメガシンカする場合
   };
 }
 
@@ -67,7 +74,8 @@ export interface ExecuteTurnResult {
     // 'move' | 'switch' | 'turnStart'（ターンの初めの効果。くちばしキャノンの加熱など）|
     // 'futureAttack'（みらいよち・はめつのねがいが当たった。trainerId は技を使ったポケモンのトレーナー）|
     // 'revive'（さいきのいのりで手持ちが復活した）|
-    // 'ability'（ひんしを知った場の特性が発動した。ソウルハートなど。trainerId は特性を持つポケモンのトレーナー）。
+    // 'ability'（ひんしを知った場の特性が発動した。ソウルハートなど。trainerId は特性を持つポケモンのトレーナー）|
+    // 'megaEvolution'（場のポケモンがメガシンカした。交代のあと、技の前）。
     // 技・特性による交代（とんぼがえり・ほえる・ききかいひ）も 'switch'
     action: string;
     result: string; // 行動結果の説明
@@ -89,6 +97,8 @@ interface PlannedAction {
   readonly failure?: string;
   /** 反動で動けないターン（ターンの初めの効果を呼ばない） */
   readonly recharging?: boolean;
+  /** 技の前にメガシンカする姿（反動・ため技・出し続ける技で行動が決まっているときは、本家と同じくメガシンカしない） */
+  readonly megaEvolution?: MegaEvolution;
 }
 
 /**
@@ -96,10 +106,11 @@ interface PlannedAction {
  * ターン処理のロジックを実行するユースケース
  *
  * 処理内容:
- * 0. 交代先を確かめる（無効なら何も書き込まずに弾く）。一時的な状態から行動を決める（planAction: 反動・ため技・
+ * 0. 交代先とメガシンカを確かめる（無効なら何も書き込まずに弾く）。一時的な状態から行動を決める（planAction: 反動・ため技・
  *    出し続ける技・アンコール・ものまねの技・わるあがき・交代の制限）
  * 1. 行動順の決定（速度と優先度を考慮）。そのあとターンの初めの効果（技の onTurnStart）
- * 2. 行動の実行（技の実行またはポケモン交代）。ひんしのポケモンは行動しない
+ * 2. 行動の実行（技の実行またはポケモン交代）。ひんしのポケモンは行動しない。
+ *    交代のあと、最初の技の前にメガシンカする（runMegaEvolutions）
  * 3. ダメージ計算
  * 4. 特性効果の処理
  * 5. 勝敗判定（技を出すたびと、みらいよち・ターン終了時の処理のあと）
@@ -119,6 +130,7 @@ export class ExecuteTurnUseCase {
     private readonly statusConditionProcessor: StatusConditionProcessorService,
     private readonly pokemonSwitcher: PokemonSwitcherService,
     private readonly moveExecutor: MoveExecutorService,
+    private readonly megaEvolution: MegaEvolutionService,
   ) {}
 
   /**
@@ -151,9 +163,13 @@ export class ExecuteTurnUseCase {
       throw new NotFoundException('Active pokemon');
     }
 
-    // 交代先を、ターンの書き込み（行動を決めるときのアンコールの解除など）より前に確かめる。
+    // 交代先とメガシンカを、ターンの書き込み（行動を決めるときのアンコールの解除など）より前に確かめる。
     // 無効なら ValidationException を投げ、ターン全体を何も書き込まずに弾く
-    for (const action of [params.trainer1Action, params.trainer2Action]) {
+    const megaEvolutions = new Map<number, MegaEvolution>();
+    for (const [action, active] of [
+      [params.trainer1Action, trainer1Active],
+      [params.trainer2Action, trainer2Active],
+    ] as const) {
       if (action.switchPokemonId) {
         await this.pokemonSwitcher.findValidSwitchTarget(
           battle.id,
@@ -161,17 +177,33 @@ export class ExecuteTurnUseCase {
           action.switchPokemonId,
         );
       }
+      const mega = await this.megaEvolution.findValidMegaEvolution(battle, action, active);
+      if (mega) {
+        megaEvolutions.set(action.trainerId, mega);
+      }
     }
 
     // 一時的な状態から行動を決める
     const plans = new Map<number, PlannedAction>([
       [
         params.trainer1Action.trainerId,
-        await this.planAction(battle, params.trainer1Action, trainer1Active, trainer2Active),
+        await this.planAction(
+          battle,
+          params.trainer1Action,
+          trainer1Active,
+          trainer2Active,
+          megaEvolutions.get(params.trainer1Action.trainerId),
+        ),
       ],
       [
         params.trainer2Action.trainerId,
-        await this.planAction(battle, params.trainer2Action, trainer2Active, trainer1Active),
+        await this.planAction(
+          battle,
+          params.trainer2Action,
+          trainer2Active,
+          trainer1Active,
+          megaEvolutions.get(params.trainer2Action.trainerId),
+        ),
       ],
     ]);
     const planOf = (trainerId: number): PlannedAction | undefined => plans.get(trainerId);
@@ -181,8 +213,8 @@ export class ExecuteTurnUseCase {
       [params.trainer2Action.trainerId, trainer2Active.id],
     ]);
 
-    // 行動順を決定
-    const actions = await this.actionOrderDeterminer.determine({
+    // 行動順を決定（メガシンカしたら、残りの技の順番を決め直す）
+    let actions = await this.actionOrderDeterminer.determine({
       battle,
       trainer1Action: planOf(params.trainer1Action.trainerId).action,
       trainer2Action: planOf(params.trainer2Action.trainerId).action,
@@ -223,7 +255,20 @@ export class ExecuteTurnUseCase {
     }
 
     // 行動を順番に実行
-    for (const [actionIndex, action] of actions.entries()) {
+    let megaEvolutionPending = [...plans.values()].some(plan => plan.megaEvolution);
+    for (let actionIndex = 0; actionIndex < actions.length; actionIndex++) {
+      // 交代のあと、最初の技の前にメガシンカする（本家の megaEvo の行動は switch のあと、move の前）。
+      // メガシンカした素早さで、残りの技の順番を決め直す（本家の第 8 世代以降は、行動のたびに素早さで並べ直す）
+      if (megaEvolutionPending && actions[actionIndex].action === 'move') {
+        megaEvolutionPending = false;
+        if (await this.runMegaEvolutions(battle.id, plans, plannedActorIds, actionResults)) {
+          actions = [
+            ...actions.slice(0, actionIndex),
+            ...(await this.redetermineMoveOrder(battle.id, plans, actions.slice(actionIndex))),
+          ];
+        }
+      }
+      const action = actions[actionIndex];
       // 先に行動した側が書いた状態（ちょうはつ・まもる・壁・天候・交代など）が見えるよう、
       // 行動のたびにバトルと場のポケモンを読み直す。状態の JSON 列は丸ごと書き換わるので、
       // ターンの最初に読んだ古い値を使うと判定を誤り、書き込むと先に書かれたキーが消える
@@ -413,6 +458,24 @@ export class ExecuteTurnUseCase {
     action: TrainerAction,
     active: BattlePokemonStatus,
     opponent: BattlePokemonStatus,
+    megaEvolution?: MegaEvolution,
+  ): Promise<PlannedAction> {
+    const plan = await this.planChosenAction(battle, action, active, opponent);
+    // 反動・ため技・出し続ける技で行動が決まっているときは、メガシンカしない（本家は lockedMove を先に選び、mega を見ない）
+    const forced = resolveForcedAction(active.volatileState);
+    return megaEvolution && !(forced && forced.kind !== 'encore')
+      ? { ...plan, megaEvolution }
+      : plan;
+  }
+
+  /**
+   * planAction の、メガシンカのほかの部分（選んだ行動と一時的な状態から、出す技・交代を決める）
+   */
+  private async planChosenAction(
+    battle: Battle,
+    action: TrainerAction,
+    active: BattlePokemonStatus,
+    opponent: BattlePokemonStatus,
   ): Promise<PlannedAction> {
     const gravity = getGlobalFieldState(battle.sideState).gravityTurns !== undefined;
     const forced = resolveForcedAction(active.volatileState);
@@ -480,6 +543,84 @@ export class ExecuteTurnUseCase {
       );
     }
     return { action: chosen, battlePokemonMoveId: slot.battlePokemonMoveId };
+  }
+
+  /**
+   * メガシンカを選んだ場のポケモンをメガシンカさせる（交代のあと、最初の技の前に 1 回呼ぶ）
+   * 両方がメガシンカするときは、メガシンカする前の素早さが速い方から（技の優先度は見ない。本家の megaEvo の行動の順）。
+   * 行動を決めたポケモンが場にいないとき（技・特性で交代した）は、メガシンカしない
+   * 結果は 'megaEvolution' の行動として入れる
+   * @returns 1 匹でもメガシンカしたら true
+   */
+  private async runMegaEvolutions(
+    battleId: number,
+    plans: ReadonlyMap<number, PlannedAction>,
+    plannedActorIds: ReadonlyMap<number, number>,
+    actionResults: ExecuteTurnResult['actions'],
+  ): Promise<boolean> {
+    const requests = [...plans.entries()].filter(([, plan]) => plan.megaEvolution);
+    const order =
+      requests.length < 2
+        ? requests.map(([trainerId]) => trainerId)
+        : (await this.determineOrder(battleId, plans, { speedOnly: true })).map(
+            action => action.trainerId,
+          );
+    let evolved = false;
+    for (const trainerId of order) {
+      const mega = plans.get(trainerId)?.megaEvolution;
+      const active = await this.findActivePokemon(battleId, trainerId);
+      if (!mega || active.id !== plannedActorIds.get(trainerId)) {
+        continue;
+      }
+      const message = await this.megaEvolution.megaEvolve(
+        await this.findBattle(battleId),
+        active,
+        mega,
+      );
+      if (message) {
+        evolved = true;
+        actionResults.push({ trainerId, action: 'megaEvolution', result: message });
+      }
+    }
+    return evolved;
+  }
+
+  /**
+   * 残りの技の順番を、今の場のポケモン（メガシンカしたあとの素早さ）で決め直す
+   * @param remaining まだ実行していない行動（交代のあとなので、すべて技）
+   */
+  private async redetermineMoveOrder(
+    battleId: number,
+    plans: ReadonlyMap<number, PlannedAction>,
+    remaining: readonly DeterminedAction[],
+  ): Promise<DeterminedAction[]> {
+    if (remaining.length < 2) {
+      return [...remaining];
+    }
+    const remainingTrainerIds = new Set(remaining.map(action => action.trainerId));
+    return (await this.determineOrder(battleId, plans)).filter(
+      action => action.action === 'move' && remainingTrainerIds.has(action.trainerId),
+    );
+  }
+
+  /**
+   * 計画した行動の順番を、最新のバトルと場のポケモンで決める
+   * @param plans トレーナーごとの計画（trainer1Action・trainer2Action の順に入れたもの）
+   */
+  private async determineOrder(
+    battleId: number,
+    plans: ReadonlyMap<number, PlannedAction>,
+    options: { speedOnly?: boolean } = {},
+  ): Promise<DeterminedAction[]> {
+    const [trainer1Action, trainer2Action] = [...plans.values()].map(plan => plan.action);
+    return this.actionOrderDeterminer.determine({
+      battle: await this.findBattle(battleId),
+      trainer1Action,
+      trainer2Action,
+      trainer1Active: await this.findActivePokemon(battleId, trainer1Action.trainerId),
+      trainer2Active: await this.findActivePokemon(battleId, trainer2Action.trainerId),
+      speedOnly: options.speedOnly,
+    });
   }
 
   /**

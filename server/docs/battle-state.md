@@ -383,7 +383,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | キー | 型 | 意味 | 使う技・特性 |
 | --- | --- | --- | --- |
 | `sleepTurns` | 0 以上の整数 | ねむりの残りターン数（交代しても続く） | ねむり・ねむる・はやおき（今はメモリ上で数えている。8 章） |
-| `form` | フォルム名 | 交代しても戻らないフォルム（`pokemon-forms.ts` の表の `form`。`'hero'`・`'complete'`・`'busted'`・`'noice'`・`'terastal'` など）。表のタイプと種族値になる。表のフォルムが特性（`abilityName`）を持てば、それがもとの特性になる（`'terastal'` のテラスシェル）。メガシンカした姿（`'mega'`・`'mega-x'`・`'mega-y'`・`'mega-z'`。`mega-evolutions.ts` の表から `POKEMON_FORMS` に入る）も、タイプ・種族値・特性を持つ。書くのは `changeForm(holder, form, ctx, { persistent: true })` | マイティチェンジ・スワームチェンジ・ばけのかわ・アイスフェイス・テラスチェンジ |
+| `form` | フォルム名 | 交代しても戻らないフォルム（`pokemon-forms.ts` の表の `form`。`'hero'`・`'complete'`・`'busted'`・`'noice'`・`'terastal'` など）。表のタイプと種族値になる。表のフォルムが特性（`abilityName`）を持てば、それがもとの特性になる（`'terastal'` のテラスシェル）。メガシンカした姿（`'mega'`・`'mega-x'`・`'mega-y'`・`'mega-z'`。`mega-evolutions.ts` の表から `POKEMON_FORMS` に入る）も、タイプ・種族値・特性を持つ。書くのは `changeForm(holder, form, ctx, { persistent: true })` | マイティチェンジ・スワームチェンジ・ばけのかわ・アイスフェイス・テラスチェンジ・メガシンカ（`MegaEvolutionService` が書く。11 章） |
 | `disguiseBusted` | 真偽値 | ばけのかわが破れた | ばけのかわ |
 | `iceFaceBroken` | 真偽値 | アイスフェイスが壊れた（ゆきで戻る） | アイスフェイス |
 | `oncePerBattleAbilityUsed` | 真偽値 | 1 バトルに 1 回だけの特性を使った | ふとうのけん・ふくつのたて・きずなへんげ |
@@ -430,6 +430,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 | `healingWish` | `'healingWish' \| 'lunarDance'` | 次に出てきたポケモンを回復する技 | いやしのねがい（HP と状態異常）・みかづきのまい（PP も） |
 | `pendingChoice` | `{ reason }` | 交代先（復活させるポケモン）の選択を待っている。行動のすぐあとにエンジンが解決して消す | とんぼがえり・すてゼリフ・テレポート・バトンタッチ・しっぽきり・さむいギャグ・ききかいひ・にげごし・さいきのいのり |
 | `forcedSwitch` | 真偽値 | 場のポケモンを控えとランダムに入れ替える。行動のすぐあとにエンジンが入れ替えて消す | ほえる・ふきとばし・ドラゴンテール・ともえなげ |
+| `megaEvolved` | 真偽値 | このトレーナーが、このバトルでメガシンカした（1 回のバトルで 1 回だけ）。エンジンがメガシンカのときに書き、バトルの終わりまで消さない（ターン終了時・コートチェンジでも残す） | メガシンカ |
 
 ### コートチェンジ
 
@@ -676,6 +677,20 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 ダメージは `applyIndirectDamage`（マジックガードは受けない）です。設置技で HP が半分以下になったききかいひ・にげごしは、すぐにまた交代します。
 
 注: あつぞこブーツなどの持ち物はありません。
+
+### メガシンカ（`ExecuteTurnUseCase`・`MegaEvolutionService`）
+
+ターンのリクエストの技の行動に `megaEvolve: true` を付けると、その技の前にメガシンカします（Issue #261）。
+
+1. リクエストを確かめる: ターンの書き込みより前に `resolveMegaEvolution`（`battle/domain/logic/mega-evolution-rule.ts`）で確かめます。交代といっしょに選んだ・その種族のメガストーン（`persistentState.item`）を持っていない・すでにメガシンカした姿（`persistentState.form`）・トレーナーの陣営に `megaEvolved` がある、のどれかなら `ValidationException` を投げ、ターン全体を何も書き込まずに弾きます
+2. 反動・ため技・出し続ける技で行動が決まっているターンは、メガシンカしません（本家は決まった技を先に選び、メガシンカを見ません）
+3. いつメガシンカするか: 交代の行動のあと、最初の技の前です（本家の行動の順番は switch → megaEvo → move）。ターンの初めの効果（技の `onTurnStart`）より後です。両方がメガシンカするときは、メガシンカする前の素早さが速い方から先です（技の優先度は見ません。`ActionOrderDeterminerService.determine` の `speedOnly`）
+4. メガシンカすると、`changeForm(holder, form, ctx, { persistent: true })` で交代しても残るフォルムを書き、陣営に `megaEvolved` を書き、メガシンカした姿の特性の `onEntry` を呼びます（`startAbility`。いかく・ひでりなどが発動します）。結果には `'megaEvolution'` の行動を入れます
+5. メガシンカした素早さを、そのターンの行動順から使います。メガシンカしたら、残りの技の順番を今の素早さで決め直します（本家の第 8 世代以降は、行動のたびに素早さで並べ直します）
+
+メガシンカした姿は `persistentState.form` にあるので、交代しても、ひんしになっても戻りません。
+
+注: メガストーンを奪う・はたきおとす技はまだありません。作るときは、メガストーン（`isMegaStone`）を奪えないようにしてください。
 
 ### 交代（`ExecuteTurnUseCase`）
 

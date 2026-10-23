@@ -41,6 +41,7 @@ const FULL_SIDE_CONDITIONS: Required<SideConditions> = {
   pendingChoice: { reason: 'revivalBlessing' },
   futureAttack: { turns: 2, moveId: 248, sourceStatusId: 3 },
   forcedSwitch: true,
+  megaEvolved: true,
 };
 
 /**
@@ -261,6 +262,19 @@ describe('SideState', () => {
       });
     });
 
+    it('トレーナーがメガシンカした記録（megaEvolved）は入れ替えない', () => {
+      // Arrange
+      const state: SideState = { sides: { '1': { megaEvolved: true, reflectTurns: 5 } } };
+
+      // Act
+      const swapped = swapCourtChangeConditions(state, 1, 2);
+
+      // Assert
+      expect(swapped).toEqual({
+        sides: { '1': { megaEvolved: true }, '2': { reflectTurns: 5 } },
+      });
+    });
+
     it('片方の陣営が空なら、もう片方の入れ替える状態がすべて移り、空になった陣営は消える', () => {
       // Arrange
       const state: SideState = {
@@ -401,6 +415,17 @@ describe('SideState', () => {
 
       // Assert
       expect(ticked).toEqual(state);
+    });
+
+    it('トレーナーがメガシンカした記録（megaEvolved）は、ターン終了時に消さない', () => {
+      // Arrange
+      const state: SideState = { sides: { '1': { megaEvolved: true } } };
+
+      // Act
+      const ticked = tickSideStateAtTurnEnd(state);
+
+      // Assert
+      expect(ticked).toBe(state);
     });
 
     it('変える所がないときは、同じオブジェクトを返す', () => {

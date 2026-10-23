@@ -1,4 +1,5 @@
 import { ExecuteTurnUseCase } from './execute-turn.use-case';
+import { MegaEvolutionService } from '../services/mega-evolution.service';
 import { IBattleRepository } from '../../domain/battle.repository.interface';
 import { Battle, BattleStatus, Weather } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
@@ -161,6 +162,7 @@ describe('ExecuteTurnUseCase - ターン中の状態の読み書き', () => {
       statusConditionProcessor,
       pokemonSwitcher,
       moveExecutor,
+      new MegaEvolutionService(battleRepository, trainedPokemonRepository),
     );
     const setBattle = (changes: { weather?: Weather; sideState?: SideState }) => {
       battle = withBattleChanges(battle, changes);

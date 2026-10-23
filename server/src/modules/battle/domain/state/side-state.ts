@@ -127,6 +127,13 @@ export type SideConditions = {
    * 技の処理のあとに ExecuteTurnUseCase が入れ替えて消す
    */
   readonly forcedSwitch?: boolean;
+
+  // ---- バトルに 1 回だけの行動（Issue #261） ----
+  /**
+   * このトレーナーが、このバトルでメガシンカした（チャンピオンズは 1 回のバトルで 1 回だけ）
+   * ExecuteTurnUseCase がメガシンカのときに書く。バトルの終わりまで消さない（ターン終了時・コートチェンジでも残す）
+   */
+  readonly megaEvolved?: boolean;
 };
 
 /**
@@ -228,6 +235,7 @@ export const SIDE_CONDITIONS_PARSERS: FieldParsers<SideConditions> = {
   pendingChoice,
   futureAttack: pendingFutureAttack,
   forcedSwitch: booleanValue,
+  megaEvolved: booleanValue,
 };
 
 /**
