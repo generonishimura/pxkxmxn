@@ -20,6 +20,7 @@ export const isIndirectDamagePrevented = async (
  *
  * - 対象が preventsIndirectDamage の特性（マジックガード）を持つ場合は減らさない
  * - target の HP から減らし、0未満にしない。ひんしのポケモンには与えない
+ * - 減らしたあとに、target の持ち物の onUpdate を呼ぶ（オボンのみ など。メッセージは返さない）
  *
  * @param target ダメージを受けるポケモン（最新の状態を渡す）
  * @param amount 減らすHP（端数処理は呼ぶ側で行う）
@@ -39,5 +40,9 @@ export const applyIndirectDamage = async (
 
   const newHp = Math.max(0, target.currentHp - amount);
   await battleContext.battleRepository.updateBattlePokemonStatus(target.id, { currentHp: newHp });
+  // HP が減ったあとの持ち物（オボンのみ など）。ひんしになったら働かない。
+  // 持ち物の効果（ゴツゴツメット・いのちのたま）もこのファイルを読むので、item-lookup は動的インポートで読む（循環参照を避ける）
+  const { runItemUpdate } = await import('./item-lookup');
+  await runItemUpdate(target, battleContext);
   return target.currentHp - newHp;
 };

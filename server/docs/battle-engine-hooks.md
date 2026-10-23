@@ -583,6 +583,18 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `locksMoveChoice`（プロパティ） | `MoveLifecycle.recordMoveUse` | 特性と持ち物のどちらかが `true` なら、出した技に固定する（こだわりスカーフ） |
 | `onEntry` | `StartBattleUseCase`（先発）、`PokemonSwitcherService.executeSwitch`（交代で出たとき） | 先発は、すべての特性の `onEntry` のあとに、持ち物を持つ先発を素早さの順で呼ぶ。交代は、特性の `onEntry` のあと・相手の `onFoeEntry` の前（エレキシードなど） |
 | `onTerrainChange` | `notifyFieldChange`（`setTerrain` などがフィールドを変えたとき） | ポケモンごとに特性の `onTerrainChange` のあと。特性が消えていても呼ぶ（エレキシードなど） |
+| `modifyDamage`（Promise） | `DamageCalculator.calculate`（防御側） | 防御側の持ち物は Promise を返せる（半減きのみは `consumeItem` を待ってから半分にした値を返す）。特性の `modifyDamage` も Promise を返せる |
+| `onStatusInflicted` | `inflictStatus`（`battle-events/status-infliction.ts`） | 付与された側の特性の `onStatusInflicted`・付与元の特性の `onInflictStatus` のあと（状態異常を治すきのみ） |
+| `onStatChanged` | `applyStatChanges` の `runStatChangedHooks`（`battle-events/stat-change.ts`） | 対象の特性の `onStatChanged` のあと、相手の特性の `onOpponentStatChanged` の前（しろいハーブ） |
+
+`onUpdate` は特性にないフックで、`ItemOnlyEffect`（下の表）に置いています。`runItemUpdate` は、持ち主を読み直し、場にいてひんしでないときだけ呼びます。呼ぶ場所は次のとおりです。
+
+| 呼ぶ場所 | 呼ぶ順番 |
+| --- | --- |
+| `MoveExecutorService.runMoveBody` のヒットのループ | ヒットごとに、技・防御側の特性と持ち物の `onDamagingHit`、攻撃側の特性と持ち物の `onSourceDamagingHit` のあと。防御側 → 攻撃側。働いたら両者を読み直してから次のヒットに進む |
+| `MoveExecutorService.executeMove` の最後 | 技を出し終えたとき（技を出せなかったときも）。技を出したポケモン → 相手。メッセージは技の結果の最後に足す |
+| `applyIndirectDamage`（`battle-events/indirect-damage.ts`） | HP を減らしたあと（ひんしになったら呼ばない）。メッセージは返さない |
+| `StatusConditionProcessorService.processTurnEndAbilities` | ポケモンごとの処理の最後（特性の `onTurnEnd` のあと） |
 
 - 今の持ち物は `PersistentPokemonState.item`、使い切った持ち物は `consumedItem` にあります。バトル開始時に `TrainedPokemon.heldItem` を `item` に写します
 - 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます
@@ -603,6 +615,7 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `modifyDrainHeal(holder, amount)` | `applyDrainHeal`（回復する側）、`VolatileResidualProcessor.applyBeforeStatusDamage`（アクアリング・ねをはる） | 吸い取って回復する量を変える。ヘドロえきのダメージも変わる。補助関数 `resolveDrainHealAmount(healer, amount)`（おおきなねっこ） |
 | `partialTrapDamageDivisor`（プロパティ） | `VolatileResidualProcessor.applyAfterStatusDamage` | しめつけたポケモン（`partialTrap.sourceStatusId`）の持ち物で、バインドのダメージの分母を変える（既定 8。しめつけバンドは 6） |
 | `escapesTrapping`（プロパティ） | `PokemonSwitcherService.findSwitchBlocker` | `true` なら、逃げられない状態・バインド状態・ねをはる・相手の `trapsOpponent`・フェアリーロックでも交代できる（きれいなぬけがら） |
+| `onUpdate(holder, ctx): Promise<string \| null>` | `runItemUpdate`（`battle-events/item-lookup.ts`）を呼ぶ場所（上の「`onUpdate` を呼ぶ場所」の表） | 本家の `onUpdate`。何で変わったかを問わず、今の状態を見て働く。使う持ち物: オレンのみ・オボンのみ・ヒメリのみ・メンタルハーブ。状態異常を治すきのみ・しろいハーブも、すでにその状態のときに使う |
 
 ```ts
 // きあいのタスキ
@@ -647,6 +660,7 @@ async endureHit(holder: BattlePokemonStatus, damage: number, ctx: BattleContext)
 | `callMove` / `calledBy` | 別の技を出す関数 / 呼ばれた技のときの、呼んだ技・特性の名前（9.4） | 技の実行・`onOpponentMoveUsed` |
 | `attackerEffectiveStatus` / `defenderEffectiveStatus` | 状態異常として扱う状態（ぜったいねむりならねむり。9.1） | 技の実行 |
 | `hitSubstitute` | 技がみがわりに当たった（`afterDamage` の `damage` はみがわりに与えた量） | 技の実行の `afterDamage` |
+| `bypassesSubstitute` | 技がみがわりを無視して相手に当たるか（音技など `bypassSubstitute` の技・すりぬけ・相手を対象にしない技は true） | 技の実行（命中のあと）・ダメージ計算 |
 | `moveRepository` | 技のリポジトリ（9.4） | 技の実行 |
 | `selfSwitchCancelled` | 技の効果が `true` にすると、技の `selfSwitch` の交代をやめる（11.5） | 技の実行（`onUse`・`onHit`・`afterDamage` で書く） |
 | `attackerFaintedAllyCount` | 攻撃側の手持ちがひんしになった延べ数（自分が復活した回数も入る。11.7） | ダメージ技の実行・ダメージ計算 |

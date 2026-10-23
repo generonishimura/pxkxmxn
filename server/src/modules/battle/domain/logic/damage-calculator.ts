@@ -355,18 +355,23 @@ export class DamageCalculator {
       const abilityEffect = AbilityRegistry.get(params.defenderAbilityName);
       if (abilityEffect?.modifyDamage) {
         const currentDamage = baseDamage * damageMultiplier;
-        const modifiedDamage = abilityEffect.modifyDamage(defender, currentDamage, hookContext);
+        const modifiedDamage = await Promise.resolve(
+          abilityEffect.modifyDamage(defender, currentDamage, hookContext),
+        );
         if (modifiedDamage !== undefined) {
           damageMultiplier = modifiedDamage / baseDamage;
         }
       }
     }
 
-    // 防御側の持ち物によるダメージ修正（半減きのみ など）。持ち物はかたやぶりで無視されない
+    // 防御側の持ち物によるダメージ修正（半減きのみ など）。持ち物はかたやぶりで無視されない。
+    // 半減きのみは食べる書き込みをするので、Promise を待つ
     const defenderItemEffect = getItemEffect(defender);
     if (defenderItemEffect?.modifyDamage) {
       const currentDamage = baseDamage * damageMultiplier;
-      const modifiedDamage = defenderItemEffect.modifyDamage(defender, currentDamage, hookContext);
+      const modifiedDamage = await Promise.resolve(
+        defenderItemEffect.modifyDamage(defender, currentDamage, hookContext),
+      );
       if (modifiedDamage !== undefined) {
         damageMultiplier = modifiedDamage / baseDamage;
       }

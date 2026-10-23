@@ -3,6 +3,7 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 import { BattleContext } from '../abilities/battle-context.interface';
 import { EffectSource } from './effect-source';
 import { getAbilityEffect, isIgnoredByMoldBreaker, resolveAbilityName } from './ability-lookup';
+import { getItemEffect } from './item-lookup';
 import {
   hasVolatileStatusCondition,
   isVolatileStatusCondition,
@@ -188,8 +189,9 @@ export const isUproarActive = async (
  *
  * - 対象の特性の onStatusInflicted（シンクロ）
  * - 付与元の特性の onInflictStatus（どくくぐつ）。自分で自分に付与したときは呼ばない
+ * - 付与された側の持ち物の onStatusInflicted（ラムのみ などの状態異常を治すきのみ）
  *
- * @returns 特性のメッセージ
+ * @returns 特性・持ち物のメッセージ
  */
 export const inflictStatus = async (
   target: BattlePokemonStatus,
@@ -218,7 +220,11 @@ export const inflictStatus = async (
         source?.abilityName ?? (await resolveAbilityName(sourcePokemon, battleContext)),
       )
     : undefined;
-  if (!targetAbility?.onStatusInflicted && !sourceAbility?.onInflictStatus) {
+  if (
+    !targetAbility?.onStatusInflicted &&
+    !sourceAbility?.onInflictStatus &&
+    !getItemEffect(target)?.onStatusInflicted
+  ) {
     return [];
   }
 
@@ -241,6 +247,17 @@ export const inflictStatus = async (
       ),
     );
   }
+  // 付与された側の持ち物（状態異常を治すきのみ）。本家と同じく、特性（シンクロ・どくくぐつ）のあとに働く
+  const itemHolder =
+    (await battleContext.battleRepository.findBattlePokemonStatusById(target.id)) ?? latestTarget;
+  messages.push(
+    await getItemEffect(itemHolder)?.onStatusInflicted?.(
+      itemHolder,
+      statusCondition,
+      source,
+      battleContext,
+    ),
+  );
   return messages.filter((message): message is string => Boolean(message));
 };
 

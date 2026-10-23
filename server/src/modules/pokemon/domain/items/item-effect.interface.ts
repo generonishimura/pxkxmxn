@@ -45,6 +45,8 @@ export type IItemEffect = Pick<
   | 'modifyFractionalPriority'
   | 'onEntry'
   | 'onTerrainChange'
+  | 'onStatusInflicted'
+  | 'onStatChanged'
 > &
   ItemOnlyEffect;
 
@@ -133,4 +135,20 @@ export interface ItemOnlyEffect {
    * PokemonSwitcherService.findSwitchBlocker が読む
    */
   readonly escapesTrapping?: boolean;
+
+  /**
+   * 持ち主の状態が変わったあとに、持ち物が条件を確かめて働く（本家の onUpdate）
+   * HP が半分以下になった（オボンのみ）、PP が 0 になった（ヒメリのみ）、ちょうはつされた（メンタルハーブ）など、
+   * 何で変わったかを問わずに、今の状態だけを見て働く持ち物が使う
+   *
+   * エンジンは次の場所で呼ぶ（runItemUpdate。持ち主が場にいて、ひんしでないときだけ）
+   * - 技のヒットごと: 持ち物の onDamagingHit・onSourceDamagingHit などのあとに、防御側 → 攻撃側の順
+   * - 技を出し終えたとき（技を出せなかったときも）: 技を出したポケモン → 相手の順
+   * - 技以外のダメージ（applyIndirectDamage）で HP が減ったあと: ダメージを受けたポケモン
+   * - ターン終了時: ポケモンごとの処理の最後
+   *
+   * @param holder 持ち物を持っているポケモン（最新の状態）
+   * @returns メッセージ（何もしなければ null）
+   */
+  onUpdate?(holder: BattlePokemonStatus, battleContext: BattleContext): Promise<string | null>;
 }

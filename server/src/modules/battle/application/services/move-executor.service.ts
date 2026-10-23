@@ -47,6 +47,7 @@ import {
   consumeItem,
   getItemEffect,
   resolveItemName,
+  runItemUpdate,
 } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { getGlobalFieldState, getSideConditions } from '../../domain/state/side-state';
 import {
@@ -353,8 +354,19 @@ export class MoveExecutorService {
       calculateConfusionSelfDamage: current =>
         this.calculateConfusionSelfDamage(battle, current, attackerTrainedPokemon),
     });
+    // 技を出し終えたあと（出せなかったときも）の持ち物（ヒメリのみ・メンタルハーブ・ねむるのあとのカゴのみ など）。
+    // 本家は行動のあとに onUpdate を呼ぶ。技を出したポケモン → 相手の順
+    const itemUpdateContext: BattleContext = {
+      battle,
+      battleRepository: this.battleRepository,
+      trainedPokemonRepository: this.trainedPokemonRepository,
+    };
+    const afterMoveItemMessages = async (): Promise<string> =>
+      (await this.runItemUpdates([attacker, defender], itemUpdateContext))
+        .map(message => ` ${message}`)
+        .join('');
     if (beforeMove.cancelled === true) {
-      return beforeMove.message;
+      return `${beforeMove.message}${await afterMoveItemMessages()}`;
     }
 
     const trace: MoveTrace = {};
@@ -387,7 +399,26 @@ export class MoveExecutorService {
       options,
     });
     const observerMessage = observerMessages.map(message => ` ${message}`).join('');
-    return `${beforeMove.prefix}${result.message}${observerMessage}`;
+    const itemMessage = await afterMoveItemMessages();
+    return `${beforeMove.prefix}${result.message}${observerMessage}${itemMessage}`;
+  }
+
+  /**
+   * ポケモンの持ち物の onUpdate を順に呼ぶ（場にいて、ひんしでないポケモンだけ。runItemUpdate）
+   * @returns 持ち物のメッセージ
+   */
+  private async runItemUpdates(
+    pokemons: readonly BattlePokemonStatus[],
+    battleContext: BattleContext,
+  ): Promise<string[]> {
+    const messages: string[] = [];
+    for (const pokemon of pokemons) {
+      const message = await runItemUpdate(pokemon, battleContext);
+      if (message) {
+        messages.push(message);
+      }
+    }
+    return messages;
   }
 
   /**
@@ -1210,6 +1241,8 @@ export class MoveExecutorService {
       !targetsOpponent ||
       MoveBehaviors.has(move.name, 'bypassSubstitute') ||
       attackerAbilityEffect?.infiltrates === true;
+    // 半減きのみが、みがわりに当たる技かを見る
+    battleContext.bypassesSubstitute = bypassesSubstitute;
 
     // 変化技の場合はダメージなし
     if (!isDamagingMove) {
@@ -1582,6 +1615,26 @@ export class MoveExecutorService {
             attackerItemMessage,
           ].filter((m): m is string => Boolean(m)),
         );
+      }
+
+      // ヒットのあとの持ち物（オボンのみ など）。本家はヒットごとに onUpdate を呼ぶ。防御側 → 攻撃側の順
+      if (dealtDamage > 0 || blockMessage) {
+        const itemMessages = await this.runItemUpdates(
+          [updatedDefender, currentAttacker],
+          battleContext,
+        );
+        if (itemMessages.length > 0) {
+          hitEventMessages.push(...itemMessages);
+          // 次のヒットのために、持ち物で変わった HP などを読み直す
+          currentAttacker =
+            (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ??
+            currentAttacker;
+          updatedDefender =
+            (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ??
+            updatedDefender;
+          battleContext.attacker = currentAttacker;
+          battleContext.defender = updatedDefender;
+        }
       }
 
       // 無効化された・どちらかがひんしになった場合は残りのヒットをしない（防いだヒットのあとは次のヒットに進む）
