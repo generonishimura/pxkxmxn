@@ -99,10 +99,32 @@ const toTrainedPokemon = (spec: LeadSpec): TrainedPokemon => {
 };
 
 /**
+ * 手持ちのルール（3〜6 体）に合わせるため、3 体に満たない手持ちに足す控え
+ * 先発のすぐ後ろに入れる（テストで並べた控えが、手持ちの最後のまま残るようにする）
+ * ID と全国図鑑の番号は 900 から（テストで使う番号と重ならない）
+ */
+const withBench = (specs: readonly LeadSpec[]): LeadSpec[] =>
+  ([1, 2] as const).flatMap(trainerId => {
+    const own = specs.filter(spec => spec.trainerId === trainerId);
+    const bench = Array.from(
+      { length: Math.max(0, 3 - own.length) },
+      (_, index): LeadSpec => ({
+        id: 900 + trainerId * 10 + index,
+        trainerId,
+        position: 100 + index,
+      }),
+    );
+    const leadIndex = own.findIndex(spec => spec.position === 1) + 1;
+    return [...own.slice(0, leadIndex), ...bench, ...own.slice(leadIndex)];
+  });
+
+/**
  * バトル開始（StartBattleUseCase）を、メモリ上のリポジトリで動かす
  * BattlePokemonStatus の ID は作った順に 1 から
+ * 3 体に満たない手持ちには、控え（withBench）を足す
  */
-const createStartBattle = (specs: readonly LeadSpec[]) => {
+const createStartBattle = (leadSpecs: readonly LeadSpec[]) => {
+  const specs = withBench(leadSpecs);
   let battle: Battle | undefined;
   const statuses = new Map<number, BattlePokemonStatus>();
   const trainedPokemons = new Map(specs.map(spec => [spec.id, toTrainedPokemon(spec)]));
