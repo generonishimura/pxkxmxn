@@ -1,6 +1,7 @@
 import { IItemEffect } from './item-effect.interface';
 import { CharcoalEffect } from './effects/charcoal-effect';
 import { LeftoversEffect } from './effects/leftovers-effect';
+import { TYPE_BOOST_ITEMS, TypeBoostItemEffect } from './effects/type-boost-item-effect';
 
 /**
  * 持ち物のレジストリ
@@ -17,6 +18,9 @@ export class ItemRegistry {
   static initialize(): void {
     this.registry.clear();
     this.registry.set('もくたん', new CharcoalEffect());
+    for (const [itemName, typeName] of TYPE_BOOST_ITEMS) {
+      this.registry.set(itemName, new TypeBoostItemEffect(typeName));
+    }
     this.registry.set('たべのこし', new LeftoversEffect());
   }
 
