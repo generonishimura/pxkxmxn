@@ -19,6 +19,7 @@ import {
   applyMoveOverride,
   findUnusedOverrideNames,
 } from './seed-utils/champions-overrides';
+import { applyChampionsLearnsets, summarizeMoveCounts } from './seed-utils/champions-learnsets';
 import { PokeApiClient } from './seed-utils/pokeapi-client';
 import { log, warn, error } from './seed-utils/logger';
 
@@ -62,6 +63,7 @@ async function main(): Promise<void> {
     await seedAbilities();
     await seedPokemonAbilities();
     await seedPokemonMoves();
+    await seedChampionsLearnsets();
 
     log('Seed completed successfully.');
   } catch (err) {
@@ -673,6 +675,25 @@ async function seedPokemonMoves(): Promise<void> {
   }
 
   log(`\nSeeded ${totalMoves} pokemon moves${skipped > 0 ? ` (${skipped} skipped)` : ''}.`);
+}
+
+/**
+ * チャンピオンズで使えるポケモンの覚える技を、チャンピオンズの技（champions-learnsets.data.json）に入れ替える
+ * 表にないポケモンは、seedPokemonMoves で入れた SV の技のまま残す
+ */
+async function seedChampionsLearnsets(): Promise<void> {
+  log('Applying Champions learnsets...');
+  const plan = await applyChampionsLearnsets(prisma);
+  const { min, avg, max } = summarizeMoveCounts(plan.updates.map(update => update.moveIds.length));
+  log(
+    `Replaced learnsets of ${plan.updates.length} pokemon with Champions learnsets (moves per pokemon: min ${min} / avg ${avg} / max ${max}).`,
+  );
+  for (const { nationalDex, name } of plan.unmatchedMoves) {
+    warn(`  Champions learnset move not found in DB: #${nationalDex} ${name}`);
+  }
+  if (plan.missingPokemon.length > 0) {
+    warn(`  Champions learnset pokemon not found in DB: ${plan.missingPokemon.join(', ')}`);
+  }
 }
 
 void main();
