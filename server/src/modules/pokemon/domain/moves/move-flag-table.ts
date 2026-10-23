@@ -6,6 +6,8 @@ import type { MoveFlag } from './move-flags';
  * Pokemon Showdown（data/moves.ts、第9世代）の flags を、PokeAPI の技番号で日本語名に対応付けて作成した。
  * 対象フラグ: contact / punch / bite / sound / pulse / bullet(ballistic) / slicing / wind / powder / heal
  * 表にない技はフラグなし（非接触など）として扱う。
+ * チャンピオンズでフラグが変わった技は、チャンピオンズの値にしてコメントに SV の値を書く
+ * （ドラゴンクロー・シャドークローの slicing、でんこうそうげきの punch）。
  *
  * 追加方法: `['<DBの技名>', ['contact', 'punch']],` の形で1行追加する（英語名はコメントに書く）。
  */
@@ -167,7 +169,7 @@ export const MOVE_FLAG_TABLE: ReadonlyArray<readonly [string, readonly MoveFlag[
   ['タネマシンガン', ['ballistic']], // Bullet Seed
   ['つばめがえし', ['contact', 'slicing']], // Aerial Ace
   ['とおぼえ', ['sound']], // Howl
-  ['ドラゴンクロー', ['contact']], // Dragon Claw
+  ['ドラゴンクロー', ['contact', 'slicing']], // Dragon Claw。slicing はチャンピオンズの値。SV は contact だけ
   ['とびはねる', ['contact']], // Bounce
   ['ポイズンテール', ['contact']], // Poison Tail
   ['ほしがる', ['contact']], // Covet
@@ -211,7 +213,7 @@ export const MOVE_FLAG_TABLE: ReadonlyArray<readonly [string, readonly MoveFlag[
   ['ギガインパクト', ['contact']], // Giga Impact
   ['バレットパンチ', ['contact', 'punch']], // Bullet Punch
   ['ゆきなだれ', ['contact']], // Avalanche
-  ['シャドークロー', ['contact']], // Shadow Claw
+  ['シャドークロー', ['contact', 'slicing']], // Shadow Claw。slicing はチャンピオンズの値。SV は contact だけ
   ['かみなりのキバ', ['contact', 'bite']], // Thunder Fang
   ['こおりのキバ', ['contact', 'bite']], // Ice Fang
   ['ほのおのキバ', ['contact', 'bite']], // Fire Fang
@@ -386,7 +388,7 @@ export const MOVE_FLAG_TABLE: ReadonlyArray<readonly [string, readonly MoveFlag[
   ['ハイパードリル', ['contact']], // Hyper Drill
   ['ふんどのこぶし', ['contact', 'punch']], // Rage Fist
   ['むねんのつるぎ', ['contact', 'slicing', 'heal']], // Bitter Blade
-  ['でんこうそうげき', ['contact']], // Double Shock
+  ['でんこうそうげき', ['contact', 'punch']], // Double Shock。punch はチャンピオンズの値。SV は contact だけ
   ['ほうふく', ['contact']], // Comeuppance
   ['アクアカッター', ['slicing']], // Aqua Cutter
   ['シャカシャカほう', ['heal']], // Matcha Gotcha
