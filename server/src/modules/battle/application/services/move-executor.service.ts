@@ -42,7 +42,7 @@ import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
 import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called-move';
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
-import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
+import { getItemEffect, resolveItemName } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { getGlobalFieldState, getSideConditions } from '../../domain/state/side-state';
 import {
   STRUGGLE_MOVE_NAME,
@@ -2135,6 +2135,7 @@ export class MoveExecutorService {
     return isGrounded({
       typeNames: battleTypeNamesOf(defenderTrainedPokemon, defender),
       abilityName: battleContext.defenderAbilityName,
+      itemName: resolveItemName(defender),
       volatileState: defender.volatileState,
       sideState: battle.sideState,
     });

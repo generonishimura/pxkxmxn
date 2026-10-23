@@ -19,6 +19,7 @@ import { FocusBandEffect } from './effects/focus-band-effect';
 import { RockyHelmetEffect } from './effects/rocky-helmet-effect';
 import { KingsRockEffect } from './effects/kings-rock-effect';
 import { ShellBellEffect } from './effects/shell-bell-effect';
+import { AirBalloonEffect } from './effects/air-balloon-effect';
 
 /**
  * 持ち物のレジストリ
@@ -58,6 +59,7 @@ export class ItemRegistry {
     this.registry.set('ゴツゴツメット', new RockyHelmetEffect());
     this.registry.set('おうじゃのしるし', new KingsRockEffect());
     this.registry.set('かいがらのすず', new ShellBellEffect());
+    this.registry.set('ふうせん', new AirBalloonEffect());
   }
 
   /**

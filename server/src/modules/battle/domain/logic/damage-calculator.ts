@@ -1,6 +1,6 @@
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
-import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
+import { getItemEffect, resolveItemName } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { Weather, Field, Battle } from '../entities/battle.entity';
 import { StatusConditionHandler } from './status-condition-handler';
@@ -449,6 +449,7 @@ export class DamageCalculator {
     return isGrounded({
       typeNames: typeListOf(types).map(type => type.name),
       abilityName,
+      itemName: resolveItemName(pokemon),
       volatileState: pokemon.volatileState,
       sideState: this.sideStateOf(params),
     });
