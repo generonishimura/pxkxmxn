@@ -14,6 +14,11 @@ import {
   TypeSeedData,
 } from './seed-utils/data-mapper';
 import { getAbilityMetadata } from './seed-utils/ability-mapping';
+import {
+  CHAMPIONS_MOVE_OVERRIDES,
+  applyMoveOverride,
+  findUnusedOverrideNames,
+} from './seed-utils/champions-overrides';
 import { PokeApiClient } from './seed-utils/pokeapi-client';
 import { log, warn, error } from './seed-utils/logger';
 
@@ -275,6 +280,9 @@ async function seedMoves(typeMap: Map<string, number>): Promise<void> {
   let processed = 0;
   let skipped = 0;
   const batchSize = 100;
+  // チャンピオンズの上書き（どの技に当てたか・当たらなかったキー）
+  const overriddenMoves: string[] = [];
+  const seenMoveNames = new Set<string>();
 
   while (processed + skipped < actualLimit) {
     const currentBatchSize = Math.min(batchSize, actualLimit - processed - skipped);
@@ -283,7 +291,11 @@ async function seedMoves(typeMap: Map<string, number>): Promise<void> {
     for (const resource of list.results) {
       try {
         const move = await pokeApi.fetchMove(resource.name);
-        const seed = createMoveSeedData(move);
+        const { seed, changes } = applyMoveOverride(createMoveSeedData(move));
+        seenMoveNames.add(seed.name);
+        if (changes.length > 0) {
+          overriddenMoves.push(`${seed.name}（${changes.join(', ')}）`);
+        }
         const typeId = typeMap.get(seed.typeName);
         if (!typeId) {
           warn(`\n  Skip move ${seed.nameEn}: missing type ${seed.typeName}`);
@@ -351,6 +363,20 @@ async function seedMoves(typeMap: Map<string, number>): Promise<void> {
   }
 
   log(`\nSeeded ${processed} moves${skipped > 0 ? ` (${skipped} skipped)` : ''}.`);
+  logChampionsMoveOverrides(overriddenMoves, seenMoveNames);
+}
+
+/**
+ * チャンピオンズの上書きを当てた技と、どの技にも当たらなかった上書きのキーをログに出す
+ */
+function logChampionsMoveOverrides(overriddenMoves: string[], seenMoveNames: Set<string>): void {
+  log(`Applied Champions overrides to ${overriddenMoves.length} moves.`);
+  overriddenMoves.forEach(line => log(`  ${line}`));
+  const unused = findUnusedOverrideNames(CHAMPIONS_MOVE_OVERRIDES, seenMoveNames);
+  // SEED_MOVE_LIMIT で技を絞ったときは、当たらないキーがあって当然なので出さない
+  if (unused.length > 0 && MOVE_LIMIT === null) {
+    warn(`  Champions overrides matched no move: ${unused.join(', ')}`);
+  }
 }
 
 async function seedAbilities(): Promise<void> {

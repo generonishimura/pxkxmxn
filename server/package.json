@@ -24,6 +24,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "db:setup": "npm run db:up && npx wait-port localhost:5432 && npm run prisma:migrate",
+    "apply:champions-overrides": "ts-node -r tsconfig-paths/register src/scripts/apply-champions-overrides.ts",
     "check:coverage": "ts-node -r tsconfig-paths/register src/scripts/check-registry-coverage.spec.ts",
     "check:env": "ts-node -r tsconfig-paths/register src/scripts/check-environment.ts",
     "generate:issues": "ts-node -r tsconfig-paths/register src/scripts/generate-category-issues.ts",
