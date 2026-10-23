@@ -1,4 +1,5 @@
 import { ExecuteTurnUseCase } from './execute-turn.use-case';
+import { MegaEvolutionService } from '../services/mega-evolution.service';
 import { IBattleRepository } from '../../domain/battle.repository.interface';
 import { Battle, BattleStatus } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
@@ -96,6 +97,7 @@ describe('ExecuteTurnUseCase - 最後に行動するかどうか', () => {
       statusConditionProcessor,
       pokemonSwitcher,
       moveExecutor,
+      new MegaEvolutionService(battleRepository, trainedPokemonRepository),
     );
     return { useCase, executeMove };
   };

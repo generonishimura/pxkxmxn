@@ -13,6 +13,7 @@ import { WinnerCheckerService } from './application/services/winner-checker.serv
 import { StatusConditionProcessorService } from './application/services/status-condition-processor.service';
 import { PokemonSwitcherService } from './application/services/pokemon-switcher.service';
 import { MoveExecutorService } from './application/services/move-executor.service';
+import { MegaEvolutionService } from './application/services/mega-evolution.service';
 
 /**
  * BattleModule
@@ -32,6 +33,7 @@ import { MoveExecutorService } from './application/services/move-executor.servic
     StatusConditionProcessorService,
     PokemonSwitcherService,
     MoveExecutorService,
+    MegaEvolutionService,
 
     // ゲートウェイ
     BattleGateway,
