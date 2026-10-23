@@ -1314,6 +1314,7 @@ export class MoveExecutorService {
       // ヒットごとの値（hitIndex など）を固定するため、その時点のコピーを渡す
       battleContext: { ...battleContext },
       attackStatOverride: moveEffect?.attackStatOverride,
+      typeEffectivenessOverrides: moveEffect?.typeEffectivenessOverrides,
       ignoresBurnPenalty: moveEffect?.ignoresBurnPenalty,
       baseDamageRatio,
     });

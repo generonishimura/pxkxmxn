@@ -256,6 +256,13 @@ export interface IMoveEffect {
   readonly attackStatOverride?: AttackStatOverride;
 
   /**
+   * 防御側のタイプごとに、タイプ相性表の代わりに使う倍率（例: フリーズドライ = { みず: 2 }。本家の技の onEffectiveness）
+   * キーはタイプ名（日本語）。技のタイプが変わっても、この技なら上書きする（本家と同じ）。
+   * らんきりゅうなどの補正は、上書きしたあとの倍率に掛かる
+   */
+  readonly typeEffectivenessOverrides?: Readonly<Record<string, number>>;
+
+  /**
    * やけどによる物理技のダメージ半減を受けないかどうか（例: からげんき）
    */
   readonly ignoresBurnPenalty?: boolean;

@@ -100,6 +100,10 @@ export interface DamageCalculationParams {
    */
   attackStatOverride?: AttackStatOverride;
   /**
+   * 防御側のタイプ名ごとに、タイプ相性表の代わりに使う倍率（フリーズドライのみず = 2）
+   */
+  typeEffectivenessOverrides?: Readonly<Record<string, number>>;
+  /**
    * やけどによる物理技の半減を受けないかどうか（からげんきなど）
    */
   ignoresBurnPenalty?: boolean;
@@ -689,11 +693,19 @@ export class DamageCalculator {
           params.moveType.name,
           defenderType.name,
         ),
-      // らんきりゅう: ひこうタイプへの弱点を等倍にする
-      (defenderType, multiplier) =>
-        isNeutralizedByStrongWinds(primal, defenderType.name, multiplier, params.move.category)
+      // 技による相性の上書き（フリーズドライ）→ らんきりゅう: ひこうタイプへの弱点を等倍にする
+      (defenderType, tableMultiplier) => {
+        const multiplier =
+          params.typeEffectivenessOverrides?.[defenderType.name] ?? tableMultiplier;
+        return isNeutralizedByStrongWinds(
+          primal,
+          defenderType.name,
+          multiplier,
+          params.move.category,
+        )
           ? 1
-          : multiplier,
+          : multiplier;
+      },
     );
     if (groundedByGravity) {
       return effectiveness;
@@ -807,10 +819,10 @@ export class DamageCalculator {
     let effectiveness = DamageCalculator.DEFAULT_TYPE_EFFECTIVENESS;
 
     for (const defenderType of typeListOf(defenderTypes)) {
-      const typeMultiplier = typeEffectiveness.get(`${moveTypeId}-${defenderType.id}`);
-      if (typeMultiplier === undefined) {
-        continue;
-      }
+      // 表にない組み合わせは等倍（技による相性の上書きは、表にない組み合わせにも掛ける）
+      const typeMultiplier =
+        typeEffectiveness.get(`${moveTypeId}-${defenderType.id}`) ??
+        DamageCalculator.DEFAULT_TYPE_EFFECTIVENESS;
       // 相性0でも、攻撃側特性が許す場合は等倍として扱う
       if (typeMultiplier === 0 && ignoresImmunity(defenderType)) {
         continue;

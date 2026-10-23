@@ -11,6 +11,7 @@ import { RageFistEffect } from './effects/rage-fist-effect';
 import { ShellSideArmEffect } from './effects/shell-side-arm-effect';
 import { LightThatBurnsTheSkyEffect } from './effects/light-that-burns-the-sky-effect';
 import { GrassyGlideEffect } from './effects/grassy-glide-effect';
+import { FreezeDryEffect } from './effects/freeze-dry-effect';
 
 describe('MoveRegistry: Issue #268 の技', () => {
   beforeEach(() => {
@@ -30,6 +31,7 @@ describe('MoveRegistry: Issue #268 の技', () => {
     ['シェルアームズ', ShellSideArmEffect],
     ['てんこがすめつぼうのひかり', LightThatBurnsTheSkyEffect],
     ['グラススライダー', GrassyGlideEffect],
+    ['フリーズドライ', FreezeDryEffect],
   ])('%s が登録されている', (moveName, effectClass) => {
     // Act
     const effect = MoveRegistry.get(moveName);

@@ -144,6 +144,12 @@ modifyMoveCategory(attacker: BattlePokemonStatus, _d: BattlePokemonStatus, ctx: 
 }
 ```
 
+### typeEffectivenessOverrides（プロパティ）
+
+- 型: `readonly typeEffectivenessOverrides?: Readonly<Record<string, number>>`（キーは防御側のタイプ名）
+- 参照する場所: `DamageCalculator` のタイプ相性。そのタイプへの倍率を、タイプ相性表の代わりに使う（本家の技の onEffectiveness）。もう一方のタイプには表の倍率を掛ける。らんきりゅうは上書きしたあとの倍率に掛かる。技全体の相性（`moveTypeEffectiveness`）にも入る
+- 使う技: フリーズドライ（`{ みず: 2 }`。みず・じめんは 4 倍）
+
 ### ignoresBurnPenalty（プロパティ）
 
 - 型: `readonly ignoresBurnPenalty?: boolean`
