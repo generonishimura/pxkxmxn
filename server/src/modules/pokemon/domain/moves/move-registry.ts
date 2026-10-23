@@ -417,6 +417,8 @@ import { FieryWrathEffect } from './effects/fiery-wrath-effect';
 import { ShelterEffect } from './effects/shelter-effect';
 import { BodyPressEffect } from './effects/body-press-effect';
 import { DireClawEffect } from './effects/dire-claw-effect';
+import { LashOutEffect } from './effects/lash-out-effect';
+import { BurningJealousyEffect } from './effects/burning-jealousy-effect';
 
 /**
  * 技のレジストリ
@@ -944,6 +946,8 @@ export class MoveRegistry {
       this.registry.set('たてこもる', new ShelterEffect());
       this.registry.set('ボディプレス', new BodyPressEffect());
       this.registry.set('フェイタルクロー', new DireClawEffect());
+      this.registry.set('うっぷんばらし', new LashOutEffect());
+      this.registry.set('しっとのほのお', new BurningJealousyEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,

@@ -172,6 +172,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `lastMoveId` | `MoveLifecycle.recordMoveUse` | 技を出す前の判定を通った技（失敗・外れでも書く）。ゆびをふるなどで呼ばれた技では書かない（呼んだ技のまま） |
 | `consecutiveMoveCount` | `recordMoveUse` / `afterMove` | 同じ技を続けて成功させた回数。技の処理の中では「この技を直前まで続けて成功させた回数」（別の技なら、ない） |
 | `lastHitByMoveId` | 技の本体 | 1 以上のダメージを受けた技 |
+| `statsRaisedTurn`・`statsLoweredTurn` | `applyStatChanges` | ランクが実際に上がった・下がったときの `Battle.turn`（5 章） |
 | `lastMoveTypeName` | `MoveLifecycle.recordMoveUse` | 技を出すたびに書く。タイプを変える効果（技の `modifyMoveType` → 特性の `modifyMoveType` → プラズマシャワー → そうでん）を反映した技のタイプ。タイプなしの技（わるあがき）を出したら消す。呼ばれた技（ゆびをふる → ひのこ・はね返した技・よこどりで奪った技）でも、呼ばれた技のタイプを書く（本家の lastMoveUsed。`lastMoveId` は呼んだ技のまま）。みらいよちが当たるときは書かない |
 | `GlobalFieldState.lastMoveId` | `executeMove` | バトル全体で最後に出た技（呼ばれた技も書く。まねっこが読む）。本家と同じく技を出し終えてから書くので、技の処理の中ではまだ前の技のまま |
 | `protectCount` | `recordMoveUse` / `BeforeMoveChecker` / `MoveExecutorService`（まもる系） | まもる系（技の `protection`。トリックガード・たたみがえしを除く。`isProtectionMove` の技も）以外の技を出したら消す。技を出せなかったとき（ひるみ・まひ・ねむり・反動など）も消す（本家の stall は、次のターンにまもる系を成功させなければ切れる）。まもる系が成功したら 1 増やし、失敗したら消す。フェイントなどで守りを解かれたときも消す（`docs/battle-engine-hooks.md` の 13.5） |
@@ -375,6 +376,17 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | ねこだまし・であいがしら・たたみがえし（出てから最初の行動） | `battle.turn === switchedInTurn + 1` |
 | はりこみ（相手がこのターンに交代で出てきた） | `target.switchedInTurn === battle.turn` |
 | スロースタート（出てから 5 ターン） | `battle.turn - switchedInTurn <= 5`。`slowStartTurn` があれば `battle.turn - slowStartTurn <= 4`（得たターンを含めて 5 ターン） |
+
+### 能力ランクが変わったタイミング
+
+| キー | 型 | 意味 | 使う技・特性 |
+| --- | --- | --- | --- |
+| `statsRaisedTurn` | 0 以上の整数 | 能力ランクが最後に上がったときの `Battle.turn`（`applyStatChanges` が書く） | しっとのほのお |
+| `statsLoweredTurn` | 0 以上の整数 | 能力ランクが最後に下がったときの `Battle.turn`（`applyStatChanges` が書く） | うっぷんばらし |
+
+- 「このターンに上がった（下がった）か」は `statsRaisedTurn === battle.turn` で判定します。ターンの番号で持つので、ターン終了時に消す処理は要りません（本家の `statsRaisedThisTurn` / `statsLoweredThisTurn`）。
+- `applyStatChanges` で実際にランクが変わったときだけ書きます。+6 で止まって上がらなかったときは書きません。
+- ランクを直接書く効果（`docs/battle-engine-hooks.md` の 7 章の一覧）では書きません。
 
 ## 6. PersistentPokemonState のキー
 

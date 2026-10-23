@@ -42,6 +42,7 @@ describe('PsychicEffect', () => {
 
     const mockBattleRepository = {
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(undefined),
+      patchVolatileState: jest.fn().mockResolvedValue(undefined),
     };
 
     return {

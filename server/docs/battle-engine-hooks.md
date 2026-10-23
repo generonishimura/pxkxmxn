@@ -1113,6 +1113,8 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 | たくわえる・のみこむ | `stockpileCount`・`stockpileBoosts` を書く。のみこむの回復は `applyHeal` |
 | パワートリック・パワーシフト・ガードシェア・パワーシェア・スピードスワップ | `statOverrides` を書く（9.6）。シェアは両者の実数値の平均（切り捨て） |
 | さきどり | `ctx.defenderPendingMoveId` の技（`failMeFirst` でないダメージ技）を `callMove({ powerMultiplier: 1.5 })` |
+| うっぷんばらし | `modifyMovePower`（使用者の `statsLoweredTurn === ctx.battle.turn` なら 2 倍）。`beforeDamage` を持たせて、威力の前に使用者を読み直させる |
+| しっとのほのお | `BaseStatusConditionEffect` の `onHit` を、相手の `statsRaisedTurn === ctx.battle.turn` のときだけ呼ぶ（確率 100% の追加効果。りんぷんで止まる） |
 | まねっこ | `getGlobalFieldState(battle.sideState).lastMoveId`（`failCopycat` でない）を `callMove` |
 | さいはい | 相手の `lastMoveId`（`failInstruct` でない）を `callMove({ user: defender, runBeforeMoveChecks: true, consumePp: true })` |
 | タールショット | 素早さ -1 と `tryApplyVolatile(defender, 'tarShot', { tarShot: true })` |

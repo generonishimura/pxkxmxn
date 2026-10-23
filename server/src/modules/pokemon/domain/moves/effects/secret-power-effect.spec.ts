@@ -17,6 +17,7 @@ const createContext = (
   const updateMock = jest.fn().mockResolvedValue(undefined);
   const battleRepository = {
     updateBattlePokemonStatus: updateMock,
+    patchVolatileState: jest.fn().mockResolvedValue(undefined),
     // ねむりの付与で、場の誰かがさわいでいないかを確かめる
     findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([]),
   } as unknown as IBattleRepository;

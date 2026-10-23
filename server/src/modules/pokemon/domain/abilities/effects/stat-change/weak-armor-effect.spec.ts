@@ -22,6 +22,7 @@ describe('WeakArmorEffect', () => {
     const attacker = new BattlePokemonStatus(2, 1, 2, 2, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, null);
     const battleRepository = {
       updateBattlePokemonStatus: jest.fn(),
+      patchVolatileState: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<IBattleRepository>;
 
     // Act
@@ -46,6 +47,7 @@ describe('WeakArmorEffect', () => {
     const attacker = new BattlePokemonStatus(2, 1, 2, 2, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, null);
     const battleRepository = {
       updateBattlePokemonStatus: jest.fn(),
+      patchVolatileState: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<IBattleRepository>;
 
     // Act

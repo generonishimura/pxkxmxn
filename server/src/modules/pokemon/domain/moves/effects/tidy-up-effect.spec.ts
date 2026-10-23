@@ -29,6 +29,7 @@ describe('TidyUpEffect', () => {
     const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
     const mockBattleRepository = {
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(undefined),
+      patchVolatileState: jest.fn().mockResolvedValue(undefined),
     };
     return {
       battle,
