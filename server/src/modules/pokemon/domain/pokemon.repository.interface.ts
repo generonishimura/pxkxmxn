@@ -63,6 +63,13 @@ export interface IMoveRepository {
    * 任意。実装がないときは、名前で技を出す処理が失敗する
    */
   findByName?(name: string): Promise<Move | null>;
+
+  /**
+   * ポケモン（種族）の ID で、その種族が覚える技の ID をすべて取得（pokemon_moves にある技。findByPokemonId と違い 4 つに絞らない）
+   * 育成ポケモンが選んだ技を、バトルを始めるときに確かめるのに使う
+   * 任意。実装がないときは、技を選んだ育成ポケモンのいるバトルを始められない
+   */
+  findLearnableMoveIds?(pokemonId: number): Promise<number[]>;
 }
 
 /**

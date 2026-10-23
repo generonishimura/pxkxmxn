@@ -152,6 +152,17 @@ export class MovePrismaRepository implements IMoveRepository {
     return pokemonMoves.map(pm => MoveMapper.toDomainEntity(pm.move));
   }
 
+  async findLearnableMoveIds(pokemonId: number): Promise<number[]> {
+    // 同じ技を、覚える方法（レベル・わざマシンなど）ごとに持つことがあるので、技の ID で重ねない
+    const pokemonMoves = await this.prisma.pokemonMove.findMany({
+      where: { pokemonId },
+      select: { moveId: true },
+      distinct: ['moveId'],
+    });
+
+    return pokemonMoves.map(pm => pm.moveId);
+  }
+
   async findByName(name: string): Promise<Move | null> {
     const moveData = await this.prisma.move.findFirst({
       where: { name },

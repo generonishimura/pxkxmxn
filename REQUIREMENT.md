@@ -127,7 +127,8 @@ src/
 
 - **ユーザーデータ（動的データ）**
   - `Trainer`: ユーザーアカウント。
-  - `TrainedPokemon`: ユーザーが育成した個体（個体値、努力値、技構成など）。
+  - `TrainedPokemon`: ユーザーが育成した個体（能力ポイント、性格、特性、持ち物など）。
+  - `TrainedPokemonMove`: 育成した個体がバトルで使う技（最大 4 つ。`slot` は 1〜4 の並び順）。
   - `Team`: `TrainedPokemon` で構成されるバトルチーム。
 
 - **バトルデータ（揮発性データ）**
@@ -157,7 +158,7 @@ src/
 - **使えるポケモン**: 今のレギュレーション（`CURRENT_REGULATION`。今は M-C）で使えるポケモンだけを入れられる。M-C で使えるのは、全国図鑑の番号で 231 種類
 - **使える持ち物**: 今のレギュレーションで使える持ち物だけを持たせられる。M-C で使えるのは 166 個（持ち物 57 個、きのみ 28 個、メガストーン 81 個）
 
-レギュレーションの一覧は `battle/domain/regulations/` にある（`regulation-m-c.ts`。ポケモンは全国図鑑の番号、持ち物は日本語名で持つ）。確かめる処理は `battle/domain/logic/regulation-rule.ts` にある。DB のポケモンはフォルムを分けていないので、ポケモンは全国図鑑の番号だけで確かめる。たとえば、M-C のフラエッテは えいえんのはな のフォルムしか使えないが、ふつうのフラエッテも通る。覚える技がレギュレーションに合うかは、まだ確かめない。
+レギュレーションの一覧は `battle/domain/regulations/` にある（`regulation-m-c.ts`。ポケモンは全国図鑑の番号、持ち物は日本語名で持つ）。確かめる処理は `battle/domain/logic/regulation-rule.ts` にある。DB のポケモンはフォルムを分けていないので、ポケモンは全国図鑑の番号だけで確かめる。たとえば、M-C のフラエッテは えいえんのはな のフォルムしか使えないが、ふつうのフラエッテも通る。選んだ技がチャンピオンズで覚える技かは、まだ確かめない（その種族が `pokemon_moves` で覚える技かは確かめる。下の「育成ポケモンの技」を見る）。
 
 出典（レギュレーション M-C）: https://www.serebii.net/pokemonchampions/rankedbattle/regulationm-c.shtml 、https://www.serebii.net/pokemonchampions/items.shtml 、https://metavgc.com/regulations/regulationm-c
 
@@ -166,6 +167,17 @@ src/
 持ち時間（全体 7 分、選出 90 秒、1 ターン 45 秒）と時間切れの扱いは、ターンを進める API に持ち時間がないため、まだない。
 
 出典: https://game8.co/games/Pokemon-Champions/archives/618064
+
+#### 育成ポケモンの技
+
+育成ポケモンは、バトルで使う技を最大 4 つ選んで持つ（`trained_pokemon_moves` テーブル、`TrainedPokemon.moveIds`）。
+
+- **数と重なり**: 技は 4 つまで。同じ技を 2 つ持てない。`TrainedPokemon` を作るときに確かめ、合わなければ `ValidationException`（`field` は `moveIds`）を投げる。DB にも同じ制約（`slot` は 1〜4、`(trained_pokemon_id, slot)` と `(trained_pokemon_id, move_id)` はそれぞれ重ならない）がある
+- **覚える技か**: バトルを始めるとき（`StartBattleUseCase`）に、選んだ技がその種族の覚える技（`pokemon_moves` にある技）かを確かめる。覚えない技があれば、バトルを作らずに `ValidationException`（`field` は `team1Id` か `team2Id`）を返す。確かめる処理は `battle/domain/logic/move-rule.ts` にある
+- **バトル中の技**: 選んだ技を `slot` の順に、バトル中の技（`BattlePokemonMove`）にする。PP は技の PP（チャンピオンズの PP）
+- **技を選んでいない育成ポケモン**: 技を 1 つも選んでいない育成ポケモンは、今までどおり、種族の覚える技（`moveRepository.findByPokemonId`。`pokemon_moves` の最初の 4 つ）からバトル中の技を作る。技を選ぶ前に作ったデータとテストを、そのまま動かすため
+
+育成ポケモンを作る・書き換える API はまだない。技を選ぶには、`trained_pokemon_moves` に直接行を入れる。チャンピオンズの覚える技（Serebii の Champions 図鑑の attacks 欄）との照合は #267 で行う。
 
 ### 5.2. ダメージ計算の詳細
 

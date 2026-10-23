@@ -18,6 +18,7 @@ import { Battle } from '../../domain/entities/battle.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
+import { Move } from '@/modules/pokemon/domain/entities/move.entity';
 import { updateVolatileState } from '../../domain/state/volatile-state';
 // タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #119 #135 一部）
 import {
@@ -33,6 +34,7 @@ import {
   findRegulationProblem,
   regulationProblemMessage,
 } from '../../domain/logic/regulation-rule';
+import { findMoveRuleProblem, moveRuleProblemMessage } from '../../domain/logic/move-rule';
 import { CURRENT_REGULATION } from '../../domain/regulations/current-regulation';
 import { Regulation } from '../../domain/regulations/regulation';
 
@@ -60,10 +62,12 @@ const LEAD_ENTRY_PRIORITY: Readonly<Record<string, number>> = {
  * 処理内容:
  * 0. 両チームの手持ちが、チャンピオンズのシングルのルール（3〜6 体・持ち物の重複なし・全国図鑑の番号の重複なし）に
  *    合うかと、レギュレーション（既定は CURRENT_REGULATION）で使えるポケモン・持ち物だけかを確かめる。
+ *    育成ポケモンが選んだ技が、その種族の覚える技かも確かめる。
  *    合わなければ、何も書き込まずに ValidationException で弾く
  *    注: 選出（6 体から 3 体を選ぶ）の API はない。戦うポケモンは、バトルを始めるチームを選ぶことで決める
  * 1. Battleエンティティの作成
  * 2. 両チームのポケモン状態（BattlePokemonStatus）を初期化し、最初のポケモンを場に出す（position=1のポケモン）
+ *    技は、育成ポケモンが選んだ技から作る。技を選んでいなければ、種族の覚える技（findByPokemonId）から作る
  * 3. 両方の先発が場に出てから、先発の特性のOnEntry効果を、イリュージョン → かがくへんかガス・テラスチェンジ → 素早さの高い順に発動
  * 4. 効かなくなった特性のゲンシ天候を終わらせる
  */
@@ -108,9 +112,13 @@ export class StartBattleUseCase {
     team1Id: number,
     team2Id: number,
   ): Promise<Battle> {
-    // 1. 両チームのポケモン情報を取得し、手持ちのルールとレギュレーションを、書き込みより前に確かめる
+    // 1. 両チームのポケモン情報を取得し、手持ちのルール・レギュレーション・選んだ技を、書き込みより前に確かめる
     const team1Members = await this.teamRepository.findMembersByTeamId(team1Id);
     const team2Members = await this.teamRepository.findMembersByTeamId(team2Id);
+    const allTrainedPokemon = [...team1Members, ...team2Members].map(
+      member => member.trainedPokemon,
+    );
+    const learnableMoveIds = await this.loadLearnableMoveIds(allTrainedPokemon);
     for (const [members, field] of [
       [team1Members, 'team1Id'],
       [team2Members, 'team2Id'],
@@ -127,7 +135,12 @@ export class StartBattleUseCase {
           field,
         );
       }
+      const moveProblem = findMoveRuleProblem(team, learnableMoveIds);
+      if (moveProblem) {
+        throw new ValidationException(moveRuleProblemMessage(moveProblem), field);
+      }
     }
+    const chosenMoves = await this.loadChosenMoves(allTrainedPokemon);
 
     // 2. Battleエンティティを作成
     const battle = await this.battleRepository.create({
@@ -153,7 +166,12 @@ export class StartBattleUseCase {
       [team2Members, trainer2Id],
     ] as const) {
       for (const member of members) {
-        const leadStatusId = await this.createBattlePokemonStatus(battle, member, trainerId);
+        const leadStatusId = await this.createBattlePokemonStatus(
+          battle,
+          member,
+          trainerId,
+          chosenMoves,
+        );
         // 持ち物のないポケモンは、持ち物の onEntry を呼ばない
         if (leadStatusId !== undefined && member.trainedPokemon.heldItem) {
           itemLeadStatusIds.push(leadStatusId);
@@ -196,12 +214,14 @@ export class StartBattleUseCase {
 
   /**
    * ポケモン 1 匹分の BattlePokemonStatus と技を作り、先発（position=1）なら場に出す
+   * @param chosenMoves 育成ポケモンが選んだ技（技の ID ごと。loadChosenMoves で読んだもの）
    * @returns 先発なら BattlePokemonStatus の ID、控えなら undefined
    */
   private async createBattlePokemonStatus(
     battle: Battle,
     member: TeamMemberInfo,
     trainerId: number,
+    chosenMoves: ReadonlyMap<number, Move>,
   ): Promise<number | undefined> {
     const trainedPokemon = member.trainedPokemon;
 
@@ -224,8 +244,8 @@ export class StartBattleUseCase {
       });
     }
 
-    // ポケモンが覚えている技を取得してBattlePokemonMoveを作成
-    await this.initializePokemonMoves(battleStatus.id, trainedPokemon.pokemon.id);
+    // 選んだ技（なければ種族の覚える技）から BattlePokemonMove を作成
+    await this.initializePokemonMoves(battleStatus.id, trainedPokemon, chosenMoves);
 
     if (member.position !== 1) {
       return undefined;
@@ -332,18 +352,75 @@ export class StartBattleUseCase {
   }
 
   /**
-   * ポケモンが覚えている技を取得してBattlePokemonMoveを作成
+   * 技を選んだ育成ポケモンの種族ごとに、覚える技の ID を読む（技を選んだポケモンがいなければ、何も読まない）
+   * @returns 種族の ID（Pokemon.id）ごとの、覚える技の ID
+   */
+  private async loadLearnableMoveIds(
+    trainedPokemons: readonly TrainedPokemon[],
+  ): Promise<Map<number, ReadonlySet<number>>> {
+    const pokemonIds = new Set(
+      trainedPokemons.flatMap(trainedPokemon =>
+        trainedPokemon.moveIds.length > 0 ? [trainedPokemon.pokemon.id] : [],
+      ),
+    );
+    const learnableMoveIds = new Map<number, ReadonlySet<number>>();
+    if (pokemonIds.size === 0) {
+      return learnableMoveIds;
+    }
+    if (!this.moveRepository.findLearnableMoveIds) {
+      throw new Error(
+        'IMoveRepository.findLearnableMoveIds is required to start a battle with chosen moves',
+      );
+    }
+    for (const pokemonId of pokemonIds) {
+      learnableMoveIds.set(
+        pokemonId,
+        new Set(await this.moveRepository.findLearnableMoveIds(pokemonId)),
+      );
+    }
+    return learnableMoveIds;
+  }
+
+  /**
+   * 育成ポケモンが選んだ技を読む（書き込みより前に読み、技がなければ書き込む前に止める）
+   * @returns 技の ID ごとの技
+   */
+  private async loadChosenMoves(
+    trainedPokemons: readonly TrainedPokemon[],
+  ): Promise<Map<number, Move>> {
+    const moves = new Map<number, Move>();
+    for (const moveId of new Set(
+      trainedPokemons.flatMap(trainedPokemon => trainedPokemon.moveIds),
+    )) {
+      const move = await this.moveRepository.findById(moveId);
+      if (!move) {
+        // 覚える技（pokemon_moves）は moves を参照するので、選んだ技を確かめたあとなら、ここには来ない
+        throw new Error(`Move not found: ${moveId}`);
+      }
+      moves.set(moveId, move);
+    }
+    return moves;
+  }
+
+  /**
+   * バトル中の技（BattlePokemonMove）を作る
+   * - 育成ポケモンが技を選んでいれば、その技を slot の順に作る
+   * - 技を選んでいなければ、種族の覚える技（findByPokemonId。最大 4 つ）から作る（技を選ぶ前のデータのため）
+   * PP は技の PP（チャンピオンズの PP）
    * @param battlePokemonStatusId バトル中のポケモンステータスID
-   * @param pokemonId ポケモンID
+   * @param trainedPokemon 育成ポケモン
+   * @param chosenMoves 育成ポケモンが選んだ技（技の ID ごと）
    */
   private async initializePokemonMoves(
     battlePokemonStatusId: number,
-    pokemonId: number,
+    trainedPokemon: TrainedPokemon,
+    chosenMoves: ReadonlyMap<number, Move>,
   ): Promise<void> {
-    // ポケモンが覚えている技を取得(最大4つ)
-    const moves = await this.moveRepository.findByPokemonId(pokemonId);
+    const moves =
+      trainedPokemon.moveIds.length > 0
+        ? trainedPokemon.moveIds.flatMap(moveId => chosenMoves.get(moveId) ?? [])
+        : await this.moveRepository.findByPokemonId(trainedPokemon.pokemon.id);
 
-    // 各技のBattlePokemonMoveを作成
     for (const move of moves) {
       await this.battleRepository.createBattlePokemonMove({
         battlePokemonStatusId,
