@@ -46,33 +46,54 @@ describe('SheerForceEffect', () => {
     };
   });
 
-  describe('modifyDamageDealt', () => {
-    it('should return 1.3x damage for moves with secondary effects', () => {
-      const result = effect.modifyDamageDealt(pokemon, 100, battleContext);
-      expect(result).toBe(130); // 100 * 1.3 = 130
+  describe('modifyBasePower', () => {
+    it('追加効果がある技の威力を 1.3 倍（5325/4096）にする（威力 80 → 104）', () => {
+      // Act
+      const result = effect.modifyBasePower(pokemon, 80, battleContext);
+
+      // Assert
+      expect(result).toBe(104);
     });
 
-    it('should return undefined for moves without secondary effects', () => {
+    it('追加効果がない技の威力は変えない', () => {
+      // Arrange
       const contextWithoutSecondary: BattleContext = {
         ...battleContext,
         hasSecondaryEffect: false,
       };
-      const result = effect.modifyDamageDealt(pokemon, 100, contextWithoutSecondary);
+
+      // Act
+      const result = effect.modifyBasePower(pokemon, 80, contextWithoutSecondary);
+
+      // Assert
       expect(result).toBeUndefined();
     });
 
-    it('should return undefined when hasSecondaryEffect is not provided', () => {
+    it('hasSecondaryEffect がないときは威力を変えない', () => {
+      // Arrange
       const contextWithoutSecondaryFlag: BattleContext = {
         ...battleContext,
         hasSecondaryEffect: undefined,
       };
-      const result = effect.modifyDamageDealt(pokemon, 100, contextWithoutSecondaryFlag);
+
+      // Act
+      const result = effect.modifyBasePower(pokemon, 80, contextWithoutSecondaryFlag);
+
+      // Assert
       expect(result).toBeUndefined();
     });
 
-    it('should return undefined when battleContext is not provided', () => {
-      const result = effect.modifyDamageDealt(pokemon, 100, undefined);
+    it('battleContext がないときは威力を変えない', () => {
+      // Act
+      const result = effect.modifyBasePower(pokemon, 80, undefined);
+
+      // Assert
       expect(result).toBeUndefined();
     });
+  });
+
+  it('追加効果をなくす特性である（removesSecondaryEffects）', () => {
+    // Assert
+    expect(effect.removesSecondaryEffects).toBe(true);
   });
 });

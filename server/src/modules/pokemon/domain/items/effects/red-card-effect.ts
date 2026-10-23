@@ -8,7 +8,7 @@ import { IItemEffect } from '../item-effect.interface';
  * - 攻撃側がねをはっている・きゅうばんなどのときは、入れ替えないがカードは使い切る（本家と同じ）
  * - 入れ替えたら、攻撃側のとんぼがえりなどの交代は起きない
  * - みがわりに当たったときは使わない
- * 注: 本家は、ちからずくの使い手の追加効果のある技では使わないが、ここでは使う
+ * - ちからずくで追加効果が消えた技を受けたときは使わない（本家と同じ）
  */
 export class RedCardEffect implements IItemEffect {
   readonly forcesAttackerOutAfterHit = true;

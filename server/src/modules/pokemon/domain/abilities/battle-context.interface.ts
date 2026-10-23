@@ -124,10 +124,17 @@ export interface BattleContext {
   hasRecoil?: boolean;
 
   /**
-   * 追加効果がある技かどうか
-   * ちからずくなどの特性で使用
+   * 追加効果がある技かどうか（本家の move.secondaries。表は secondary-effect-move-table.ts）
+   * 技の実行で入る。ちからずくなどの特性で使用
    */
   hasSecondaryEffect?: boolean;
+
+  /**
+   * 使用者のちからずくで、この技の追加効果が消えたか（本家の move.hasSheerForce かつ使用者がちからずく）
+   * 技の実行で入る。true なら rollSecondaryEffect が追加効果を出さず、いのちのたまの反動・かいがらのすず・
+   * だっしゅつボタン・レッドカード・ききかいひ・へんしょく・ぎゃくじょう・いかりのこうらが働かない
+   */
+  secondaryEffectsRemoved?: boolean;
 
   /**
    * 技名（DB の name、例: "ほのおのパンチ"）

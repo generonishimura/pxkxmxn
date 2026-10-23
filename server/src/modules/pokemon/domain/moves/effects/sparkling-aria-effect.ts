@@ -7,6 +7,7 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
  * 「うたかたのアリア」の特殊効果実装
  *
  * 効果: 相手のやけどを回復する (Cures the target of burns)
+ * 追加効果なので、ちからずくで追加効果が消えたときは回復しない（本家と同じ。りんぷんでは防がれない）
  */
 export class SparklingAriaEffect implements IMoveEffect {
   async onHit(
@@ -14,7 +15,7 @@ export class SparklingAriaEffect implements IMoveEffect {
     defender: BattlePokemonStatus,
     battleContext: BattleContext,
   ): Promise<string | null> {
-    if (!battleContext.battleRepository) {
+    if (!battleContext.battleRepository || battleContext.secondaryEffectsRemoved === true) {
       return null;
     }
 

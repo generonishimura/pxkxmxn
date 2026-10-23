@@ -1,38 +1,35 @@
 import { IAbilityEffect } from '../../ability-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
+import { modifyByFixedPoint } from '@/modules/battle/domain/logic/fixed-point-modifier';
 
 /**
  * ちからずく（Sheer Force）特性の効果
- * 追加効果がある技の威力1.3倍（追加効果は発動しない）
+ * 追加効果がある技（battleContext.hasSecondaryEffect）の威力を1.3倍（5325/4096）にし、追加効果をなくす
  *
- * 注意: 追加効果の発動を無効化する処理は、技の特殊効果側で実装する必要がある
+ * 追加効果をなくす処理は、エンジンが removesSecondaryEffects を見て battleContext.secondaryEffectsRemoved を
+ * true にし、rollSecondaryEffect がそれを見て追加効果を出さないことで行う
  */
 export class SheerForceEffect implements IAbilityEffect {
   /**
-   * ダメージ倍率
+   * 威力の補正（4096分率で1.3倍）
    */
-  private static readonly DAMAGE_MULTIPLIER = 1.3;
+  private static readonly POWER_MODIFIER = 5325;
+
+  readonly removesSecondaryEffects = true;
 
   /**
-   * ダメージを与えるときに発動
-   * 追加効果がある技の場合、ダメージを1.3倍に
+   * ダメージ計算式に入る前の威力に掛かる
+   * 追加効果がある技の場合、威力を1.3倍にする
    */
-  modifyDamageDealt(
+  modifyBasePower(
     _pokemon: BattlePokemonStatus,
-    damage: number,
+    power: number,
     battleContext?: BattleContext,
   ): number | undefined {
-    if (!battleContext) {
+    if (battleContext?.hasSecondaryEffect !== true) {
       return undefined;
     }
-
-    // 追加効果がある技でない場合は修正しない
-    if (!battleContext.hasSecondaryEffect) {
-      return undefined;
-    }
-
-    // 追加効果がある技の場合、ダメージを1.3倍に
-    return Math.floor(damage * SheerForceEffect.DAMAGE_MULTIPLIER);
+    return modifyByFixedPoint(power, SheerForceEffect.POWER_MODIFIER);
   }
 }

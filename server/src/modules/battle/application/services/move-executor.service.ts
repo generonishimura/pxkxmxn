@@ -39,6 +39,7 @@ import { isMajorStatus } from '../../domain/logic/major-status';
 import { resolveMovePriority } from '../../domain/logic/move-order-context';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
+import { hasSecondaryEffect } from '@/modules/pokemon/domain/moves/secondary-effect';
 import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called-move';
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
@@ -1776,6 +1777,7 @@ export class MoveExecutorService {
       const exited =
         !forced &&
         !itemSwitch.holderSwitched &&
+        battleContext.secondaryEffectsRemoved !== true &&
         (await this.scheduleEmergencyExit(battle, defender.id, hpBeforeMove, defenderEventEffect));
       await this.scheduleSwitchesAfterMove({
         battle,
@@ -2128,8 +2130,7 @@ export class MoveExecutorService {
    * - レッドカード（forcesAttackerOutAfterHit）: 持ち主と攻撃側がひんしでなく、攻撃側が場にいて控えがいれば、
    *   持ち物を使い切る。攻撃側がねをはっておらず、preventsForcedSwitch の特性（きゅうばん）でなければ、
    *   攻撃側の陣営に forcedSwitch を書く（ねをはる・きゅうばんでも持ち物は使い切る。本家の DragOut）
-   * 持ち物はかたやぶりで無視されない
-   * 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
+   * 持ち物はかたやぶりで無視されない。ちからずくで追加効果が消えた技では使わない（本家と同じ）
    * @returns 持ち主が交代するか、攻撃側を入れ替えるか、メッセージ
    */
   private async scheduleItemSwitches(
@@ -2141,7 +2142,11 @@ export class MoveExecutorService {
   ): Promise<{ holderSwitched: boolean; attackerForcedOut: boolean; messages: string[] }> {
     const none = { holderSwitched: false, attackerForcedOut: false, messages: [] };
     const itemEffect = getItemEffect(holder);
-    if (holder.isFainted() || holder.trainerId === attacker.trainerId) {
+    if (
+      holder.isFainted() ||
+      holder.trainerId === attacker.trainerId ||
+      battleContext.secondaryEffectsRemoved === true
+    ) {
       return none;
     }
 
@@ -2186,8 +2191,7 @@ export class MoveExecutorService {
   /**
    * ききかいひ・にげごし（特性の switchesOutBelowHalfHp）: 相手の技で HP が最大 HP の半分より上から
    * 半分以下（ひんしを除く）になり、控えがいれば、防御側の陣営に pendingChoice（emergencyExit）を書く
-   * かたやぶりでは無視されない
-   * 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
+   * かたやぶりでは無視されない。ちからずくで追加効果が消えた技では発動しない（呼ぶ側が判定する。本家と同じ）
    * @returns 書いたら true
    */
   private async scheduleEmergencyExit(
@@ -2481,6 +2485,7 @@ export class MoveExecutorService {
       isLastToMove: params.options.isLastToMove,
       attackerNationalDex: params.attackerTrainedPokemon.pokemon.nationalDex,
       hasRecoil: params.moveEffect?.hasRecoil === true,
+      hasSecondaryEffect: hasSecondaryEffect(move.name),
       moveId: move.id,
       moveRepository: this.moveRepository,
       typeEffectivenessRepository: this.typeEffectivenessRepository,
@@ -2497,6 +2502,11 @@ export class MoveExecutorService {
         request,
         { depth: (params.called?.depth ?? 0) + 1, trace: params.trace, options: params.options },
       );
+
+    // ちからずく: 追加効果のある技なら、追加効果と、追加効果のあとに働く持ち物・特性をなくす（本家の hasSheerForce）
+    context.secondaryEffectsRemoved =
+      context.hasSecondaryEffect === true &&
+      params.attackerAbilityEffect?.removesSecondaryEffects === true;
 
     // 物理・特殊を技の効果で決め直す（シェルアームズ・てんこがすめつぼうのひかり。本家の onModifyMove）
     const category = params.moveEffect?.modifyMoveCategory?.(attacker, defender, context);
