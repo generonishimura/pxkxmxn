@@ -7,6 +7,8 @@ import {
   BattleStatValues,
 } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { MoveFlags } from '@/modules/pokemon/domain/moves/move-flags';
+import type { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
+import type { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { resolveEffectiveWeather } from './effective-weather';
 import { StatCalculator } from './stat-calculator';
 
@@ -25,7 +27,26 @@ export interface MoveOrderContextParams {
   opponentAbilityName?: string;
   /** 行動するポケモンのランク補正前の実数値 */
   stats?: BattleStatValues;
+  /** 行動するポケモンの実効のタイプ名（地面にいるかの判定に使う。グラススライダー） */
+  typeNames?: readonly string[];
 }
+
+/**
+ * 技の優先度を求める（技の modifyPriority → 使用者の特性の modifyPriority の順）
+ * 行動順の判定と、技の実行の effectivePriority で同じ値になるよう、この関数で求める
+ */
+export const resolveMovePriority = (params: {
+  pokemon: BattlePokemonStatus;
+  basePriority: number;
+  moveEffect?: IMoveEffect;
+  abilityEffect?: IAbilityEffect;
+  context: BattleContext;
+}): number => {
+  const { pokemon, basePriority, context } = params;
+  const movePriority =
+    params.moveEffect?.modifyPriority?.(pokemon, basePriority, context) ?? basePriority;
+  return params.abilityEffect?.modifyPriority?.(pokemon, movePriority, context) ?? movePriority;
+};
 
 /**
  * modifyPriority / modifySpeed に渡すコンテキストを作成する
@@ -50,6 +71,7 @@ export const createMoveOrderContext = (params: MoveOrderContextParams): BattleCo
   defenderAbilityName: params.opponentAbilityName,
   attacker: params.pokemon,
   attackerStats: params.stats,
+  attackerTypeNames: params.typeNames,
 });
 
 /**

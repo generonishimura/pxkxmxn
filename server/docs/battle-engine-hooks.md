@@ -110,6 +110,22 @@ export class FoulPlayEffect implements IMoveEffect {
 }
 ```
 
+### modifyPriority（技）
+
+- シグネチャ: `modifyPriority?(attacker, priority, battleContext): number | undefined`
+- 呼ばれる場所: 行動順の判定（`ActionOrderDeterminerService`）と、技の実行の `effectivePriority`。どちらも `resolveMovePriority`（`battle/domain/logic/move-order-context.ts`）で、技の `modifyPriority` → 使用者の特性の `modifyPriority`（いたずらごころなど）の順に求める。特性には技が変えたあとの優先度を渡す
+- 使う技: グラススライダー（グラスフィールドで、地面にいる使用者なら +1。地面にいるかは `isGrounded` に `ctx.attackerTypeNames`・`ctx.attackerAbilityName`・使用者の `volatileState`・`ctx.battle.sideState` を渡す）
+- 行動順のコンテキストにも `attackerTypeNames`（実効のタイプ）が入ります
+
+```ts
+modifyPriority(attacker: BattlePokemonStatus, priority: number, ctx: BattleContext) {
+  if (ctx.field !== Field.GrassyTerrain) return undefined;
+  const grounded = isGrounded({ typeNames: ctx.attackerTypeNames ?? [], abilityName: ctx.attackerAbilityName,
+    volatileState: attacker.volatileState, sideState: ctx.battle.sideState });
+  return grounded ? priority + 1 : undefined;
+}
+```
+
 ### modifyMoveCategory / contactWhenPhysical（プロパティ）
 
 - シグネチャ: `modifyMoveCategory?(attacker, defender, battleContext): 'Physical' | 'Special' | undefined`

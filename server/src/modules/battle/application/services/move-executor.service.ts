@@ -36,6 +36,7 @@ import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
 import { modifyByFixedPoint } from '../../domain/logic/fixed-point-modifier';
 import { isMajorStatus } from '../../domain/logic/major-status';
+import { resolveMovePriority } from '../../domain/logic/move-order-context';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
 import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called-move';
@@ -1024,8 +1025,13 @@ export class MoveExecutorService {
     // はね返した技は、はね返した側のいたずらごころを足さず、元の技の優先度を引き継ぐ（本家の useMoveInner）
     battleContext.effectivePriority =
       called?.inheritedPriority ??
-      attackerAbilityEffect?.modifyPriority?.(attacker, move.priority, battleContext) ??
-      move.priority;
+      resolveMovePriority({
+        pokemon: attacker,
+        basePriority: move.priority,
+        moveEffect,
+        abilityEffect: attackerAbilityEffect,
+        context: battleContext,
+      });
 
     // 特性による技の失敗（しめりけ・じょおうのいげんなど）。両者の特性で、命中判定の前に判定する。
     // onPrepareHit のあとのやり直し（prepared）では判定し直さない（本家の TryMove は PrepareHit より前に 1 回）

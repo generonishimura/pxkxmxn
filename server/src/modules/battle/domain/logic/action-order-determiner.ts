@@ -4,13 +4,19 @@ import { StatusCondition } from '../entities/status-condition.enum';
 import { IMoveRepository } from '@/modules/pokemon/domain/pokemon.repository.interface';
 import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
-import { createMoveOrderContext } from './move-order-context';
+import { createMoveOrderContext, resolveMovePriority } from './move-order-context';
+import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { NotFoundException } from '@/shared/domain/exceptions';
 // 場の状態・設置技・交代の仕組み（Issue #107 一部）
 import { getSideConditions } from '../state/side-state';
 import { isTrickRoomActive, movesBefore, sideSpeedMultiplier } from './field-modifiers';
 // タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #119 #135 一部）
-import { BattlePokemonRef, battleAbilityNameOf, battleStatsOf } from './battle-pokemon-traits';
+import {
+  BattlePokemonRef,
+  battleAbilityNameOf,
+  battleStatsOf,
+  battleTypeNamesOf,
+} from './battle-pokemon-traits';
 
 /**
  * 行動順決定の入力パラメータ
@@ -174,6 +180,9 @@ export class ActionOrderDeterminer {
       stats: trainer1TrainedPokemon
         ? battleStatsOf(trainer1TrainedPokemon, trainer1Active)
         : undefined,
+      typeNames: trainer1TrainedPokemon
+        ? battleTypeNamesOf(trainer1TrainedPokemon, trainer1Active)
+        : undefined,
     });
     const trainer2Context = createMoveOrderContext({
       battle,
@@ -184,32 +193,26 @@ export class ActionOrderDeterminer {
       stats: trainer2TrainedPokemon
         ? battleStatsOf(trainer2TrainedPokemon, trainer2Active)
         : undefined,
+      typeNames: trainer2TrainedPokemon
+        ? battleTypeNamesOf(trainer2TrainedPokemon, trainer2Active)
+        : undefined,
     });
 
-    let trainer1Priority = trainer1Move.priority;
-    let trainer2Priority = trainer2Move.priority;
-
-    if (trainer1AbilityEffect?.modifyPriority) {
-      const modifiedPriority = trainer1AbilityEffect.modifyPriority(
-        trainer1Active,
-        trainer1Move.priority,
-        trainer1Context,
-      );
-      if (modifiedPriority !== undefined) {
-        trainer1Priority = modifiedPriority;
-      }
-    }
-
-    if (trainer2AbilityEffect?.modifyPriority) {
-      const modifiedPriority = trainer2AbilityEffect.modifyPriority(
-        trainer2Active,
-        trainer2Move.priority,
-        trainer2Context,
-      );
-      if (modifiedPriority !== undefined) {
-        trainer2Priority = modifiedPriority;
-      }
-    }
+    // 技の modifyPriority（グラススライダー）→ 特性の modifyPriority（いたずらごころなど）
+    let trainer1Priority = resolveMovePriority({
+      pokemon: trainer1Active,
+      basePriority: trainer1Move.priority,
+      moveEffect: MoveRegistry.get(trainer1Move.name),
+      abilityEffect: trainer1AbilityEffect,
+      context: trainer1Context,
+    });
+    let trainer2Priority = resolveMovePriority({
+      pokemon: trainer2Active,
+      basePriority: trainer2Move.priority,
+      moveEffect: MoveRegistry.get(trainer2Move.name),
+      abilityEffect: trainer2AbilityEffect,
+      context: trainer2Context,
+    });
 
     // 同じ優先度の中での順番（きんしのちから・あとだし・クイックドロウ。本家の onFractionalPriority）
     const trainer1FractionalPriority = trainer1AbilityEffect?.modifyFractionalPriority?.(

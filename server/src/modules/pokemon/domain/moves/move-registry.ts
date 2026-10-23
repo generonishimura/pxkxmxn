@@ -422,6 +422,7 @@ import { BurningJealousyEffect } from './effects/burning-jealousy-effect';
 import { RageFistEffect } from './effects/rage-fist-effect';
 import { ShellSideArmEffect } from './effects/shell-side-arm-effect';
 import { LightThatBurnsTheSkyEffect } from './effects/light-that-burns-the-sky-effect';
+import { GrassyGlideEffect } from './effects/grassy-glide-effect';
 
 /**
  * 技のレジストリ
@@ -954,6 +955,7 @@ export class MoveRegistry {
       this.registry.set('ふんどのこぶし', new RageFistEffect());
       this.registry.set('シェルアームズ', new ShellSideArmEffect());
       this.registry.set('てんこがすめつぼうのひかり', new LightThatBurnsTheSkyEffect());
+      this.registry.set('グラススライダー', new GrassyGlideEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
