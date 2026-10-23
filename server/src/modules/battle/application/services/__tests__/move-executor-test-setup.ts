@@ -93,7 +93,6 @@ export const createTrainedPokemon = (
       100,
     ),
     null,
-    50,
     Gender.Male,
     Nature.Hardy,
     abilityName
@@ -106,12 +105,6 @@ export const createTrainedPokemon = (
           AbilityCategory.Other,
         )
       : null,
-    31,
-    31,
-    31,
-    31,
-    31,
-    31,
     0,
     0,
     0,

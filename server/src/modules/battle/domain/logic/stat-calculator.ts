@@ -2,16 +2,15 @@
  * StatCalculator
  * TrainedPokemonから実際のステータスを計算するロジック
  *
- * ポケモンのステータス計算式:
- * - HP = floor((2 * baseHp + iv + floor(ev/4)) * level / 100) + level + 10
- * - それ以外 = floor((floor((2 * base + iv + floor(ev/4)) * level / 100) + 5) * nature)
+ * チャンピオンズの能力値の計算式（レベルは 50 に固定。個体値・努力値はない）:
+ * - HP = 種族値 + 能力ポイント + 75
+ * - それ以外 = floor((種族値 + 能力ポイント + 20) * 能力補正)
  *
- * 性格による補正:
- * - 上げたいステータス: 1.1倍
- * - 下げたいステータス: 0.9倍
+ * 能力補正（性格）:
+ * - 上がる能力: 1.1倍
+ * - 下がる能力: 0.9倍
  * - それ以外: 1.0倍
  */
-
 export enum Nature {
   Hardy = 'Hardy',
   Lonely = 'Lonely',
@@ -41,7 +40,7 @@ export enum Nature {
 }
 
 /**
- * TrainedPokemonのステータス情報
+ * TrainedPokemonのステータス情報（種族値・能力ポイント・能力補正）
  */
 export interface TrainedPokemonStats {
   baseHp: number;
@@ -50,19 +49,12 @@ export interface TrainedPokemonStats {
   baseSpecialAttack: number;
   baseSpecialDefense: number;
   baseSpeed: number;
-  level: number;
-  ivHp: number;
-  ivAttack: number;
-  ivDefense: number;
-  ivSpecialAttack: number;
-  ivSpecialDefense: number;
-  ivSpeed: number;
-  evHp: number;
-  evAttack: number;
-  evDefense: number;
-  evSpecialAttack: number;
-  evSpecialDefense: number;
-  evSpeed: number;
+  spHp: number;
+  spAttack: number;
+  spDefense: number;
+  spSpecialAttack: number;
+  spSpecialDefense: number;
+  spSpeed: number;
   nature: Nature | null;
 }
 
@@ -80,34 +72,14 @@ export interface CalculatedStats {
 
 export class StatCalculator {
   /**
-   * ステータス計算式の基本ステータス倍率（2 * base + iv + floor(ev/4) の部分の2）
-   * 種族値に2を掛けることで、種族値の影響を強調
+   * HP の計算式で足す値（種族値 + 能力ポイント + 75 の 75）
    */
-  private static readonly BASE_STAT_MULTIPLIER = 2;
+  private static readonly HP_STAT_OFFSET = 75;
 
   /**
-   * ステータス計算式の努力値除数（floor(ev/4) の部分の4）
-   * 努力値を4で割ることで、努力値の影響を調整
+   * HP 以外の計算式で足す値（種族値 + 能力ポイント + 20 の 20）
    */
-  private static readonly EV_DIVISOR = 4;
-
-  /**
-   * ステータス計算式のレベル除数（* level / 100 の部分の100）
-   * レベルによる影響を100で割ることで、ステータスのスケールを調整
-   */
-  private static readonly LEVEL_DIVISOR = 100;
-
-  /**
-   * HP以外のステータス計算式のオフセット（+ 5 の部分の5）
-   * 最小ステータス値を保証するための定数
-   */
-  private static readonly NON_HP_STAT_OFFSET = 5;
-
-  /**
-   * HP計算式のオフセット（+ level + 10 の部分の10）
-   * HPの最小値を保証するための定数
-   */
-  private static readonly HP_STAT_OFFSET = 10;
+  private static readonly NON_HP_STAT_OFFSET = 20;
 
   /**
    * 性格による補正：上げたいステータスの倍率
@@ -129,88 +101,36 @@ export class StatCalculator {
    */
   static calculate(stats: TrainedPokemonStats): CalculatedStats {
     return {
-      hp: this.calculateHp(stats),
-      attack: this.calculateStat(
-        stats.baseAttack,
-        stats.ivAttack,
-        stats.evAttack,
-        stats.level,
-        stats.nature,
-        'attack',
-      ),
-      defense: this.calculateStat(
-        stats.baseDefense,
-        stats.ivDefense,
-        stats.evDefense,
-        stats.level,
-        stats.nature,
-        'defense',
-      ),
+      hp: stats.baseHp + stats.spHp + StatCalculator.HP_STAT_OFFSET,
+      attack: this.calculateStat(stats.baseAttack, stats.spAttack, stats.nature, 'attack'),
+      defense: this.calculateStat(stats.baseDefense, stats.spDefense, stats.nature, 'defense'),
       specialAttack: this.calculateStat(
         stats.baseSpecialAttack,
-        stats.ivSpecialAttack,
-        stats.evSpecialAttack,
-        stats.level,
+        stats.spSpecialAttack,
         stats.nature,
         'specialAttack',
       ),
       specialDefense: this.calculateStat(
         stats.baseSpecialDefense,
-        stats.ivSpecialDefense,
-        stats.evSpecialDefense,
-        stats.level,
+        stats.spSpecialDefense,
         stats.nature,
         'specialDefense',
       ),
-      speed: this.calculateStat(
-        stats.baseSpeed,
-        stats.ivSpeed,
-        stats.evSpeed,
-        stats.level,
-        stats.nature,
-        'speed',
-      ),
+      speed: this.calculateStat(stats.baseSpeed, stats.spSpeed, stats.nature, 'speed'),
     };
   }
 
   /**
-   * HPを計算
-   * HP = floor((2 * baseHp + iv + floor(ev/4)) * level / 100) + level + 10
-   */
-  private static calculateHp(stats: TrainedPokemonStats): number {
-    return (
-      Math.floor(
-        ((StatCalculator.BASE_STAT_MULTIPLIER * stats.baseHp +
-          stats.ivHp +
-          Math.floor(stats.evHp / StatCalculator.EV_DIVISOR)) *
-          stats.level) /
-          StatCalculator.LEVEL_DIVISOR,
-      ) +
-      stats.level +
-      StatCalculator.HP_STAT_OFFSET
-    );
-  }
-
-  /**
    * HP以外のステータスを計算
-   * floor((floor((2 * base + iv + floor(ev/4)) * level / 100) + 5) * nature)
+   * floor((種族値 + 能力ポイント + 20) * 能力補正)
    */
   private static calculateStat(
     base: number,
-    iv: number,
-    ev: number,
-    level: number,
+    statPoints: number,
     nature: Nature | null,
     statType: 'attack' | 'defense' | 'specialAttack' | 'specialDefense' | 'speed',
   ): number {
-    const baseValue =
-      Math.floor(
-        ((StatCalculator.BASE_STAT_MULTIPLIER * base +
-          iv +
-          Math.floor(ev / StatCalculator.EV_DIVISOR)) *
-          level) /
-          StatCalculator.LEVEL_DIVISOR,
-      ) + StatCalculator.NON_HP_STAT_OFFSET;
+    const baseValue = base + statPoints + StatCalculator.NON_HP_STAT_OFFSET;
     const natureMultiplier = this.getNatureMultiplier(nature, statType);
     return Math.floor(baseValue * natureMultiplier);
   }

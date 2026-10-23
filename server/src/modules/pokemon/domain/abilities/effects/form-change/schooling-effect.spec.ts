@@ -1,47 +1,9 @@
 import { SchoolingEffect } from './schooling-effect';
 import { createInMemoryBattle } from '../../../battle-events/__tests__/in-memory-battle';
-import { TrainedPokemon } from '@/modules/trainer/domain/entities/trained-pokemon.entity';
 
 describe('SchoolingEffect（ぎょぐん）', () => {
   const WISHIWASHI = 746;
   const effect = new SchoolingEffect();
-
-  /** レベルだけを変えた育成済みポケモン */
-  const withLevel = (pokemon: TrainedPokemon, level: number): TrainedPokemon =>
-    new TrainedPokemon(
-      pokemon.id,
-      pokemon.trainerId,
-      pokemon.pokemon,
-      pokemon.nickname,
-      level,
-      pokemon.gender,
-      pokemon.nature,
-      pokemon.ability,
-      pokemon.ivHp,
-      pokemon.ivAttack,
-      pokemon.ivDefense,
-      pokemon.ivSpecialAttack,
-      pokemon.ivSpecialDefense,
-      pokemon.ivSpeed,
-      pokemon.evHp,
-      pokemon.evAttack,
-      pokemon.evDefense,
-      pokemon.evSpecialAttack,
-      pokemon.evSpecialDefense,
-      pokemon.evSpeed,
-    );
-
-  /** トレーナー1 のヨワシのレベルを変える */
-  const setLevel = async (
-    battle: ReturnType<typeof createInMemoryBattle>,
-    level: number,
-  ): Promise<void> => {
-    const original = (await battle.trainedPokemonRepository.findById(1))!;
-    const leveled = withLevel(original, level);
-    battle.trainedPokemonRepository.findById.mockImplementation((id: number) =>
-      Promise.resolve(id === 1 ? leveled : null),
-    );
-  };
 
   it('場に出たときに HP が 1/4 より上なら、むれたすがたになる', async () => {
     // Arrange
@@ -99,34 +61,20 @@ describe('SchoolingEffect（ぎょぐん）', () => {
     expect(get(1).volatileState.form).toBe('school');
   });
 
-  it('レベル 20 なら、むれたすがたになる', async () => {
+  it('レベルは 50 に固定なので、レベル 20 以上の条件を満たし、むれたすがたになる', async () => {
     // Arrange
     const battle = createInMemoryBattle({
       nationalDex: WISHIWASHI,
       status: { currentHp: 100, maxHp: 100 },
     });
-    await setLevel(battle, 20);
+    const trainedPokemon = await battle.trainedPokemonRepository.findById(1);
 
     // Act
     await effect.onEntry(battle.get(1), battle.context());
 
     // Assert
+    expect(trainedPokemon?.level).toBe(50);
     expect(battle.get(1).volatileState.form).toBe('school');
-  });
-
-  it('レベル 19 なら、むれたすがたにならない', async () => {
-    // Arrange
-    const battle = createInMemoryBattle({
-      nationalDex: WISHIWASHI,
-      status: { currentHp: 100, maxHp: 100 },
-    });
-    await setLevel(battle, 19);
-
-    // Act
-    await effect.onEntry(battle.get(1), battle.context());
-
-    // Assert
-    expect(battle.get(1).volatileState.form).toBeUndefined();
   });
 
   it('ヨワシでなければ、フォルムは変わらない', async () => {

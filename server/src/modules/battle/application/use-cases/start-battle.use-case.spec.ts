@@ -161,16 +161,9 @@ describe('StartBattleUseCase', () => {
         trainer1Id,
         pokemon,
         null,
-        50,
         Gender.Male,
         Nature.Hardy,
         ability,
-        31,
-        31,
-        31,
-        31,
-        31,
-        31,
         0,
         0,
         0,
@@ -860,7 +853,7 @@ describe('StartBattleUseCase', () => {
       await useCase.execute(trainer1Id, trainer2Id, team1Id, team2Id);
 
       // Assert
-      // HPはレベル50、HP種族値100、個体値31、努力値0の場合、HP = floor((2 * 100 + 31 + 0/4) * 50 / 100) + 50 + 10 = 165
+      // HPは HP種族値100、能力ポイント0の場合、HP = 100 + 0 + 75 = 175
       expect(battleRepository.createBattlePokemonStatus).toHaveBeenCalledWith(
         expect.objectContaining({
           currentHp: expect.any(Number),

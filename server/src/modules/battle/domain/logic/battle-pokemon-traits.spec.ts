@@ -44,7 +44,6 @@ const trained = (params: {
       spe,
     ),
     null,
-    50,
     Gender.Male,
     Nature.Hardy,
     params.ability
@@ -57,12 +56,6 @@ const trained = (params: {
           AbilityCategory.Other,
         )
       : null,
-    31,
-    31,
-    31,
-    31,
-    31,
-    31,
     0,
     0,
     0,

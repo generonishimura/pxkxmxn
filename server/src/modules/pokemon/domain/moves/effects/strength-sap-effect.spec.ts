@@ -28,11 +28,10 @@ describe('StrengthSapEffect', () => {
 
   /**
    * 相手の育成個体
-   * 攻撃の実数値: floor((floor((2 * 100 + 31 + floor(0 / 4)) * 50 / 100) + 5) * 1.0) = 120
+   * 攻撃の実数値: floor((100 + 0 + 20) * 1.0) = 120
    */
   const defenderTrainedPokemon = {
     id: 2,
-    level: 50,
     nature: Nature.Hardy,
     ability: null,
     pokemon: {
@@ -43,18 +42,12 @@ describe('StrengthSapEffect', () => {
       baseSpecialDefense: 100,
       baseSpeed: 100,
     },
-    ivHp: 31,
-    ivAttack: 31,
-    ivDefense: 31,
-    ivSpecialAttack: 31,
-    ivSpecialDefense: 31,
-    ivSpeed: 31,
-    evHp: 0,
-    evAttack: 0,
-    evDefense: 0,
-    evSpecialAttack: 0,
-    evSpecialDefense: 0,
-    evSpeed: 0,
+    spHp: 0,
+    spAttack: 0,
+    spDefense: 0,
+    spSpecialAttack: 0,
+    spSpecialDefense: 0,
+    spSpeed: 0,
   };
 
   const createBattleContext = (options?: { withTrainedPokemonRepository?: boolean }) => {

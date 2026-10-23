@@ -54,7 +54,6 @@ describe.each([
       id,
       new Pokemon(id, id, 'テスト', 'Test', NORMAL, null, 100, 100, 100, 100, 100, baseSpeed),
       null,
-      50,
       Gender.Male,
       Nature.Hardy,
       abilityName
@@ -67,12 +66,6 @@ describe.each([
             AbilityCategory.Other,
           )
         : null,
-      31,
-      31,
-      31,
-      31,
-      31,
-      31,
       0,
       0,
       0,

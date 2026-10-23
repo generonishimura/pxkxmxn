@@ -113,7 +113,7 @@ describe('ExecuteTurnUseCase - はらぺこスイッチ・マイティチェン�
       // Act
       const stats = battleStatsOf(trainedPokemon!, engine.status(1));
 
-      // Assert: Lv50・個体値 31・努力値 0・がんばりや。floor((2 * 種族値 + 31) * 50 / 100) + 5
+      // Assert: 能力ポイント 0・がんばりや（補正なし）。種族値 + 20
       expect(stats).toEqual({
         attack: 180,
         defense: 117,

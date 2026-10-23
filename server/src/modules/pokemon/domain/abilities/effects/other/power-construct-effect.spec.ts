@@ -6,7 +6,7 @@ describe('PowerConstructEffect（スワームチェンジ）', () => {
 
   describe('onTurnEnd', () => {
     it('HPが半分以下なら、パーフェクトフォルムになり、最大HPが増えて減ったHPは保たれる', async () => {
-      // Arrange: 50%フォルムの最大HPは 183、パーフェクトフォルムは 291（レベル50・個体値31・努力値0）
+      // Arrange: 50%フォルムの最大HPは 183、パーフェクトフォルムは 291（能力ポイント0。HP = 種族値 + 75）
       const { context, get } = createInMemoryBattle(
         {
           ability: 'スワームチェンジ',

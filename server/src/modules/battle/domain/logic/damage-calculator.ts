@@ -658,7 +658,7 @@ export class DamageCalculator {
    * ランク補正を考慮した実効ステータスを取得
    * @param status バトル中のポケモンステータス
    * @param statType 取得するステータスの種類
-   * @param baseStats 計算済みのステータス値（種族値・個体値・努力値・性格補正を考慮済み）
+   * @param baseStats 計算済みのステータス値（種族値・能力ポイント・性格補正を考慮済み）
    * @param ignoreRank trueの場合はランク補正を掛けない（てんねん、なしくずしなど）
    * @returns ランク補正を考慮した実効ステータス値
    * @throws Error baseStatsが提供されていない場合

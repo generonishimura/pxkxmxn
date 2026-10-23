@@ -13,7 +13,7 @@ import type {
 } from '../pokemon.repository.interface';
 
 /**
- * ランク補正前の実数値（種族値・個体値・努力値・性格補正を反映済み）
+ * ランク補正前の実数値（種族値・能力ポイント・性格補正を反映済み）
  */
 export interface BattleStatValues {
   attack: number;
