@@ -2,7 +2,7 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { findMegaEvolutionByStone } from '@/modules/battle/domain/logic/mega-evolutions';
 import { BattleContext } from '../abilities/battle-context.interface';
 import { getAbilityEffect, isIgnoredByMoldBreaker, resolveAbilityName } from './ability-lookup';
-import { getItemEffect, heldItemName } from './item-lookup';
+import { getItemEffect, heldItemName, notifyItemLost } from './item-lookup';
 
 /**
  * 持ち物を奪う・渡す・入れ替える補助関数（本家の takeItem / setItem と onTakeItem）
@@ -13,6 +13,7 @@ import { getItemEffect, heldItemName } from './item-lookup';
  * - 持ち物が変わったポケモンは、こだわりの固定（choiceLockedMoveId）を解く。特性（ごりむちゅう）で固定しているときは解かない
  *   （本家の choicelock は、こだわりの持ち物でなくなると消え、こだわりの持ち物を受け取ったときも onStart で消える）
  * - 受け取ったポケモンは、持ち物の onEntry を呼ぶ（本家の setItem が呼ぶ onStart。エレキシードなど）
+ * - 持ち物を失ったポケモンは、特性の onItemLost を呼ぶ（notifyItemLost。かるわざ）
  */
 
 /**
@@ -133,6 +134,7 @@ export const takeItem = async (
   }
   await repository.patchPersistentState(holder.id, { item: null });
   await releaseChoiceLock(holder.id, battleContext);
+  await notifyItemLost(holder, itemName, battleContext);
   return itemName;
 };
 
@@ -228,5 +230,12 @@ export const swapItems = async (
   await releaseChoiceLock(source.id, battleContext);
   await startReceivedItem(target.id, battleContext);
   await startReceivedItem(source.id, battleContext);
+  // 持ち物を渡したポケモンの特性（かるわざ）。本家の trick は両方の takeItem で onTakeItem を呼ぶ
+  if (targetItem !== undefined) {
+    await notifyItemLost(target, targetItem, battleContext);
+  }
+  if (sourceItem !== undefined) {
+    await notifyItemLost(source, sourceItem, battleContext);
+  }
   return { sourceItem, targetItem };
 };

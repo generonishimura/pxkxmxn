@@ -94,6 +94,8 @@ const FULL_VOLATILE_STATE: Required<VolatileState> = {
   uproar: true,
   beakBlast: true,
   cudChew: { itemName: 'オボンのみ', turn: 3 },
+  klutz: true,
+  unburden: true,
 };
 
 /**

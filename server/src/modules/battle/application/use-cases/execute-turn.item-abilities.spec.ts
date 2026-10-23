@@ -114,4 +114,90 @@ describe('ExecuteTurnUseCase - 持ち物に関わる特性', () => {
       expect(engine.status(1).volatileState.cudChew).toBeUndefined();
     });
   });
+
+  describe('かるわざ', () => {
+    it('きのみを食べたあとは素早さが 2 倍になり、次のターンは速い相手より先に動く', async () => {
+      // Arrange
+      const engine = setup({
+        p2: {
+          ability: 'かるわざ',
+          baseSpeed: 100,
+          currentHp: 70,
+          persistentState: { item: 'オボンのみ' },
+        },
+      });
+
+      // Act
+      const firstTurn = await engine.runTurn(splash, splash);
+      const secondTurn = await engine.runTurn(splash, splash);
+
+      // Assert
+      expect(firstTurn.actions[0].trainerId).toBe(1);
+      expect(engine.status(2).volatileState.unburden).toBe(true);
+      expect(secondTurn.actions[0].trainerId).toBe(2);
+    });
+
+    it('持ち物を失ったあとでも、また持ち物を持っていれば素早さは 2 倍にならない', async () => {
+      // Arrange
+      const engine = setup({
+        p2: {
+          ability: 'かるわざ',
+          baseSpeed: 100,
+          volatileState: { unburden: true },
+          persistentState: { item: 'たべのこし' },
+        },
+      });
+
+      // Act
+      const result = await engine.runTurn(splash, splash);
+
+      // Assert
+      expect(result.actions[0].trainerId).toBe(1);
+    });
+  });
+
+  describe('ぶきよう', () => {
+    const benchKlutz = (ability: string | undefined): Partial<HarnessPokemon>[] => [
+      {
+        id: 3,
+        trainerId: 1,
+        ability,
+        currentHp: 100,
+        moveIds: allMoveIds,
+        persistentState: { item: 'たべのこし' },
+      },
+    ];
+    const setupWithBench = (ability: string | undefined) =>
+      createBattleEngine({
+        moves,
+        pokemon: [
+          { id: 1, trainerId: 1, active: true, baseSpeed: 150, moveIds: allMoveIds },
+          { id: 2, trainerId: 2, active: true, baseSpeed: 50, moveIds: allMoveIds },
+          ...(benchKlutz(ability) as HarnessPokemon[]),
+        ],
+      });
+
+    it('ぶきようでなければ、交代で出たポケモンのたべのこしはターン終了時に HP を回復する（比べるための基準）', async () => {
+      // Arrange
+      const engine = setupWithBench(undefined);
+
+      // Act
+      await engine.runTurn({ switchPokemonId: 3 }, splash);
+
+      // Assert
+      expect(engine.status(3).currentHp).toBe(110);
+    });
+
+    it('ぶきようのポケモンが場に出ると、持ち物の効果がなくなり、たべのこしで回復しない', async () => {
+      // Arrange
+      const engine = setupWithBench('ぶきよう');
+
+      // Act
+      await engine.runTurn({ switchPokemonId: 3 }, splash);
+
+      // Assert
+      expect(engine.status(3).volatileState.klutz).toBe(true);
+      expect(engine.status(3).currentHp).toBe(100);
+    });
+  });
 });

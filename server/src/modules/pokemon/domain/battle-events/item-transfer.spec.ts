@@ -304,4 +304,66 @@ describe('item-transfer', () => {
       expect(get(2).volatileState.choiceLockedMoveId).toBeUndefined();
     });
   });
+
+  describe('持ち物を失った持ち主の特性（かるわざ）', () => {
+    it('かるわざの持ち主から持ち物を奪うと、volatileState.unburden を書く', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(holding('たべのこし', { ability: 'かるわざ' }));
+
+      // Act
+      await takeItem(get(1), context(), { source: get(2) });
+
+      // Assert
+      expect(get(1).volatileState.unburden).toBe(true);
+    });
+
+    it('かるわざのポケモンが自分で手放しても（ギフトパス）、unburden を書く', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(holding('たべのこし', { ability: 'かるわざ' }));
+
+      // Act
+      await takeItem(get(1), context());
+
+      // Assert
+      expect(get(1).volatileState.unburden).toBe(true);
+    });
+
+    it('持ち物を持っていなければ（外せなければ）、unburden を書かない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({ ability: 'かるわざ' });
+
+      // Act
+      await takeItem(get(1), context());
+
+      // Assert
+      expect(get(1).volatileState.unburden).toBeUndefined();
+    });
+
+    it('入れ替えで持ち物を渡したかるわざのポケモンは、unburden を書く', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(
+        holding('こだわりスカーフ'),
+        holding('たべのこし', { ability: 'かるわざ' }),
+      );
+
+      // Act
+      await swapItems(get(1), get(2), context());
+
+      // Assert
+      expect(get(2).volatileState.unburden).toBe(true);
+    });
+
+    it('入れ替えで、持ち物を持っていなかったかるわざのポケモンは、unburden を書かない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle(holding('こだわりスカーフ'), {
+        ability: 'かるわざ',
+      });
+
+      // Act
+      await swapItems(get(1), get(2), context());
+
+      // Assert
+      expect(get(2).volatileState.unburden).toBeUndefined();
+    });
+  });
 });

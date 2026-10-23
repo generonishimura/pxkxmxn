@@ -336,6 +336,16 @@ export type VolatileState = {
    * turn より後のターンのターン終了時に食べ直して消す。特性が変わると消す（ABILITY_STATE_KEYS）
    */
   readonly cudChew?: CudChewBerry;
+  /**
+   * ぶきようが働いている（特性の onEntry が書く。持ち物の効果がない。isItemSuppressed が見る）
+   * いえきで特性が消されている間は働かない。特性が変わると消す（ABILITY_STATE_KEYS）
+   */
+  readonly klutz?: boolean;
+  /**
+   * かるわざで、場にいる間に持ち物を失った（特性の onItemLost が書く。本家の unburden の volatile）
+   * 持ち物を持っていない間、素早さが 2 倍。特性が変わると消す（ABILITY_STATE_KEYS）
+   */
+  readonly unburden?: boolean;
 };
 
 /**
@@ -466,6 +476,8 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   saltCure: booleanValue,
   beakBlast: booleanValue,
   cudChew,
+  klutz: booleanValue,
+  unburden: booleanValue,
 };
 
 /**
@@ -533,7 +545,9 @@ export const VOLATILE_TURN_SCOPED_FLAGS = [
  * 特性ごとの状態（本家の abilityState）。特性が変わったら消す（startAbility）
  * 交代でも消える（volatileState はすべて消える）
  */
-export const ABILITY_STATE_KEYS = ['cudChew'] as const satisfies ReadonlyArray<keyof VolatileState>;
+export const ABILITY_STATE_KEYS = ['cudChew', 'klutz', 'unburden'] as const satisfies ReadonlyArray<
+  keyof VolatileState
+>;
 
 /**
  * 使用者が次に技を出そうとしたときに消すキー（ターン終了時には消さない）

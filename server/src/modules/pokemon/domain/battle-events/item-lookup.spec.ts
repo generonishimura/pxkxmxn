@@ -11,6 +11,8 @@ import { VolatileState } from '@/modules/battle/domain/state/volatile-state';
 import { BattleContext } from '../abilities/battle-context.interface';
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
 import { ItemRegistry } from '../items/item-registry';
+import { AbilityRegistry } from '../abilities/ability-registry';
+import { createInMemoryBattle } from './__tests__/in-memory-battle';
 
 describe('item-lookup', () => {
   const createPokemon = (
@@ -92,6 +94,69 @@ describe('item-lookup', () => {
       // Assert
       expect(suppressed).toBe(true);
       expect(notSuppressed).toBe(false);
+    });
+  });
+
+  describe('持ち物の効果を消す状態（ぶきよう）', () => {
+    it('ぶきようが働いている（volatileState.klutz）間は、持ち物の効果を返さない', () => {
+      // Act
+      const effect = getItemEffect(createPokemon({ item: 'たべのこし' }, { klutz: true }));
+
+      // Assert
+      expect(effect).toBeUndefined();
+    });
+
+    it('ぶきようが働いていても、いえきで特性が消されていれば、持ち物の効果を返す', () => {
+      // Act
+      const effect = getItemEffect(
+        createPokemon({ item: 'たべのこし' }, { klutz: true, abilitySuppressed: true }),
+      );
+
+      // Assert
+      expect(effect).toBe(ItemRegistry.get('たべのこし'));
+    });
+
+    it('heldItemName は、ぶきようの間も持っている持ち物の名前を返す', () => {
+      // Act
+      const name = heldItemName(createPokemon({ item: 'たべのこし' }, { klutz: true }));
+
+      // Assert
+      expect(name).toBe('たべのこし');
+    });
+  });
+
+  describe('consumeItem と、持ち主の特性（かるわざ）', () => {
+    beforeEach(() => {
+      AbilityRegistry.clear();
+      AbilityRegistry.initialize();
+    });
+
+    it('かるわざのポケモンが持ち物を使い切ると、volatileState.unburden を書く', async () => {
+      // Arrange
+      const { get, context } = createInMemoryBattle({
+        ability: 'かるわざ',
+        status: { persistentState: { item: 'オボンのみ' } },
+      });
+
+      // Act
+      await consumeItem(get(1), context());
+
+      // Assert
+      expect(get(1).volatileState.unburden).toBe(true);
+    });
+
+    it('ほかの特性なら、unburden を書かない', async () => {
+      // Arrange
+      const { get, context } = createInMemoryBattle({
+        ability: 'いかく',
+        status: { persistentState: { item: 'オボンのみ' } },
+      });
+
+      // Act
+      await consumeItem(get(1), context());
+
+      // Assert
+      expect(get(1).volatileState.unburden).toBeUndefined();
     });
   });
 

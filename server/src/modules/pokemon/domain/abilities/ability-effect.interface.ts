@@ -744,6 +744,19 @@ export interface IAbilityEffect {
   ): Promise<string | null>;
 
   /**
+   * 自分が持ち物を失ったあと（例: かるわざ。本家の onAfterUseItem・onTakeItem）
+   * 持ち物を使い切った（consumeItem。きのみを食べた・ふうせんが割れた など）・奪われた・手放した（takeItem）・
+   * 入れ替えで渡した（swapItems）ときに、持ち物の補助関数が呼ぶ。かたやぶりでは無視されない
+   * @param holder この特性を持つ、持ち物を失ったポケモン（最新の状態）
+   * @param itemName 失った持ち物の名前
+   */
+  onItemLost?(
+    _holder: BattlePokemonStatus,
+    _itemName: string,
+    _battleContext: BattleContext,
+  ): Promise<void>;
+
+  /**
    * HP が最大 HP の半分以下になったとき、控えと交代する（例: ききかいひ、にげごし）
    * エンジンが、相手の技のダメージ（技のあと）・設置技・ターン終了時のダメージで、HP が半分より上から
    * 半分以下になったときに pendingChoice（emergencyExit）を書き、すぐに交代させる

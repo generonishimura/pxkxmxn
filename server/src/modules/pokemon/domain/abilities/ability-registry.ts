@@ -252,6 +252,8 @@ import { RipenEffect } from './effects/other/ripen-effect';
 import { GluttonyEffect } from './effects/other/gluttony-effect';
 import { CheekPouchEffect } from './effects/other/cheek-pouch-effect';
 import { CudChewEffect } from './effects/other/cud-chew-effect';
+import { KlutzEffect } from './effects/other/klutz-effect';
+import { UnburdenEffect } from './effects/other/unburden-effect';
 import { ShadowTagEffect } from './effects/other/shadow-tag-effect';
 import { MagnetPullEffect } from './effects/other/magnet-pull-effect';
 import { ArenaTrapEffect } from './effects/other/arena-trap-effect';
@@ -666,6 +668,9 @@ export class AbilityRegistry {
       this.registry.set('くいしんぼう', new GluttonyEffect());
       this.registry.set('ほおぶくろ', new CheekPouchEffect());
       this.registry.set('はんすう', new CudChewEffect());
+      // 持ち物を失う・使えなくなる特性（Issue #135 一部）
+      this.registry.set('かるわざ', new UnburdenEffect());
+      this.registry.set('ぶきよう', new KlutzEffect());
       this.registry.set('かげふみ', new ShadowTagEffect());
       this.registry.set('じりょく', new MagnetPullEffect());
       this.registry.set('ありじごく', new ArenaTrapEffect());
