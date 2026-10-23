@@ -47,6 +47,30 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 import { StatusCureBerryEffect } from './effects/status-cure-berry-effect';
 import { createOranBerryEffect, createSitrusBerryEffect } from './effects/hp-restore-berry-effect';
 import { LeppaBerryEffect } from './effects/leppa-berry-effect';
+import { ResistBerryEffect } from './effects/resist-berry-effect';
+
+/**
+ * 効果抜群の技のダメージを半分にするきのみと、そのタイプ
+ */
+const SUPER_EFFECTIVE_RESIST_BERRIES: ReadonlyArray<readonly [string, string]> = [
+  ['オッカのみ', 'ほのお'],
+  ['イトケのみ', 'みず'],
+  ['ソクノのみ', 'でんき'],
+  ['リンドのみ', 'くさ'],
+  ['ヤチェのみ', 'こおり'],
+  ['ヨプのみ', 'かくとう'],
+  ['ビアーのみ', 'どく'],
+  ['シュカのみ', 'じめん'],
+  ['バコウのみ', 'ひこう'],
+  ['ウタンのみ', 'エスパー'],
+  ['タンガのみ', 'むし'],
+  ['ヨロギのみ', 'いわ'],
+  ['カシブのみ', 'ゴースト'],
+  ['ハバンのみ', 'ドラゴン'],
+  ['ナモのみ', 'あく'],
+  ['リリバのみ', 'はがね'],
+  ['ロゼルのみ', 'フェアリー'],
+];
 
 /**
  * 持ち物のレジストリ
@@ -136,6 +160,12 @@ export class ItemRegistry {
     this.registry.set('オレンのみ', createOranBerryEffect());
     this.registry.set('オボンのみ', createSitrusBerryEffect());
     this.registry.set('ヒメリのみ', new LeppaBerryEffect());
+
+    // ダメージを半分にするきのみ
+    this.registry.set('ホズのみ', new ResistBerryEffect('ノーマル', false));
+    for (const [itemName, typeName] of SUPER_EFFECTIVE_RESIST_BERRIES) {
+      this.registry.set(itemName, new ResistBerryEffect(typeName, true));
+    }
   }
 
   /**

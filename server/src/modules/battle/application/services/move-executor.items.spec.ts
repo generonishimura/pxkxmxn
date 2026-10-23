@@ -4,6 +4,7 @@ import { ItemRegistry } from '@/modules/pokemon/domain/items/item-registry';
 import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
+import { DamageCalculator } from '../../domain/logic/damage-calculator';
 import {
   ATTACKER_ID,
   DEFENDER_ID,
@@ -182,6 +183,43 @@ describe('MoveExecutorService - 持ち物の onUpdate', () => {
     // Assert
     expect(onUpdate).toHaveBeenCalledTimes(1);
     expect(onUpdate.mock.calls[0][0].id).toBe(ATTACKER_ID);
+  });
+
+  describe('ダメージを半分にするきのみ（ダメージ計算をそのまま使う）', () => {
+    it('連続技では、最初のヒットで食べて半分にし、次のヒットは半分にしない', async () => {
+      // Arrange
+      const { execute, statuses, calculate } = setupMoveExecutor({
+        defender: { maxHp: 300, currentHp: 300, persistentState: { item: 'ホズのみ' } },
+        moveEffect: twoHits,
+      });
+      calculate.mockRestore();
+      const passThrough = jest.spyOn(DamageCalculator, 'calculate');
+
+      // Act
+      await execute();
+
+      // Assert
+      const [first, second] = await Promise.all(
+        passThrough.mock.results.map(result => result.value as Promise<number>),
+      );
+      expect(first).toBeLessThan(second);
+      expect(first).toBe(Math.floor(second / 2));
+      expect(statuses.get(DEFENDER_ID)?.persistentState.consumedItem).toBe('ホズのみ');
+    });
+
+    it('みがわりに当たる技では食べない', async () => {
+      // Arrange
+      const { execute, statuses, calculate } = setupMoveExecutor({
+        defender: { volatileState: { substituteHp: 25 }, persistentState: { item: 'ホズのみ' } },
+      });
+      calculate.mockRestore();
+
+      // Act
+      await execute();
+
+      // Assert
+      expect(statuses.get(DEFENDER_ID)?.persistentState.item).toBe('ホズのみ');
+    });
   });
 
   describe('BattleContext.bypassesSubstitute', () => {
