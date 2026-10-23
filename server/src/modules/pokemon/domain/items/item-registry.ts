@@ -8,6 +8,12 @@ import { LifeOrbEffect } from './effects/life-orb-effect';
 import { MetronomeItemEffect } from './effects/metronome-item-effect';
 import { NormalGemEffect } from './effects/normal-gem-effect';
 import { LightBallEffect } from './effects/light-ball-effect';
+import {
+  BrightPowderEffect,
+  WideLensEffect,
+  ZoomLensEffect,
+} from './effects/accuracy-boost-item-effect';
+import { LeekEffect, ScopeLensEffect } from './effects/critical-hit-item-effect';
 
 /**
  * 持ち物のレジストリ
@@ -35,6 +41,12 @@ export class ItemRegistry {
     this.registry.set('メトロノーム', new MetronomeItemEffect());
     this.registry.set('ノーマルジュエル', new NormalGemEffect());
     this.registry.set('でんきだま', new LightBallEffect());
+    // 命中・急所に関わる持ち物
+    this.registry.set('こうかくレンズ', new WideLensEffect());
+    this.registry.set('フォーカスレンズ', new ZoomLensEffect());
+    this.registry.set('ひかりのこな', new BrightPowderEffect());
+    this.registry.set('ピントレンズ', new ScopeLensEffect());
+    this.registry.set('ながねぎ', new LeekEffect());
     this.registry.set('たべのこし', new LeftoversEffect());
   }
 
