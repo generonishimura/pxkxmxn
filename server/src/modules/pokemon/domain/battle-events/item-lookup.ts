@@ -60,3 +60,27 @@ export const resolveFieldTurns = (
  */
 export const resolveDrainHealAmount = (healer: BattlePokemonStatus, amount: number): number =>
   getItemEffect(healer)?.modifyDrainHeal?.(healer, amount) ?? amount;
+
+/**
+ * 持ち主の状態が変わったあとに、持ち物の onUpdate を呼ぶ（本家の onUpdate）
+ *
+ * - 持ち物に onUpdate がなければ、リポジトリを読まずに何もしない
+ * - 持ち主を読み直し、場にいて、ひんしでないときだけ、読み直した持ち物の onUpdate を呼ぶ
+ *
+ * @param pokemon 持ち主（古い状態でもよい。ID と持ち物を見て、読み直す）
+ * @returns 持ち物のメッセージ（何もしなければ null）
+ */
+export const runItemUpdate = async (
+  pokemon: BattlePokemonStatus,
+  battleContext: BattleContext,
+): Promise<string | null> => {
+  const repository = battleContext.battleRepository;
+  if (!getItemEffect(pokemon)?.onUpdate || !repository) {
+    return null;
+  }
+  const latest = (await repository.findBattlePokemonStatusById(pokemon.id)) ?? pokemon;
+  if (!latest.isActive || latest.isFainted()) {
+    return null;
+  }
+  return (await getItemEffect(latest)?.onUpdate?.(latest, battleContext)) ?? null;
+};

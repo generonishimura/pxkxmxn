@@ -32,13 +32,13 @@ export interface IAbilityEffect {
    * @param pokemon 対象のポケモン
    * @param damage 受けるダメージ
    * @param battleContext バトルコンテキスト
-   * @returns 修正後のダメージ
+   * @returns 修正後のダメージ（Promise も返せる。半減きのみは、食べる書き込みを待ってから返す）
    */
   modifyDamage?(
     _pokemon: BattlePokemonStatus,
     _damage: number,
     _battleContext?: BattleContext,
-  ): number;
+  ): number | Promise<number | undefined>;
 
   /**
    * ダメージを与えるとき（OnDealingDamage）に発動する効果

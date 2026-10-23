@@ -274,6 +274,12 @@ export interface BattleContext {
   hitSubstitute?: boolean;
 
   /**
+   * この技がみがわりを無視して相手に当たるか（音技など bypassSubstitute の技・すりぬけ・相手を対象にしない技は true）
+   * 技の実行で、命中のあと・ダメージ計算の前に入る（半減きのみは、みがわりに当たる技では食べない）
+   */
+  bypassesSubstitute?: boolean;
+
+  /**
    * 技のリポジトリ（技名・分類・PP を引く。ものまね・スケッチ・ねこのて・ねごとが候補の技を調べる）
    * 技の実行（MoveExecutorService）のコンテキストにだけ入る
    */

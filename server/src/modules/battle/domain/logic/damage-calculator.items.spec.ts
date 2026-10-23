@@ -106,6 +106,38 @@ describe('DamageCalculator - 持ち物', () => {
     expect(damage).toBe(Math.floor(base / 2));
   });
 
+  it('防御側の持ち物の modifyDamage が Promise を返すと、待ってからその値を使う', async () => {
+    // Arrange
+    ItemRegistry.register('テストの非同期の半減', {
+      modifyDamage: (_pokemon, damage) => Promise.resolve(damage / 2),
+    });
+    const base = await DamageCalculator.calculate(createParams());
+
+    // Act
+    const damage = await DamageCalculator.calculate(
+      createParams({ defender: createStatus(2, 'テストの非同期の半減') }),
+    );
+
+    // Assert
+    expect(damage).toBe(Math.floor(base / 2));
+  });
+
+  it('防御側の持ち物の modifyDamage が undefined を返すと、ダメージを変えない', async () => {
+    // Arrange
+    ItemRegistry.register('テストの何もしない持ち物', {
+      modifyDamage: () => Promise.resolve(undefined),
+    });
+    const base = await DamageCalculator.calculate(createParams());
+
+    // Act
+    const damage = await DamageCalculator.calculate(
+      createParams({ defender: createStatus(2, 'テストの何もしない持ち物') }),
+    );
+
+    // Assert
+    expect(damage).toBe(base);
+  });
+
   it('攻撃側の持ち物は、防御側のダメージの補正には使わない', async () => {
     // Arrange
     ItemRegistry.register('テストの被ダメージ半分', {

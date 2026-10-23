@@ -6,6 +6,7 @@ import type { StatType } from '../moves/effects/base/base-stat-change-effect';
 import type { IAbilityEffect } from '../abilities/ability-effect.interface';
 import { EffectSource } from './effect-source';
 import { getAbilityEffect, isIgnoredByMoldBreaker, resolveAbilityName } from './ability-lookup';
+import { getItemEffect } from './item-lookup';
 // 場の状態・設置技・交代の仕組み（Issue #135 一部）
 import { isProtectedByMist } from './field-protection';
 
@@ -93,7 +94,7 @@ export const formatStatChanges = (changes: readonly StatChange[]): string[] =>
  *    canReceiveStatChange（クリアボディなど）で防ぐ
  *    1〜2 の対象の特性は、相手の技による変化なら使い手のかたやぶりで無視される
  * 3. -6〜+6 に収めて書き込む
- * 4. 変化したら、対象の特性の onStatChanged（まけんき・びびり）と、
+ * 4. 変化したら、対象の特性の onStatChanged（まけんき・びびり）、対象の持ち物の onStatChanged（しろいハーブ）、
  *    相手の特性の onOpponentStatChanged（びんじょう）を呼ぶ
  *
  * ミラーアーマーで返したときは、messages に「跳ね返したこと」と相手のランクの変化を入れる。
@@ -225,7 +226,8 @@ const statChangeTurnPatch = (
 });
 
 /**
- * 変化のあとの特性を呼ぶ（対象の onStatChanged → 相手の onOpponentStatChanged）
+ * 変化のあとの特性・持ち物を呼ぶ（対象の特性の onStatChanged → 対象の持ち物の onStatChanged →
+ * 相手の特性の onOpponentStatChanged）
  * これらの特性はかたやぶりでは無視されない
  */
 const runStatChangedHooks = async (params: {
@@ -244,13 +246,24 @@ const runStatChangedHooks = async (params: {
   const observerAbility = observer
     ? await getAbilityEffect(await resolveAbilityName(observer, battleContext))
     : undefined;
-  if (!targetAbility?.onStatChanged && !observerAbility?.onOpponentStatChanged) {
+  if (
+    !targetAbility?.onStatChanged &&
+    !observerAbility?.onOpponentStatChanged &&
+    !getItemEffect(target)?.onStatChanged
+  ) {
     return [];
   }
 
   const latestTarget = (await repository.findBattlePokemonStatusById(target.id)) ?? target;
   const messages: Array<string | null | undefined> = [];
   messages.push(await targetAbility?.onStatChanged?.(latestTarget, applied, source, battleContext));
+  // 対象の持ち物（しろいハーブ）。特性（まけんき・かちき）のあとに働く
+  const itemHolder = (await repository.findBattlePokemonStatusById(target.id)) ?? latestTarget;
+  if (itemHolder.currentHp > 0) {
+    messages.push(
+      await getItemEffect(itemHolder)?.onStatChanged?.(itemHolder, applied, source, battleContext),
+    );
+  }
   if (observer && observerAbility?.onOpponentStatChanged) {
     const latestObserver = (await repository.findBattlePokemonStatusById(observer.id)) ?? observer;
     if (latestObserver.currentHp > 0) {

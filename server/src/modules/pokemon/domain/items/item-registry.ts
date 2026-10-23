@@ -43,6 +43,36 @@ import {
   PsychicSeedEffect,
 } from './effects/base-terrain-seed-item-effect';
 import { ShedShellEffect } from './effects/shed-shell-effect';
+import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { StatusCureBerryEffect } from './effects/status-cure-berry-effect';
+import { createOranBerryEffect, createSitrusBerryEffect } from './effects/hp-restore-berry-effect';
+import { LeppaBerryEffect } from './effects/leppa-berry-effect';
+import { ResistBerryEffect } from './effects/resist-berry-effect';
+import { MentalHerbEffect } from './effects/mental-herb-effect';
+import { WhiteHerbEffect } from './effects/white-herb-effect';
+
+/**
+ * 効果抜群の技のダメージを半分にするきのみと、そのタイプ
+ */
+const SUPER_EFFECTIVE_RESIST_BERRIES: ReadonlyArray<readonly [string, string]> = [
+  ['オッカのみ', 'ほのお'],
+  ['イトケのみ', 'みず'],
+  ['ソクノのみ', 'でんき'],
+  ['リンドのみ', 'くさ'],
+  ['ヤチェのみ', 'こおり'],
+  ['ヨプのみ', 'かくとう'],
+  ['ビアーのみ', 'どく'],
+  ['シュカのみ', 'じめん'],
+  ['バコウのみ', 'ひこう'],
+  ['ウタンのみ', 'エスパー'],
+  ['タンガのみ', 'むし'],
+  ['ヨロギのみ', 'いわ'],
+  ['カシブのみ', 'ゴースト'],
+  ['ハバンのみ', 'ドラゴン'],
+  ['ナモのみ', 'あく'],
+  ['リリバのみ', 'はがね'],
+  ['ロゼルのみ', 'フェアリー'],
+];
 
 /**
  * 持ち物のレジストリ
@@ -102,6 +132,46 @@ export class ItemRegistry {
     this.registry.set('ミストシード', new MistySeedEffect());
     this.registry.set('サイコシード', new PsychicSeedEffect());
     this.registry.set('きれいなぬけがら', new ShedShellEffect());
+
+    // 状態異常・こんらんを治すきのみ
+    this.registry.set('クラボのみ', new StatusCureBerryEffect([StatusCondition.Paralysis], false));
+    this.registry.set('カゴのみ', new StatusCureBerryEffect([StatusCondition.Sleep], false));
+    this.registry.set(
+      'モモンのみ',
+      new StatusCureBerryEffect([StatusCondition.Poison, StatusCondition.BadPoison], false),
+    );
+    this.registry.set('チーゴのみ', new StatusCureBerryEffect([StatusCondition.Burn], false));
+    this.registry.set('ナナシのみ', new StatusCureBerryEffect([StatusCondition.Freeze], false));
+    this.registry.set('キーのみ', new StatusCureBerryEffect([], true));
+    this.registry.set(
+      'ラムのみ',
+      new StatusCureBerryEffect(
+        [
+          StatusCondition.Paralysis,
+          StatusCondition.Sleep,
+          StatusCondition.Poison,
+          StatusCondition.BadPoison,
+          StatusCondition.Burn,
+          StatusCondition.Freeze,
+        ],
+        true,
+      ),
+    );
+
+    // HP・PP を回復するきのみ
+    this.registry.set('オレンのみ', createOranBerryEffect());
+    this.registry.set('オボンのみ', createSitrusBerryEffect());
+    this.registry.set('ヒメリのみ', new LeppaBerryEffect());
+
+    // ダメージを半分にするきのみ
+    this.registry.set('ホズのみ', new ResistBerryEffect('ノーマル', false));
+    for (const [itemName, typeName] of SUPER_EFFECTIVE_RESIST_BERRIES) {
+      this.registry.set(itemName, new ResistBerryEffect(typeName, true));
+    }
+
+    // ハーブ
+    this.registry.set('メンタルハーブ', new MentalHerbEffect());
+    this.registry.set('しろいハーブ', new WhiteHerbEffect());
   }
 
   /**

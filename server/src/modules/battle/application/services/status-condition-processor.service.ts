@@ -11,7 +11,7 @@ import {
   TRAINED_POKEMON_REPOSITORY_TOKEN,
 } from '@/modules/trainer/domain/trainer.repository.interface';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
-import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
+import { getItemEffect, runItemUpdate } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { StatusConditionHandler } from '../../domain/logic/status-condition-handler';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
@@ -59,7 +59,7 @@ export class StatusConditionProcessorService {
    * 2. ねがいごと（陣営）
    * 3. グラスフィールドの回復（地面にいるポケモン）
    * 4. 場のポケモンごとに: 持ち物（たべのこし など）→ アクアリング・ねをはる・やどりぎのタネ → 状態異常（ねむりの解除・どく・やけど）→
-   *    あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた → 特性の onTurnEnd
+   *    あくむ・のろい・バインド・しおづけ・たこがため・あくび・ほろびのうた → 特性の onTurnEnd → 持ち物の onUpdate
    * 5. 残りが 1 のフィールドを終わらせる
    */
   async processTurnEndAbilities(battleAtTurnEnd: Battle): Promise<void> {
@@ -150,6 +150,9 @@ export class StatusConditionProcessorService {
       if (abilityEffect?.onTurnEnd) {
         await abilityEffect.onTurnEnd(latestStatus, battleContext);
       }
+
+      // ポケモンごとの処理の最後に、持ち物が今の状態を確かめる（ナイトメア・サンパワーなどで HP が減ったあとのオボンのみ など）
+      await runItemUpdate(latestStatus, battleContext);
     }
 
     await this.fieldResiduals.endExpiringTerrain(battle);
