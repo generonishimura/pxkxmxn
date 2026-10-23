@@ -266,14 +266,16 @@ describe('ExecuteTurnUseCase - 威力・ダメージを上げる持ち物', () =
     });
 
     it('ノーマル技でなければ、威力を変えず、使い切らない', async () => {
-      // Arrange
+      // Arrange: 追加効果のない技で比べる（ひのこは 10% でやけどになり、ターン終了時のダメージが乗るため）
+      const withoutItem = setup({});
+      await withoutItem.runTurn({ moveId: ROCK_THROW.id }, { moveId: SPLASH.id });
       const engine = setup({ item: 'ノーマルジュエル' });
 
       // Act
-      await engine.runTurn({ moveId: EMBER.id }, { moveId: SPLASH.id });
+      await engine.runTurn({ moveId: ROCK_THROW.id }, { moveId: SPLASH.id });
 
       // Assert
-      expect(damageTaken(engine)).toBe(24);
+      expect(damageTaken(engine)).toBe(damageTaken(withoutItem));
       expect(engine.status(1).persistentState.item).toBe('ノーマルジュエル');
     });
 
