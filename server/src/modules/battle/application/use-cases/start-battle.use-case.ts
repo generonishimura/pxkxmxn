@@ -27,6 +27,8 @@ import {
 } from '../../domain/logic/battle-pokemon-traits';
 import { NEUTRALIZING_GAS_ABILITY_NAME } from '../../domain/logic/effective-traits';
 import { PrimalWeatherReleaser } from '../services/primal-weather-releaser';
+import { ValidationException } from '@/shared/domain/exceptions';
+import { findTeamRuleProblem, teamRuleProblemMessage } from '../../domain/logic/team-rule';
 
 /**
  * 先発の onEntry を先に呼ぶ特性（大きいほど先。ほかの特性は 0）
@@ -44,6 +46,9 @@ const LEAD_ENTRY_PRIORITY: Readonly<Record<string, number>> = {
  * バトル開始時の処理を実行するユースケース
  *
  * 処理内容:
+ * 0. 両チームの手持ちが、チャンピオンズのシングルのルール（3〜6 体・持ち物の重複なし・全国図鑑の番号の重複なし）に
+ *    合うかを確かめる。合わなければ、何も書き込まずに ValidationException で弾く
+ *    注: 選出（6 体から 3 体を選ぶ）の API はない。戦うポケモンは、バトルを始めるチームを選ぶことで決める
  * 1. Battleエンティティの作成
  * 2. 両チームのポケモン状態（BattlePokemonStatus）を初期化し、最初のポケモンを場に出す（position=1のポケモン）
  * 3. 両方の先発が場に出てから、先発の特性のOnEntry効果を、イリュージョン → かがくへんかガス・テラスチェンジ → 素早さの高い順に発動
@@ -82,17 +87,26 @@ export class StartBattleUseCase {
     team1Id: number,
     team2Id: number,
   ): Promise<Battle> {
-    // 1. Battleエンティティを作成
+    // 1. 両チームのポケモン情報を取得し、手持ちのルールを、書き込みより前に確かめる
+    const team1Members = await this.teamRepository.findMembersByTeamId(team1Id);
+    const team2Members = await this.teamRepository.findMembersByTeamId(team2Id);
+    for (const [members, field] of [
+      [team1Members, 'team1Id'],
+      [team2Members, 'team2Id'],
+    ] as const) {
+      const problem = findTeamRuleProblem(members.map(member => member.trainedPokemon));
+      if (problem) {
+        throw new ValidationException(teamRuleProblemMessage(problem), field);
+      }
+    }
+
+    // 2. Battleエンティティを作成
     const battle = await this.battleRepository.create({
       trainer1Id,
       trainer2Id,
       team1Id,
       team2Id,
     });
-
-    // 2. 両チームのポケモン情報を取得
-    const team1Members = await this.teamRepository.findMembersByTeamId(team1Id);
-    const team2Members = await this.teamRepository.findMembersByTeamId(team2Id);
     // 場に出たときの特性で、場のポケモンの実効の特性（かがくへんかガス）を求めるのに使う
     const trainedPokemons = new Map(
       [...team1Members, ...team2Members].map(member => [

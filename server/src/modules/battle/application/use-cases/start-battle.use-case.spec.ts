@@ -34,9 +34,64 @@ import {
 } from '@/modules/trainer/domain/trainer.repository.interface';
 import { Nature } from '../../domain/logic/stat-calculator';
 
+/**
+ * 手持ちのルール（3〜6 体）に合わせるため、3 体に満たない手持ちに足す控えの、TrainedPokemon と
+ * BattlePokemonStatus の ID の始まり（全国図鑑の番号も同じ。テストで使う番号と重ならない）
+ * このファイルのテストは状態の初期化を見るので、控えの書き込みはモックのリポジトリに渡さない。
+ * 手持ちのルールは start-battle.use-case.team-rule.spec.ts で確かめる
+ */
+const BENCH_ID_START = 9000;
+
+const isBenchId = (id: number): boolean => id >= BENCH_ID_START;
+
+/**
+ * 3 体に満たない手持ちの後ろに、控えを足す
+ */
+const withBench = (teamId: number, members: readonly TeamMemberInfo[]): TeamMemberInfo[] => [
+  ...members,
+  ...Array.from({ length: Math.max(0, 3 - members.length) }, (_, index): TeamMemberInfo => {
+    const id = BENCH_ID_START + teamId * 10 + index;
+    return {
+      id,
+      teamId,
+      position: 100 + index,
+      trainedPokemon: new TrainedPokemon(
+        id,
+        teamId,
+        new Pokemon(
+          id,
+          id,
+          '控え',
+          'Bench',
+          new Type(1, 'ノーマル', 'Normal'),
+          null,
+          100,
+          50,
+          50,
+          50,
+          50,
+          50,
+        ),
+        null,
+        Gender.Male,
+        Nature.Serious,
+        null,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+      ),
+    };
+  }),
+];
+
 describe('StartBattleUseCase', () => {
   let useCase: StartBattleUseCase;
   let battleRepository: jest.Mocked<IBattleRepository>;
+  /** ユースケースに渡したリポジトリ（控えの書き込みを、battleRepository のモックに渡さない） */
+  let injectedBattleRepository: IBattleRepository;
   let teamRepository: jest.Mocked<ITeamRepository>;
   let moveRepository: jest.Mocked<IMoveRepository>;
   let trainedPokemonRepository: jest.Mocked<ITrainedPokemonRepository>;
@@ -80,11 +135,50 @@ describe('StartBattleUseCase', () => {
         StartBattleUseCase,
         {
           provide: BATTLE_REPOSITORY_TOKEN,
-          useValue: mockBattleRepository,
+          useValue: {
+            ...mockBattleRepository,
+            createBattlePokemonStatus: data =>
+              isBenchId(data.trainedPokemonId)
+                ? Promise.resolve(
+                    new BattlePokemonStatus(
+                      data.trainedPokemonId,
+                      data.battleId,
+                      data.trainedPokemonId,
+                      data.trainerId,
+                      false,
+                      data.currentHp,
+                      data.maxHp,
+                      0,
+                      0,
+                      0,
+                      0,
+                      0,
+                      0,
+                      0,
+                      null,
+                    ),
+                  )
+                : mockBattleRepository.createBattlePokemonStatus(data),
+            createBattlePokemonMove: data =>
+              isBenchId(data.battlePokemonStatusId)
+                ? Promise.resolve(
+                    new BattlePokemonMove(
+                      data.battlePokemonStatusId,
+                      data.battlePokemonStatusId,
+                      data.moveId,
+                      data.currentPp,
+                      data.maxPp,
+                    ),
+                  )
+                : mockBattleRepository.createBattlePokemonMove(data),
+          } satisfies IBattleRepository,
         },
         {
           provide: TEAM_REPOSITORY_TOKEN,
-          useValue: mockTeamRepository,
+          useValue: {
+            findMembersByTeamId: async teamId =>
+              withBench(teamId, (await mockTeamRepository.findMembersByTeamId(teamId)) ?? []),
+          } satisfies ITeamRepository,
         },
         {
           provide: MOVE_REPOSITORY_TOKEN,
@@ -98,8 +192,9 @@ describe('StartBattleUseCase', () => {
     }).compile();
 
     useCase = module.get<StartBattleUseCase>(StartBattleUseCase);
-    battleRepository = module.get(BATTLE_REPOSITORY_TOKEN);
-    teamRepository = module.get(TEAM_REPOSITORY_TOKEN);
+    battleRepository = mockBattleRepository;
+    injectedBattleRepository = module.get(BATTLE_REPOSITORY_TOKEN);
+    teamRepository = mockTeamRepository;
     moveRepository = module.get(MOVE_REPOSITORY_TOKEN);
     trainedPokemonRepository = module.get(TRAINED_POKEMON_REPOSITORY_TOKEN);
 
@@ -127,7 +222,7 @@ describe('StartBattleUseCase', () => {
     const createMockPokemon = (id: number, name: string): Pokemon => {
       return new Pokemon(
         id,
-        1,
+        id,
         name,
         name,
         new Type(1, 'ノーマル', 'Normal'),
@@ -968,7 +1063,10 @@ describe('StartBattleUseCase', () => {
         await useCase.execute(trainer1Id, trainer2Id, team1Id, team2Id);
 
         // Assert
-        expect(onEntry).toHaveBeenCalledWith(lead, expect.objectContaining({ battleRepository }));
+        expect(onEntry).toHaveBeenCalledWith(
+          lead,
+          expect.objectContaining({ battleRepository: injectedBattleRepository }),
+        );
         ItemRegistry.initialize();
       });
 
