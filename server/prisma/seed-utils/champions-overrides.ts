@@ -26,7 +26,34 @@ export type OverridableMoveValues = Pick<
   'power' | 'accuracy' | 'pp' | 'typeName' | 'priority'
 >;
 
-export const CHAMPIONS_MOVE_OVERRIDES: Readonly<Record<string, MoveOverride>> = {};
+export const CHAMPIONS_MOVE_OVERRIDES: Readonly<Record<string, MoveOverride>> = {
+  // 威力（チャンピオンズの値。SV の値はコメントに書く）
+  りんごさん: { power: 90 }, // Apple Acid。SV は 80
+  くちばしキャノン: { power: 120 }, // Beak Blast。SV は 100
+  ボーンラッシュ: { power: 30 }, // Bone Rush。SV は 25
+  ほのおのムチ: { power: 90 }, // Fire Lash。SV は 80
+  であいがしら: { power: 100 }, // First Impression。SV は 90
+  Ｇのちから: { power: 90 }, // Grav Apple（Ｇ は全角）。SV は 80
+  ひゃっきやこう: { power: 65 }, // Infernal Parade。SV は 60
+  ナイトバースト: { power: 90 }, // Night Daze。SV は 85
+  ひょうざんおろし: { power: 120 }, // Mountain Gale。SV は 100
+  バリアーラッシュ: { power: 90 }, // Psyshield Bash。SV は 70
+  かげぬい: { power: 90 }, // Spirit Shackle。SV は 80
+  トロピカルキック: { power: 85 }, // Trop Kick。SV は 70
+  きりさく: { power: 80 }, // Slash。SV は 70
+  ねらいうち: { power: 85 }, // Snipe Shot。SV は 80
+  スターアサルト: { power: 170 }, // Collision Course。SV は 150
+  // 命中（チャンピオンズの値）
+  クラブハンマー: { accuracy: 95 }, // Crabhammer。SV は 90
+  みずあめボム: { accuracy: 90 }, // Syrup Bomb。SV は 85
+  ゴールドラッシュ: { accuracy: 95 }, // Make It Rain。SV は 100
+  // タイプ（チャンピオンズの値）
+  せいちょう: { typeName: 'grass' }, // Growth。SV はノーマル
+  トラバサミ: { typeName: 'steel' }, // Snap Trap。SV はくさ
+  // PP（チャンピオンズの値）
+  ねがいごと: { pp: 8 }, // Wish。SV（PokeAPI）は 10
+  ちからをすいとる: { pp: 8 }, // Strength Sap。SV（PokeAPI）は 10
+};
 
 /**
  * 上書きを比べる項目の順番（ログの順番もこれに合わせる）
