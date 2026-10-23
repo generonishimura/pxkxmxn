@@ -383,7 +383,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | キー | 型 | 意味 | 使う技・特性 |
 | --- | --- | --- | --- |
 | `sleepTurns` | 0 以上の整数 | ねむりの残りターン数（交代しても続く） | ねむり・ねむる・はやおき（今はメモリ上で数えている。8 章） |
-| `form` | フォルム名 | 交代しても戻らないフォルム（`pokemon-forms.ts` の表の `form`。`'hero'`・`'complete'`・`'busted'`・`'noice'`・`'terastal'` など）。表のタイプと種族値になる。表のフォルムが特性（`abilityName`）を持てば、それがもとの特性になる（`'terastal'` のテラスシェル）。書くのは `changeForm(holder, form, ctx, { persistent: true })` | マイティチェンジ・スワームチェンジ・ばけのかわ・アイスフェイス・テラスチェンジ |
+| `form` | フォルム名 | 交代しても戻らないフォルム（`pokemon-forms.ts` の表の `form`。`'hero'`・`'complete'`・`'busted'`・`'noice'`・`'terastal'` など）。表のタイプと種族値になる。表のフォルムが特性（`abilityName`）を持てば、それがもとの特性になる（`'terastal'` のテラスシェル）。メガシンカした姿（`'mega'`・`'mega-x'`・`'mega-y'`・`'mega-z'`。`mega-evolutions.ts` の表から `POKEMON_FORMS` に入る）も、タイプ・種族値・特性を持つ。書くのは `changeForm(holder, form, ctx, { persistent: true })` | マイティチェンジ・スワームチェンジ・ばけのかわ・アイスフェイス・テラスチェンジ |
 | `disguiseBusted` | 真偽値 | ばけのかわが破れた | ばけのかわ |
 | `iceFaceBroken` | 真偽値 | アイスフェイスが壊れた（ゆきで戻る） | アイスフェイス |
 | `oncePerBattleAbilityUsed` | 真偽値 | 1 バトルに 1 回だけの特性を使った | ふとうのけん・ふくつのたて・きずなへんげ |
