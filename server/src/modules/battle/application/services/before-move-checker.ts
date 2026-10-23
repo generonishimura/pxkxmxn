@@ -6,6 +6,7 @@ import { StatusConditionHandler } from '../../domain/logic/status-condition-hand
 import { hasFlinched } from '../../domain/logic/volatile-status-condition';
 import {
   findMoveRestriction,
+  isPastFirstTurn,
   moveRestrictionMessage,
   resolveMoveSlots,
 } from '../../domain/logic/move-selection';
@@ -161,6 +162,7 @@ export class BeforeMoveChecker {
         imprisonedMoveIds: await this.findImprisonedMoveIds(params.defender),
         phase: 'execute',
         gravity: getGlobalFieldState(params.battle.sideState).gravityTurns !== undefined,
+        pastFirstTurn: isPastFirstTurn(attacker.volatileState, params.battle.turn),
       },
     );
     if (restriction) {

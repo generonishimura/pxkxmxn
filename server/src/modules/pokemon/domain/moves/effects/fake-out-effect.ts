@@ -5,7 +5,7 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
  * 「ねこだまし」の特殊効果実装
  *
  * 効果: 1.0の確率で相手にひるみを付与
- * 注: 「場に出た最初のターンのみ使用可能」は engine 未整備（turn counter / first-turn フラグが必要）
+ * 注: 「場に出た最初のターンしか選べない」は、技の選択の制限（MoveBehaviors の firstTurnOnly）で扱う
  */
 export class FakeOutEffect extends BaseStatusConditionEffect {
   protected readonly statusCondition = StatusCondition.Flinch;

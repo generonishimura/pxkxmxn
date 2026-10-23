@@ -58,13 +58,15 @@ export type MoveBehavior =
  * - noProtect: 相手を対象にするが、まもる系で防げない（フェイント・ほえる・ゴーストダイブなど）
  * - breaksProtect: 当たると相手のまもる系・ワイドガードなどを解く（フェイント・シャドーダイブなど）
  * - spread: 相手全体・自分以外全体を対象にする（じしん・なみのり・なきごえなど。ワイドガードで防がれる）
+ * - firstTurnOnly: 場に出た最初のターン以外は選べない（チャンピオンズのねこだまし・であいがしら）
  */
 export type ExtraMoveBehavior =
   | 'highCritRatio'
   | 'alwaysCrit'
   | 'noProtect'
   | 'breaksProtect'
-  | 'spread';
+  | 'spread'
+  | 'firstTurnOnly';
 
 const EMPTY_BEHAVIORS: ReadonlySet<MoveBehavior> = new Set<MoveBehavior>();
 
