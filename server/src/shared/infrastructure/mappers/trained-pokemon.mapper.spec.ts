@@ -72,6 +72,24 @@ describe('TrainedPokemonMapper', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
         },
+        moves: [
+          {
+            id: 2,
+            trainedPokemonId: 1,
+            moveId: 85,
+            slot: 2,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: 1,
+            trainedPokemonId: 1,
+            moveId: 9,
+            slot: 1,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
       };
 
       const result = TrainedPokemonMapper.toDomainEntity(trainedPokemonData);
@@ -92,6 +110,8 @@ describe('TrainedPokemonMapper', () => {
       expect(result.spSpecialDefense).toBe(0);
       expect(result.spSpeed).toBe(2);
       expect(result.heldItem).toBe('たべのこし');
+      // 技は slot の順に並べる
+      expect(result.moveIds).toEqual([9, 85]);
     });
 
     it('should convert Prisma TrainedPokemon data without ability to domain entity', () => {
@@ -150,6 +170,7 @@ describe('TrainedPokemonMapper', () => {
           secondaryTypeId: null,
         },
         ability: null,
+        moves: [],
       } as TrainedPokemonWithRelations;
 
       const result = TrainedPokemonMapper.toDomainEntity(trainedPokemonData);
@@ -159,6 +180,7 @@ describe('TrainedPokemonMapper', () => {
       expect(result.gender).toBeNull();
       expect(result.nature).toBeNull();
       expect(result.ability).toBeNull();
+      expect(result.moveIds).toEqual([]);
     });
   });
 });
