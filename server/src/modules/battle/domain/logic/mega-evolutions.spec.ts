@@ -12,7 +12,6 @@ import { defaultPokemonForm, resolvePokemonForm } from './pokemon-forms';
  * 登録したら、ここから消す（消し忘れると「登録していない特性だけを書く」のテストが落ちる）
  */
 const NOT_YET_IMPLEMENTED_ABILITIES: readonly string[] = [
-  'メガソーラー',
   'ドラゴンスキン',
   'かんつうドリル',
   'Eelevate',

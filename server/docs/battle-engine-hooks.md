@@ -539,6 +539,7 @@ getAdditionalHitDamageRatios(_p: BattlePokemonStatus, ctx?: BattleContext): read
 | プロパティ | 型 | 参照する場所 | 使う特性 |
 | --- | --- | --- | --- |
 | `suppressesWeather` | `boolean` | `resolveEffectiveWeather`（技の実行・行動順・ターン終了時） | ノーてんき、エアロック |
+| `ownMoveWeather` | `Weather` | `resolveMoveWeather`（使用者の特性。技の `BattleContext.weather` をこの天候にする。場の天候・ノーてんきより優先） | メガソーラー（`Weather.Sun`。ため技・ウェザーボール・天候のダメージ補正が晴れとして動く） |
 | `breaksMold` | `boolean` | `AbilityRegistry.hasMoldBreaker` | かたやぶり、テラボルテージ、ターボブレイズ |
 | `unaffectedByMoldBreaker` | `boolean` | `AbilityRegistry.isIgnoredByMoldBreaker` | プリズムアーマー |
 | `secondaryEffectChanceMultiplier` | `number` | `rollSecondaryEffect`（攻撃側） | てんのめぐみ（`2`） |

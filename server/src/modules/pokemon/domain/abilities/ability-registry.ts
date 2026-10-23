@@ -268,6 +268,8 @@ import { MummyEffect } from './effects/other/mummy-effect';
 import { LingeringAromaEffect } from './effects/other/lingering-aroma-effect';
 import { WanderingSpiritEffect } from './effects/other/wandering-spirit-effect';
 import { NeutralizingGasEffect } from './effects/other/neutralizing-gas-effect';
+// レジェンズ Z-A・チャンピオンズのメガシンカの特性（Issue #263）
+import { MegaSolEffect } from './effects/weather/mega-sol-effect';
 // フォルムを変える特性（Issue #135 一部）
 import { ForecastEffect } from './effects/form-change/forecast-effect';
 import { ZenModeEffect } from './effects/form-change/zen-mode-effect';
@@ -700,6 +702,8 @@ export class AbilityRegistry {
       this.registry.set('エレキスキン', new GalvanizeEffect());
       this.registry.set('リベロ', new LiberoEffect());
       this.registry.set('ぎたい', new MimicryEffect());
+      // レジェンズ Z-A・チャンピオンズのメガシンカの特性（Issue #263）
+      this.registry.set('メガソーラー', new MegaSolEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,

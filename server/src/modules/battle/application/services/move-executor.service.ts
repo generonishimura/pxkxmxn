@@ -33,7 +33,7 @@ import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context
 import { MoveFlag, MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-flags';
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
 import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
-import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
+import { resolveMoveWeather } from '../../domain/logic/effective-weather';
 import { modifyByFixedPoint } from '../../domain/logic/fixed-point-modifier';
 import { isMajorStatus } from '../../domain/logic/major-status';
 import { resolveMovePriority } from '../../domain/logic/move-order-context';
@@ -2466,7 +2466,7 @@ export class MoveExecutorService {
       battle,
       battleRepository: this.battleRepository,
       trainedPokemonRepository: this.trainedPokemonRepository,
-      weather: resolveEffectiveWeather(battle.weather, [attackerAbilityName, defenderAbilityName]),
+      weather: resolveMoveWeather(battle.weather, attackerAbilityName, defenderAbilityName),
       field: battle.field,
       moveName: move.name,
       moveTypeName: move.type.name,
