@@ -329,6 +329,38 @@ export type VolatileState = {
   readonly saltCure?: boolean;
   /** くちばしキャノンをためている（このターンに接触技を受けると、相手をやけどにする） */
   readonly beakBlast?: boolean;
+
+  // ---- 持ち物に関わる特性（Issue #135 一部） ----
+  /**
+   * はんすうで、あとでもう一度食べるきのみ（特性が書く。本家の cudchew の effectState.berry）
+   * turn より後のターンのターン終了時に食べ直して消す。特性が変わると消す（ABILITY_STATE_KEYS）
+   */
+  readonly cudChew?: CudChewBerry;
+  /**
+   * ぶきようが働いている（特性の onEntry が書く。持ち物の効果がない。isItemSuppressed が見る）
+   * いえきで特性が消されている間は働かない。特性が変わると消す（ABILITY_STATE_KEYS）
+   */
+  readonly klutz?: boolean;
+  /**
+   * かるわざで、場にいる間に持ち物を失った（特性の onItemLost が書く。本家の unburden の volatile）
+   * 持ち物を持っていない間、素早さが 2 倍。特性が変わると消す（ABILITY_STATE_KEYS）
+   */
+  readonly unburden?: boolean;
+  /**
+   * 場にいる間に、最後に持ち物を使い切ったときの Battle.turn（consumeItem が書く。本家の usedItemThisTurn）
+   * ものひろいが「このターンに使い切ったか」を itemConsumedTurn === battle.turn で見る（ターン終了時に消さなくてよい）
+   */
+  readonly itemConsumedTurn?: number;
+};
+
+/**
+ * はんすうで、あとでもう一度食べるきのみ
+ */
+export type CudChewBerry = {
+  /** 食べたきのみの名前 */
+  readonly itemName: string;
+  /** 食べたときの Battle.turn */
+  readonly turn: number;
 };
 
 const moveTurns = requiredFieldsOf<MoveTurns>({
@@ -348,6 +380,11 @@ const partialTrap = requiredFieldsOf<PartialTrap>({
   sourceStatusId: positiveInteger,
   moveId: positiveInteger,
   turns: nonNegativeInteger,
+});
+
+const cudChew = requiredFieldsOf<CudChewBerry>({
+  itemName: nonEmptyString,
+  turn: nonNegativeInteger,
 });
 
 const moveSlotOverride = requiredFieldsOf<MoveSlotOverride>({
@@ -443,6 +480,10 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   partialTrap,
   saltCure: booleanValue,
   beakBlast: booleanValue,
+  cudChew,
+  klutz: booleanValue,
+  unburden: booleanValue,
+  itemConsumedTurn: nonNegativeInteger,
 };
 
 /**
@@ -505,6 +546,14 @@ export const VOLATILE_TURN_SCOPED_FLAGS = [
   'roosting',
   'beakBlast',
 ] as const satisfies ReadonlyArray<keyof VolatileState>;
+
+/**
+ * 特性ごとの状態（本家の abilityState）。特性が変わったら消す（startAbility）
+ * 交代でも消える（volatileState はすべて消える）
+ */
+export const ABILITY_STATE_KEYS = ['cudChew', 'klutz', 'unburden'] as const satisfies ReadonlyArray<
+  keyof VolatileState
+>;
 
 /**
  * 使用者が次に技を出そうとしたときに消すキー（ターン終了時には消さない）

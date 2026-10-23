@@ -151,4 +151,18 @@ export interface ItemOnlyEffect {
    * @returns メッセージ（何もしなければ null）
    */
   onUpdate?(holder: BattlePokemonStatus, battleContext: BattleContext): Promise<string | null>;
+
+  /**
+   * きのみを食べたときの効果（本家の onEat）。この関数を持つ持ち物を、きのみとして扱う（isBerry）
+   * eatItem（battle-events/eat-item.ts）が、きのみを使い切ったあとに呼ぶ。はんすうは、食べたきのみの onEat をもう一度呼ぶ
+   * 食べるきっかけ（HP が半分以下になった など）は見ない。きっかけは onUpdate・modifyDamage などの側で見る
+   * @param holder 食べたポケモン（最新の状態。もう持ち物を持っていない）
+   * @param itemName 食べたきのみの名前
+   * @returns メッセージ（何も起きなければ null）
+   */
+  onEat?(
+    holder: BattlePokemonStatus,
+    itemName: string,
+    battleContext: BattleContext,
+  ): Promise<string | null>;
 }

@@ -550,6 +550,9 @@ getAdditionalHitDamageRatios(_p: BattlePokemonStatus, ctx?: BattleContext): read
 | `reflectsStatDrops` | `boolean` | `applyStatChanges`（相手が起こした低下。相手の技ではかたやぶりで無視） | ミラーアーマー |
 | `sleepTurnMultiplier` | `number` | ターン終了時のねむりの解除判定（`shouldClearSleep` の `step`） | はやおき（`2`） |
 | `preventsItemRemoval` | `boolean` | `blocksItemRemoval`（`battle-events/item-transfer.ts`。ほかのポケモンが奪う・入れ替えるとき。かたやぶりで無視） | ねんちゃく（トリック・すりかえは、持ち物がなくても失敗する。自分で手放すギフトパスは止めない） |
+| `preventsFoeBerries` | `boolean` | `isBerryEatingPrevented`（`battle-events/eat-item.ts`。相手の場のひんしでないポケモンの実効の特性。かたやぶりで無視されない） | きんちょうかん、じんばいったい（相手はきのみを食べられない） |
+| `doublesBerryEffects` | `boolean` | `berryEffectMultiplier`（`battle-events/eat-item.ts`。きのみを食べたポケモン） | じゅくせい（オボンのみ・オレンのみの回復量 2 倍、半減きのみはダメージ 1/4） |
+| `eatsPinchBerriesEarly` | `boolean` | `isPinchBerryHp`（`battle-events/eat-item.ts`） | くいしんぼう（HP 1/4 以下で食べるきのみを 1/2 以下で食べる。チャンピオンズにそのきのみがないので、今は効果がない） |
 
 テラボルテージ・ターボブレイズは `MoldBreakerEffect` をそのまま登録します。
 
@@ -598,21 +601,48 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `StatusConditionProcessorService.processTurnEndAbilities` | ポケモンごとの処理の最後（特性の `onTurnEnd` のあと） |
 
 - 今の持ち物は `PersistentPokemonState.item`、使い切った持ち物は `consumedItem` にあります。バトル開始時に `TrainedPokemon.heldItem` を `item` に写します
-- 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます。持ち物の効果が消されている間（`isItemSuppressed`。さしおさえの `embargoTurns`）は、どちらも undefined を返します。エンジンの持ち物の読み取りはすべてこの 2 つを通るので、効果が消されている間は、持ち物のフックがどれも呼ばれず、ふうせん・くろいてっきゅうの地面の判定も持ち物なしになります
-- 効果を消されていても持っている持ち物を読むときは `heldItemName` を使います（持ち物を奪う・入れ替える技、メガシンカ）
-- 注: マジックルーム（`magicRoomTurns`）・ぶきよう（特性）は、まだ `isItemSuppressed` で見ていません。足すときは `isItemSuppressed` に理由を足します（マジックルームは場の状態なので、バトルを受け取る形に変えます）
-- きのみを食べたときなどは `consumeItem` で、`item` を消して `consumedItem` に残します
+- 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます。持ち物の効果が消されている間（`isItemSuppressed`）は、どちらも undefined を返します。エンジンの持ち物の読み取りはすべてこの 2 つを通るので、効果が消されている間は、持ち物のフックがどれも呼ばれず、ふうせん・くろいてっきゅうの地面の判定も持ち物なしになります
+- `isItemSuppressed` が見る理由は、さしおさえ（`embargoTurns`）と、ぶきよう（`klutz`。特性の `onEntry` が書く。いえきの `abilitySuppressed` の間は働かない）です
+- 効果を消されていても持っている持ち物を読むときは `heldItemName` を使います（持ち物を奪う・入れ替える技、メガシンカ、かるわざの素早さ）
+- 注: マジックルーム（`magicRoomTurns`）は、まだ `isItemSuppressed` で見ていません。足すときは `isItemSuppressed` に理由を足します（マジックルームは場の状態なので、バトルを受け取る形に変えます）
+- 持ち物を使い切ったとき（ジュエル・ふうせん・ハーブなど）は `consumeItem` で、`item` を消して `consumedItem` に残します。使い切ったターンを `volatileState.itemConsumedTurn` に書き（ものひろい）、持ち主の特性の `onItemLost` を呼びます（かるわざ）
+- きのみを食べるときは `eatItem`（`battle-events/eat-item.ts`）を使います（下の「きのみを食べる」）
 - きのみ・ハーブ（`items/effects/`）が使うフック:
-  - 状態異常を治すきのみ（`StatusCureBerryEffect`）: `onStatusInflicted` と `onUpdate`
-  - HP を回復するきのみ（`HpRestoreBerryEffect`）・ヒメリのみ（`LeppaBerryEffect`）・メンタルハーブ（`MentalHerbEffect`）: `onUpdate`
-  - ダメージを半分にするきのみ（`ResistBerryEffect`）: `modifyDamage`（`typeEffectiveness`・`bypassesSubstitute` を見る）
-  - しろいハーブ（`WhiteHerbEffect`）: `onStatChanged` と `onUpdate`
-- 注: きのみは、相手のきんちょうかん（食べられなくなる）を見ていない。きんちょうかんがまだないため
+  - 状態異常を治すきのみ（`StatusCureBerryEffect`）: `onStatusInflicted` と `onUpdate` で治せる状態を見て `eatItem`。治すのは `onEat`
+  - HP を回復するきのみ（`HpRestoreBerryEffect`）・ヒメリのみ（`LeppaBerryEffect`）: `onUpdate` で条件を見て `eatItem`。回復するのは `onEat`
+  - ダメージを半分にするきのみ（`ResistBerryEffect`）: `modifyDamage`（`typeEffectiveness`・`bypassesSubstitute` を見て `eatItem`）。`onEat` は何もしない
+  - メンタルハーブ（`MentalHerbEffect`）: `onUpdate`。しろいハーブ（`WhiteHerbEffect`）: `onStatChanged` と `onUpdate`（どちらも `consumeItem`）
 - 注: `applyIndirectDamage` と、ターン終了時の `onUpdate` で働いた持ち物のメッセージは、行動の結果に出ない（たべのこしと同じ）
 - 注: 半減きのみを食べたことは、メッセージに出ない（`modifyDamage` はダメージだけを返す）
 - 持ち物に新しいフックが要るときは、`IItemEffect` の `Pick` に足し、エンジンの呼ぶ場所もつなぎます
 - 決まったポケモンだけに効く持ち物（でんきだま・ながねぎ）は、`battleContext.attackerNationalDex`（技の使用者のもとの全国図鑑の番号）で判定します
 - 特性に同じ場面のフックがないときだけ、持ち物だけのフックを `ItemOnlyEffect`（`item-effect.interface.ts`）に足します
+
+#### きのみを食べる（`battle-events/eat-item.ts`）
+
+| 関数 | 用途 |
+| --- | --- |
+| `eatItem(holder, ctx)` | きのみを食べる（本家の `eatItem`）。今効果のある持ち物がきのみでない・相手のきんちょうかんなら食べない（undefined）。食べたら `consumeItem` → きのみの `onEat` → 持ち主の特性の `onEatItem` の順に呼び、メッセージの配列を返す |
+| `isBerry(itemName)` | きのみか（持ち物の効果が `onEat` を持つか） |
+| `isBerryEatingPrevented(holder, ctx)` | 相手の場のひんしでないポケモンの実効の特性が `preventsFoeBerries`（きんちょうかん・じんばいったい）か |
+| `berryEffectMultiplier(holder, ctx)` | 食べたきのみの効果の倍率（じゅくせいなら 2）。回復量に掛け、半減きのみは 0.5 をこれで割る |
+| `isPinchBerryHp(holder, ctx)` | HP 1/4 以下で食べるきのみを今食べる HP か（くいしんぼうなら 1/2 以下） |
+| `joinEatMessages(messages)` | `eatItem` の結果を、きのみのフックが返す 1 つのメッセージにする |
+
+- 食べるきっかけ（HP が半分以下 など）は、きのみの `onUpdate`・`modifyDamage` などで見てから `eatItem` を呼びます。`eatItem` はきっかけを見ません
+- はんすうは、食べたきのみの `onEat` を直接呼びます（使い切ったまま、きんちょうかんも見ない。`onEatItem` も呼ばない）
+- 注: 半減きのみを食べたときの、ほおぶくろの回復のメッセージは出ません（`modifyDamage` はダメージだけを返す）
+
+#### 持ち物に関わる特性のフック
+
+| フック | 呼ぶ場所 | 使う特性 |
+| --- | --- | --- |
+| `onEatItem(holder, itemName, ctx): Promise<string \| null>` | `eatItem`（きのみの `onEat` のあと） | ほおぶくろ（最大 HP の 1/3 を回復）、はんすう（`volatileState.cudChew` に食べたきのみとターンを書く） |
+| `onItemLost(holder, itemName, ctx): Promise<void>` | `notifyItemLost`（`item-lookup.ts`）。`consumeItem`・`takeItem`・`swapItems`（持ち物を渡した側）が持ち物を書き換えたあと | かるわざ（`volatileState.unburden` を書く） |
+
+- 特性ごとの状態（`ABILITY_STATE_KEYS`: `cudChew`・`klutz`・`unburden`）は、特性が変わったら `startAbility`（スキルスワップ・なりきり・へんしん・メガシンカなど）が消します。交代でも消えます
+- 持ち物を奪う特性は `stealItem(thief, victim, ctx)`（`battle-events/item-steal.ts`）を使います。奪う側が持ち物を持っている・ひんし・相手が持っていない・渡せない・外せない（ねんちゃく・メガストーン）なら何も書きません
+- `MoveExecutorService.runAfterMoveSelfHooks` は、使用者の持ち物の `onAfterMoveSecondarySelf` を、特性を呼ぶ前に引きます（マジシャンが奪ったいのちのたまは、その技では働かない。本家はハンドラーを先に集める）
 
 #### 持ち物を奪う・渡す・入れ替える（`battle-events/item-transfer.ts`）
 
@@ -630,7 +660,7 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 - 持ち物が変わったポケモンは、こだわりの固定（`choiceLockedMoveId`）を解きます。特性の `locksMoveChoice`（ごりむちゅう）で固定しているときは解きません。こだわりの持ち物を受け取ったポケモンは、次に出した技に固定されます
 - 持ち物を受け取ったポケモンは、その持ち物の `onEntry` を呼びます（本家の `setItem` の `onStart`。エレキシードなど）。HP が減っているポケモンが受け取ったきのみは、技を出し終えたときの `onUpdate` で食べます
 - 注: 本家は、さしおさえの間はこだわりの固定が効かず、ほかの技も出せます。ここでは、さしおさえの間も固定が続きます（`choiceLockedMoveId` はごりむちゅうと共用で、持ち物による固定かを区別できないため）。さしおさえの間に、新しく固定されることはありません
-- 注: かるわざ（持ち物がなくなると素早さ 2 倍）は、まだありません。作るときは、`takeItem`・`swapItems` で持ち物がなくなったときも発動させてください
+- 持ち物を外した・渡したポケモンは、特性の `onItemLost` を呼びます（かるわざ。`swapItems` は持ち物を受け取っていても呼ぶ。本家の trick と同じ）
 
 #### 持ち物だけのフック（ItemOnlyEffect）
 
@@ -645,6 +675,7 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `partialTrapDamageDivisor`（プロパティ） | `VolatileResidualProcessor.applyAfterStatusDamage` | しめつけたポケモン（`partialTrap.sourceStatusId`）の持ち物で、バインドのダメージの分母を変える（既定 8。しめつけバンドは 6） |
 | `escapesTrapping`（プロパティ） | `PokemonSwitcherService.findSwitchBlocker` | `true` なら、逃げられない状態・バインド状態・ねをはる・相手の `trapsOpponent`・フェアリーロックでも交代できる（きれいなぬけがら） |
 | `onUpdate(holder, ctx): Promise<string \| null>` | `runItemUpdate`（`battle-events/item-lookup.ts`）を呼ぶ場所（上の「`onUpdate` を呼ぶ場所」の表） | 本家の `onUpdate`。何で変わったかを問わず、今の状態を見て働く。使う持ち物: オレンのみ・オボンのみ・ヒメリのみ・メンタルハーブ。状態異常を治すきのみ・しろいハーブも、すでにその状態のときに使う |
+| `onEat(holder, itemName, ctx): Promise<string \| null>` | `eatItem`（`consumeItem` のあと）、はんすうの `onTurnEnd` | 本家の `onEat`。きのみを食べたときの効果（回復・状態異常を治す・PP を戻す）。持っている持ち物をきのみとして扱う（`isBerry`）。食べるきっかけは見ない |
 
 ```ts
 // きあいのタスキ
@@ -764,6 +795,13 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 - 行動順のコンテキストの `moveTypeName` は技本来のタイプです（うるおいボイスなどのタイプ変更は反映しません）。
 - ほろびのうたは場全体の技なので、エンジンは `isImmuneToMove` を呼びません。代わりに、ほろびのうたの効果（`PerishSongEffect`）が相手の `isImmuneToMove` を自分で呼びます。そのため、ぼうおん・おうごんのからだの相手には付きません。使い手のかたやぶりでは無視されます。
 - 混乱の自傷ダメージでは、特性のフック（`isImmuneToType`・`modifyBasePower`・`modifyAnyBasePower`・`modifyDamageDealt`・`modifyDamage`）を呼びません。本家と同じく、能力値とランクだけで決まります。
+- 持ち物に関わる特性の本家との違い:
+  - ぶきよう: `onEntry` で `klutz` を書くので、場に出たときの設置技（まきびしなど）では、まだふうせんが効きます。かがくへんかガスが出てきても `klutz` を消さないので、持ち物の効果はないままです
+  - きんちょうかん・おみとおし: 場に出たときのメッセージは出ません（`onEntry` はメッセージを返せない）
+  - ものひろい・しゅうかく・はんすう: ターン終了時に働いたときのメッセージは出ません（`onTurnEnd` はメッセージを返せない）。ターン終了時の処理はポケモンごとに順に行うので、ものひろいのあとに処理される相手がターン終了時に使い切った持ち物は拾えません
+  - はんすう: いつ食べても、次のターンのターン終了時に食べ直します（本家は、ターン終了時に食べたきのみを次の次のターンに食べ直すことがある）
+  - わるいてぐせ: ドラゴンテール・ともえなげで交代させられるときも奪います（本家は奪わない）
+  - 半減きのみを食べた防御側のほおぶくろの回復は、そのあとのダメージの書き込みで上書きされることがあります（HP が満タンでないときだけ）
 - ポケモンの重さのデータがないため、重さを使う効果（ヘヴィメタル、ライトメタル、けたぐり等）は実装できません。
 - `onDamagingHit` / `onSourceDamagingHit` はヒットごとですが、`applyContactStatusCondition` と技の `onHit` は今までどおり技全体で1回です。
 - `onDamagingHit` / `onSourceDamagingHit` は、技の `onHit`（追加効果）より先に呼ばれます。本家（Showdown の `spreadMoveHit`）は追加効果のあとに `DamagingHit` を呼びます。そのため、どくしゅの使い手が状態異常の追加効果を持つ接触技（ほっぺすりすりなど）を使うと、ここでは先にどくしゅが判定され、技自身の状態異常が失敗することがあります（本家は技の状態異常が先）。
@@ -800,7 +838,6 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | ヘヴィメタル、ライトメタル | ポケモンの重さのデータがない |
 | かぜのりの「おいかぜで攻撃+1」 | おいかぜを張ったときに呼ばれるフックがない（おいかぜの技の `onUse` で、場の自分のポケモンのかぜのりを見て `applyStatChanges` する）。風技を無効にして攻撃+1にする部分は `isImmuneToMove` + `onMoveBlocked` で作れる |
 | こだいかっせい・クォークチャージの「ブーストエナジー」 | 持ち物の仕組みがない。晴れ・エレキフィールドで発動する部分は作れる |
-| じんばいったい（ブリザポス） | きんちょうかん（相手がきのみを食べられない）に持ち物の仕組みがない。しろのいななきの部分は `onKnockOut` で作れる |
 | ゆき（さむいギャグ・ゆきふらし・ゆきげしき） | `Weather` enum に `Snow` がない（マイグレーションが要る）。今は `Hail` で代わりにする |
 
 ## 8. 特性・技ごとに使うフック
@@ -839,6 +876,18 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | こんじょう | `modifyBasePower`（状態異常で物理技なら1.5倍。やけどなら威力を2倍にして半減を打ち消す。ボディプレスは打ち消すだけ。近似は7章） |
 | クイックドロウ | `modifyFractionalPriority`（`ctx.moveCategory` が攻撃技なら30%で `+0.1`） |
 | テラスシェル | `modifyDamage`（HP が満タンで `ctx.typeEffectiveness > 0` なら、相性を0.5倍に差し替える。わるあがきは除く。近似は7章） |
+| きんちょうかん・じんばいったい | `preventsFoeBerries = true`（`eatItem` が見る） |
+| じゅくせい | `doublesBerryEffects = true`（`berryEffectMultiplier`） |
+| くいしんぼう | `eatsPinchBerriesEarly = true`（`isPinchBerryHp`。今のきのみには効果がない） |
+| ほおぶくろ | `onEatItem`（`applyHeal` で最大 HP の 1/3。回復しなければメッセージなし） |
+| はんすう | `onEatItem`（`cudChew` を書く）+ `onTurnEnd`（食べたターンより後なら `cudChew` を消して、きのみの `onEat` を呼ぶ） |
+| かるわざ | `onItemLost`（`unburden` を書く）+ `modifySpeed`（`unburden` があり `heldItemName` が undefined なら 2 倍） |
+| ぶきよう | `onEntry`（`klutz` を書く。`isItemSuppressed` が見る） |
+| ものひろい | `onTurnEnd`（持ち物がなければ、ほかの場のひんしでないポケモンで `itemConsumedTurn === battle.turn` の `consumedItem` を `giveItem` し、相手の `consumedItem` を消す） |
+| しゅうかく | `onTurnEnd`（晴れか 1/2 で、`consumedItem` がきのみなら `giveItem` して `consumedItem` を消す） |
+| わるいてぐせ | `onAfterMoveHit`（`hit.isContact` で、ちからずくの技でなければ `stealItem(holder, attacker, ctx)`） |
+| マジシャン | `onAfterMoveSecondarySelf`（変化技でなければ `stealItem(holder, target, ctx)`） |
+| おみとおし | `NoBattleEffectAbility`（相手の持ち物を知らせるだけ。`onEntry` はメッセージを返せない） |
 
 ## 9. 一時的な状態（volatile）の仕組み
 

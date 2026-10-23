@@ -27,8 +27,8 @@ describe('ハーブ', () => {
       // Act
       const message = await ItemRegistry.get('メンタルハーブ')?.onUpdate?.(get(1), context());
 
-      // Assert
-      expect(get(1).volatileState).toEqual({});
+      // Assert: 治した状態は消え、使い切ったターン（ものひろいが読む）だけが残る
+      expect(get(1).volatileState).toEqual({ itemConsumedTurn: 1 });
       expect(get(1).persistentState.consumedItem).toBe('メンタルハーブ');
       expect(message).toContain('メンタルハーブ');
     });
@@ -46,7 +46,7 @@ describe('ハーブ', () => {
       await ItemRegistry.get('メンタルハーブ')?.onUpdate?.(get(1), context());
 
       // Assert: こんらんは治さない
-      expect(get(1).volatileState).toEqual({ confusionTurns: 2 });
+      expect(get(1).volatileState).toEqual({ confusionTurns: 2, itemConsumedTurn: 1 });
     });
 
     it('治す状態がなければ使わない', async () => {

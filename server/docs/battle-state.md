@@ -399,6 +399,17 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 - 連続技はヒットごとに数えます。ばけのかわなどでダメージが 0 になったヒットも数えます。みがわりに当たったヒットと、効果がなかった技は数えません（本家と同じ）。
 - チャンピオンズでは、交代すると上乗せが消えます。そのため `volatileState` に置き、交代で消します。SV は交代しても残ります。
 
+### 持ち物に関わる特性
+
+| キー | 型 | 意味 | 使う技・特性 |
+| --- | --- | --- | --- |
+| `itemConsumedTurn` | 0 以上の整数 | 場にいる間に最後に持ち物を使い切ったときの `Battle.turn`（`consumeItem` が書く。本家の `usedItemThisTurn`）。「このターンか」は `itemConsumedTurn === battle.turn` で見る | ものひろい |
+| `cudChew` | `{ itemName, turn }` | はんすうで、あとでもう一度食べるきのみと、食べたときの `Battle.turn`（特性の `onEatItem` が書く）。`turn` より後のターンのターン終了時に食べ直して消す | はんすう |
+| `klutz` | 真偽値 | ぶきようが働いている（特性の `onEntry` が書く）。ある間は持ち物の効果がない（`isItemSuppressed`。いえきの `abilitySuppressed` の間は働かない） | ぶきよう |
+| `unburden` | 真偽値 | かるわざで、場にいる間に持ち物を失った（特性の `onItemLost` が書く）。持ち物を持っていない間、素早さが 2 倍 | かるわざ |
+
+- `cudChew`・`klutz`・`unburden` は特性ごとの状態（`ABILITY_STATE_KEYS`）です。特性が変わると `startAbility` が消します（本家の `abilityState` の作り直し）。交代でも消えます
+
 ## 6. PersistentPokemonState のキー
 
 交代しても消えません。ひんしになっても消しません（さいきのいのりで復活したときに引き継ぎます）。
@@ -411,8 +422,8 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `iceFaceBroken` | 真偽値 | アイスフェイスが壊れた（ゆきで戻る） | アイスフェイス |
 | `oncePerBattleAbilityUsed` | 真偽値 | 1 バトルに 1 回だけの特性を使った | ふとうのけん・ふくつのたて・きずなへんげ |
 | `revivalCount` | 1 以上の整数 | さいきのいのりで復活した回数（エンジンが書く）。ひんしになった延べ数を、今ひんしの数 + この回数で求める | さいきのいのり・そうだいしょう |
-| `item` | 空でない文字列 | 今持っている持ち物の名前。バトル開始時に育成ポケモンの持ち物を写す。効果を見るときは `resolveItemName`（さしおさえの間は undefined）、持っているものを見るときは `heldItemName` で読む。動かすときは `takeItem`・`giveItem`・`swapItems`（`battle-events/item-transfer.ts`）を使う | 持ち物の効果すべて・トリック・すりかえ・ギフトパス |
-| `consumedItem` | 空でない文字列 | 最後に使い切った持ち物の名前（`consumeItem` が書く） | リサイクル・しゅうかく・かるわざ |
+| `item` | 空でない文字列 | 今持っている持ち物の名前。バトル開始時に育成ポケモンの持ち物を写す。効果を見るときは `resolveItemName`（さしおさえ・ぶきようの間は undefined）、持っているものを見るときは `heldItemName` で読む。動かすときは `takeItem`・`giveItem`・`swapItems`（`battle-events/item-transfer.ts`）を使う | 持ち物の効果すべて・トリック・すりかえ・ギフトパス・わるいてぐせ・マジシャン |
+| `consumedItem` | 空でない文字列 | 最後に使い切った持ち物の名前（`consumeItem` が書く。きのみを食べる `eatItem` も通る）。しゅうかく・ものひろいが持ち直したら消す | しゅうかく・ものひろい |
 
 マイティチェンジは、引っ込むことでフォルムが変わります。特性の `onSwitchOut` で `changeForm(holder, 'hero', ctx, { persistent: true })` を呼んでください。
 

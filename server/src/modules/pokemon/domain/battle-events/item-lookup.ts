@@ -2,6 +2,7 @@ import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pok
 import { BattleContext } from '../abilities/battle-context.interface';
 import { FieldTurnsTarget, IItemEffect } from '../items/item-effect.interface';
 import { ItemRegistry } from '../items/item-registry';
+import { getAbilityEffect, resolveAbilityName } from './ability-lookup';
 
 /**
  * ポケモンが持っている持ち物の名前（効果を消されていても返す。本家の pokemon.item）
@@ -14,12 +15,22 @@ export const heldItemName = (pokemon: BattlePokemonStatus): string | undefined =
 /**
  * 持ち物の効果が消されているか（本家の ignoringItem）
  *
- * 今見ている理由: さしおさえ（volatileState.embargoTurns）
- * 注: マジックルーム（GlobalFieldState.magicRoomTurns）・ぶきよう（特性）はまだ見ていない。
+ * 今見ている理由:
+ * - さしおさえ（volatileState.embargoTurns）
+ * - ぶきよう（volatileState.klutz。特性の onEntry が書く）。いえきで特性が消されている間は働かない
+ * 注: マジックルーム（GlobalFieldState.magicRoomTurns）はまだ見ていない。
  *     足すときはここに理由を足す（マジックルームは場の状態なので、バトルを受け取る形にする）
+ * 注: ぶきようは、かがくへんかガスで特性が消えていても働く（volatileState.klutz を消さないため）
  */
-export const isItemSuppressed = (pokemon: BattlePokemonStatus): boolean =>
-  pokemon.volatileState?.embargoTurns !== undefined;
+export const isItemSuppressed = (pokemon: BattlePokemonStatus): boolean => {
+  const state = pokemon.volatileState;
+  if (!state) {
+    return false;
+  }
+  return (
+    state.embargoTurns !== undefined || (state.klutz === true && state.abilitySuppressed !== true)
+  );
+};
 
 /**
  * ポケモンの持ち物のうち、今効果のある持ち物の名前
@@ -40,7 +51,8 @@ export const getItemEffect = (pokemon: BattlePokemonStatus): IItemEffect | undef
 
 /**
  * 持ち物を使い切る（きのみを食べた・ふうせんが割れた など）
- * 持ち物を消して、使った持ち物として残す（リサイクル・しゅうかくが読む）
+ * 持ち物を消して、使った持ち物として残す（リサイクル・しゅうかく・ものひろいが読む）。
+ * 使い切ったターンを volatileState.itemConsumedTurn に書き（ものひろい）、持ち主の特性の onItemLost を呼ぶ（かるわざ）
  * @returns 使い切った持ち物の名前、持っていなければ undefined（何も書かない）
  */
 export const consumeItem = async (
@@ -55,7 +67,32 @@ export const consumeItem = async (
     item: null,
     consumedItem: itemName,
   });
+  const turn = battleContext.battle?.turn;
+  if (turn !== undefined) {
+    await battleContext.battleRepository.patchVolatileState(pokemon.id, { itemConsumedTurn: turn });
+  }
+  await notifyItemLost(pokemon, itemName, battleContext);
   return itemName;
+};
+
+/**
+ * 持ち物を失ったポケモンの特性の onItemLost を呼ぶ（かるわざ。本家の onAfterUseItem・onTakeItem）
+ * consumeItem・takeItem・swapItems が、持ち物を書き換えたあとに呼ぶ。読み直した持ち主を渡す
+ * @param pokemon 持ち物を失ったポケモン
+ * @param itemName 失った持ち物の名前
+ */
+export const notifyItemLost = async (
+  pokemon: BattlePokemonStatus,
+  itemName: string,
+  battleContext: BattleContext,
+): Promise<void> => {
+  const effect = await getAbilityEffect(await resolveAbilityName(pokemon, battleContext));
+  if (!effect?.onItemLost) {
+    return;
+  }
+  const latest =
+    (await battleContext.battleRepository?.findBattlePokemonStatusById(pokemon.id)) ?? pokemon;
+  await effect.onItemLost(latest, itemName, battleContext);
 };
 
 /**

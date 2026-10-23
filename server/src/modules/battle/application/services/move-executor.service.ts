@@ -2471,6 +2471,8 @@ export class MoveExecutorService {
     });
 
     let { attacker, defender } = await latest();
+    // 持ち物は特性を呼ぶ前に見る（本家は持ち物・特性のハンドラーを先に集める。マジシャンが奪ったいのちのたまは、この技では働かない）
+    const itemEffect = attacker ? getItemEffect(attacker) : undefined;
     if (attacker && defender && params.attackerAbilityEffect?.onAfterMoveSecondarySelf) {
       messages.push(
         await params.attackerAbilityEffect.onAfterMoveSecondarySelf(
@@ -2482,7 +2484,6 @@ export class MoveExecutorService {
       );
       ({ attacker, defender } = await latest());
     }
-    const itemEffect = attacker ? getItemEffect(attacker) : undefined;
     if (attacker && defender && itemEffect?.onAfterMoveSecondarySelf) {
       messages.push(
         await itemEffect.onAfterMoveSecondarySelf(

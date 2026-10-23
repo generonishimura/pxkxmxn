@@ -1,6 +1,6 @@
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
-import { StatePatch } from '@/modules/battle/domain/state/state-field-parser';
-import { VolatileState } from '@/modules/battle/domain/state/volatile-state';
+import { StatePatch, removalPatch } from '@/modules/battle/domain/state/state-field-parser';
+import { ABILITY_STATE_KEYS, VolatileState } from '@/modules/battle/domain/state/volatile-state';
 import { hasAbilityFlag } from '@/modules/battle/domain/logic/ability-flags';
 import { currentAbilityName } from '@/modules/battle/domain/logic/effective-traits';
 import { baseAbilityNameOf } from '@/modules/battle/domain/logic/battle-pokemon-traits';
@@ -79,6 +79,7 @@ const abilityChangePatch = (
  * 書き換えたあとに、新しい特性が効いていれば（いえき・かがくへんかガスで消されていなければ）onEntry を呼ぶ
  * 本家の setAbility は新しい特性の Start を呼ぶ（スキルスワップで受け取ったいかくが発動する）
  * 場に出たときだけ動く特性（SWITCH_IN_ONLY_ABILITY_NAMES）は呼ばない（本家の Start を持たない）
+ * onEntry の前に、前の特性の状態（ABILITY_STATE_KEYS。はんすうで覚えたきのみ など）を消す
  * へんしん（transformInto）も、今と同じ特性を写したときは呼ばずに、これを使う
  */
 export const startAbility = async (
@@ -86,11 +87,17 @@ export const startAbility = async (
   abilityName: string,
   battleContext: BattleContext,
 ): Promise<void> => {
-  if (SWITCH_IN_ONLY_ABILITY_NAMES.includes(abilityName)) {
+  const repository = battleContext.battleRepository;
+  let latest = await repository?.findBattlePokemonStatusById(pokemonId);
+  if (!repository || !latest) {
     return;
   }
-  const latest = await battleContext.battleRepository?.findBattlePokemonStatusById(pokemonId);
-  if (!latest || latest.currentHp <= 0) {
+  // 前の特性の状態（はんすうで覚えたきのみ など）を消す（本家の setAbility は abilityState を作り直す）
+  const staleKeys = ABILITY_STATE_KEYS.filter(key => latest?.volatileState[key] !== undefined);
+  if (staleKeys.length > 0) {
+    latest = await repository.patchVolatileState(pokemonId, removalPatch(staleKeys));
+  }
+  if (SWITCH_IN_ONLY_ABILITY_NAMES.includes(abilityName) || latest.currentHp <= 0) {
     return;
   }
   if ((await resolveBattleAbilityName(latest, battleContext)) !== abilityName) {

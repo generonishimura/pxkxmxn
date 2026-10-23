@@ -1,7 +1,7 @@
 import { IItemEffect } from '../item-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
-import { consumeItem } from '../../battle-events/item-lookup';
+import { berryEffectMultiplier, eatItem } from '../../battle-events/eat-item';
 
 /**
  * 決まったタイプの技のダメージを、1 回だけ半分にするきのみ
@@ -12,11 +12,11 @@ import { consumeItem } from '../../battle-events/item-lookup';
  * 本家と同じく、次のときは食べない
  * - みがわりに当たる技（音技・すりぬけなど、みがわりを無視する技なら食べる）
  * - 技が効かない（タイプ相性が 0）
- * - 食べられない（リポジトリがなく、持ち物を消せない）
+ * - 食べられない（リポジトリがなく持ち物を消せない、相手のきんちょうかん。eatItem が見る）
  * 連続技では最初のヒットで食べるので、半分になるのは最初のヒットだけ
+ * じゅくせい（berryEffectMultiplier）なら 1/4 にする（本家の ripen の onSourceModifyDamage）
  *
- * 注: 食べたことはメッセージに出していない（modifyDamage はダメージだけを返す）
- * 注: 相手のきんちょうかんで食べられなくなる効果は、きんちょうかんがまだないので見ていない
+ * 注: 食べたことはメッセージに出していない（modifyDamage はダメージだけを返す。ほおぶくろの回復のメッセージも出ない）
  * 注: 本家の 4096 分率の補正（2048/4096）ではなく、ほかの特性の補正と同じく 0.5 倍を掛ける
  */
 export class ResistBerryEffect implements IItemEffect {
@@ -48,9 +48,17 @@ export class ResistBerryEffect implements IItemEffect {
     if (hitsSubstitute) {
       return undefined;
     }
-    if (!(await consumeItem(holder, battleContext))) {
+    if (!(await eatItem(holder, battleContext))) {
       return undefined;
     }
-    return damage * ResistBerryEffect.DAMAGE_MULTIPLIER;
+    const multiplier = await berryEffectMultiplier(holder, battleContext);
+    return (damage * ResistBerryEffect.DAMAGE_MULTIPLIER) / multiplier;
+  }
+
+  /**
+   * 食べたときの効果はない（ダメージを半分にするのは modifyDamage。本家の onEat も何もしない）
+   */
+  onEat(): Promise<string | null> {
+    return Promise.resolve(null);
   }
 }

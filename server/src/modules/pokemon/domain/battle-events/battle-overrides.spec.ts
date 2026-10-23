@@ -227,6 +227,20 @@ describe('タイプ・特性を書き換える補助関数', () => {
       // Assert
       expect(battle.get(1).volatileState).toEqual({ abilityOverride: 'へんげんじざい' });
     });
+
+    it('書き換えると、特性ごとの状態（はんすうで覚えたきのみ）も消える', async () => {
+      // Arrange
+      const battle = createInMemoryBattle({
+        ability: 'はんすう',
+        status: { volatileState: { cudChew: { itemName: 'オボンのみ', turn: 1 } } },
+      });
+
+      // Act
+      await setAbility(battle.get(1), 'かわりもの', battle.context());
+
+      // Assert
+      expect(battle.get(1).volatileState).toEqual({ abilityOverride: 'かわりもの' });
+    });
   });
 
   describe('swapAbilities', () => {

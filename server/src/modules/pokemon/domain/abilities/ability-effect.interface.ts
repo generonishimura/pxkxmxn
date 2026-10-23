@@ -712,6 +712,51 @@ export interface IAbilityEffect {
   readonly preventsItemRemoval?: boolean;
 
   /**
+   * 場にいる間、相手のポケモンがきのみを食べられない（例: きんちょうかん、じんばいったい。本家の onFoeTryEatItem）
+   * eatItem（battle-events/eat-item.ts）が、食べるポケモンの相手の場のひんしでないポケモンの実効の特性で見る。
+   * かたやぶりでは無視されない
+   */
+  readonly preventsFoeBerries?: boolean;
+
+  /**
+   * 自分が食べたきのみの効果が 2 倍になる（例: じゅくせい。本家の onTryHeal・onSourceModifyDamage）
+   * 回復するきのみの回復量と、半減きのみのダメージの減り方（1/2 → 1/4）を 2 倍にする（berryEffectMultiplier）
+   */
+  readonly doublesBerryEffects?: boolean;
+
+  /**
+   * HP が最大 HP の 1/4 以下で食べるきのみを、1/2 以下で食べる（例: くいしんぼう。本家の abilityState.gluttony）
+   * isPinchBerryHp（battle-events/eat-item.ts）が見る
+   */
+  readonly eatsPinchBerriesEarly?: boolean;
+
+  /**
+   * 自分がきのみを食べたあと（例: ほおぶくろ、はんすう。本家の onEatItem）
+   * eatItem が、きのみの onEat のあとに呼ぶ。はんすうで食べ直したときは呼ばない
+   * @param holder この特性を持つ、きのみを食べたポケモン（最新の状態）
+   * @param itemName 食べたきのみの名前
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onEatItem?(
+    _holder: BattlePokemonStatus,
+    _itemName: string,
+    _battleContext: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 自分が持ち物を失ったあと（例: かるわざ。本家の onAfterUseItem・onTakeItem）
+   * 持ち物を使い切った（consumeItem。きのみを食べた・ふうせんが割れた など）・奪われた・手放した（takeItem）・
+   * 入れ替えで渡した（swapItems）ときに、持ち物の補助関数が呼ぶ。かたやぶりでは無視されない
+   * @param holder この特性を持つ、持ち物を失ったポケモン（最新の状態）
+   * @param itemName 失った持ち物の名前
+   */
+  onItemLost?(
+    _holder: BattlePokemonStatus,
+    _itemName: string,
+    _battleContext: BattleContext,
+  ): Promise<void>;
+
+  /**
    * HP が最大 HP の半分以下になったとき、控えと交代する（例: ききかいひ、にげごし）
    * エンジンが、相手の技のダメージ（技のあと）・設置技・ターン終了時のダメージで、HP が半分より上から
    * 半分以下になったときに pendingChoice（emergencyExit）を書き、すぐに交代させる

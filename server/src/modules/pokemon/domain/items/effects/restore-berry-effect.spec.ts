@@ -174,5 +174,27 @@ describe('HP・PP を回復するきのみ', () => {
       expect(get(1).persistentState.item).toBe('ヒメリのみ');
       expect(battleRepository.updateBattlePokemonMove).not.toHaveBeenCalled();
     });
+
+    it('食べたとき（onEat）PP が 0 の技がなければ、PP が減っている先頭の技を回復する', async () => {
+      // Arrange
+      const { get, context, battleRepository } = createInMemoryBattle();
+      battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValue([
+        new BattlePokemonMove(10, 1, 33, 35, 35),
+        new BattlePokemonMove(11, 1, 34, 3, 15),
+      ]);
+
+      // Act
+      const message = await ItemRegistry.get('ヒメリのみ')?.onEat?.(
+        get(1),
+        'ヒメリのみ',
+        context(),
+      );
+
+      // Assert
+      expect(battleRepository.updateBattlePokemonMove).toHaveBeenCalledWith(11, {
+        currentPp: 13,
+      });
+      expect(message).toBe('ヒメリのみ restored PP to its move!');
+    });
   });
 });

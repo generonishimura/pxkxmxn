@@ -1,16 +1,15 @@
 import { IItemEffect } from '../item-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
-import { consumeItem } from '../../battle-events/item-lookup';
+import { berryEffectMultiplier, eatItem, joinEatMessages } from '../../battle-events/eat-item';
 import { applyHeal, fractionOfMaxHp, isHealBlocked } from '../../battle-events/heal';
 
 /**
  * HP が半分以下になったら食べて HP を回復するきのみ（オレンのみ・オボンのみ）
  *
  * 本家と同じく onUpdate で、HP が最大 HP の半分以下なら食べる（技のヒットのあと・技以外のダメージのあと など）。
- * かいふくふうじ中は食べない（本家の onTryEatItem）
- *
- * 注: 相手のきんちょうかんで食べられなくなる効果は、きんちょうかんがまだないので見ていない
+ * かいふくふうじ中は食べない（本家の onTryEatItem）。相手のきんちょうかんで食べられないのは eatItem が見る
+ * じゅくせい（berryEffectMultiplier）なら回復量が 2 倍（オボンのみは 1/2、オレンのみは 20）
  */
 export class HpRestoreBerryEffect implements IItemEffect {
   /**
@@ -25,11 +24,16 @@ export class HpRestoreBerryEffect implements IItemEffect {
     if (holder.currentHp <= 0 || holder.currentHp > holder.maxHp / 2 || isHealBlocked(holder)) {
       return null;
     }
-    const itemName = await consumeItem(holder, battleContext);
-    if (!itemName) {
-      return null;
-    }
-    await applyHeal(holder, this.healAmountOf(holder), battleContext);
+    return joinEatMessages(await eatItem(holder, battleContext));
+  }
+
+  async onEat(
+    holder: BattlePokemonStatus,
+    itemName: string,
+    battleContext: BattleContext,
+  ): Promise<string | null> {
+    const multiplier = await berryEffectMultiplier(holder, battleContext);
+    await applyHeal(holder, this.healAmountOf(holder) * multiplier, battleContext);
     return `${itemName} restored its HP!`;
   }
 }
