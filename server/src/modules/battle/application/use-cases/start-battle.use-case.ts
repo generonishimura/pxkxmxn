@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
 import {
   IBattleRepository,
   BATTLE_REPOSITORY_TOKEN,
@@ -29,6 +29,18 @@ import { NEUTRALIZING_GAS_ABILITY_NAME } from '../../domain/logic/effective-trai
 import { PrimalWeatherReleaser } from '../services/primal-weather-releaser';
 import { ValidationException } from '@/shared/domain/exceptions';
 import { findTeamRuleProblem, teamRuleProblemMessage } from '../../domain/logic/team-rule';
+import {
+  findRegulationProblem,
+  regulationProblemMessage,
+} from '../../domain/logic/regulation-rule';
+import { CURRENT_REGULATION } from '../../domain/regulations/current-regulation';
+import { Regulation } from '../../domain/regulations/regulation';
+
+/**
+ * バトルを始めるときに確かめるレギュレーションのトークン（テストで、ほかのレギュレーションに差し替えるのに使う。
+ * 登録しなければ CURRENT_REGULATION）
+ */
+export const REGULATION_TOKEN = 'REGULATION';
 
 /**
  * 先発の onEntry を先に呼ぶ特性（大きいほど先。ほかの特性は 0）
@@ -47,7 +59,8 @@ const LEAD_ENTRY_PRIORITY: Readonly<Record<string, number>> = {
  *
  * 処理内容:
  * 0. 両チームの手持ちが、チャンピオンズのシングルのルール（3〜6 体・持ち物の重複なし・全国図鑑の番号の重複なし）に
- *    合うかを確かめる。合わなければ、何も書き込まずに ValidationException で弾く
+ *    合うかと、レギュレーション（既定は CURRENT_REGULATION）で使えるポケモン・持ち物だけかを確かめる。
+ *    合わなければ、何も書き込まずに ValidationException で弾く
  *    注: 選出（6 体から 3 体を選ぶ）の API はない。戦うポケモンは、バトルを始めるチームを選ぶことで決める
  * 1. Battleエンティティの作成
  * 2. 両チームのポケモン状態（BattlePokemonStatus）を初期化し、最初のポケモンを場に出す（position=1のポケモン）
@@ -62,6 +75,9 @@ export class StartBattleUseCase {
    */
   private static readonly STARTER_SWITCHED_IN_TURN = 0;
 
+  /** 手持ちが合うかを確かめるレギュレーション */
+  private readonly regulation: Regulation;
+
   constructor(
     @Inject(BATTLE_REPOSITORY_TOKEN)
     private readonly battleRepository: IBattleRepository,
@@ -71,7 +87,12 @@ export class StartBattleUseCase {
     private readonly moveRepository: IMoveRepository,
     @Inject(TRAINED_POKEMON_REPOSITORY_TOKEN)
     private readonly trainedPokemonRepository: ITrainedPokemonRepository,
-  ) {}
+    @Optional()
+    @Inject(REGULATION_TOKEN)
+    regulation?: Regulation,
+  ) {
+    this.regulation = regulation ?? CURRENT_REGULATION;
+  }
 
   /**
    * バトルを開始
@@ -87,16 +108,24 @@ export class StartBattleUseCase {
     team1Id: number,
     team2Id: number,
   ): Promise<Battle> {
-    // 1. 両チームのポケモン情報を取得し、手持ちのルールを、書き込みより前に確かめる
+    // 1. 両チームのポケモン情報を取得し、手持ちのルールとレギュレーションを、書き込みより前に確かめる
     const team1Members = await this.teamRepository.findMembersByTeamId(team1Id);
     const team2Members = await this.teamRepository.findMembersByTeamId(team2Id);
     for (const [members, field] of [
       [team1Members, 'team1Id'],
       [team2Members, 'team2Id'],
     ] as const) {
-      const problem = findTeamRuleProblem(members.map(member => member.trainedPokemon));
+      const team = members.map(member => member.trainedPokemon);
+      const problem = findTeamRuleProblem(team);
       if (problem) {
         throw new ValidationException(teamRuleProblemMessage(problem), field);
+      }
+      const regulationProblem = findRegulationProblem(team, this.regulation);
+      if (regulationProblem) {
+        throw new ValidationException(
+          regulationProblemMessage(regulationProblem, this.regulation),
+          field,
+        );
       }
     }
 

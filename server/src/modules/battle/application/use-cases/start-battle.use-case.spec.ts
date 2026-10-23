@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { StartBattleUseCase } from './start-battle.use-case';
+import { REGULATION_TOKEN, StartBattleUseCase } from './start-battle.use-case';
+import { UNRESTRICTED_REGULATION } from '../__tests__/unrestricted-regulation';
 import {
   IBattleRepository,
   BATTLE_REPOSITORY_TOKEN,
@@ -187,6 +188,11 @@ describe('StartBattleUseCase', () => {
         {
           provide: TRAINED_POKEMON_REPOSITORY_TOKEN,
           useValue: mockTrainedPokemonRepository,
+        },
+        // 状態の初期化を見るので、レギュレーションでは弾かない（テスト用の持ち物も持たせる）
+        {
+          provide: REGULATION_TOKEN,
+          useValue: UNRESTRICTED_REGULATION,
         },
       ],
     }).compile();

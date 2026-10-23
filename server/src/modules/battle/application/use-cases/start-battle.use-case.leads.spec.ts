@@ -41,6 +41,7 @@ import {
 import { Weather } from '../../domain/entities/battle.entity';
 import { typeOf } from '../__tests__/battle-engine-harness';
 import { StartBattleUseCase } from './start-battle.use-case';
+import { UNRESTRICTED_REGULATION } from '../__tests__/unrestricted-regulation';
 
 /**
  * 先発のポケモン 1 匹分（トレーナー 1 か 2。position 1 が先発）
@@ -278,11 +279,13 @@ const createStartBattle = (leadSpecs: readonly LeadSpec[]) => {
     findByTrainerId: trainerId =>
       Promise.resolve([...trainedPokemons.values()].filter(p => p.trainerId === trainerId)),
   };
+  // 先発の処理を見るので、レギュレーションでは弾かない（ジガルデ・テラパゴスなども手持ちに入れる）
   const useCase = new StartBattleUseCase(
     battleRepository,
     teamRepository,
     moveRepository,
     trainedPokemonRepository,
+    UNRESTRICTED_REGULATION,
   );
 
   return {
