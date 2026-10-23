@@ -45,6 +45,11 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
   protected abstract readonly immuneTypes: readonly string[];
 
   /**
+   * 接触技のときだけ発動するか（既定は true。とびだすハバネロは接触しない技でも発動するので false）
+   */
+  protected readonly requiresContact: boolean = true;
+
+  /**
    * 付与する状態異常を抽選する
    * 既定では chance の確率で statusCondition を返す（chanceが1.0の場合は必ず返す）。
    * ほうし（Effect Spore）のように複数の状態異常から選ぶ特性は、このメソッドを上書きする。
@@ -106,8 +111,8 @@ export abstract class BaseContactStatusConditionEffect implements IAbilityEffect
       return false;
     }
 
-    // 接触技でない場合は処理しない（えんかくなどで接触しなくなった技を含む）
-    if (!isContactMove(battleContext)) {
+    // 接触技でない場合は処理しない（えんかくなどで接触しなくなった技を含む）。requiresContact が false なら判定しない
+    if (this.requiresContact && !isContactMove(battleContext)) {
       return false;
     }
 

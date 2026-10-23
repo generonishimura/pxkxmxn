@@ -23,6 +23,11 @@ const STAT_ORDER: readonly (keyof BattleStatValues)[] = [
  * - 実数値が同じなら、攻撃・防御・特攻・特防・素早さの順で先の能力を上げる
  */
 export class BeastBoostEffect implements IAbilityEffect {
+  /**
+   * @param abilityName 能力ランクの変化の原因にする特性名（同じ効果を持つ Eelevate が名前を変えて使う）
+   */
+  constructor(private readonly abilityName: string = 'ビーストブースト') {}
+
   async onKnockOut(
     holder: BattlePokemonStatus,
     _fainted: BattlePokemonStatus,
@@ -41,7 +46,7 @@ export class BeastBoostEffect implements IAbilityEffect {
       [{ statType: best, rankChange: 1 }],
       battleContext,
       {
-        source: { pokemon: holder, kind: 'ability', name: 'ビーストブースト' },
+        source: { pokemon: holder, kind: 'ability', name: this.abilityName },
       },
     );
     return joinStatChangeMessages(result);
