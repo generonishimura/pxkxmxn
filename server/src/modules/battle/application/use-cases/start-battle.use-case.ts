@@ -159,6 +159,13 @@ export class StartBattleUseCase {
       maxHp,
     });
 
+    // 持ち物を、バトル中の今の持ち物として書く（交代しても残る状態）
+    if (trainedPokemon.heldItem !== null) {
+      await this.battleRepository.patchPersistentState(battleStatus.id, {
+        item: trainedPokemon.heldItem,
+      });
+    }
+
     // ポケモンが覚えている技を取得してBattlePokemonMoveを作成
     await this.initializePokemonMoves(battleStatus.id, trainedPokemon.pokemon.id);
 

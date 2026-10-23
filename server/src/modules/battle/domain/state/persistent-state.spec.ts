@@ -18,6 +18,8 @@ const FULL_PERSISTENT_STATE: Required<PersistentPokemonState> = {
   iceFaceBroken: true,
   oncePerBattleAbilityUsed: true,
   revivalCount: 1,
+  item: 'たべのこし',
+  consumedItem: 'オボンのみ',
 };
 
 describe('PersistentPokemonState', () => {

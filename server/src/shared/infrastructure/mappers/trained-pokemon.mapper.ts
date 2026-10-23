@@ -50,6 +50,7 @@ export class TrainedPokemonMapper {
       trainedPokemonData.spSpecialAttack,
       trainedPokemonData.spSpecialDefense,
       trainedPokemonData.spSpeed,
+      trainedPokemonData.heldItem,
     );
   }
 }

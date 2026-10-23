@@ -865,6 +865,92 @@ describe('StartBattleUseCase', () => {
       expect(createCall.maxHp).toBe(createCall.currentHp);
     });
 
+    describe('持ち物', () => {
+      const setupSingle = (heldItem: string | null) => {
+        const mockBattle = new Battle(
+          1,
+          trainer1Id,
+          trainer2Id,
+          team1Id,
+          team2Id,
+          1,
+          Weather.None,
+          Field.None,
+          BattleStatus.Active,
+          null,
+        );
+        const pokemon1 = createMockPokemon(1, 'ポケモン1');
+        const trainedPokemon1 = new TrainedPokemon(
+          100,
+          trainer1Id,
+          pokemon1,
+          null,
+          Gender.Male,
+          Nature.Serious,
+          null,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          heldItem,
+        );
+        const battleStatus1 = new BattlePokemonStatus(
+          7,
+          mockBattle.id,
+          trainedPokemon1.id,
+          trainer1Id,
+          false,
+          175,
+          175,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          null,
+        );
+        battleRepository.create.mockResolvedValue(mockBattle);
+        teamRepository.findMembersByTeamId
+          .mockResolvedValueOnce([
+            { id: 1, teamId: team1Id, trainedPokemon: trainedPokemon1, position: 1 },
+          ])
+          .mockResolvedValueOnce([]);
+        battleRepository.createBattlePokemonStatus.mockResolvedValueOnce(battleStatus1);
+        battleRepository.updateBattlePokemonStatus.mockResolvedValue(battleStatus1);
+      };
+
+      it('育成ポケモンの持ち物を、バトル中の状態の今の持ち物に書く', async () => {
+        // Arrange
+        setupSingle('たべのこし');
+
+        // Act
+        await useCase.execute(trainer1Id, trainer2Id, team1Id, team2Id);
+
+        // Assert
+        expect(battleRepository.patchPersistentState).toHaveBeenCalledWith(7, {
+          item: 'たべのこし',
+        });
+      });
+
+      it('持ち物がなければ、今の持ち物を書かない', async () => {
+        // Arrange
+        setupSingle(null);
+
+        // Act
+        await useCase.execute(trainer1Id, trainer2Id, team1Id, team2Id);
+
+        // Assert
+        expect(battleRepository.patchPersistentState).not.toHaveBeenCalledWith(
+          7,
+          expect.objectContaining({ item: expect.anything() }),
+        );
+      });
+    });
+
     it('バトル開始時にポケモンが覚えている技のPPを初期化する', async () => {
       // Arrange
       const mockBattle = new Battle(

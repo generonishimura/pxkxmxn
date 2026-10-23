@@ -2,6 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { Battle } from '../../domain/entities/battle.entity';
 import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
+import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import {
   IMoveRepository,
   MOVE_REPOSITORY_TOKEN,
@@ -310,6 +311,20 @@ export class ActionOrderDeterminerService {
           finalTrainer2Speed = modifiedSpeed;
         }
       }
+
+      // 持ち物による速度補正を適用（こだわりスカーフ・くろいてっきゅう など）
+      finalTrainer1Speed =
+        getItemEffect(trainer1Active)?.modifySpeed?.(
+          trainer1Active,
+          finalTrainer1Speed,
+          trainer1Context,
+        ) ?? finalTrainer1Speed;
+      finalTrainer2Speed =
+        getItemEffect(trainer2Active)?.modifySpeed?.(
+          trainer2Active,
+          finalTrainer2Speed,
+          trainer2Context,
+        ) ?? finalTrainer2Speed;
 
       // おいかぜ（陣営の素早さ 2 倍）
       finalTrainer1Speed *= sideSpeedMultiplier(
