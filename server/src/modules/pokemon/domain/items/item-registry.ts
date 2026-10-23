@@ -2,6 +2,12 @@ import { IItemEffect } from './item-effect.interface';
 import { CharcoalEffect } from './effects/charcoal-effect';
 import { LeftoversEffect } from './effects/leftovers-effect';
 import { TYPE_BOOST_ITEMS, TypeBoostItemEffect } from './effects/type-boost-item-effect';
+import { CategoryBoostItemEffect } from './effects/category-boost-item-effect';
+import { ExpertBeltEffect } from './effects/expert-belt-effect';
+import { LifeOrbEffect } from './effects/life-orb-effect';
+import { MetronomeItemEffect } from './effects/metronome-item-effect';
+import { NormalGemEffect } from './effects/normal-gem-effect';
+import { LightBallEffect } from './effects/light-ball-effect';
 
 /**
  * 持ち物のレジストリ
@@ -21,6 +27,14 @@ export class ItemRegistry {
     for (const [itemName, typeName] of TYPE_BOOST_ITEMS) {
       this.registry.set(itemName, new TypeBoostItemEffect(typeName));
     }
+    // 威力・ダメージを上げる持ち物
+    this.registry.set('ちからのハチマキ', new CategoryBoostItemEffect('Physical'));
+    this.registry.set('ものしりメガネ', new CategoryBoostItemEffect('Special'));
+    this.registry.set('たつじんのおび', new ExpertBeltEffect());
+    this.registry.set('いのちのたま', new LifeOrbEffect());
+    this.registry.set('メトロノーム', new MetronomeItemEffect());
+    this.registry.set('ノーマルジュエル', new NormalGemEffect());
+    this.registry.set('でんきだま', new LightBallEffect());
     this.registry.set('たべのこし', new LeftoversEffect());
   }
 
