@@ -1,3 +1,5 @@
+import { MEGA_EVOLUTIONS } from './mega-evolutions';
+
 /**
  * 種族値（HP を含む）
  */
@@ -233,6 +235,16 @@ export const POKEMON_FORMS: readonly PokemonForm[] = [
     baseStats: stats(95, 95, 110, 105, 110, 85),
     abilityName: 'テラスシェル',
   },
+  // メガシンカした姿（mega-evolutions.ts）。交代しても残るフォルムなので、特性も変わる
+  ...MEGA_EVOLUTIONS.map(
+    ({ nationalDex, form, types, baseStats, abilityName }): PokemonForm => ({
+      nationalDex,
+      form,
+      types,
+      baseStats,
+      abilityName,
+    }),
+  ),
 ];
 
 /**
