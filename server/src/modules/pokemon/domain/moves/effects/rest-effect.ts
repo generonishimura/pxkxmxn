@@ -2,6 +2,7 @@ import { IMoveEffect } from '../move-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
+import { StatusConditionHandler } from '@/modules/battle/domain/logic/status-condition-handler';
 import { isEffectivelyAsleep } from '../../battle-events/effective-status';
 import { isUproarActive } from '../../battle-events/status-infliction';
 import { getAbilityEffect, resolveAbilityName } from '../../battle-events/ability-lookup';
@@ -11,7 +12,7 @@ import { resolveTypeNames } from '../../battle-events/battle-traits';
 /**
  * ねむる（Rest）技の効果
  *
- * 効果: 自分の HP を全回復し、自分自身を眠り状態にする（本家では2ターン）
+ * 効果: 自分の HP を全回復し、自分自身を眠り状態にする（チャンピオンズでは3ターン。SV は2ターン）
  *
  * 次のときは失敗する（HP も回復しない。本家と同じ）
  * - すでにねむっている（ぜったいねむりを含む）
@@ -22,8 +23,8 @@ import { resolveTypeNames } from '../../battle-events/battle-traits';
  *
  * ほかの状態異常（やけど・まひなど）があるときは、ねむりに上書きする（本家と同じ）
  *
- * 注: 本家では「2ターン固定で眠る」が、現状の engine では状態異常のターン経過管理が
- *     未整備のため、眠り状態の付与のみを行う（眠りの起床処理は engine 側の責務）
+ * 眠るターン数は固定で、persistentState.sleepTurns に残りを書く。BeforeMoveChecker が技を出そうとするたびに減らし、
+ * 0 になった次の行動で起こす。通常のねむりのような確率での解除はしない（StatusConditionProcessorService は sleepTurns があるねむりを飛ばす）
  */
 export class RestEffect implements IMoveEffect {
   async onUse(
@@ -53,6 +54,9 @@ export class RestEffect implements IMoveEffect {
     await battleContext.battleRepository.updateBattlePokemonStatus(attacker.id, {
       currentHp: attacker.maxHp,
       statusCondition: StatusCondition.Sleep,
+    });
+    await battleContext.battleRepository.patchPersistentState(attacker.id, {
+      sleepTurns: StatusConditionHandler.REST_SLEEP_TURNS,
     });
 
     return 'user slept and recovered HP!';

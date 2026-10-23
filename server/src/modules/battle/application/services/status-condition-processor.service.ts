@@ -156,6 +156,20 @@ export class StatusConditionProcessorService {
     if (status.statusCondition !== StatusCondition.Sleep) {
       this.sleepTurnCounts.get(battleId)?.delete(status.id);
     }
+    // ねむり・こおりでなくなったら、persistentState に残ったターン数も捨てる（次の状態異常で古い数を引き継がない）
+    const staleKeys = {
+      ...(status.statusCondition !== StatusCondition.Sleep &&
+      status.persistentState.sleepTurns !== undefined
+        ? { sleepTurns: null }
+        : {}),
+      ...(status.statusCondition !== StatusCondition.Freeze &&
+      status.persistentState.freezeTurns !== undefined
+        ? { freezeTurns: null }
+        : {}),
+    };
+    if (Object.keys(staleKeys).length > 0) {
+      await this.battleRepository.patchPersistentState(status.id, staleKeys);
+    }
     if (!status.statusCondition || status.statusCondition === StatusCondition.None) {
       return;
     }
@@ -172,7 +186,11 @@ export class StatusConditionProcessorService {
     }
 
     // ねむりのターン数を取得・更新
-    if (status.statusCondition === StatusCondition.Sleep) {
+    // ねむる（Rest）の固定ターンのねむり（persistentState.sleepTurns）は、技を出そうとしたときに数えて起こす（BeforeMoveChecker）
+    if (
+      status.statusCondition === StatusCondition.Sleep &&
+      status.persistentState.sleepTurns === undefined
+    ) {
       if (!this.sleepTurnCounts.has(battleId)) {
         this.sleepTurnCounts.set(battleId, new Map());
       }

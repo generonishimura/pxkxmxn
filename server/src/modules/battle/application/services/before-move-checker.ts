@@ -97,15 +97,39 @@ export class BeforeMoveChecker {
       attacker.statusCondition === StatusCondition.Sleep &&
       !MoveBehaviors.has(move.name, 'sleepUsable')
     ) {
-      return prevented('Cannot act due to sleep');
+      // ねむる（Rest）の固定ターン: 残りがあれば 1 つ減らして動けない。残りが 0 なら、ここで起きて技を出す
+      const restTurns = attacker.persistentState.sleepTurns;
+      if (restTurns === undefined || restTurns > 0) {
+        if (restTurns !== undefined) {
+          const step = attackerAbilityEffect?.sleepTurnMultiplier ?? 1;
+          await this.battleRepository.patchPersistentState(attacker.id, {
+            sleepTurns: Math.max(0, restTurns - step),
+          });
+        }
+        return prevented('Cannot act due to sleep');
+      }
+      await this.battleRepository.patchPersistentState(attacker.id, { sleepTurns: null });
+      await this.battleRepository.updateBattlePokemonStatus(attacker.id, {
+        statusCondition: StatusCondition.None,
+      });
+      attacker = await this.refresh(attacker);
     }
 
     // 3. こおり
     let prefix = '';
     if (attacker.statusCondition === StatusCondition.Freeze) {
-      if (!MoveBehaviors.has(move.name, 'defrost') && !StatusConditionHandler.shouldClearFreeze()) {
+      const immobileTurns = attacker.persistentState.freezeTurns ?? 0;
+      if (
+        !MoveBehaviors.has(move.name, 'defrost') &&
+        !StatusConditionHandler.shouldClearFreeze(immobileTurns)
+      ) {
+        // 動けなかった回数を数える（上限に達した次の行動では必ず解ける）
+        await this.battleRepository.patchPersistentState(attacker.id, {
+          freezeTurns: immobileTurns + 1,
+        });
         return prevented('Cannot act due to freeze');
       }
+      await this.battleRepository.patchPersistentState(attacker.id, { freezeTurns: null });
       await this.battleRepository.updateBattlePokemonStatus(attacker.id, {
         statusCondition: StatusCondition.None,
       });

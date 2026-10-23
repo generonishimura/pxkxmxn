@@ -17,8 +17,13 @@ import {
  * - ひんしになっても消さない（さいきのいのりで復活したときに引き継ぐ）
  */
 export type PersistentPokemonState = {
-  /** ねむりの残りターン数（交代しても続く）。ねむりでなくなったらキーを消す */
+  /**
+   * ねむる（Rest）で眠っている間の、残りの動けないターン数（ねむるが 3 を書く）。ねむりでなくなったらキーを消す
+   * キーがあるねむりは固定のターン数で、ターン終了時の確率での解除をしない。キーがないねむりは確率で解除する
+   */
   readonly sleepTurns?: number;
+  /** こおりで動けなかった回数。3 回目の行動では必ず解ける。こおりでなくなったらキーを消す */
+  readonly freezeTurns?: number;
   /**
    * 交代しても戻らないフォルム（マイティチェンジの 'hero'・きずなへんげの 'ash'・スワームチェンジの 'complete' など）
    * 交代で戻るフォルムは VolatileState.form に置く
@@ -45,6 +50,7 @@ export type PersistentPokemonState = {
  */
 export const PERSISTENT_POKEMON_STATE_PARSERS: FieldParsers<PersistentPokemonState> = {
   sleepTurns: nonNegativeInteger,
+  freezeTurns: nonNegativeInteger,
   form: nonEmptyString,
   disguiseBusted: booleanValue,
   iceFaceBroken: booleanValue,

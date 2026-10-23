@@ -54,31 +54,27 @@ describe('StatusConditionHandler', () => {
       ).toBe(true);
     });
 
-    it('こおり・まひは確率的に行動可能/不能', () => {
-      const freezeStatus = createBattlePokemonStatus(StatusCondition.Freeze);
-      const paralysisStatus = createBattlePokemonStatus(StatusCondition.Paralysis);
+    it('こおりは乱数が 0.25 未満なら行動可能（チャンピオンズは 25%）', () => {
+      const random = jest.spyOn(Math, 'random').mockReturnValueOnce(0.24).mockReturnValueOnce(0.25);
+      const status = createBattlePokemonStatus(StatusCondition.Freeze);
 
-      // 複数回実行して、確率的な動作を確認
-      const freezeResults: boolean[] = [];
-      const paralysisResults: boolean[] = [];
+      expect(StatusConditionHandler.canAct(status)).toBe(true);
+      expect(StatusConditionHandler.canAct(status)).toBe(false);
 
-      for (let i = 0; i < 100; i++) {
-        freezeResults.push(StatusConditionHandler.canAct(freezeStatus));
-        paralysisResults.push(StatusConditionHandler.canAct(paralysisStatus));
-      }
+      random.mockRestore();
+    });
 
-      // こおりは20%の確率で行動可能なので、少なくとも1回はtrueが含まれる可能性が高い
-      // まひは75%の確率で行動可能なので、多くがtrueになる
-      const freezeTrueCount = freezeResults.filter(r => r).length;
-      const paralysisTrueCount = paralysisResults.filter(r => r).length;
+    it('まひは乱数が 0.125 未満なら行動不能（チャンピオンズは 12.5%）', () => {
+      const random = jest
+        .spyOn(Math, 'random')
+        .mockReturnValueOnce(0.124)
+        .mockReturnValueOnce(0.125);
+      const status = createBattlePokemonStatus(StatusCondition.Paralysis);
 
-      // 統計的な確認（20%の確率なので、10%以上30%以下になることが期待される）
-      expect(freezeTrueCount).toBeGreaterThan(5);
-      expect(freezeTrueCount).toBeLessThan(35);
+      expect(StatusConditionHandler.canAct(status)).toBe(false);
+      expect(StatusConditionHandler.canAct(status)).toBe(true);
 
-      // まひは75%の確率なので、60%以上90%以下になることが期待される
-      expect(paralysisTrueCount).toBeGreaterThan(60);
-      expect(paralysisTrueCount).toBeLessThan(90);
+      random.mockRestore();
     });
   });
 
@@ -269,15 +265,29 @@ describe('StatusConditionHandler', () => {
   });
 
   describe('shouldClearFreeze', () => {
-    it('20%の確率で解除', () => {
-      const results: boolean[] = [];
-      for (let i = 0; i < 100; i++) {
-        results.push(StatusConditionHandler.shouldClearFreeze());
-      }
-      const trueCount = results.filter(r => r).length;
-      // 20%の確率なので、10%以上30%以下になることが期待される
-      expect(trueCount).toBeGreaterThan(10);
-      expect(trueCount).toBeLessThan(30);
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('乱数が 0.25 未満なら解除（チャンピオンズは 25%）', () => {
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.24).mockReturnValueOnce(0.25);
+
+      expect(StatusConditionHandler.shouldClearFreeze(0)).toBe(true);
+      expect(StatusConditionHandler.shouldClearFreeze(0)).toBe(false);
+    });
+
+    it('動けなかった回数が 1 でも、乱数が外れれば解除しない', () => {
+      jest.spyOn(Math, 'random').mockReturnValue(0.99);
+
+      expect(StatusConditionHandler.shouldClearFreeze(1)).toBe(false);
+    });
+
+    it('動けなかった回数が 2 に達したら、乱数が外れても必ず解除する（3回目の行動）', () => {
+      const random = jest.spyOn(Math, 'random').mockReturnValue(0.99);
+
+      expect(StatusConditionHandler.shouldClearFreeze(2)).toBe(true);
+      expect(StatusConditionHandler.shouldClearFreeze(5)).toBe(true);
+      expect(random).not.toHaveBeenCalled();
     });
   });
 
