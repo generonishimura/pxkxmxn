@@ -3,7 +3,7 @@ import { BattlePokemonMove } from '@/modules/battle/domain/entities/battle-pokem
 import { AbilityRegistry } from '../abilities/ability-registry';
 import { applyHeal, fractionOfMaxHp, isHealBlocked } from './heal';
 import { applyDrainHeal } from './drain-heal';
-import { reducePp } from './pp';
+import { reducePp, restorePp } from './pp';
 import {
   getEffectiveStatusCondition,
   isEffectivelyAsleep,
@@ -134,6 +134,60 @@ describe('回復・PP・状態異常として扱う状態の補助関数', () =>
 
       // Assert
       expect(reduced).toBe(0);
+    });
+  });
+
+  describe('restorePp', () => {
+    it('覚えている技の PP を、最大 PP を超えない範囲で回復し、回復した量を返す', async () => {
+      // Arrange
+      const { context, get, battleRepository } = createInMemoryBattle();
+      battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValue([
+        new BattlePokemonMove(7, 1, 33, 0, 5),
+      ]);
+
+      // Act
+      const restored = await restorePp(get(1), 33, 10, context());
+
+      // Assert
+      expect(restored).toBe(5);
+      expect(battleRepository.updateBattlePokemonMove).toHaveBeenCalledWith(7, { currentPp: 5 });
+    });
+
+    it('ものまねで入れ替わった技は、volatileState の PP を回復する', async () => {
+      // Arrange
+      const { context, get, battleRepository } = createInMemoryBattle({
+        status: {
+          volatileState: {
+            moveSlotOverrides: [{ battlePokemonMoveId: 7, moveId: 99, currentPp: 0, maxPp: 15 }],
+          },
+        },
+      });
+      battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValue([
+        new BattlePokemonMove(7, 1, 33, 3, 10),
+      ]);
+
+      // Act
+      await restorePp(get(1), 99, 10, context());
+
+      // Assert
+      expect(get(1).volatileState.moveSlotOverrides).toEqual([
+        { battlePokemonMoveId: 7, moveId: 99, currentPp: 10, maxPp: 15 },
+      ]);
+    });
+
+    it('PP が最大なら何もしない', async () => {
+      // Arrange
+      const { context, get, battleRepository } = createInMemoryBattle();
+      battleRepository.findBattlePokemonMovesByBattlePokemonStatusId.mockResolvedValue([
+        new BattlePokemonMove(7, 1, 33, 10, 10),
+      ]);
+
+      // Act
+      const restored = await restorePp(get(1), 33, 10, context());
+
+      // Assert
+      expect(restored).toBe(0);
+      expect(battleRepository.updateBattlePokemonMove).not.toHaveBeenCalled();
     });
   });
 
