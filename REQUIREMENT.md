@@ -158,7 +158,7 @@ src/
 - **使えるポケモン**: 今のレギュレーション（`CURRENT_REGULATION`。今は M-C）で使えるポケモンだけを入れられる。M-C で使えるのは、全国図鑑の番号で 231 種類
 - **使える持ち物**: 今のレギュレーションで使える持ち物だけを持たせられる。M-C で使えるのは 166 個（持ち物 57 個、きのみ 28 個、メガストーン 81 個）
 
-レギュレーションの一覧は `battle/domain/regulations/` にある（`regulation-m-c.ts`。ポケモンは全国図鑑の番号、持ち物は日本語名で持つ）。確かめる処理は `battle/domain/logic/regulation-rule.ts` にある。DB のポケモンはフォルムを分けていないので、ポケモンは全国図鑑の番号だけで確かめる。たとえば、M-C のフラエッテは えいえんのはな のフォルムしか使えないが、ふつうのフラエッテも通る。選んだ技がチャンピオンズで覚える技かは、まだ確かめない（その種族が `pokemon_moves` で覚える技かは確かめる。下の「育成ポケモンの技」を見る）。
+レギュレーションの一覧は `battle/domain/regulations/` にある（`regulation-m-c.ts`。ポケモンは全国図鑑の番号、持ち物は日本語名で持つ）。確かめる処理は `battle/domain/logic/regulation-rule.ts` にある。DB のポケモンはフォルムを分けていないので、ポケモンは全国図鑑の番号だけで確かめる。たとえば、M-C のフラエッテは えいえんのはな のフォルムしか使えないが、ふつうのフラエッテも通る。選んだ技がその種族の覚える技かも確かめる（下の「育成ポケモンの技」を見る）。
 
 出典（レギュレーション M-C）: https://www.serebii.net/pokemonchampions/rankedbattle/regulationm-c.shtml 、https://www.serebii.net/pokemonchampions/items.shtml 、https://metavgc.com/regulations/regulationm-c
 
@@ -173,11 +173,23 @@ src/
 育成ポケモンは、バトルで使う技を最大 4 つ選んで持つ（`trained_pokemon_moves` テーブル、`TrainedPokemon.moveIds`）。
 
 - **数と重なり**: 技は 4 つまで。同じ技を 2 つ持てない。`TrainedPokemon` を作るときに確かめ、合わなければ `ValidationException`（`field` は `moveIds`）を投げる。DB にも同じ制約（`slot` は 1〜4、`(trained_pokemon_id, slot)` と `(trained_pokemon_id, move_id)` はそれぞれ重ならない）がある
-- **覚える技か**: バトルを始めるとき（`StartBattleUseCase`）に、選んだ技がその種族の覚える技（`pokemon_moves` にある技）かを確かめる。覚えない技があれば、バトルを作らずに `ValidationException`（`field` は `team1Id` か `team2Id`）を返す。確かめる処理は `battle/domain/logic/move-rule.ts` にある
+- **覚える技か**: バトルを始めるとき（`StartBattleUseCase`）に、選んだ技がその種族の覚える技（`pokemon_moves` にある技）かを確かめる。覚えない技があれば、バトルを作らずに `ValidationException`（`field` は `team1Id` か `team2Id`）を返す。確かめる処理は `battle/domain/logic/move-rule.ts` にある。覚える技は、下の「覚える技のデータ」を見る
 - **バトル中の技**: 選んだ技を `slot` の順に、バトル中の技（`BattlePokemonMove`）にする。PP は技の PP（チャンピオンズの PP）
 - **技を選んでいない育成ポケモン**: 技を 1 つも選んでいない育成ポケモンは、今までどおり、種族の覚える技（`moveRepository.findByPokemonId`。`pokemon_moves` の最初の 4 つ）からバトル中の技を作る。技を選ぶ前に作ったデータとテストを、そのまま動かすため
 
-育成ポケモンを作る・書き換える API はまだない。技を選ぶには、`trained_pokemon_moves` に直接行を入れる。チャンピオンズの覚える技（Serebii の Champions 図鑑の attacks 欄）との照合は #267 で行う。
+育成ポケモンを作る・書き換える API はまだない。技を選ぶには、`trained_pokemon_moves` に直接行を入れる。
+
+#### 覚える技のデータ（`pokemon_moves`）
+
+- **チャンピオンズで使えるポケモン（レギュレーション M-C の 231 種類）**: チャンピオンズで覚える技だけを持つ。データは `server/prisma/seed-utils/champions-learnsets.data.json`（全国図鑑の番号ごとに、技の英語名の一覧）。行の `method` は `champions`、`level` は 0。技の英語名は、大文字・小文字、ハイフン、空白、アポストロフィの違いを無視して `moves.name_en` と突き合わせる
+- **それ以外のポケモン**: PokeAPI の SV（スカーレット・バイオレット）の覚える技（`method` は `level_up`・`tm`・`egg`・`tutor`）のまま
+- **フォルム**: DB のポケモンはフォルムを分けていないので、ページの最初の技の表（既定のすがた）だけを使う。最初の表は、ふつうは「Standard Moves」。すがたごとの表しかないポケモンは、最初の表（ニャオニクス・イエッサン・イダイトウは「Standard Moves - Male」、フラエッテは「Standard Moves - Eternal Floette」）を使う。2 つ目からの表（リージョンフォーム、メス、ルガルガンのまよなか・たそがれ、ケンタロスのパルデアのすがた、ストリンダーのローなすがた）は使わない。この 19 種類は、ほかのすがたでしか覚えない技を選べない
+- **入れ方**: seed では、SV の技を入れたあとに、表にあるポケモンの技を消してチャンピオンズの技を入れる。すでに seed した DB には `npm run apply:champions-learnsets` で入れ替えだけを当てる。何度当てても結果は同じ。このスクリプトは、育成ポケモンが持っている技のうち、入れ替えで覚えられなくなった技も出す
+- **データの作り直し**: `npm run build:champions-learnsets -- <ページを保存するフォルダ>` で、Serebii のページを 1 秒ずつ空けて取り、JSON を作り直す。保存したページは取り直さない
+
+出典: Serebii の Champions 図鑑のポケモンごとのページ（https://www.serebii.net/pokedex-champions/incineroar/ など）の attacks 欄の Standard Moves の表。使えるポケモンの一覧は https://www.serebii.net/pokemonchampions/pokemon.shtml
+
+技を選んでいない育成ポケモンは `pokemon_moves` の最初の 4 つを使うので、入れ替えたあとはその 4 つも変わる。行はチャンピオンズの技の英語名の ABC 順に入れるので、多くの場合は ABC 順で最初の 4 つになる（たとえば、ガオガエンは Acrobatics・Aerial Ace・Assurance・Attract）。`findByPokemonId` は並べる順を指定していないので、この順は DB の返し方しだいで変わることがある。
 
 ### 5.2. ダメージ計算の詳細
 
