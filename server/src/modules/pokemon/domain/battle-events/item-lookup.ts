@@ -51,7 +51,8 @@ export const getItemEffect = (pokemon: BattlePokemonStatus): IItemEffect | undef
 
 /**
  * 持ち物を使い切る（きのみを食べた・ふうせんが割れた など）
- * 持ち物を消して、使った持ち物として残す（リサイクル・しゅうかくが読む）。持ち主の特性の onItemLost を呼ぶ（かるわざ）
+ * 持ち物を消して、使った持ち物として残す（リサイクル・しゅうかく・ものひろいが読む）。
+ * 使い切ったターンを volatileState.itemConsumedTurn に書き（ものひろい）、持ち主の特性の onItemLost を呼ぶ（かるわざ）
  * @returns 使い切った持ち物の名前、持っていなければ undefined（何も書かない）
  */
 export const consumeItem = async (
@@ -66,6 +67,10 @@ export const consumeItem = async (
     item: null,
     consumedItem: itemName,
   });
+  const turn = battleContext.battle?.turn;
+  if (turn !== undefined) {
+    await battleContext.battleRepository.patchVolatileState(pokemon.id, { itemConsumedTurn: turn });
+  }
   await notifyItemLost(pokemon, itemName, battleContext);
   return itemName;
 };

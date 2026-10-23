@@ -125,6 +125,22 @@ describe('item-lookup', () => {
     });
   });
 
+  describe('consumeItem で使い切ったターン', () => {
+    it('使い切ったターン（Battle.turn）を volatileState.itemConsumedTurn に書く（ものひろいが読む）', async () => {
+      // Arrange
+      const { get, context, battleRepository } = createInMemoryBattle({
+        status: { persistentState: { item: 'オボンのみ' } },
+      });
+      await battleRepository.update(1, { turn: 4 });
+
+      // Act
+      await consumeItem(get(1), context());
+
+      // Assert
+      expect(get(1).volatileState.itemConsumedTurn).toBe(4);
+    });
+  });
+
   describe('consumeItem と、持ち主の特性（かるわざ）', () => {
     beforeEach(() => {
       AbilityRegistry.clear();
@@ -184,7 +200,10 @@ describe('item-lookup', () => {
       const patchPersistentState = jest.fn().mockResolvedValue(undefined);
       const ctx: BattleContext = {
         battle: new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null),
-        battleRepository: { patchPersistentState } as unknown as BattleContext['battleRepository'],
+        battleRepository: {
+          patchPersistentState,
+          patchVolatileState: jest.fn(),
+        } as unknown as BattleContext['battleRepository'],
       };
 
       // Act
@@ -203,7 +222,10 @@ describe('item-lookup', () => {
       const patchPersistentState = jest.fn();
       const ctx: BattleContext = {
         battle: new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null),
-        battleRepository: { patchPersistentState } as unknown as BattleContext['battleRepository'],
+        battleRepository: {
+          patchPersistentState,
+          patchVolatileState: jest.fn(),
+        } as unknown as BattleContext['battleRepository'],
       };
 
       // Act

@@ -346,6 +346,11 @@ export type VolatileState = {
    * 持ち物を持っていない間、素早さが 2 倍。特性が変わると消す（ABILITY_STATE_KEYS）
    */
   readonly unburden?: boolean;
+  /**
+   * 場にいる間に、最後に持ち物を使い切ったときの Battle.turn（consumeItem が書く。本家の usedItemThisTurn）
+   * ものひろいが「このターンに使い切ったか」を itemConsumedTurn === battle.turn で見る（ターン終了時に消さなくてよい）
+   */
+  readonly itemConsumedTurn?: number;
 };
 
 /**
@@ -478,6 +483,7 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   cudChew,
   klutz: booleanValue,
   unburden: booleanValue,
+  itemConsumedTurn: nonNegativeInteger,
 };
 
 /**

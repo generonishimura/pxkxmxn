@@ -96,6 +96,7 @@ const FULL_VOLATILE_STATE: Required<VolatileState> = {
   cudChew: { itemName: 'オボンのみ', turn: 3 },
   klutz: true,
   unburden: true,
+  itemConsumedTurn: 2,
 };
 
 /**
@@ -108,6 +109,7 @@ const LOWER_BOUNDS: ReadonlyArray<readonly [keyof VolatileState, number, number]
   ['tauntTurns', 0, -1],
   ['healBlockTurns', 0, -1],
   ['embargoTurns', 0, -1],
+  ['itemConsumedTurn', 0, -1],
   ['choiceLockedMoveId', 1, 0],
   ['chargingMoveId', 1, 0],
   ['lastMoveId', 1, 0],

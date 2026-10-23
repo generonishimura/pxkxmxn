@@ -254,6 +254,10 @@ import { CheekPouchEffect } from './effects/other/cheek-pouch-effect';
 import { CudChewEffect } from './effects/other/cud-chew-effect';
 import { KlutzEffect } from './effects/other/klutz-effect';
 import { UnburdenEffect } from './effects/other/unburden-effect';
+import { PickupEffect } from './effects/other/pickup-effect';
+import { HarvestEffect } from './effects/other/harvest-effect';
+import { PickpocketEffect } from './effects/other/pickpocket-effect';
+import { MagicianEffect } from './effects/other/magician-effect';
 import { ShadowTagEffect } from './effects/other/shadow-tag-effect';
 import { MagnetPullEffect } from './effects/other/magnet-pull-effect';
 import { ArenaTrapEffect } from './effects/other/arena-trap-effect';
@@ -505,6 +509,7 @@ export class AbilityRegistry {
       // 情報表示のみ・野生バトル専用・ダブルバトル専用の特性は NoBattleEffectAbility を共有
       this.registry.set('きけんよち', noBattleEffect);
       this.registry.set('よちむ', noBattleEffect);
+      this.registry.set('おみとおし', noBattleEffect);
       this.registry.set('たまひろい', noBattleEffect);
       this.registry.set('プラス', noBattleEffect);
       this.registry.set('マイナス', noBattleEffect);
@@ -671,6 +676,11 @@ export class AbilityRegistry {
       // 持ち物を失う・使えなくなる特性（Issue #135 一部）
       this.registry.set('かるわざ', new UnburdenEffect());
       this.registry.set('ぶきよう', new KlutzEffect());
+      // 持ち物を拾う・奪う特性（Issue #135 一部）
+      this.registry.set('ものひろい', new PickupEffect());
+      this.registry.set('しゅうかく', new HarvestEffect());
+      this.registry.set('わるいてぐせ', new PickpocketEffect());
+      this.registry.set('マジシャン', new MagicianEffect());
       this.registry.set('かげふみ', new ShadowTagEffect());
       this.registry.set('じりょく', new MagnetPullEffect());
       this.registry.set('ありじごく', new ArenaTrapEffect());

@@ -1,4 +1,5 @@
 import { MoveCategory } from '@/modules/pokemon/domain/entities/move.entity';
+import { Weather } from '../../domain/entities/battle.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
 import { MoveRegistry } from '@/modules/pokemon/domain/moves/move-registry';
 import { ItemRegistry } from '@/modules/pokemon/domain/items/item-registry';
@@ -14,7 +15,13 @@ import {
  */
 describe('ExecuteTurnUseCase - 持ち物に関わる特性', () => {
   const SPLASH = createTestMove(1, 'はねる', { category: MoveCategory.Status });
-  const moves = [SPLASH];
+  const TACKLE = createTestMove(2, 'たいあたり', { power: 40 });
+  const PSYCHIC = createTestMove(3, 'サイコキネシス', {
+    type: 'エスパー',
+    category: MoveCategory.Special,
+    power: 40,
+  });
+  const moves = [SPLASH, TACKLE, PSYCHIC];
   const allMoveIds = moves.map(move => move.id);
 
   const setup = (
@@ -198,6 +205,99 @@ describe('ExecuteTurnUseCase - 持ち物に関わる特性', () => {
       // Assert
       expect(engine.status(3).volatileState.klutz).toBe(true);
       expect(engine.status(3).currentHp).toBe(100);
+    });
+  });
+
+  describe('持ち物を拾う・奪う特性', () => {
+    it('わるいてぐせは、接触技を受けたら攻撃側の持ち物を奪う', async () => {
+      // Arrange
+      const engine = setup({
+        p1: { persistentState: { item: 'たべのこし' } },
+        p2: { ability: 'わるいてぐせ' },
+      });
+
+      // Act
+      const result = await engine.runTurn({ moveId: TACKLE.id }, splash);
+
+      // Assert
+      expect(engine.status(1).persistentState.item).toBeUndefined();
+      expect(engine.status(2).persistentState.item).toBe('たべのこし');
+      expect(result.actions[0].result).toContain("わるいてぐせ stole the attacker's たべのこし!");
+    });
+
+    it('わるいてぐせは、接触しない技では奪わない', async () => {
+      // Arrange
+      const engine = setup({
+        p1: { persistentState: { item: 'たべのこし' } },
+        p2: { ability: 'わるいてぐせ' },
+      });
+
+      // Act
+      await engine.runTurn({ moveId: PSYCHIC.id }, splash);
+
+      // Assert
+      expect(engine.status(1).persistentState.item).toBe('たべのこし');
+    });
+
+    it('マジシャンは、攻撃技を当てたら相手の持ち物を奪い、奪ったいのちのたまの反動はその技では受けない', async () => {
+      // Arrange
+      const engine = setup({
+        p1: { ability: 'マジシャン' },
+        p2: { persistentState: { item: 'いのちのたま' } },
+      });
+
+      // Act
+      const result = await engine.runTurn({ moveId: PSYCHIC.id }, splash);
+
+      // Assert
+      expect(engine.status(1).persistentState.item).toBe('いのちのたま');
+      expect(engine.status(2).persistentState.item).toBeUndefined();
+      expect(engine.status(1).currentHp).toBe(160);
+      expect(result.actions[0].result).toContain("マジシャン stole the target's いのちのたま!");
+    });
+
+    it('しゅうかくは、晴れならターン終了時に、使い切ったきのみを必ず持ち直す', async () => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(0.99);
+      const engine = createBattleEngine({
+        moves,
+        weather: Weather.Sun,
+        pokemon: [
+          {
+            id: 1,
+            trainerId: 1,
+            active: true,
+            baseSpeed: 150,
+            moveIds: allMoveIds,
+            ability: 'しゅうかく',
+            persistentState: { consumedItem: 'オボンのみ' },
+          },
+          { id: 2, trainerId: 2, active: true, baseSpeed: 50, moveIds: allMoveIds },
+        ],
+      });
+
+      // Act
+      await engine.runTurn(splash, splash);
+
+      // Assert
+      expect(engine.status(1).persistentState.item).toBe('オボンのみ');
+      expect(engine.status(1).persistentState.consumedItem).toBeUndefined();
+    });
+
+    it('ものひろいは、相手がこのターンに食べたきのみを、ターン終了時に拾う', async () => {
+      // Arrange
+      const engine = setup({
+        p1: { ability: 'ものひろい' },
+        p2: { currentHp: 70, persistentState: { item: 'オボンのみ' } },
+      });
+
+      // Act
+      await engine.runTurn(splash, splash);
+
+      // Assert
+      expect(engine.status(2).currentHp).toBe(110);
+      expect(engine.status(1).persistentState.item).toBe('オボンのみ');
+      expect(engine.status(2).persistentState.consumedItem).toBeUndefined();
     });
   });
 });
