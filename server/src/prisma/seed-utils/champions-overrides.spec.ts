@@ -4,6 +4,8 @@ import {
   applyMoveOverride,
   diffMoveOverride,
   findUnusedOverrideNames,
+  resolveMoveOverride,
+  toChampionsPp,
 } from '../../../prisma/seed-utils/champions-overrides';
 import { MoveSeedData } from '../../../prisma/seed-utils/data-mapper';
 
@@ -15,7 +17,8 @@ describe('champions-overrides', () => {
     category: 'Special',
     power: 80,
     accuracy: 100,
-    pp: 10,
+    // PP の決まりで値が変わらないように 20 にしておく（PP の決まりは別のテストで確かめる）
+    pp: 20,
     priority: 0,
     description: null,
     ...overrides,
@@ -59,7 +62,7 @@ describe('champions-overrides', () => {
       expect(changes).toEqual([
         'typeName: grass → steel',
         'accuracy: 100 → 95',
-        'pp: 10 → 8',
+        'pp: 20 → 8',
         'priority: 0 → 1',
       ]);
     });
@@ -98,6 +101,104 @@ describe('champions-overrides', () => {
       // Assert
       expect(changes).toEqual([]);
     });
+
+    it('表にない技でも、PP はチャンピオンズの決まりで変わる', () => {
+      // Arrange
+      const table: Record<string, MoveOverride> = {};
+
+      // Act
+      const { seed: result, changes } = applyMoveOverride(seed({ pp: 10 }), table);
+
+      // Assert
+      expect(result).toEqual(seed({ pp: 12 }));
+      expect(changes).toEqual(['pp: 10 → 12']);
+    });
+
+    it('表に PP がある技は、PP の決まりより表の値を使う', () => {
+      // Arrange
+      // まもる: SV は 10。決まりでは 12 だが、チャンピオンズは 8
+      const table: Record<string, MoveOverride> = { まもる: { pp: 8 } };
+
+      // Act
+      const { seed: result, changes } = applyMoveOverride(seed({ name: 'まもる', pp: 10 }), table);
+
+      // Assert
+      expect(result.pp).toBe(8);
+      expect(changes).toEqual(['pp: 10 → 8']);
+    });
+
+    it('表に PP がない技は、表の項目に加えて PP の決まりも当たる', () => {
+      // Arrange
+      const table: Record<string, MoveOverride> = { りんごさん: { power: 90 } };
+
+      // Act
+      const { seed: result, changes } = applyMoveOverride(seed({ pp: 10 }), table);
+
+      // Assert
+      expect(result).toEqual(seed({ power: 90, pp: 12 }));
+      expect(changes).toEqual(['power: 80 → 90', 'pp: 10 → 12']);
+    });
+  });
+
+  describe('toChampionsPp', () => {
+    it.each([
+      [5, 8],
+      [10, 12],
+      [15, 16],
+      [20, 20],
+      [25, 20],
+      [30, 20],
+      [35, 20],
+      [40, 20],
+    ])('SV の PP %i は、チャンピオンズでは %i になる', (svPp, expected) => {
+      // Act & Assert
+      expect(toChampionsPp(svPp)).toBe(expected);
+    });
+
+    it('PP 1 の技（スケッチ・わるあがきなど、ポイントアップが効かない技）は 1 のまま', () => {
+      // Act & Assert
+      expect(toChampionsPp(1)).toBe(1);
+    });
+
+    it.each([8, 12, 16, 20])(
+      'すでにチャンピオンズの値 %i になっている PP は、そのまま（もう一度当てても変わらない）',
+      championsPp => {
+        // Act & Assert
+        expect(toChampionsPp(championsPp)).toBe(championsPp);
+      },
+    );
+  });
+
+  describe('resolveMoveOverride', () => {
+    it('表にない技は、PP の決まりの値だけを返す', () => {
+      // Act
+      const override = resolveMoveOverride('たいあたり', 35, {});
+
+      // Assert
+      expect(override).toEqual({ pp: 20 });
+    });
+
+    it('表にある技は、表の値に PP の決まりの値を足して返す', () => {
+      // Arrange
+      const table: Record<string, MoveOverride> = { りんごさん: { power: 90 } };
+
+      // Act
+      const override = resolveMoveOverride('りんごさん', 10, table);
+
+      // Assert
+      expect(override).toEqual({ power: 90, pp: 12 });
+    });
+
+    it('表に PP がある技は、表の PP を返す', () => {
+      // Arrange
+      const table: Record<string, MoveOverride> = { つじぎり: { pp: 20 } };
+
+      // Act
+      const override = resolveMoveOverride('つじぎり', 15, table);
+
+      // Assert
+      expect(override).toEqual({ pp: 20 });
+    });
   });
 
   describe('diffMoveOverride', () => {
@@ -131,12 +232,12 @@ describe('champions-overrides', () => {
   });
 
   describe('CHAMPIONS_MOVE_OVERRIDES', () => {
-    it('チャンピオンズで値が変わった技（Issue #259）だけが、チャンピオンズの値で入っている', () => {
+    it('チャンピオンズで値が変わった技（Issue #259）と、PP の決まりの例外（Issue #260）が、チャンピオンズの値で入っている', () => {
       // Arrange
       // キーは DB の name（PokeAPI の ja-Hrkt 名）。Ｇのちからの Ｇ は全角
       const expected: Record<string, MoveOverride> = {
         りんごさん: { power: 90 },
-        くちばしキャノン: { power: 120 },
+        くちばしキャノン: { power: 120, pp: 8 },
         ボーンラッシュ: { power: 30 },
         クラブハンマー: { accuracy: 95 },
         ほのおのムチ: { power: 90 },
@@ -157,6 +258,17 @@ describe('champions-overrides', () => {
         ねがいごと: { pp: 8 },
         ちからをすいとる: { pp: 8 },
         ゴールドラッシュ: { accuracy: 95 },
+        まもる: { pp: 8 },
+        キングシールド: { pp: 8 },
+        ニードルガード: { pp: 8 },
+        トーチカ: { pp: 8 },
+        ブロッキング: { pp: 8 },
+        じょうか: { pp: 8 },
+        すなあらし: { pp: 8 },
+        ゆきげしき: { pp: 8 },
+        つじぎり: { pp: 20 },
+        トラップシェル: { pp: 12 },
+        ホイールスピン: { pp: 12 },
       };
 
       // Act & Assert

@@ -293,7 +293,8 @@ async function seedMoves(typeMap: Map<string, number>): Promise<void> {
         const move = await pokeApi.fetchMove(resource.name);
         const { seed, changes } = applyMoveOverride(createMoveSeedData(move));
         seenMoveNames.add(seed.name);
-        if (changes.length > 0) {
+        // PP の決まり（toChampionsPp）だけで変わった技は数が多いため、ログには表にある技だけを出す
+        if (changes.length > 0 && seed.name in CHAMPIONS_MOVE_OVERRIDES) {
           overriddenMoves.push(`${seed.name}（${changes.join(', ')}）`);
         }
         const typeId = typeMap.get(seed.typeName);
@@ -370,7 +371,8 @@ async function seedMoves(typeMap: Map<string, number>): Promise<void> {
  * チャンピオンズの上書きを当てた技と、どの技にも当たらなかった上書きのキーをログに出す
  */
 function logChampionsMoveOverrides(overriddenMoves: string[], seenMoveNames: Set<string>): void {
-  log(`Applied Champions overrides to ${overriddenMoves.length} moves.`);
+  // PP の決まり（toChampionsPp）は、表にない技も含めてすべての技に当たっている
+  log(`Applied Champions override table to ${overriddenMoves.length} moves.`);
   overriddenMoves.forEach(line => log(`  ${line}`));
   const unused = findUnusedOverrideNames(CHAMPIONS_MOVE_OVERRIDES, seenMoveNames);
   // SEED_MOVE_LIMIT で技を絞ったときは、当たらないキーがあって当然なので出さない

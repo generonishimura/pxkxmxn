@@ -8,6 +8,8 @@ import { MoveSeedData } from './data-mapper';
  *
  * キーは技の日本語名（DB の name と同じ、PokeAPI の ja-Hrkt 名）。
  * どの技にも当たらないキーは、seed のログに出る（名前の書き間違いを見つけるため）。
+ *
+ * PP は、表にない技にも `toChampionsPp` の決まりで当てる。表の pp は、決まりに合わない技（例外）だけに書く。
  */
 export interface MoveOverride {
   readonly power?: number | null;
@@ -29,7 +31,7 @@ export type OverridableMoveValues = Pick<
 export const CHAMPIONS_MOVE_OVERRIDES: Readonly<Record<string, MoveOverride>> = {
   // 威力（チャンピオンズの値。SV の値はコメントに書く）
   りんごさん: { power: 90 }, // Apple Acid。SV は 80
-  くちばしキャノン: { power: 120 }, // Beak Blast。SV は 100
+  くちばしキャノン: { power: 120, pp: 8 }, // Beak Blast。SV は威力 100・PP 15
   ボーンラッシュ: { power: 30 }, // Bone Rush。SV は 25
   ほのおのムチ: { power: 90 }, // Fire Lash。SV は 80
   であいがしら: { power: 100 }, // First Impression。SV は 90
@@ -50,10 +52,54 @@ export const CHAMPIONS_MOVE_OVERRIDES: Readonly<Record<string, MoveOverride>> = 
   // タイプ（チャンピオンズの値）
   せいちょう: { typeName: 'grass' }, // Growth。SV はノーマル
   トラバサミ: { typeName: 'steel' }, // Snap Trap。SV はくさ
-  // PP（チャンピオンズの値）
-  ねがいごと: { pp: 8 }, // Wish。SV（PokeAPI）は 10
-  ちからをすいとる: { pp: 8 }, // Strength Sap。SV（PokeAPI）は 10
+  // PP（toChampionsPp の決まりに合わない技だけ。チャンピオンズの値。SV の値はコメントに書く）
+  ねがいごと: { pp: 8 }, // Wish。SV は 10（レギュレーション M-C から 8）
+  ちからをすいとる: { pp: 8 }, // Strength Sap。SV は 10（レギュレーション M-C から 8）
+  まもる: { pp: 8 }, // Protect。SV は 10
+  キングシールド: { pp: 8 }, // King's Shield。SV は 10
+  ニードルガード: { pp: 8 }, // Spiky Shield。SV は 10
+  トーチカ: { pp: 8 }, // Baneful Bunker。SV は 10
+  ブロッキング: { pp: 8 }, // Obstruct。SV は 10
+  じょうか: { pp: 8 }, // Purify。SV は 20
+  すなあらし: { pp: 8 }, // Sandstorm。SV は 10
+  ゆきげしき: { pp: 8 }, // Snowscape。SV は 10
+  つじぎり: { pp: 20 }, // Night Slash。SV は 15
+  トラップシェル: { pp: 12 }, // Shell Trap。SV は 5
+  ホイールスピン: { pp: 12 }, // Spin Out。SV は 5
 };
+
+/**
+ * チャンピオンズの PP の上限（ポイントアップがないため、技ごとに 8・12・16・20 のどれかに決まる）
+ */
+const CHAMPIONS_MAX_PP = 20;
+
+/**
+ * SV の PP（PokeAPI の基本 PP）を、チャンピオンズの PP に変える
+ *
+ * 決まり: 20 より大きい基本 PP は 20 として扱い、(PP / 5 + 1) × 4 にする
+ * 5 → 8、10 → 12、15 → 16、20 以上 → 20。
+ * 出典: Pokémon Showdown の champions mod（data/mods/champions/scripts.ts の init と calculatePP）、
+ * Serebii の Champions Attackdex の PP。決まりに合わない技は CHAMPIONS_MOVE_OVERRIDES に pp で書く。
+ *
+ * 5 の倍数でない PP（PP 1 のスケッチ・わるあがき・さいきのいのり、すでに変えた 8・12・16）は、そのまま返す。
+ * そのため、変えたあとの DB にもう一度当てても値は変わらない。
+ */
+export const toChampionsPp = (svPp: number): number => {
+  if (svPp < 5 || svPp % 5 !== 0) {
+    return svPp;
+  }
+  return (Math.min(svPp, CHAMPIONS_MAX_PP) / 5 + 1) * 4;
+};
+
+/**
+ * 1 つの技に当てる上書きを決める
+ * PP は toChampionsPp の決まりで出し、表に pp があるときは表の値を使う
+ */
+export const resolveMoveOverride = (
+  name: string,
+  currentPp: number,
+  overrides: Readonly<Record<string, MoveOverride>> = CHAMPIONS_MOVE_OVERRIDES,
+): MoveOverride => ({ pp: toChampionsPp(currentPp), ...overrides[name] });
 
 /**
  * 上書きを比べる項目の順番（ログの順番もこれに合わせる）
@@ -85,16 +131,13 @@ export const diffMoveOverride = <T extends OverridableMoveValues>(
 };
 
 /**
- * PokeAPI から作った技の seed データに、チャンピオンズの上書きを当てる
+ * PokeAPI から作った技の seed データに、チャンピオンズの上書き（表の値と PP の決まり）を当てる
  */
 export const applyMoveOverride = (
   seed: MoveSeedData,
   overrides: Readonly<Record<string, MoveOverride>> = CHAMPIONS_MOVE_OVERRIDES,
 ): { seed: MoveSeedData; changes: string[] } => {
-  const override = overrides[seed.name];
-  if (!override) {
-    return { seed, changes: [] };
-  }
+  const override = resolveMoveOverride(seed.name, seed.pp, overrides);
   const { next, changes } = diffMoveOverride(seed, override);
   return { seed: next, changes };
 };
