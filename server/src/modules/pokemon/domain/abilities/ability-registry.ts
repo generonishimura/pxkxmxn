@@ -247,6 +247,11 @@ import { ScreenCleanerEffect } from './effects/other/screen-cleaner-effect';
 // 交代させない・逃げられなくする・自分から交代する特性（Issue #135 一部）
 import { SuctionCupsEffect } from './effects/other/suction-cups-effect';
 import { StickyHoldEffect } from './effects/other/sticky-hold-effect';
+import { UnnerveEffect } from './effects/other/unnerve-effect';
+import { RipenEffect } from './effects/other/ripen-effect';
+import { GluttonyEffect } from './effects/other/gluttony-effect';
+import { CheekPouchEffect } from './effects/other/cheek-pouch-effect';
+import { CudChewEffect } from './effects/other/cud-chew-effect';
 import { ShadowTagEffect } from './effects/other/shadow-tag-effect';
 import { MagnetPullEffect } from './effects/other/magnet-pull-effect';
 import { ArenaTrapEffect } from './effects/other/arena-trap-effect';
@@ -655,6 +660,12 @@ export class AbilityRegistry {
       this.registry.set('きゅうばん', new SuctionCupsEffect());
       // 持ち物を奪われない特性（Issue #118）
       this.registry.set('ねんちゃく', new StickyHoldEffect());
+      // きのみを食べるときに働く特性（Issue #135 一部）
+      this.registry.set('きんちょうかん', new UnnerveEffect());
+      this.registry.set('じゅくせい', new RipenEffect());
+      this.registry.set('くいしんぼう', new GluttonyEffect());
+      this.registry.set('ほおぶくろ', new CheekPouchEffect());
+      this.registry.set('はんすう', new CudChewEffect());
       this.registry.set('かげふみ', new ShadowTagEffect());
       this.registry.set('じりょく', new MagnetPullEffect());
       this.registry.set('ありじごく', new ArenaTrapEffect());

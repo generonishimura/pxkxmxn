@@ -93,6 +93,7 @@ const FULL_VOLATILE_STATE: Required<VolatileState> = {
   saltCure: true,
   uproar: true,
   beakBlast: true,
+  cudChew: { itemName: 'オボンのみ', turn: 3 },
 };
 
 /**

@@ -26,7 +26,7 @@ const CURED_NAMES: Partial<Record<StatusCondition, string>> = {
  * - onStatusInflicted: 状態異常・こんらんにされたとき
  * - onUpdate: すでにその状態のとき（ねむるで眠ったあと など）
  *
- * 注: 相手のきんちょうかんで食べられなくなる効果は、きんちょうかんがまだないので見ていない
+ * 相手のきんちょうかん・じんばいったいがいれば食べない（eatItem が見る）
  */
 export class StatusCureBerryEffect implements IItemEffect {
   /**

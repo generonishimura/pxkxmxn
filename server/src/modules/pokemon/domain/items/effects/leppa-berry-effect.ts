@@ -12,7 +12,7 @@ import { restorePp } from '../../battle-events/pp';
  * 本家と同じく onUpdate で見る（技を出し終えたとき など）。PP が 0 の技が複数あれば、技の欄の先頭のものを回復する。
  * 食べたとき（はんすうで食べ直したときも）PP が 0 の技がなければ、PP が減っている先頭の技を回復する（本家の onEat）
  *
- * 注: 相手のきんちょうかんで食べられなくなる効果は、きんちょうかんがまだないので見ていない
+ * 相手のきんちょうかん・じんばいったいがいれば食べない（eatItem が見る）
  */
 export class LeppaBerryEffect implements IItemEffect {
   private static readonly RESTORE_AMOUNT = 10;

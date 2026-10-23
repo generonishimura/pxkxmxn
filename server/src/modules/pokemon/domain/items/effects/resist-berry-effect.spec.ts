@@ -1,3 +1,4 @@
+import { AbilityRegistry } from '../../abilities/ability-registry';
 import { BattleContext } from '../../abilities/battle-context.interface';
 import { createInMemoryBattle } from '../../battle-events/__tests__/in-memory-battle';
 import { ItemRegistry } from '../item-registry';
@@ -184,5 +185,52 @@ describe('ダメージを半分にするきのみ', () => {
 
     // Assert
     expect(damage).toBeUndefined();
+  });
+});
+
+describe('ダメージを半分にするきのみと、食べる側・相手の特性', () => {
+  beforeEach(() => {
+    AbilityRegistry.clear();
+    AbilityRegistry.initialize();
+    ItemRegistry.initialize();
+  });
+
+  const setupWithAbilities = (holderAbility?: string, attackerAbility?: string) => {
+    const battle = createInMemoryBattle(
+      { ability: attackerAbility },
+      { ability: holderAbility, status: { persistentState: { item: 'オッカのみ' } } },
+    );
+    const modifyDamage = () =>
+      Promise.resolve(
+        ItemRegistry.get('オッカのみ')?.modifyDamage?.(
+          battle.get(2),
+          100,
+          battle.context({ moveTypeName: 'ほのお', typeEffectiveness: 2 }),
+        ),
+      );
+    return { ...battle, modifyDamage };
+  };
+
+  it('じゅくせいなら、ダメージを 1/4 にする', async () => {
+    // Arrange
+    const { modifyDamage } = setupWithAbilities('じゅくせい');
+
+    // Act
+    const damage = await modifyDamage();
+
+    // Assert
+    expect(damage).toBe(25);
+  });
+
+  it('相手がきんちょうかんなら、食べずにダメージをそのままにする', async () => {
+    // Arrange
+    const { modifyDamage, get } = setupWithAbilities(undefined, 'きんちょうかん');
+
+    // Act
+    const damage = await modifyDamage();
+
+    // Assert
+    expect(damage).toBeUndefined();
+    expect(get(2).persistentState.item).toBe('オッカのみ');
   });
 });
