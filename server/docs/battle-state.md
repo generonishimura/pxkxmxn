@@ -184,7 +184,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `charged` | `afterMove` / `BeforeMoveChecker` | でんき技を出したら消す（じゅうでんそのものは除く）。でんき技を出そうとして止まったときも消す（第 9 世代の本家と同じ）。書くのは技・特性 |
 | `confusionTurns` | `BeforeMoveChecker` | 技を出そうとするたびに 1 減らす。書くのは `inflictStatus`（こんらん） |
 | `SideConditions.futureAttack` | `MoveLifecycle.scheduleFutureAttack` | みらいよち・はめつのねがい（`MoveBehaviors` の `futureMove`）を使ったら相手の陣営に書く |
-| `SideConditions.pendingChoice`（pivot・batonPass・shedTail・emergencyExit） | `MoveExecutorService`（技の `selfSwitch`、特性の `switchesOutBelowHalfHp`）・`PokemonSwitcherService.scheduleEmergencyExits` | 交代する側の陣営に書く。技・特性が `requestSwitch` で書いてもよい |
+| `SideConditions.pendingChoice`（pivot・batonPass・shedTail・emergencyExit・ejectButton） | `MoveExecutorService`（技の `selfSwitch`、特性の `switchesOutBelowHalfHp`、持ち物の `switchesOutAfterHit`）・`PokemonSwitcherService.scheduleEmergencyExits` | 交代する側の陣営に書く。技・特性が `requestSwitch` で書いてもよい |
 | `SideConditions.forcedSwitch` | `MoveExecutorService`（技の `forceSwitch`） | 相手を控えと入れ替えるとき、相手の陣営に書く。技・特性が `requestForcedSwitch` で書いてもよい |
 | `PersistentPokemonState.revivalCount` | `ExecuteTurnUseCase.resolvePendingSwitches` | さいきのいのりで復活させたポケモンに、1 増やして書く |
 
@@ -447,7 +447,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 1. 技や特性の処理が、交代する側の陣営に `pendingChoice` を書く（技の `selfSwitch`・特性の `switchesOutBelowHalfHp` なら、エンジンが書く）
 2. `ExecuteTurnUseCase` が、その行動のすぐあとに `resolvePendingSwitches` で解決する
-   - `pivot`・`batonPass`・`shedTail`・`emergencyExit`: 場のポケモンを、控えの先頭（ID の順）と交代させる。`batonPass`・`shedTail` は引き継ぐものも渡す（10 章）
+   - `pivot`・`batonPass`・`shedTail`・`emergencyExit`・`ejectButton`: 場のポケモンを、控えの先頭（ID の順）と交代させる。`batonPass`・`shedTail` は引き継ぐものも渡す（10 章）
    - `revivalBlessing`: ひんしの手持ちの先頭を、最大 HP の半分（切り捨て、最低 1）で復活させる。状態異常も治す。場には出さない。結果に `action: 'revive'` が入る
 3. `pendingChoice` を消し、残りの行動とターン終了時の処理を続ける
 

@@ -4,6 +4,7 @@ import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { IBattleRepository } from '../../domain/battle.repository.interface';
 import { getSideConditions } from '../../domain/state/side-state';
 import { isGrounded } from '../../domain/logic/grounded';
+import { resolveItemName } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { isMajorStatus } from '../../domain/logic/major-status';
 import {
   shouldHealOnEntry,
@@ -90,6 +91,7 @@ export class EntryEffectProcessor {
     const grounded = isGrounded({
       typeNames,
       abilityName: traits.abilityName,
+      itemName: resolveItemName(target),
       volatileState: target.volatileState,
       sideState: battle.sideState,
     });

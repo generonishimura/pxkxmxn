@@ -3,6 +3,7 @@ import { BattlePokemonStatus } from '../../domain/entities/battle-pokemon-status
 import { IBattleRepository } from '../../domain/battle.repository.interface';
 import { getGlobalFieldState } from '../../domain/state/side-state';
 import { isGrounded } from '../../domain/logic/grounded';
+import { resolveItemName } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { ITrainedPokemonRepository } from '@/modules/trainer/domain/trainer.repository.interface';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { applyHeal, fractionOfMaxHp } from '@/modules/pokemon/domain/battle-events/heal';
@@ -94,6 +95,7 @@ export class FieldResidualProcessor {
       const grounded = isGrounded({
         typeNames: traits?.typeNames ?? [],
         abilityName: traits?.abilityName,
+        itemName: resolveItemName(latest),
         volatileState: latest.volatileState,
         sideState: battle.sideState,
       });

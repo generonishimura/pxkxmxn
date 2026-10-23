@@ -4,46 +4,7 @@ import { StatusCondition } from '@/modules/battle/domain/entities/status-conditi
 import { BattleContext } from '../../battle-context.interface';
 import { HitResult } from '../../../battle-events/hit-result';
 import { canInflictStatus, inflictStatus } from '../../../battle-events/status-infliction';
-import { rollSecondaryEffect } from '../../../moves/secondary-effect';
-
-/**
- * ひるみの追加効果をもともと持つ技（Pokemon Showdown の secondaries に flinch があるもの）
- * これらの技には、あくしゅうのひるみを足さない
- */
-const FLINCH_SECONDARY_MOVE_NAMES: ReadonlySet<string> = new Set([
-  'エアスラッシュ',
-  'おどろかす',
-  'かみつく',
-  'ホネこんぼう',
-  'あくのはどう',
-  'ダブルパンツァー',
-  'ドラゴンダイブ',
-  'じんつうりき',
-  'ねこだまし',
-  'もえあがるいかり',
-  'ほのおのキバ',
-  'ずつき',
-  'ハートスタンプ',
-  'ひっさつまえば',
-  'こおりのキバ',
-  'つららおとし',
-  'アイアンヘッド',
-  'ひょうざんおろし',
-  'ニードルアーム',
-  'いわなだれ',
-  'まわしげり',
-  'ゴッドバード',
-  'いびき',
-  'ハードローラー',
-  'ふみつけ',
-  'かみなりのキバ',
-  '３ぼんのや',
-  'たつまき',
-  'はやてがえし',
-  'たきのぼり',
-  'しねんのずつき',
-  'びりびりちくちく',
-]);
+import { hasFlinchSecondary, rollSecondaryEffect } from '../../../moves/secondary-effect';
 
 /**
  * あくしゅう（Stench）特性の効果
@@ -65,7 +26,7 @@ export class StenchEffect implements IAbilityEffect {
     if (!battleContext) {
       return null;
     }
-    if (FLINCH_SECONDARY_MOVE_NAMES.has(battleContext.moveName ?? '')) {
+    if (hasFlinchSecondary(battleContext.moveName)) {
       return null;
     }
 

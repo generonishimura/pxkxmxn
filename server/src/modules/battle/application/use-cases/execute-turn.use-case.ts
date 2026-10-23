@@ -675,7 +675,7 @@ export class ExecuteTurnUseCase {
    *
    * - forcedSwitch（ほえる・ふきとばし・ドラゴンテール・ともえなげ）: 場のポケモンを、控えからランダムに選んだ
    *   ポケモンと入れ替える
-   * - pendingChoice の pivot・batonPass・shedTail・emergencyExit: 場のポケモンを、控えの先頭（ID の順）と交代させる。
+   * - pendingChoice の pivot・batonPass・shedTail・emergencyExit・ejectButton: 場のポケモンを、控えの先頭（ID の順）と交代させる。
    *   batonPass・shedTail は引き継ぐものも渡す
    * - pendingChoice の revivalBlessing: ひんしの手持ちの先頭を、最大 HP の半分（切り捨て、最低 1）で復活させる
    *   （状態異常も治す。場には出さない）。persistentState.revivalCount を 1 増やす

@@ -68,4 +68,54 @@ describe('isGrounded', () => {
     // Assert
     expect(grounded).toBe(true);
   });
+  describe('ふうせん（持ち物）', () => {
+    it('ふうせんを持っているポケモンは地面にいない', () => {
+      // Act
+      const grounded = isGrounded({
+        typeNames: ['ノーマル'],
+        itemName: 'ふうせん',
+        volatileState: {},
+      });
+
+      // Assert
+      expect(grounded).toBe(false);
+    });
+
+    it('ふうせんを持っていても、ねをはっていると地面にいる', () => {
+      // Act
+      const grounded = isGrounded({
+        typeNames: ['ノーマル'],
+        itemName: 'ふうせん',
+        volatileState: { ingrain: true },
+      });
+
+      // Assert
+      expect(grounded).toBe(true);
+    });
+
+    it('ふうせんを持っていても、じゅうりょくの間は地面にいる', () => {
+      // Act
+      const grounded = isGrounded({
+        typeNames: ['ノーマル'],
+        itemName: 'ふうせん',
+        volatileState: {},
+        sideState: { global: { gravityTurns: 3 } },
+      });
+
+      // Assert
+      expect(grounded).toBe(true);
+    });
+
+    it('ほかの持ち物では浮かない', () => {
+      // Act
+      const grounded = isGrounded({
+        typeNames: ['ノーマル'],
+        itemName: 'たべのこし',
+        volatileState: {},
+      });
+
+      // Assert
+      expect(grounded).toBe(true);
+    });
+  });
 });

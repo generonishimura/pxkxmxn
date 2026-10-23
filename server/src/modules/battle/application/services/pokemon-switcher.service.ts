@@ -38,6 +38,7 @@ import {
   resolveSwitchTarget,
 } from '../../domain/logic/party';
 import { isGrounded } from '../../domain/logic/grounded';
+import { resolveItemName } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { getGlobalFieldState } from '../../domain/state/side-state';
 // タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #103 #110 #114 #119 #135 一部）
 import { resolveBattlePokemonTraits } from '@/modules/pokemon/domain/battle-events/battle-traits';
@@ -183,6 +184,7 @@ export class PokemonSwitcherService {
           grounded: isGrounded({
             typeNames,
             abilityName,
+            itemName: resolveItemName(active),
             volatileState: state,
             sideState: battle?.sideState,
           }),

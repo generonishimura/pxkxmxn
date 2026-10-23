@@ -12,6 +12,11 @@ const AIRBORNE_TYPE_NAME = 'ひこう';
 const AIRBORNE_ABILITY_NAMES: readonly string[] = ['ふゆう'];
 
 /**
+ * 地面にいない持ち物（本家の isGrounded と同じく、ふうせんだけ）
+ */
+const AIRBORNE_ITEM_NAMES: readonly string[] = ['ふうせん'];
+
+/**
  * 地面にいない特性か（ふゆう）
  * じゅうりょくの間は、この特性のじめん技の無効を DamageCalculator が無視する
  */
@@ -26,6 +31,8 @@ export interface GroundedParams {
   readonly typeNames: readonly string[];
   /** ポケモンの特性名 */
   readonly abilityName?: string;
+  /** ポケモンが今持っている持ち物の名前（ふうせん） */
+  readonly itemName?: string;
   /** ポケモンの volatileState */
   readonly volatileState: VolatileState;
   /** バトルの sideState（じゅうりょくを見る）。省略するとじゅうりょくはないとみなす */
@@ -37,10 +44,10 @@ export interface GroundedParams {
  * フィールドの効果・まきびし・どくびし・ねばねばネット・ありじごくが、地面にいるポケモンにだけ効く
  *
  * 1. じゅうりょくの間・ねをはっている間は地面にいる
- * 2. ひこうタイプ（はねやすめをしたターンを除く）・ふゆう・でんじふゆう・テレキネシスなら地面にいない
+ * 2. ひこうタイプ（はねやすめをしたターンを除く）・ふゆう・でんじふゆう・テレキネシス・ふうせんなら地面にいない
  *
  * 注: タイプは育成ポケモンのタイプで判定する（みずびたしなどのタイプの上書きは見ない。ダメージ計算と同じ）。
- *     持ち物（ふうせん・くろいてっきゅう）と、うちおとすはまだない
+ *     くろいてっきゅうと、うちおとすはまだない
  */
 export const isGrounded = (params: GroundedParams): boolean => {
   const state = params.volatileState;
@@ -54,6 +61,9 @@ export const isGrounded = (params: GroundedParams): boolean => {
     return false;
   }
   if (isAirborneAbility(params.abilityName)) {
+    return false;
+  }
+  if (params.itemName !== undefined && AIRBORNE_ITEM_NAMES.includes(params.itemName)) {
     return false;
   }
   return state.magnetRiseTurns === undefined && state.telekinesisTurns === undefined;

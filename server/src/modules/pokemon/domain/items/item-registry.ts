@@ -14,6 +14,14 @@ import {
   ZoomLensEffect,
 } from './effects/accuracy-boost-item-effect';
 import { LeekEffect, ScopeLensEffect } from './effects/critical-hit-item-effect';
+import { FocusSashEffect } from './effects/focus-sash-effect';
+import { FocusBandEffect } from './effects/focus-band-effect';
+import { RockyHelmetEffect } from './effects/rocky-helmet-effect';
+import { KingsRockEffect } from './effects/kings-rock-effect';
+import { ShellBellEffect } from './effects/shell-bell-effect';
+import { AirBalloonEffect } from './effects/air-balloon-effect';
+import { EjectButtonEffect } from './effects/eject-button-effect';
+import { RedCardEffect } from './effects/red-card-effect';
 
 /**
  * 持ち物のレジストリ
@@ -48,6 +56,14 @@ export class ItemRegistry {
     this.registry.set('ピントレンズ', new ScopeLensEffect());
     this.registry.set('ながねぎ', new LeekEffect());
     this.registry.set('たべのこし', new LeftoversEffect());
+    this.registry.set('きあいのタスキ', new FocusSashEffect());
+    this.registry.set('きあいのハチマキ', new FocusBandEffect());
+    this.registry.set('ゴツゴツメット', new RockyHelmetEffect());
+    this.registry.set('おうじゃのしるし', new KingsRockEffect());
+    this.registry.set('かいがらのすず', new ShellBellEffect());
+    this.registry.set('ふうせん', new AirBalloonEffect());
+    this.registry.set('だっしゅつボタン', new EjectButtonEffect());
+    this.registry.set('レッドカード', new RedCardEffect());
   }
 
   /**

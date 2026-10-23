@@ -1,6 +1,6 @@
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
-import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
+import { getItemEffect, resolveItemName } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { Weather, Field, Battle } from '../entities/battle.entity';
 import { StatusConditionHandler } from './status-condition-handler';
@@ -237,8 +237,11 @@ export class DamageCalculator {
     // 特性フックに渡すコンテキスト
     const hookContext = this.createHookContext(params, typeEffectiveness);
 
-    // 防御側の特性によるタイプ無効化チェック（無効化されている場合はダメージ0を返す）
-    if (this.isImmuneByDefenderAbility(params, hookContext)) {
+    // 防御側の特性・持ち物によるタイプ無効化チェック（無効化されている場合はダメージ0を返す）
+    if (
+      this.isImmuneByDefenderAbility(params, hookContext) ||
+      this.isImmuneByDefenderItem(params, hookContext)
+    ) {
       return 0;
     }
 
@@ -446,6 +449,7 @@ export class DamageCalculator {
     return isGrounded({
       typeNames: typeListOf(types).map(type => type.name),
       abilityName,
+      itemName: resolveItemName(pokemon),
       volatileState: pokemon.volatileState,
       sideState: this.sideStateOf(params),
     });
@@ -462,7 +466,27 @@ export class DamageCalculator {
       return 0;
     }
     const hookContext = this.createHookContext(params, typeEffectiveness);
-    return this.isImmuneByDefenderAbility(params, hookContext) ? 0 : typeEffectiveness;
+    return this.isImmuneByDefenderAbility(params, hookContext) ||
+      this.isImmuneByDefenderItem(params, hookContext)
+      ? 0
+      : typeEffectiveness;
+  }
+
+  /**
+   * 防御側の持ち物の isImmuneToType で技のタイプが無効になるか（ふうせん）
+   * 持ち物はかたやぶりで無視されない
+   */
+  private static isImmuneByDefenderItem(
+    params: DamageCalculationParams,
+    hookContext: BattleContext | undefined,
+  ): boolean {
+    return (
+      getItemEffect(params.defender)?.isImmuneToType?.(
+        params.defender,
+        params.moveType.name,
+        hookContext,
+      ) === true
+    );
   }
 
   /**

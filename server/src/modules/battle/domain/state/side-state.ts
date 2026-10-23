@@ -54,6 +54,7 @@ export const PENDING_CHOICE_REASONS = [
   'batonPass', // バトンタッチ
   'shedTail', // しっぽきり
   'emergencyExit', // ききかいひ・にげごし
+  'ejectButton', // だっしゅつボタン
   'revivalBlessing', // さいきのいのり（復活させるポケモンを選ぶ）
 ] as const;
 

@@ -28,9 +28,10 @@
 8. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType` → プラズマシャワー → そうでん。14.3）。技全体のタイプ相性を `moveTypeEffectiveness` に入れる。タイプ一致・相性には、両者の実効のタイプ（14.1）を使う
 9. 技の `beforeDamage`（連続技の回数決定）。このあと攻撃側・防御側の状態を取り直す
 10. 技の威力を決める（技の `modifyMovePower`）
-11. ヒットごとに急所を引き（13.1）、ダメージを計算して当てる（連続技・おやこあいの追加ヒット。相手にみがわりがあればみがわりに当て、追加効果は起きない。こらえるの相手は HP が 1 残る。防御側特性の `blockDamagingHit`（ばけのかわなど。14.10）が防いだヒットは 0 にする）。1以上減らしたヒット（と防いだヒット）ごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
+11. ヒットごとに急所を引き（13.1）、ダメージを計算して当てる（連続技・おやこあいの追加ヒット。相手にみがわりがあればみがわりに当て、追加効果は起きない。こらえるの相手は HP が 1 残る。防御側特性の `blockDamagingHit`（ばけのかわなど。14.10）が防いだヒットは 0 にする）。1以上減らしたヒット（と防いだヒット）ごとに、防御側特性の `onDamagingHit` → 防御側の持ち物の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` → 攻撃側の持ち物の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
 12. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
 13. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut` → 技が当たったなら攻撃側の特性 → 攻撃側の持ち物の `onAfterMoveSecondarySelf`（いのちのたまなど）→ 倒した相手のみちづれ・おんねん
+13. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 攻撃側の持ち物の `onSourceAfterMoveHit`（合計ダメージが1以上で、自分が無事なとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut` → 倒した相手のみちづれ・おんねん
 
 メッセージは `Used <技> and dealt <ダメージ> damage (hit N times) <A critical hit!> <It broke through the protection!> <The opponent endured the hit!> <接触時の特性> <11のメッセージ> <onHit・afterDamage> <13のメッセージ>` の順に並びます。
 
@@ -47,7 +48,7 @@
 `DamageCalculator.calculate`（`src/modules/battle/domain/logic/damage-calculator.ts`）の中は次の順です。
 
 1. タイプ一致・タイプ相性（攻撃側特性の `ignoresTypeImmunity` で相性0を等倍にできる。じゅうりょく・らんきりゅうも反映する）
-2. 防御側特性の `isImmuneToType`（じゅうりょくの間は、ふゆうのじめん技の無効を無視する）
+2. 防御側特性の `isImmuneToType`（じゅうりょくの間は、ふゆうのじめん技の無効を無視する）→ 防御側の持ち物の `isImmuneToType`
 3. 威力補正（攻撃側特性の `modifyBasePower` → 場の特性の `modifyAnyBasePower` → じゅうでん → フィールド・どろあそび・みずあそび）
 4. 能力値とランク（`attackStatOverride`、無視するランク、やけど半減。ワンダールームなら防御と特防の実数値を入れ替える）
 5. 基本ダメージ（急所なら 1.5 倍で切り捨て。13.1）→ 攻撃側特性の `modifyDamageDealt` → 防御側特性の `modifyDamage` → 天候補正 → 隠れている相手への 2 倍 → 壁（リフレクター・ひかりのかべ・オーロラベール。急所には効かない）
@@ -534,12 +535,37 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `modifyEvasion` | `AccuracyCalculator.checkHit`（防御側） | 防御側の特性の `modifyEvasion` のあと。かたやぶりで無視されない |
 | `modifyCritRatio` | `MoveExecutorService.resolveCriticalHitStage`（攻撃側） | 攻撃側の特性の `modifyCritRatio` のあと。返した値は 0〜3 に収める |
 | `onAfterMoveSecondarySelf` | `MoveExecutorService.runMoveBody`（攻撃側） | 攻撃側の特性の `onAfterMoveSecondarySelf` のあと |
+| `isImmuneToType` | `DamageCalculator.calculate` / `calculateMoveEffectiveness`（防御側） | 防御側の特性のあと。特性がかたやぶりで無視されても、持ち物は見る |
+| `isImmuneToType` | `DamageCalculator.calculate` / `calculateMoveEffectiveness`（防御側） | 防御側の特性のあと。特性がかたやぶりで無視されても、持ち物は見る（ふうせん） |
+| `onDamagingHit` | `MoveExecutorService.runMoveBody` のヒットのループ（防御側） | 防御側の特性の `onDamagingHit` のあと、攻撃側の特性の `onSourceDamagingHit` の前。みがわりに当たったヒットでは呼ばない |
+| `onSourceDamagingHit` | `MoveExecutorService.runMoveBody` のヒットのループ（攻撃側） | 攻撃側の特性の `onSourceDamagingHit` のあと |
 
 - 今の持ち物は `PersistentPokemonState.item`、使い切った持ち物は `consumedItem` にあります。バトル開始時に `TrainedPokemon.heldItem` を `item` に写します
 - 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます
 - きのみを食べたときなどは `consumeItem` で、`item` を消して `consumedItem` に残します
 - 持ち物に新しいフックが要るときは、`IItemEffect` の `Pick` に足し、エンジンの呼ぶ場所もつなぎます
 - 決まったポケモンだけに効く持ち物（でんきだま・ながねぎ）は、`battleContext.attackerNationalDex`（技の使用者のもとの全国図鑑の番号）で判定します
+- 特性に同じ場面のフックがないときだけ、持ち物だけのフックを `ItemOnlyEffect`（`item-effect.interface.ts`）に足します
+
+#### 持ち物だけのフック（ItemOnlyEffect）
+
+| フック | 呼ぶ場所 | 内容 |
+| --- | --- | --- |
+| `endureHit(holder, damage, ctx): Promise<string \| null>` | `MoveExecutorService.runMoveBody` のヒットのループ（防御側）。HP を減らす前 | ひんしになるダメージ（`damage >= holder.currentHp`）を受けるとき、メッセージを返すと HP が 1 残る。こらえるで残るヒット・みがわりに当たったヒット・特性で防いだヒットでは呼ばない（本家の `onDamage` と同じく、こらえるが先）。使う持ち物: きあいのタスキ、きあいのハチマキ |
+| `onSourceAfterMoveHit(holder, target, hit, ctx): Promise<string \| null>` | `MoveExecutorService.runAfterMoveHooks`（攻撃側）。技全体で 1 回 | 防御側の `onAfterMoveHit` の攻撃側版（本家の `onAfterMoveSecondarySelf`）。合計ダメージが 1 以上で、持ち主がひんしでないとき、防御側の特性の `onAfterMoveHit` のあと・攻撃側の特性の `onKnockOut` の前に呼ぶ。`hit.damage` は合計。みがわりにだけ当たったときは呼ばない。使う持ち物: かいがらのすず |
+| `switchesOutAfterHit`（プロパティ） | `MoveExecutorService.scheduleItemSwitches`（防御側）。技のあとの交代 | 相手の攻撃技が当たったあと、持ち主がひんしでなく控えがいれば、持ち物を使い切って `pendingChoice: { reason: 'ejectButton' }` を書く。ドラゴンテールなどで交代させられるときは使わない。使ったら、相手の `selfSwitch` とききかいひは起きない。使う持ち物: だっしゅつボタン |
+| `forcesAttackerOutAfterHit`（プロパティ） | 同上（防御側） | 相手の攻撃技が当たったあと、持ち主と攻撃側がひんしでなく、攻撃側に控えがいれば、持ち物を使い切る。攻撃側がねをはっておらず `preventsForcedSwitch` の特性でもなければ、攻撃側の陣営に `forcedSwitch` を書き、攻撃側の `selfSwitch` は起きない。使う持ち物: レッドカード |
+
+```ts
+// きあいのタスキ
+async endureHit(holder: BattlePokemonStatus, damage: number, ctx: BattleContext) {
+  if (holder.currentHp !== holder.maxHp || damage < holder.currentHp) return null;
+  const itemName = await consumeItem(holder, ctx);
+  return itemName === undefined ? null : `hung on using its ${itemName}!`;
+}
+```
+
+- がんじょうは、ダメージ計算の中（`modifyDamage`）で HP 1 を残します。きあいのタスキはダメージ計算のあと（天候・壁の補正のあと）に、持ち物を使い切りながら判定するため、こらえると同じ場所で HP を残します
 
 ## 4. コンテキストの項目（BattleContext）
 
@@ -1283,6 +1309,7 @@ export class RoarEffect implements IMoveEffect {
 - 参照する場所: `MoveExecutorService`（相手の攻撃技のあと）、`PokemonSwitcherService`（設置技・ターン終了時のダメージ）。HP が最大 HP の半分より上から半分以下（ひんしを除く）になり、控えがいれば `pendingChoice: { reason: 'emergencyExit' }` を書く。かたやぶりでは無視されない
 - 発動したら、相手のとんぼがえりなどの交代は起きない（本家と同じ）。そのターンにまだ行動していなければ行動しない
 - ドラゴンテール・ともえなげで交代させられるときは、強制交代が先に決まり、ききかいひは発動しない（本家の `forceSwitchFlag`）
+- だっしゅつボタン（持ち物の `switchesOutAfterHit`）で交代するときも、ききかいひは発動しない
 - 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
 - 使う特性: ききかいひ・にげごし
 
@@ -1346,7 +1373,7 @@ modifyBasePower(_p: BattlePokemonStatus, power: number, ctx?: BattleContext): nu
 
 | 関数 | 場所 | 用途 |
 | --- | --- | --- |
-| `isGrounded({ typeNames, abilityName, volatileState, sideState })` | `battle/domain/logic/grounded.ts` | 地面にいるか（フィールド・まきびし・どくびし・ねばねばネット・ありじごく） |
+| `isGrounded({ typeNames, abilityName, itemName, volatileState, sideState })` | `battle/domain/logic/grounded.ts` | 地面にいるか（フィールド・まきびし・どくびし・ねばねばネット・ありじごく）。`itemName` は今の持ち物（`resolveItemName`）で、ふうせんなら地面にいない（じゅうりょく・ねをはるが先） |
 | `screenDamageModifier(side, category, { isCriticalHit, infiltrates })` | `battle/domain/logic/field-modifiers.ts` | 壁の補正（2048 か undefined） |
 | `sideSpeedMultiplier(side)` / `isTrickRoomActive(sideState)` / `movesBefore(a, b, trickRoom)` | 同上 | おいかぜ・トリックルームの行動順 |
 | `fieldBasePowerModifiers(params)` | 同上 | フィールド・どろあそび・みずあそびの威力補正 |
@@ -1354,7 +1381,7 @@ modifyBasePower(_p: BattlePokemonStatus, power: number, ctx?: BattleContext): nu
 | `preventsCriticalHit(side)` | 同上 | おまじない |
 
 ```ts
-const grounded = isGrounded({ typeNames: target.typeNames, abilityName: target.abilityName, volatileState: target.pokemon.volatileState, sideState: ctx?.battle.sideState });
+const grounded = isGrounded({ typeNames: target.typeNames, abilityName: target.abilityName, itemName: resolveItemName(target.pokemon), volatileState: target.pokemon.volatileState, sideState: ctx?.battle.sideState });
 return grounded; // ありじごく（trapsOpponent では target.grounded が同じ値）
 ```
 

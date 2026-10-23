@@ -3,6 +3,7 @@ import { Field } from '@/modules/battle/domain/entities/battle.entity';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 import { getSideConditions } from '@/modules/battle/domain/state/side-state';
 import { isGrounded } from '@/modules/battle/domain/logic/grounded';
+import { resolveItemName } from './item-lookup';
 import { BattleContext } from '../abilities/battle-context.interface';
 import { EffectSource } from './effect-source';
 import { getAbilityEffect, resolveAbilityName } from './ability-lookup';
@@ -84,6 +85,7 @@ const isAffectedByTerrain = (
   isGrounded({
     typeNames,
     abilityName,
+    itemName: resolveItemName(target),
     volatileState: target.volatileState,
     sideState: battleContext.battle?.sideState,
   });

@@ -32,7 +32,6 @@ import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effec
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-flags';
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
-import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
 import { modifyByFixedPoint } from '../../domain/logic/fixed-point-modifier';
@@ -42,6 +41,11 @@ import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
 import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called-move';
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
+import {
+  consumeItem,
+  getItemEffect,
+  resolveItemName,
+} from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { getGlobalFieldState, getSideConditions } from '../../domain/state/side-state';
 import {
   STRUGGLE_MOVE_NAME,
@@ -1443,7 +1447,23 @@ export class MoveExecutorService {
         const endures =
           updatedDefender.volatileState.protection === 'endure' && hitDamage >= hpBeforeHit;
         endured = endured || endures;
-        const newHp = endures ? Math.min(hpBeforeHit, 1) : Math.max(0, hpBeforeHit - hitDamage);
+        // こらえるで残らないときだけ、防御側の持ち物で HP 1 で耐えるかを見る（きあいのタスキ・きあいのハチマキ。
+        // 本家の onDamage の順番と同じく、こらえるが先）
+        const itemEnduredMessage =
+          !endures && hitDamage >= hpBeforeHit && hpBeforeHit > 0
+            ? ((await getItemEffect(updatedDefender)?.endureHit?.(
+                updatedDefender,
+                hitDamage,
+                battleContext,
+              )) ?? null)
+            : null;
+        if (itemEnduredMessage) {
+          hitEventMessages.push(itemEnduredMessage);
+        }
+        const newHp =
+          endures || itemEnduredMessage
+            ? Math.min(hpBeforeHit, 1)
+            : Math.max(0, hpBeforeHit - hitDamage);
         dealtDamage = hpBeforeHit - newHp;
         await this.battleRepository.updateBattlePokemonStatus(defender.id, {
           currentHp: newHp,
@@ -1460,14 +1480,17 @@ export class MoveExecutorService {
         hitCount += 1;
       }
 
-      // ヒットごとの技の追加効果と特性（技の onDamagingHit → 防御側の onDamagingHit → 攻撃側の onSourceDamagingHit）。
+      // ヒットごとの技の追加効果と特性・持ち物（技の onDamagingHit → 防御側の特性・持ち物の onDamagingHit →
+      // 攻撃側の特性・持ち物の onSourceDamagingHit）。
       // 本家の spreadMoveHit と同じく、技の追加効果（secondaries）を DamagingHit より先にする。
       // 防いだヒットでも呼ぶ（hit.damage は 0。本家の DamagingHit もダメージ 0 で呼ばれる）
       if (
         (dealtDamage > 0 || blockMessage) &&
         (moveEffect?.onDamagingHit ||
           defenderEventEffect?.onDamagingHit ||
-          attackerAbilityEffect?.onSourceDamagingHit)
+          attackerAbilityEffect?.onSourceDamagingHit ||
+          getItemEffect(updatedDefender)?.onDamagingHit ||
+          getItemEffect(currentAttacker)?.onSourceDamagingHit)
       ) {
         // 特性で能力ランク・HP・状態異常が変わるため、そのたびに両者の状態を取り直す
         const refreshStatuses = async (): Promise<void> => {
@@ -1503,6 +1526,18 @@ export class MoveExecutorService {
           // 攻撃側の特性に、防御側の特性で変わったあとの状態を渡す（わたげの素早さ低下など）
           await refreshStatuses();
         }
+        // 防御側の持ち物（ゴツゴツメット・ふうせん など）。持ち物はかたやぶりで無視されない
+        const defenderItemEffect = getItemEffect(updatedDefender);
+        let defenderItemMessage: string | null = null;
+        if (defenderItemEffect?.onDamagingHit) {
+          defenderItemMessage = await defenderItemEffect.onDamagingHit(
+            updatedDefender,
+            currentAttacker,
+            hit,
+            battleContext,
+          );
+          await refreshStatuses();
+        }
         let attackerMessage: string | null = null;
         if (attackerAbilityEffect?.onSourceDamagingHit) {
           attackerMessage = await attackerAbilityEffect.onSourceDamagingHit(
@@ -1514,8 +1549,26 @@ export class MoveExecutorService {
           // 次のヒットのために取り直す
           await refreshStatuses();
         }
+        // 攻撃側の持ち物（おうじゃのしるし など）
+        const attackerItemEffect = getItemEffect(currentAttacker);
+        let attackerItemMessage: string | null = null;
+        if (attackerItemEffect?.onSourceDamagingHit) {
+          attackerItemMessage = await attackerItemEffect.onSourceDamagingHit(
+            currentAttacker,
+            updatedDefender,
+            hit,
+            battleContext,
+          );
+          await refreshStatuses();
+        }
         hitEventMessages.push(
-          ...[moveMessage, defenderMessage, attackerMessage].filter((m): m is string => Boolean(m)),
+          ...[
+            moveMessage,
+            defenderMessage,
+            defenderItemMessage,
+            attackerMessage,
+            attackerItemMessage,
+          ].filter((m): m is string => Boolean(m)),
         );
       }
 
@@ -1678,9 +1731,11 @@ export class MoveExecutorService {
           })
         : [];
 
-    // 交代（とんぼがえり・ドラゴンテール・ききかいひ）。当たったとき（ばけのかわで防がれたときを含む）だけ。
-    // ドラゴンテールの強制交代が先に決まり、そのときききかいひは発動しない（本家の forceSwitchFlag）。
+    // 交代（とんぼがえり・ドラゴンテール・だっしゅつボタン・レッドカード・ききかいひ）。当たったとき
+    // （ばけのかわで防がれたときを含む）だけ。
+    // ドラゴンテールの強制交代が先に決まり、そのとき持ち物とききかいひは発動しない（本家の forceSwitchFlag）。
     // 使用者がさめはだなどでひんしになったら、相手を交代させない（本家の forceSwitch の source.hp > 0）
+    const switchItemMessages: string[] = [];
     if (landed) {
       const latestDefender = await this.battleRepository.findBattlePokemonStatusById(defender.id);
       const latestAttacker = await this.battleRepository.findBattlePokemonStatusById(attacker.id);
@@ -1690,8 +1745,20 @@ export class MoveExecutorService {
         latestAttacker !== null &&
         !latestAttacker.isFainted() &&
         (await this.canForceOut(battle, latestDefender, defenderAbilityEffect));
+      const itemSwitch =
+        !forced && latestDefender !== null && latestAttacker !== null
+          ? await this.scheduleItemSwitches(
+              battle,
+              latestDefender,
+              latestAttacker,
+              attackerAbilityEffect,
+              battleContext,
+            )
+          : { holderSwitched: false, attackerForcedOut: false, messages: [] };
+      switchItemMessages.push(...itemSwitch.messages);
       const exited =
         !forced &&
+        !itemSwitch.holderSwitched &&
         (await this.scheduleEmergencyExit(battle, defender.id, hpBeforeMove, defenderEventEffect));
       await this.scheduleSwitchesAfterMove({
         battle,
@@ -1700,7 +1767,7 @@ export class MoveExecutorService {
         defenderId: defender.id,
         forcesOut: forced,
         battleContext,
-        selfSwitchBlocked: exited,
+        selfSwitchBlocked: exited || itemSwitch.holderSwitched || itemSwitch.attackerForcedOut,
         defenderAbilityEffect,
       });
     }
@@ -1709,7 +1776,7 @@ export class MoveExecutorService {
     const criticalHitMessage = criticalHitCount > 0 ? ' A critical hit!' : '';
     const enduredMessage = endured ? ' The opponent endured the hit!' : '';
     const eventMessage = hitEventMessages.map(message => ` ${message}`).join('');
-    const afterMoveMessage = [...afterMoveMessages, ...faintMessages]
+    const afterMoveMessage = [...afterMoveMessages, ...faintMessages, ...switchItemMessages]
       .map(message => ` ${message}`)
       .join('');
     return {
@@ -2038,6 +2105,68 @@ export class MoveExecutorService {
   }
 
   /**
+   * 攻撃技を受けた防御側の持ち物による交代を予約する（ドラゴンテールなどで防御側が交代させられないときに呼ぶ）
+   * - だっしゅつボタン（switchesOutAfterHit）: 持ち主がひんしでなく、控えがいれば、持ち物を使い切って
+   *   持ち主の陣営に pendingChoice（ejectButton）を書く
+   * - レッドカード（forcesAttackerOutAfterHit）: 持ち主と攻撃側がひんしでなく、攻撃側が場にいて控えがいれば、
+   *   持ち物を使い切る。攻撃側がねをはっておらず、preventsForcedSwitch の特性（きゅうばん）でなければ、
+   *   攻撃側の陣営に forcedSwitch を書く（ねをはる・きゅうばんでも持ち物は使い切る。本家の DragOut）
+   * 持ち物はかたやぶりで無視されない
+   * 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
+   * @returns 持ち主が交代するか、攻撃側を入れ替えるか、メッセージ
+   */
+  private async scheduleItemSwitches(
+    battle: Battle,
+    holder: BattlePokemonStatus,
+    attacker: BattlePokemonStatus,
+    attackerAbilityEffect: IAbilityEffect | undefined,
+    battleContext: BattleContext,
+  ): Promise<{ holderSwitched: boolean; attackerForcedOut: boolean; messages: string[] }> {
+    const none = { holderSwitched: false, attackerForcedOut: false, messages: [] };
+    const itemEffect = getItemEffect(holder);
+    if (holder.isFainted() || holder.trainerId === attacker.trainerId) {
+      return none;
+    }
+
+    if (
+      itemEffect?.switchesOutAfterHit === true &&
+      (await this.hasSwitchTarget(battle.id, holder.trainerId))
+    ) {
+      const itemName = await consumeItem(holder, battleContext);
+      await this.battleRepository.patchSideConditions(battle.id, holder.trainerId, {
+        pendingChoice: { reason: 'ejectButton' },
+      });
+      return {
+        holderSwitched: true,
+        attackerForcedOut: false,
+        messages: [`The opponent is switched out with the ${itemName}!`],
+      };
+    }
+
+    if (
+      itemEffect?.forcesAttackerOutAfterHit === true &&
+      !attacker.isFainted() &&
+      attacker.isActive &&
+      (await this.hasSwitchTarget(battle.id, attacker.trainerId))
+    ) {
+      const itemName = await consumeItem(holder, battleContext);
+      const message = `The opponent held up its ${itemName} against the attacker!`;
+      if (
+        attacker.volatileState.ingrain === true ||
+        attackerAbilityEffect?.preventsForcedSwitch === true
+      ) {
+        return { holderSwitched: false, attackerForcedOut: false, messages: [message] };
+      }
+      await this.battleRepository.patchSideConditions(battle.id, attacker.trainerId, {
+        forcedSwitch: true,
+      });
+      return { holderSwitched: false, attackerForcedOut: true, messages: [message] };
+    }
+
+    return none;
+  }
+
+  /**
    * ききかいひ・にげごし（特性の switchesOutBelowHalfHp）: 相手の技で HP が最大 HP の半分より上から
    * 半分以下（ひんしを除く）になり、控えがいれば、防御側の陣営に pendingChoice（emergencyExit）を書く
    * かたやぶりでは無視されない
@@ -2085,6 +2214,7 @@ export class MoveExecutorService {
     return isGrounded({
       typeNames: battleTypeNamesOf(defenderTrainedPokemon, defender),
       abilityName: battleContext.defenderAbilityName,
+      itemName: resolveItemName(defender),
       volatileState: defender.volatileState,
       sideState: battle.sideState,
     });
@@ -2185,6 +2315,7 @@ export class MoveExecutorService {
   /**
    * 技全体のあとの特性を呼ぶ
    * - 防御側の onAfterMoveHit: 合計ダメージが1以上のとき（いかりのこうら・ぎゃくじょう）
+   * - 攻撃側の持ち物の onSourceAfterMoveHit: 合計ダメージが1以上で、持ち主がひんしでないとき（かいがらのすず）
    * - 攻撃側の onKnockOut: 相手がひんしで、自分がひんしでないとき（じしんかじょうなど）
    * @returns 特性のメッセージ
    */
@@ -2198,10 +2329,6 @@ export class MoveExecutorService {
     battleContext: BattleContext;
   }): Promise<string[]> {
     const { attackerAbilityEffect, defenderEventEffect, battleContext } = params;
-    if (!defenderEventEffect?.onAfterMoveHit && !attackerAbilityEffect?.onKnockOut) {
-      return [];
-    }
-
     const messages: Array<string | null | undefined> = [];
     let attacker = await this.battleRepository.findBattlePokemonStatusById(params.attackerId);
     let defender = await this.battleRepository.findBattlePokemonStatusById(params.defenderId);
@@ -2214,6 +2341,21 @@ export class MoveExecutorService {
         await defenderEventEffect.onAfterMoveHit(
           defender,
           attacker,
+          params.createMoveHit(),
+          battleContext,
+        ),
+      );
+      attacker = (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? attacker;
+      defender = (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? defender;
+    }
+
+    // 攻撃側の持ち物（かいがらのすず）。持ち主がひんしなら呼ばない
+    const attackerItemEffect = getItemEffect(attacker);
+    if (params.damage > 0 && !attacker.isFainted() && attackerItemEffect?.onSourceAfterMoveHit) {
+      messages.push(
+        await attackerItemEffect.onSourceAfterMoveHit(
+          attacker,
+          defender,
           params.createMoveHit(),
           battleContext,
         ),
