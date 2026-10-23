@@ -576,6 +576,12 @@ export interface IAbilityEffect {
   readonly blocksSecondaryEffects?: boolean;
 
   /**
+   * 攻撃側: 追加効果のある技の追加効果をなくす特性かどうか（例: ちからずく）
+   * true なら、エンジンが追加効果のある技で battleContext.secondaryEffectsRemoved を true にする
+   */
+  readonly removesSecondaryEffects?: boolean;
+
+  /**
    * 攻撃側: 与えたダメージに応じた反動を受けない特性かどうか（例: いしあたま、マジックガード）
    * BaseRecoilEffect の afterDamage で参照される
    */

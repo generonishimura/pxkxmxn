@@ -10,8 +10,9 @@ import { IItemEffect } from '../item-effect.interface';
  *
  * - 連続技は、全ヒットの合計から技のあとに 1 回だけ回復する（本家と同じ）
  * - かいふくふうじ中は回復しない（applyHeal が判定する）
+ * - ちからずくで追加効果が消えた技（battleContext.secondaryEffectsRemoved）では回復しない（本家と同じ）
  * 注: みがわりにだけ当たったときは回復しない（本家は、みがわりに与えたダメージでも回復する）
- * 注: 本家は、ちからずくで追加効果が消えた技・レッドカードで交代させられるときは回復しないが、ここでは回復する
+ * 注: 本家は、レッドカードで交代させられるときは回復しないが、ここでは回復する
  */
 export class ShellBellEffect implements IItemEffect {
   private static readonly DIVISOR = 8;
@@ -22,6 +23,9 @@ export class ShellBellEffect implements IItemEffect {
     hit: HitResult,
     battleContext: BattleContext,
   ): Promise<string | null> {
+    if (battleContext.secondaryEffectsRemoved === true) {
+      return null;
+    }
     const amount = Math.max(1, Math.floor(hit.damage / ShellBellEffect.DIVISOR));
     const healed = await applyHeal(holder, amount, battleContext);
     return healed > 0 ? 'restored a little HP using its かいがらのすず!' : null;

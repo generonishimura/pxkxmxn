@@ -30,9 +30,9 @@ describe('威力・ダメージを上げる持ち物（効果の単体）', () =
   };
 
   describe('いのちのたま', () => {
-    it('ちからずくの使い手が追加効果のある技を出したときは、HP を失わない', async () => {
+    it('ちからずくで追加効果が消えた技では、HP を失わない', async () => {
       // Arrange
-      const ctx = createContext({ attackerAbilityName: 'ちからずく', hasSecondaryEffect: true });
+      const ctx = createContext({ secondaryEffectsRemoved: true });
 
       // Act
       const message = await new LifeOrbEffect().onAfterMoveSecondarySelf(

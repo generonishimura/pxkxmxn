@@ -34,7 +34,7 @@ export class StenchEffect implements IAbilityEffect {
     if (!(await canInflictStatus(target, StatusCondition.Flinch, battleContext, options))) {
       return null;
     }
-    if (!rollSecondaryEffect(0.1, battleContext)) {
+    if (!rollSecondaryEffect(0.1, battleContext, 'target', { ignoresSheerForce: true })) {
       return null;
     }
     const messages = await inflictStatus(target, StatusCondition.Flinch, battleContext, options);

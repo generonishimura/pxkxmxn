@@ -13,8 +13,7 @@ import { IItemEffect } from '../item-effect.interface';
  * - 技の追加効果として扱う（本家は技の secondaries に足す）。てんのめぐみで確率が 2 倍になり、相手のりんぷんで防がれる
  * - もともとひるみの追加効果を持つ技（かみつくなど）には足さない（本家と同じ）
  * - 持ち主の特性があくしゅうなら、あくしゅうと同じひるみなので重ねない（本家はどちらか一方だけが足す）
- * 注: 本家はちからずくで消えた追加効果のあとに足すので、ちからずくでもひるませる。エンジンもちからずくで
- *     追加効果を消していないので、結果は同じ
+ * - 本家はちからずくで追加効果を消したあとに足すので、ちからずくで追加効果が消えた技でもひるませる
  */
 export class KingsRockEffect implements IItemEffect {
   private static readonly CHANCE = 0.1;
@@ -33,11 +32,17 @@ export class KingsRockEffect implements IItemEffect {
     ) {
       return null;
     }
-    const options = { source: { pokemon: holder, kind: 'other' as const, name: 'おうじゃのしるし' } };
+    const options = {
+      source: { pokemon: holder, kind: 'other' as const, name: 'おうじゃのしるし' },
+    };
     if (!(await canInflictStatus(target, StatusCondition.Flinch, battleContext, options))) {
       return null;
     }
-    if (!rollSecondaryEffect(KingsRockEffect.CHANCE, battleContext)) {
+    if (
+      !rollSecondaryEffect(KingsRockEffect.CHANCE, battleContext, 'target', {
+        ignoresSheerForce: true,
+      })
+    ) {
       return null;
     }
     const messages = await inflictStatus(target, StatusCondition.Flinch, battleContext, options);

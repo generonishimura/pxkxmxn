@@ -8,7 +8,7 @@ import { IAbilityEffect } from '../../ability-effect.interface';
  * - 控えがいなければ発動しない。発動したら、相手のとんぼがえりなどの交代は起きない
  * - ドラゴンテール・ともえなげで交代させられるときは、強制交代が先に決まり発動しない
  * - かたやぶりでは無視されない
- * 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
+ * - ちからずくで追加効果が消えた技では発動しない（本家と同じ）
  * 注: 交代先をプレイヤーが選ぶ API はまだないので、控えの先頭が出る
  */
 export class EmergencyExitEffect implements IAbilityEffect {

@@ -1,4 +1,4 @@
-import { rollSecondaryEffect } from './secondary-effect';
+import { hasSecondaryEffect, rollSecondaryEffect } from './secondary-effect';
 import { BattleContext } from '../abilities/battle-context.interface';
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
 
@@ -78,5 +78,64 @@ describe('rollSecondaryEffect', () => {
 
     // Assert
     expect(result).toBe(true);
+  });
+
+  it('ちからずくで追加効果が消えている場合は、相手への追加効果を発動しない', () => {
+    // Arrange
+    const context: BattleContext = { battle, secondaryEffectsRemoved: true };
+
+    // Act
+    const result = rollSecondaryEffect(1.0, context);
+
+    // Assert
+    expect(result).toBe(false);
+  });
+
+  it('ちからずくで追加効果が消えている場合は、自分への追加効果も発動しない', () => {
+    // Arrange
+    const context: BattleContext = { battle, secondaryEffectsRemoved: true };
+
+    // Act
+    const result = rollSecondaryEffect(1.0, context, 'self');
+
+    // Assert
+    expect(result).toBe(false);
+  });
+
+  it('ちからずくのあとに足す追加効果（おうじゃのしるし・あくしゅう）は、ちからずくでも発動する', () => {
+    // Arrange
+    const context: BattleContext = { battle, secondaryEffectsRemoved: true };
+
+    // Act
+    const result = rollSecondaryEffect(1.0, context, 'target', { ignoresSheerForce: true });
+
+    // Assert
+    expect(result).toBe(true);
+  });
+});
+
+describe('hasSecondaryEffect', () => {
+  it.each([
+    'ほっぺすりすり',
+    'かえんほうしゃ',
+    'ニトロチャージ',
+    'げんしのちから',
+    'ムーンフォース',
+  ])('本家で追加効果を持つ技（%s）は true', moveName => {
+    // Act & Assert
+    expect(hasSecondaryEffect(moveName)).toBe(true);
+  });
+
+  it.each(['たいあたり', 'とんぼがえり', 'はたきおとす', 'すてみタックル', 'インファイト'])(
+    '追加効果ではない効果だけの技（%s）は false',
+    moveName => {
+      // Act & Assert
+      expect(hasSecondaryEffect(moveName)).toBe(false);
+    },
+  );
+
+  it('技名がないときは false', () => {
+    // Act & Assert
+    expect(hasSecondaryEffect(undefined)).toBe(false);
   });
 });

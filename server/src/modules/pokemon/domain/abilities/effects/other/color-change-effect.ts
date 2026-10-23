@@ -14,7 +14,7 @@ import { ALL_TYPE_NAMES, setTypes } from '../../../battle-events/type-change';
  * - 足されたタイプ（ハロウィン・もりののろい）も含めて、技のタイプを持っているかを見る
  * - アルセウス・シルヴァディは変わらない（setTypes）
  * - かたやぶりでは無視されない（本家も breakable ではない）
- * 注: 本家は、ちからずくの使い手の追加効果のある技では発動しないが、ここでは発動する
+ * - ちからずくで追加効果が消えた技では変わらない（本家と同じ）
  */
 export class ColorChangeEffect implements IAbilityEffect {
   async onAfterMoveHit(
@@ -26,6 +26,7 @@ export class ColorChangeEffect implements IAbilityEffect {
     const typeName = hit.moveTypeName;
     if (
       !battleContext ||
+      battleContext.secondaryEffectsRemoved === true ||
       holder.currentHp <= 0 ||
       !(ALL_TYPE_NAMES as readonly string[]).includes(typeName) ||
       (await hasType(holder, typeName, battleContext)) ||
