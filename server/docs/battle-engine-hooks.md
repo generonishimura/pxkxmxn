@@ -543,6 +543,24 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 - きのみを食べたときなどは `consumeItem` で、`item` を消して `consumedItem` に残します
 - 持ち物に新しいフックが要るときは、`IItemEffect` の `Pick` に足し、エンジンの呼ぶ場所もつなぎます
 - 決まったポケモンだけに効く持ち物（でんきだま・ながねぎ）は、`battleContext.attackerNationalDex`（技の使用者のもとの全国図鑑の番号）で判定します
+- 特性に同じ場面のフックがないときだけ、持ち物だけのフックを `ItemOnlyEffect`（`item-effect.interface.ts`）に足します
+
+#### 持ち物だけのフック（ItemOnlyEffect）
+
+| フック | 呼ぶ場所 | 内容 |
+| --- | --- | --- |
+| `endureHit(holder, damage, ctx): Promise<string \| null>` | `MoveExecutorService.runMoveBody` のヒットのループ（防御側）。HP を減らす前 | ひんしになるダメージ（`damage >= holder.currentHp`）を受けるとき、メッセージを返すと HP が 1 残る。こらえるで残るヒット・みがわりに当たったヒット・特性で防いだヒットでは呼ばない（本家の `onDamage` と同じく、こらえるが先）。使う持ち物: きあいのタスキ、きあいのハチマキ |
+
+```ts
+// きあいのタスキ
+async endureHit(holder: BattlePokemonStatus, damage: number, ctx: BattleContext) {
+  if (holder.currentHp !== holder.maxHp || damage < holder.currentHp) return null;
+  const itemName = await consumeItem(holder, ctx);
+  return itemName === undefined ? null : `hung on using its ${itemName}!`;
+}
+```
+
+- がんじょうは、ダメージ計算の中（`modifyDamage`）で HP 1 を残します。きあいのタスキはダメージ計算のあと（天候・壁の補正のあと）に、持ち物を使い切りながら判定するため、こらえると同じ場所で HP を残します
 
 ## 4. コンテキストの項目（BattleContext）
 

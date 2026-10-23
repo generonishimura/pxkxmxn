@@ -14,6 +14,8 @@ import {
   ZoomLensEffect,
 } from './effects/accuracy-boost-item-effect';
 import { LeekEffect, ScopeLensEffect } from './effects/critical-hit-item-effect';
+import { FocusSashEffect } from './effects/focus-sash-effect';
+import { FocusBandEffect } from './effects/focus-band-effect';
 
 /**
  * 持ち物のレジストリ
@@ -48,6 +50,8 @@ export class ItemRegistry {
     this.registry.set('ピントレンズ', new ScopeLensEffect());
     this.registry.set('ながねぎ', new LeekEffect());
     this.registry.set('たべのこし', new LeftoversEffect());
+    this.registry.set('きあいのタスキ', new FocusSashEffect());
+    this.registry.set('きあいのハチマキ', new FocusBandEffect());
   }
 
   /**

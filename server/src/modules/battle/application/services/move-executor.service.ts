@@ -1444,7 +1444,23 @@ export class MoveExecutorService {
         const endures =
           updatedDefender.volatileState.protection === 'endure' && hitDamage >= hpBeforeHit;
         endured = endured || endures;
-        const newHp = endures ? Math.min(hpBeforeHit, 1) : Math.max(0, hpBeforeHit - hitDamage);
+        // こらえるで残らないときだけ、防御側の持ち物で HP 1 で耐えるかを見る（きあいのタスキ・きあいのハチマキ。
+        // 本家の onDamage の順番と同じく、こらえるが先）
+        const itemEnduredMessage =
+          !endures && hitDamage >= hpBeforeHit && hpBeforeHit > 0
+            ? ((await getItemEffect(updatedDefender)?.endureHit?.(
+                updatedDefender,
+                hitDamage,
+                battleContext,
+              )) ?? null)
+            : null;
+        if (itemEnduredMessage) {
+          hitEventMessages.push(itemEnduredMessage);
+        }
+        const newHp =
+          endures || itemEnduredMessage
+            ? Math.min(hpBeforeHit, 1)
+            : Math.max(0, hpBeforeHit - hitDamage);
         dealtDamage = hpBeforeHit - newHp;
         await this.battleRepository.updateBattlePokemonStatus(defender.id, {
           currentHp: newHp,
