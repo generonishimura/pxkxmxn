@@ -410,6 +410,13 @@ import { Conversion2Effect } from './effects/conversion2-effect';
 import { SoakEffect } from './effects/soak-effect';
 // フィールドに合わせて使用者のタイプを変える技（Issue #117 一部）
 import { CamouflageEffect } from './effects/camouflage-effect';
+// どの Issue にも載っていなかった技（Issue #268）
+import { MoonblastEffect } from './effects/moonblast-effect';
+import { FreezingGlareEffect } from './effects/freezing-glare-effect';
+import { FieryWrathEffect } from './effects/fiery-wrath-effect';
+import { ShelterEffect } from './effects/shelter-effect';
+import { BodyPressEffect } from './effects/body-press-effect';
+import { DireClawEffect } from './effects/dire-claw-effect';
 
 /**
  * 技のレジストリ
@@ -930,6 +937,13 @@ export class MoveRegistry {
       this.registry.set('みずびたし', new SoakEffect());
       // フィールドに合わせて使用者のタイプを変える技（Issue #117 一部）
       this.registry.set('ほごしょく', new CamouflageEffect());
+      // どの Issue にも載っていなかった技（Issue #268。確率はチャンピオンズの値）
+      this.registry.set('ムーンフォース', new MoonblastEffect());
+      this.registry.set('いてつくしせん', new FreezingGlareEffect());
+      this.registry.set('もえあがるいかり', new FieryWrathEffect());
+      this.registry.set('たてこもる', new ShelterEffect());
+      this.registry.set('ボディプレス', new BodyPressEffect());
+      this.registry.set('フェイタルクロー', new DireClawEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize MoveRegistry: ${error instanceof Error ? error.message : String(error)}`,
