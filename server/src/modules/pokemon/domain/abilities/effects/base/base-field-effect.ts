@@ -9,7 +9,7 @@ import { setTerrain } from '../../../battle-events/field-state';
  * 場に出すときにフィールドを変更する汎用的な実装
  *
  * 各特性は、このクラスを継承して変更するフィールドを設定するだけで実装できる
- * setTerrain で 5 ターンの残りターン数を書く
+ * setTerrain で 5 ターンの残りターン数を書く（持ち主の持ち物で 8 になる）
  */
 export abstract class BaseFieldEffect implements IAbilityEffect {
   /**
@@ -21,10 +21,10 @@ export abstract class BaseFieldEffect implements IAbilityEffect {
    * 場に出すときに発動
    * フィールドを変更
    */
-  async onEntry(_pokemon: BattlePokemonStatus, battleContext?: BattleContext): Promise<void> {
+  async onEntry(pokemon: BattlePokemonStatus, battleContext?: BattleContext): Promise<void> {
     if (!battleContext) {
       return;
     }
-    await setTerrain(battleContext, this.field);
+    await setTerrain(battleContext, this.field, pokemon);
   }
 }

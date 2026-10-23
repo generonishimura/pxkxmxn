@@ -1,7 +1,20 @@
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
+import { Field, Weather } from '@/modules/battle/domain/entities/battle.entity';
+import { SIDE_TURN_COUNTER_KEYS } from '@/modules/battle/domain/state/side-state';
 import { IAbilityEffect } from '../abilities/ability-effect.interface';
 import { BattleContext } from '../abilities/battle-context.interface';
 import { HitResult } from '../battle-events/hit-result';
+
+/**
+ * 残りターン数を決める場の状態（modifyFieldTurns に渡す）
+ * - weather: 天候（setWeather）
+ * - terrain: フィールド（setTerrain）
+ * - sideCondition: 陣営の守り（BaseSideConditionMoveEffect。リフレクターなど）
+ */
+export type FieldTurnsTarget =
+  | { readonly kind: 'weather'; readonly weather: Weather }
+  | { readonly kind: 'terrain'; readonly field: Field }
+  | { readonly kind: 'sideCondition'; readonly key: (typeof SIDE_TURN_COUNTER_KEYS)[number] };
 
 /**
  * 持ち物の効果
@@ -82,4 +95,18 @@ export interface ItemOnlyEffect {
    * 入れ替えないが持ち物は使い切る（本家と同じ）。入れ替えたら、攻撃側のとんぼがえりなどの交代は起きない
    */
   readonly forcesAttackerOutAfterHit?: boolean;
+
+  /**
+   * 持ち主が出した場の状態の残りターン数を変える（ひかりのねんど・あついいわ・グランドコートなど）
+   * setWeather・setTerrain（出したポケモンを渡したとき）と BaseSideConditionMoveEffect が呼ぶ
+   * @param holder 場の状態を出したポケモン（持ち物を持っているポケモン）
+   * @param target 出した場の状態
+   * @param turns 既定の残りターン数（本家の duration）
+   * @returns 変えた残りターン数、変えないなら undefined
+   */
+  modifyFieldTurns?(
+    holder: BattlePokemonStatus,
+    target: FieldTurnsTarget,
+    turns: number,
+  ): number | undefined;
 }

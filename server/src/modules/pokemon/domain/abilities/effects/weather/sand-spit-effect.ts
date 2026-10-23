@@ -18,7 +18,7 @@ import { setWeather } from '../../../battle-events/field-state';
  */
 export class SandSpitEffect implements IAbilityEffect {
   async onDamagingHit(
-    _holder: BattlePokemonStatus,
+    holder: BattlePokemonStatus,
     _attacker: BattlePokemonStatus,
     _hit: HitResult,
     battleContext?: BattleContext,
@@ -27,6 +27,8 @@ export class SandSpitEffect implements IAbilityEffect {
       return null;
     }
     // 最新のバトルで判定する（すでにすなあらし・ゲンシ天候の間は何もしない）
-    return (await setWeather(battleContext, Weather.Sandstorm)) ? 'A sandstorm kicked up!' : null;
+    return (await setWeather(battleContext, Weather.Sandstorm, holder))
+      ? 'A sandstorm kicked up!'
+      : null;
   }
 }

@@ -24,7 +24,7 @@ export class ChillyReceptionEffect implements IMoveEffect {
     if (!battleContext.battleRepository) {
       return null;
     }
-    if (await setWeather(battleContext, Weather.Hail)) {
+    if (await setWeather(battleContext, Weather.Hail, attacker)) {
       return 'It started to snow!';
     }
     return (await hasSwitchTarget(battleContext, attacker.trainerId)) ? null : 'But it failed';

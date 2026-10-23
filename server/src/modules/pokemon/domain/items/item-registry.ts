@@ -26,6 +26,14 @@ import { RedCardEffect } from './effects/red-card-effect';
 import { ChoiceScarfEffect } from './effects/choice-scarf-effect';
 import { QuickClawEffect } from './effects/quick-claw-effect';
 import { IronBallEffect } from './effects/iron-ball-effect';
+import { LightClayEffect } from './effects/light-clay-effect';
+import {
+  DampRockEffect,
+  HeatRockEffect,
+  IcyRockEffect,
+  SmoothRockEffect,
+} from './effects/base-weather-rock-item-effect';
+import { TerrainExtenderEffect } from './effects/terrain-extender-effect';
 
 /**
  * 持ち物のレジストリ
@@ -72,6 +80,12 @@ export class ItemRegistry {
     this.registry.set('こだわりスカーフ', new ChoiceScarfEffect());
     this.registry.set('せんせいのツメ', new QuickClawEffect());
     this.registry.set('くろいてっきゅう', new IronBallEffect());
+    this.registry.set('ひかりのねんど', new LightClayEffect());
+    this.registry.set('あついいわ', new HeatRockEffect());
+    this.registry.set('つめたいいわ', new IcyRockEffect());
+    this.registry.set('さらさらいわ', new SmoothRockEffect());
+    this.registry.set('しめったいわ', new DampRockEffect());
+    this.registry.set('グランドコート', new TerrainExtenderEffect());
   }
 
   /**

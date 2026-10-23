@@ -11,6 +11,8 @@ import { MutableStatePatch, markRemoved } from '@/modules/battle/domain/state/st
 import { BattleContext } from '../abilities/battle-context.interface';
 // タイプ変更・フォルムチェンジ・特性の書き換えの仕組み（Issue #135 一部）
 import { notifyFieldChange } from './field-change';
+// 素早さ・場の状態・交代の持ち物（Issue #264 一部）
+import { resolveFieldTurns } from './item-lookup';
 
 /**
  * 場の状態を書く補助関数（天候・フィールド・設置技・陣営の状態の消去と入れ替え）
@@ -42,14 +44,15 @@ const latestBattle = async (battleContext: BattleContext): Promise<Battle> =>
  * ふつうの天候（あめ・はれ・すなあらし・あられ）を出す（あまごい・あめふらしなど）
  * - すでに同じ天候、またはゲンシ天候の間は何もしない（ゲンシ天候はふつうの天候で上書きできない）
  * - 変えたら、場のポケモンの特性の onWeatherChange を呼ぶ（notifyFieldChange）
- * - GlobalFieldState.weatherTurns に turns を書く。ターン終了時に減らし、1 のターン終了時に天候を戻すのはエンジン
- * @param turns 残りターン数（既定 5。持ち物で 8 にするときなどに渡す）
+ * - GlobalFieldState.weatherTurns に残りターン数（5）を書く。ターン終了時に減らし、1 のターン終了時に天候を戻すのはエンジン
+ * - source を渡すと、その持ち物の modifyFieldTurns で残りターン数を変える（あついいわなどで 8）
+ * @param source 天候を出したポケモン（技の使用者・特性の持ち主）
  * @returns 天候を変えたら true
  */
 export const setWeather = async (
   battleContext: BattleContext,
   weather: Weather,
-  turns: number = DEFAULT_WEATHER_TURNS,
+  source?: BattlePokemonStatus,
 ): Promise<boolean> => {
   const repository = battleContext.battleRepository;
   if (!repository) {
@@ -60,7 +63,9 @@ export const setWeather = async (
     return false;
   }
   await repository.update(battle.id, { weather });
-  await repository.patchGlobalFieldState(battle.id, { weatherTurns: turns });
+  await repository.patchGlobalFieldState(battle.id, {
+    weatherTurns: resolveFieldTurns(source, { kind: 'weather', weather }, DEFAULT_WEATHER_TURNS),
+  });
   await notifyFieldChange(battleContext, 'weather');
   return true;
 };
@@ -100,13 +105,15 @@ export const setPrimalWeather = async (
  * フィールドを出す（エレキフィールド・エレキメイカーなど）
  * - すでに同じフィールドなら何もしない
  * - 変えたら、場のポケモンの特性の onTerrainChange を呼ぶ（notifyFieldChange）
- * - GlobalFieldState.terrainTurns に turns を書く。ターン終了時に減らし、1 のターン終了時にフィールドを戻すのはエンジン
+ * - GlobalFieldState.terrainTurns に残りターン数（5）を書く。ターン終了時に減らし、1 のターン終了時にフィールドを戻すのはエンジン
+ * - source を渡すと、その持ち物の modifyFieldTurns で残りターン数を変える（グランドコートで 8）
+ * @param source フィールドを出したポケモン（技の使用者・特性の持ち主）
  * @returns フィールドを変えたら true
  */
 export const setTerrain = async (
   battleContext: BattleContext,
   field: Field,
-  turns: number = DEFAULT_TERRAIN_TURNS,
+  source?: BattlePokemonStatus,
 ): Promise<boolean> => {
   const repository = battleContext.battleRepository;
   if (!repository) {
@@ -117,7 +124,9 @@ export const setTerrain = async (
     return false;
   }
   await repository.update(battle.id, { field });
-  await repository.patchGlobalFieldState(battle.id, { terrainTurns: turns });
+  await repository.patchGlobalFieldState(battle.id, {
+    terrainTurns: resolveFieldTurns(source, { kind: 'terrain', field }, DEFAULT_TERRAIN_TURNS),
+  });
   await notifyFieldChange(battleContext, 'terrain');
   return true;
 };

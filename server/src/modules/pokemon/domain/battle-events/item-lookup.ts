@@ -1,15 +1,15 @@
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../abilities/battle-context.interface';
-import { IItemEffect } from '../items/item-effect.interface';
+import { FieldTurnsTarget, IItemEffect } from '../items/item-effect.interface';
 import { ItemRegistry } from '../items/item-registry';
 
 /**
  * ポケモンが今持っている持ち物の名前
  * 注: 持ち物の効果を消す状態（マジックルーム・さしおさえ・ぶきよう）は、まだ見ていない
- * @returns 持ち物の名前、持っていなければ undefined
+ * @returns 持ち物の名前、持っていなければ undefined（状態を持たないテスト用のポケモンも undefined）
  */
 export const resolveItemName = (pokemon: BattlePokemonStatus): string | undefined =>
-  pokemon.persistentState.item;
+  pokemon.persistentState?.item;
 
 /**
  * ポケモンが今持っている持ち物の効果
@@ -39,3 +39,16 @@ export const consumeItem = async (
   });
   return itemName;
 };
+
+/**
+ * 場の状態の残りターン数（出したポケモンの持ち物の modifyFieldTurns を反映する）
+ * ひかりのねんど・あついいわ・グランドコートなどで 5 → 8 にする
+ * @param source 場の状態を出したポケモン。わからなければ undefined（持ち物を見ない）
+ * @param target 出した場の状態
+ * @param turns 既定の残りターン数
+ */
+export const resolveFieldTurns = (
+  source: BattlePokemonStatus | undefined,
+  target: FieldTurnsTarget,
+  turns: number,
+): number => (source && getItemEffect(source)?.modifyFieldTurns?.(source, target, turns)) ?? turns;
