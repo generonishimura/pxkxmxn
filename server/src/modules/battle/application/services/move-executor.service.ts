@@ -32,7 +32,6 @@ import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effec
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-flags';
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
-import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
 import { modifyByFixedPoint } from '../../domain/logic/fixed-point-modifier';
