@@ -19,6 +19,7 @@ describe('GeomancyEffect（ジオコントロール）', () => {
     const defender = createBattlePokemonStatus({ id: 2 });
     const battleRepository = {
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(attacker),
+      patchVolatileState: jest.fn().mockResolvedValue(undefined),
       findBattlePokemonStatusById: jest.fn().mockResolvedValue(attacker),
     } as Partial<jest.Mocked<IBattleRepository>> as jest.Mocked<IBattleRepository>;
 

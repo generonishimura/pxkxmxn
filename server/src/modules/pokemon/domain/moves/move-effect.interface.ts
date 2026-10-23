@@ -216,6 +216,36 @@ export interface IMoveEffect {
   ): number | undefined;
 
   /**
+   * 技の優先度を変える効果（例: グラススライダー。本家の技の onModifyPriority）
+   * 行動順の判定（ActionOrderDeterminerService）と、技の実行の effectivePriority で呼ばれる。
+   * 使用者の特性の modifyPriority（いたずらごころなど）には、この戻り値を渡す
+   * @param priority 技の基本優先度
+   * @returns 変更後の優先度、変えない場合は undefined
+   */
+  modifyPriority?(
+    attacker: BattlePokemonStatus,
+    priority: number,
+    battleContext: BattleContext,
+  ): number | undefined;
+
+  /**
+   * 物理技か特殊技かを、使用者・相手の能力で決め直す効果（例: シェルアームズ、てんこがすめつぼうのひかり。本家の onModifyMove）
+   * 技のコンテキストを作るときに 1 回呼ばれる（battleContext.attackerStats / defenderStats は実数値の上書きを反映した値）。
+   * 返した分類は、コンテキストの moveCategory・ダメージ計算・ヒットの情報に使う
+   * @returns 決めた分類、変えない場合は undefined
+   */
+  modifyMoveCategory?(
+    attacker: BattlePokemonStatus,
+    defender: BattlePokemonStatus,
+    battleContext: BattleContext,
+  ): 'Physical' | 'Special' | undefined;
+
+  /**
+   * modifyMoveCategory で物理技になったとき、接触技として扱うかどうか（例: シェルアームズ）
+   */
+  readonly contactWhenPhysical?: boolean;
+
+  /**
    * 無視する防御側のランク（例: なしくずし = ['defense', 'specialDefense', 'evasion']）
    */
   readonly ignoredDefenderRanks?: readonly StatType[];
@@ -224,6 +254,13 @@ export interface IMoveEffect {
    * 攻撃に使う能力の参照先を変える（例: イカサマ = { source: 'defender', stat: 'attack' }）
    */
   readonly attackStatOverride?: AttackStatOverride;
+
+  /**
+   * 防御側のタイプごとに、タイプ相性表の代わりに使う倍率（例: フリーズドライ = { みず: 2 }。本家の技の onEffectiveness）
+   * キーはタイプ名（日本語）。技のタイプが変わっても、この技なら上書きする（本家と同じ）。
+   * らんきりゅうなどの補正は、上書きしたあとの倍率に掛かる
+   */
+  readonly typeEffectivenessOverrides?: Readonly<Record<string, number>>;
 
   /**
    * やけどによる物理技のダメージ半減を受けないかどうか（例: からげんき）

@@ -37,6 +37,7 @@ describe('BasePlusMinusSelfStatBoostEffect', () => {
     const battle = new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null);
     const mockBattleRepository = {
       updateBattlePokemonStatus: jest.fn().mockResolvedValue(undefined),
+      patchVolatileState: jest.fn().mockResolvedValue(undefined),
       // かがくへんかガスの判定で、場のポケモンを引く
       findBattlePokemonStatusByBattleId: jest.fn().mockResolvedValue([]),
     };
@@ -127,6 +128,7 @@ describe('BasePlusMinusSelfStatBoostEffect', () => {
       battle: new Battle(1, 1, 2, 1, 2, 1, null, null, BattleStatus.Active, null),
       battleRepository: {
         updateBattlePokemonStatus: jest.fn(),
+        patchVolatileState: jest.fn().mockResolvedValue(undefined),
       } as unknown as BattleContext['battleRepository'],
     };
 

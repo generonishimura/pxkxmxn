@@ -1,4 +1,6 @@
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
+import type { StatePatch } from '@/modules/battle/domain/state/state-field-parser';
+import type { VolatileState } from '@/modules/battle/domain/state/volatile-state';
 import { BattleContext } from '../abilities/battle-context.interface';
 import type { StatType } from '../moves/effects/base/base-stat-change-effect';
 import type { IAbilityEffect } from '../abilities/ability-effect.interface';
@@ -170,6 +172,10 @@ export const applyStatChanges = async (
   const messages: string[] = [];
   if (applied.length > 0) {
     await battleContext.battleRepository.updateBattlePokemonStatus(target.id, ranks);
+    await battleContext.battleRepository.patchVolatileState(
+      target.id,
+      statChangeTurnPatch(applied, battleContext.battle.turn),
+    );
   }
 
   // ミラーアーマー: 跳ね返した低下を、起こした相手に与える（この特性が起こした変化として扱う）
@@ -205,6 +211,18 @@ export const applyStatChanges = async (
 
   return { applied, reflected, messages };
 };
+
+/**
+ * 実際に変わった量から、「このターンに上がった・下がった」の記録（statsRaisedTurn / statsLoweredTurn）を作る
+ * 本家の boost が statsRaisedThisTurn / statsLoweredThisTurn を立てるのと同じく、実際に変わったときだけ書く
+ */
+const statChangeTurnPatch = (
+  applied: readonly StatChange[],
+  turn: number,
+): StatePatch<VolatileState> => ({
+  ...(applied.some(change => change.rankChange > 0) ? { statsRaisedTurn: turn } : {}),
+  ...(applied.some(change => change.rankChange < 0) ? { statsLoweredTurn: turn } : {}),
+});
 
 /**
  * 変化のあとの特性を呼ぶ（対象の onStatChanged → 相手の onOpponentStatChanged）

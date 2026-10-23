@@ -285,6 +285,26 @@ export type VolatileState = {
    */
   readonly slowStartTurn?: number;
 
+  // ---- 能力ランクが変わったタイミング（applyStatChanges が書く） ----
+  /**
+   * 能力ランクが最後に上がったときの Battle.turn（しっとのほのおが読む。本家の statsRaisedThisTurn）
+   * 「このターンに上がったか」は statsRaisedTurn === battle.turn で判定する（ターン終了時に消さなくてよい）
+   */
+  readonly statsRaisedTurn?: number;
+  /**
+   * 能力ランクが最後に下がったときの Battle.turn（うっぷんばらしが読む。本家の statsLoweredThisTurn）
+   * 「このターンに下がったか」は statsLoweredTurn === battle.turn で判定する
+   */
+  readonly statsLoweredTurn?: number;
+
+  // ---- 受けた攻撃（エンジンが書く） ----
+  /**
+   * 場に出てから攻撃技を受けた回数（1 以上。ふんどのこぶしが読む。本家の timesAttacked）
+   * 連続技はヒットごとに数える。みがわりに当たったヒットは数えない。
+   * チャンピオンズでは交代すると上乗せが消えるので volatileState に置く（SV は交代しても残る）
+   */
+  readonly timesAttacked?: number;
+
   // ---- 技の流れ（エンジンが書く） ----
   /** ため技でためている間の隠れ方。ため技を出すか、出せなかったときにエンジンが消す */
   readonly semiInvulnerable?: SemiInvulnerableKind;
@@ -409,6 +429,9 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   switchedInTurn: nonNegativeInteger,
   typeChangeAbilityUsed: booleanValue,
   slowStartTurn: nonNegativeInteger,
+  statsRaisedTurn: nonNegativeInteger,
+  statsLoweredTurn: nonNegativeInteger,
+  timesAttacked: positiveInteger,
   semiInvulnerable: oneOf(SEMI_INVULNERABLE_KINDS),
   mustRecharge: booleanValue,
   consecutiveMoveCount: positiveInteger,

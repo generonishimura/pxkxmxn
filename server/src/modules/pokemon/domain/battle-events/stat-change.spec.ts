@@ -53,6 +53,58 @@ describe('applyStatChanges（能力ランクの変化）', () => {
     });
   });
 
+  describe('このターンに上がった・下がった記録（うっぷんばらし・しっとのほのお）', () => {
+    it('ランクが上がったら、statsRaisedTurn に今のターンを書く', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle();
+      const ctx = context();
+
+      // Act
+      await applyStatChanges(get(1), [atk(1)], ctx);
+
+      // Assert
+      expect(get(1).volatileState.statsRaisedTurn).toBe(ctx.battle.turn);
+      expect(get(1).volatileState.statsLoweredTurn).toBeUndefined();
+    });
+
+    it('ランクが下がったら、statsLoweredTurn に今のターンを書く', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle();
+      const ctx = context();
+
+      // Act
+      await applyStatChanges(get(1), [atk(-1)], ctx, { source: { ...growl, pokemon: get(2) } });
+
+      // Assert
+      expect(get(1).volatileState.statsLoweredTurn).toBe(ctx.battle.turn);
+      expect(get(1).volatileState.statsRaisedTurn).toBeUndefined();
+    });
+
+    it('上がったランクと下がったランクがあれば、両方を書く（ばかぢから・からをやぶるなど）', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle();
+      const ctx = context();
+
+      // Act
+      await applyStatChanges(get(1), [atk(2), { statType: 'defense', rankChange: -1 }], ctx);
+
+      // Assert
+      expect(get(1).volatileState.statsRaisedTurn).toBe(ctx.battle.turn);
+      expect(get(1).volatileState.statsLoweredTurn).toBe(ctx.battle.turn);
+    });
+
+    it('-6 で止まって実際には下がらなければ、書かない', async () => {
+      // Arrange
+      const { context, get } = createInMemoryBattle({ status: { attackRank: -6 } });
+
+      // Act
+      await applyStatChanges(get(1), [atk(-1)], context());
+
+      // Assert
+      expect(get(1).volatileState.statsLoweredTurn).toBeUndefined();
+    });
+  });
+
   describe('modifyIncomingStatChange（たんじゅん・あまのじゃく・ばんけん）', () => {
     it('対象の特性が返した量でランクを変え、変化と原因を渡す', async () => {
       // Arrange

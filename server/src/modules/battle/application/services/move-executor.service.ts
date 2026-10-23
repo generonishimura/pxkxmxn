@@ -30,12 +30,13 @@ import { Move } from '@/modules/pokemon/domain/entities/move.entity';
 import { IMoveEffect } from '@/modules/pokemon/domain/moves/move-effect.interface';
 import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effect.interface';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
-import { MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-flags';
+import { MoveFlag, MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-flags';
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
 import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
 import { modifyByFixedPoint } from '../../domain/logic/fixed-point-modifier';
 import { isMajorStatus } from '../../domain/logic/major-status';
+import { resolveMovePriority } from '../../domain/logic/move-order-context';
 import { StatusCondition } from '../../domain/entities/status-condition.enum';
 import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
 import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called-move';
@@ -1024,8 +1025,13 @@ export class MoveExecutorService {
     // はね返した技は、はね返した側のいたずらごころを足さず、元の技の優先度を引き継ぐ（本家の useMoveInner）
     battleContext.effectivePriority =
       called?.inheritedPriority ??
-      attackerAbilityEffect?.modifyPriority?.(attacker, move.priority, battleContext) ??
-      move.priority;
+      resolveMovePriority({
+        pokemon: attacker,
+        basePriority: move.priority,
+        moveEffect,
+        abilityEffect: attackerAbilityEffect,
+        context: battleContext,
+      });
 
     // 特性による技の失敗（しめりけ・じょおうのいげんなど）。両者の特性で、命中判定の前に判定する。
     // onPrepareHit のあとのやり直し（prepared）では判定し直さない（本家の TryMove は PrepareHit より前に 1 回）
@@ -1285,13 +1291,15 @@ export class MoveExecutorService {
     // タイプ一致・相性に使う実効のタイプ（みずびたし・はねやすめ・ハロウィン・フォルムなどを反映）
     const attackerTypes = await this.typesOf(attackerTrainedPokemon, attacker);
     const defenderTypes = await this.typesOf(defenderTrainedPokemon, defender);
+    // 技の modifyMoveCategory で決め直した分類（シェルアームズなど。createHitContext で決める）
+    const moveCategory = battleContext.moveCategory ?? move.category;
     const createDamageParams = (
       power: number | null,
       baseDamageRatio?: number,
     ): DamageCalculationParams => ({
       attacker: currentAttacker,
       defender: updatedDefender,
-      move: { power, typeId: moveType.id, category: move.category, accuracy: move.accuracy },
+      move: { power, typeId: moveType.id, category: moveCategory, accuracy: move.accuracy },
       moveType,
       attackerTypes,
       defenderTypes,
@@ -1306,6 +1314,7 @@ export class MoveExecutorService {
       // ヒットごとの値（hitIndex など）を固定するため、その時点のコピーを渡す
       battleContext: { ...battleContext },
       attackStatOverride: moveEffect?.attackStatOverride,
+      typeEffectivenessOverrides: moveEffect?.typeEffectivenessOverrides,
       ignoresBurnPenalty: moveEffect?.ignoresBurnPenalty,
       baseDamageRatio,
     });
@@ -1356,6 +1365,7 @@ export class MoveExecutorService {
     let substituteDamage = 0;
     let substituteBroke = false;
     let hitCount = 0;
+    let substituteHitCount = 0;
     let criticalHitCount = 0;
     let blockedHitCount = 0;
     let endured = false;
@@ -1373,7 +1383,7 @@ export class MoveExecutorService {
       hitCount,
       isContact: isContactMove(battleContext),
       moveTypeName: moveType.name,
-      moveCategory: move.category,
+      moveCategory,
       targetFainted: updatedDefender.isFainted(),
       isCriticalHit,
     });
@@ -1437,6 +1447,7 @@ export class MoveExecutorService {
         substituteDamage += dealtToSubstitute;
         substituteBroke = substituteBroke || remaining <= 0;
         hitCount += 1;
+        substituteHitCount += 1;
         continue;
       }
 
@@ -1636,9 +1647,15 @@ export class MoveExecutorService {
       await defenderEventEffect.onAfterTakingDamage(updatedDefender, 0, battleContext);
     }
 
-    // 受けた技を記録する（テクスチャー２が読む）
-    if (damage > 0) {
-      await this.battleRepository.patchVolatileState(defender.id, { lastHitByMoveId: move.id });
+    // 受けた技（テクスチャー２が読む）と、攻撃を受けた回数（ふんどのこぶしが読む）を記録する。
+    // 回数は、ダメージを受けたヒットとばけのかわなどで防いだヒットを数える（本家の timesAttacked += hit - 1。
+    // みがわりに当たったヒットは数えない）
+    const attackedHitCount = hitCount - substituteHitCount;
+    if (landed && attackedHitCount > 0) {
+      await this.battleRepository.patchVolatileState(defender.id, {
+        ...(damage > 0 ? { lastHitByMoveId: move.id } : {}),
+        timesAttacked: (updatedDefender.volatileState.timesAttacked ?? 0) + attackedHitCount,
+      });
     }
 
     // 接触したときのメッセージ（くちばしキャノンのやけど）。せいでんき・ぬめぬめ・くだけるよろいなどの
@@ -2481,7 +2498,16 @@ export class MoveExecutorService {
         { depth: (params.called?.depth ?? 0) + 1, trace: params.trace, options: params.options },
       );
 
-    const baseFlags = MoveFlags.get(move.name);
+    // 物理・特殊を技の効果で決め直す（シェルアームズ・てんこがすめつぼうのひかり。本家の onModifyMove）
+    const category = params.moveEffect?.modifyMoveCategory?.(attacker, defender, context);
+    if (category !== undefined) {
+      context.moveCategory = category;
+    }
+    const madeContact =
+      category === 'Physical' && params.moveEffect?.contactWhenPhysical === true;
+    const baseFlags = madeContact
+      ? new Set<MoveFlag>([...MoveFlags.get(move.name), 'contact'])
+      : MoveFlags.get(move.name);
     context.moveFlags =
       params.attackerAbilityEffect?.modifyMoveFlags?.(attacker, baseFlags, context) ?? baseFlags;
 
