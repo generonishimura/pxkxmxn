@@ -1,5 +1,6 @@
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { alwaysHitsByVolatile, ignoresPositiveEvasionByVolatile } from './volatile-modifiers';
 // 場の状態・設置技・交代の仕組み（Issue #107 一部）
@@ -24,6 +25,7 @@ import { GRAVITY_ACCURACY_MODIFIER } from './field-modifiers';
  * - 場の状態: じゅうりょくの間は命中率を 6840/4096 倍にする（特性の補正の前）
  * - 特性の modifyBaseAccuracy（攻撃側 → 防御側。ミラクルスキン）: ランク補正の前の命中率を変える
  * - 特性の ensuresMoveHit（攻撃側・防御側。ノーガード）・options.ensuresHit（どくタイプのどくどく）: 必ず命中
+ * - 持ち物: 攻撃側の modifyAccuracy（攻撃側の特性のあと）、防御側の modifyEvasion（防御側の特性のあと。かたやぶりで無視されない）
  *
  * 変化技も、相手を対象にする技なら命中判定をする（MoveExecutorService が呼ぶ）
  */
@@ -151,6 +153,16 @@ export class AccuracyCalculator {
       }
     }
 
+    // 攻撃側の持ち物による命中率補正（こうかくレンズ・フォーカスレンズ）
+    const attackerItemAccuracy = getItemEffect(attacker)?.modifyAccuracy?.(
+      attacker,
+      effectiveAccuracy,
+      battleContext,
+    );
+    if (attackerItemAccuracy !== undefined) {
+      effectiveAccuracy = attackerItemAccuracy;
+    }
+
     // 特性による回避率補正（防御側）
     // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
     if (
@@ -174,6 +186,16 @@ export class AccuracyCalculator {
           effectiveAccuracy = effectiveAccuracy * (1 - modifiedEvasion);
         }
       }
+    }
+
+    // 防御側の持ち物による回避率補正（ひかりのこな）。持ち物はかたやぶりで無視されない
+    const defenderItemEvasion = getItemEffect(defender)?.modifyEvasion?.(
+      defender,
+      effectiveAccuracy,
+      battleContext,
+    );
+    if (defenderItemEvasion !== undefined) {
+      effectiveAccuracy = effectiveAccuracy * (1 - defenderItemEvasion);
     }
 
     // 0-100の範囲に制限

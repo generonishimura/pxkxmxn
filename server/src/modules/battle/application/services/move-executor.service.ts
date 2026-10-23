@@ -32,6 +32,7 @@ import { IAbilityEffect } from '@/modules/pokemon/domain/abilities/ability-effec
 import { BattleContext } from '@/modules/pokemon/domain/abilities/battle-context.interface';
 import { MoveFlags, isContactMove } from '@/modules/pokemon/domain/moves/move-flags';
 import { HitResult } from '@/modules/pokemon/domain/battle-events/hit-result';
+import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { StatType } from '@/modules/pokemon/domain/moves/effects/base/base-stat-change-effect';
 import { resolveEffectiveWeather } from '../../domain/logic/effective-weather';
 import { modifyByFixedPoint } from '../../domain/logic/fixed-point-modifier';
@@ -269,7 +270,8 @@ export class MoveExecutorService {
    * 8. 技の威力の決定（技の modifyMovePower）
    * 9. ヒットごとにダメージを適用し（みがわりがあればみがわりに）、技の onDamagingHit → 防御側特性の onDamagingHit →
    *    攻撃側特性の onSourceDamagingHit を呼ぶ
-   * 10. onHit → afterDamage（合計ダメージ） → 防御側特性の onAfterMoveHit → 攻撃側特性の onKnockOut
+   * 10. onHit → afterDamage（合計ダメージ） → 防御側特性の onAfterMoveHit → 攻撃側特性の onKnockOut →
+   *     攻撃側の特性・持ち物の onAfterMoveSecondarySelf（当たったとき）
    * 11. 倒した相手のみちづれ・おんねん
    *
    * @param battlePokemonMoveId 技の欄（BattlePokemonMove の ID）。覚えていない技を出し続けるとき（ゆびをふるで出た
@@ -1546,8 +1548,18 @@ export class MoveExecutorService {
             battleContext,
           )
         : null;
+      const selfMessages = await this.runAfterMoveSelfHooks({
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        attackerAbilityEffect,
+        hit: createHitResult(substituteDamage, hpBeforeMove, hitCount - 1, criticalHitCount > 0),
+        battleContext,
+      });
       const brokeMessage = substituteBroke ? ' The substitute broke!' : '';
-      const afterMessage = afterSubstituteMessage ? ` ${afterSubstituteMessage}` : '';
+      const afterMessage = [afterSubstituteMessage, ...selfMessages]
+        .filter((message): message is string => Boolean(message))
+        .map(message => ` ${message}`)
+        .join('');
       const substituteCriticalMessage = criticalHitCount > 0 ? ' A critical hit!' : '';
       // みがわりに当たったとんぼがえりは交代する（相手を交代させる技は、みがわりに当たったら入れ替えない）
       await this.scheduleSwitchesAfterMove({
@@ -1640,6 +1652,18 @@ export class MoveExecutorService {
       damage,
       battleContext,
     });
+    // 技を当てたあとの使用者の特性・持ち物（いのちのたまなど）。当たったときだけ
+    if (landed) {
+      afterMoveMessages.push(
+        ...(await this.runAfterMoveSelfHooks({
+          attackerId: attacker.id,
+          defenderId: defender.id,
+          attackerAbilityEffect,
+          hit: createHitResult(damage, hpBeforeMove, hitCount - 1, criticalHitCount > 0),
+          battleContext,
+        })),
+      );
+    }
 
     // 倒した相手のみちづれ・おんねん
     const faintedDefender =
@@ -2206,6 +2230,53 @@ export class MoveExecutorService {
   }
 
   /**
+   * 技を当てたあとに、使用者の onAfterMoveSecondarySelf を呼ぶ（攻撃側の特性 → 攻撃側の持ち物の順）
+   * 本家の AfterMoveSecondarySelf。いのちのたまの反動など。持ち主がひんしでも呼ぶ
+   * @returns 特性・持ち物のメッセージ
+   */
+  private async runAfterMoveSelfHooks(params: {
+    attackerId: number;
+    defenderId: number;
+    attackerAbilityEffect: IAbilityEffect | undefined;
+    hit: HitResult;
+    battleContext: BattleContext;
+  }): Promise<string[]> {
+    const messages: Array<string | null> = [];
+    const latest = async (): Promise<{
+      attacker: BattlePokemonStatus | null;
+      defender: BattlePokemonStatus | null;
+    }> => ({
+      attacker: await this.battleRepository.findBattlePokemonStatusById(params.attackerId),
+      defender: await this.battleRepository.findBattlePokemonStatusById(params.defenderId),
+    });
+
+    let { attacker, defender } = await latest();
+    if (attacker && defender && params.attackerAbilityEffect?.onAfterMoveSecondarySelf) {
+      messages.push(
+        await params.attackerAbilityEffect.onAfterMoveSecondarySelf(
+          attacker,
+          defender,
+          params.hit,
+          params.battleContext,
+        ),
+      );
+      ({ attacker, defender } = await latest());
+    }
+    const itemEffect = attacker ? getItemEffect(attacker) : undefined;
+    if (attacker && defender && itemEffect?.onAfterMoveSecondarySelf) {
+      messages.push(
+        await itemEffect.onAfterMoveSecondarySelf(
+          attacker,
+          defender,
+          params.hit,
+          params.battleContext,
+        ),
+      );
+    }
+    return messages.filter((message): message is string => Boolean(message));
+  }
+
+  /**
    * ヒット共通のコンテキストを作成
    * 技フラグは攻撃側特性の modifyMoveFlags を、無視するランクは技と両者の特性を反映する
    */
@@ -2249,6 +2320,7 @@ export class MoveExecutorService {
       attackerTypeNames: battleTypeNamesOf(params.attackerTrainedPokemon, attacker),
       defenderTypeNames: battleTypeNamesOf(params.defenderTrainedPokemon, defender),
       isLastToMove: params.options.isLastToMove,
+      attackerNationalDex: params.attackerTrainedPokemon.pokemon.nationalDex,
       hasRecoil: params.moveEffect?.hasRecoil === true,
       moveId: move.id,
       moveRepository: this.moveRepository,
@@ -2393,6 +2465,7 @@ export class MoveExecutorService {
    * 急所ランクを求める（0〜3。3 は必ず急所）
    * 1. 技（急所に当たりやすい技 +1、必ず急所になる技）と、使用者の critStageBoost（きあいだめ）・laserFocusTurns（とぎすます）
    * 2. 攻撃側特性の modifyCritRatio（きょううん・ひとでなし）
+   * 3. 攻撃側の持ち物の modifyCritRatio（ピントレンズ・ながねぎ）
    */
   private resolveCriticalHitStage(
     move: Move,
@@ -2401,8 +2474,12 @@ export class MoveExecutorService {
     battleContext: BattleContext,
   ): number {
     const stage = baseCriticalHitStage(move.name, attacker.volatileState);
-    const modified = attackerAbilityEffect?.modifyCritRatio?.(attacker, stage, battleContext);
-    return clampCriticalHitStage(modified ?? stage);
+    const abilityStage =
+      attackerAbilityEffect?.modifyCritRatio?.(attacker, stage, battleContext) ?? stage;
+    const itemStage =
+      getItemEffect(attacker)?.modifyCritRatio?.(attacker, abilityStage, battleContext) ??
+      abilityStage;
+    return clampCriticalHitStage(itemStage);
   }
 
   /**

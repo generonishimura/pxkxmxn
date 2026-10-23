@@ -12,5 +12,13 @@ import { IAbilityEffect } from '../abilities/ability-effect.interface';
  */
 export type IItemEffect = Pick<
   IAbilityEffect,
-  'modifyBasePower' | 'modifyDamageDealt' | 'modifyDamage' | 'modifySpeed' | 'onTurnEnd'
+  | 'modifyBasePower'
+  | 'modifyDamageDealt'
+  | 'modifyDamage'
+  | 'modifySpeed'
+  | 'onTurnEnd'
+  | 'modifyAccuracy'
+  | 'modifyEvasion'
+  | 'modifyCritRatio'
+  | 'onAfterMoveSecondarySelf'
 >;
