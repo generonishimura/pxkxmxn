@@ -21,6 +21,7 @@ export const VOLATILE_KIND_KEYS = {
   disable: 'disable', // かなしばり・のろわれボディ
   torment: 'torment', // いちゃもん
   healBlock: 'healBlockTurns', // かいふくふうじ
+  embargo: 'embargoTurns', // さしおさえ
   attract: 'infatuatedWithStatusId', // メロメロ・メロメロボディ
   yawn: 'yawnTurns', // あくび
   leechSeed: 'leechSeed', // やどりぎのタネ

@@ -153,6 +153,8 @@ export type VolatileState = {
   readonly torment?: boolean;
   /** かいふくふうじの残りターン数 */
   readonly healBlockTurns?: number;
+  /** さしおさえの残りターン数（持ち物の効果がなくなる。resolveItemName・getItemEffect が見る） */
+  readonly embargoTurns?: number;
   /** ふういんを使った（相手は自分と同じ技を出せない） */
   readonly imprison?: boolean;
   /** こだわり系・ごりむちゅうで固定された技 */
@@ -383,6 +385,7 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   disable: moveTurns,
   torment: booleanValue,
   healBlockTurns: nonNegativeInteger,
+  embargoTurns: nonNegativeInteger,
   imprison: booleanValue,
   choiceLockedMoveId: positiveInteger,
   lockedInMove: moveTurns,
@@ -471,6 +474,7 @@ export const parseVolatileState = (json: unknown): VolatileState =>
 export const VOLATILE_TURN_COUNTER_KEYS = [
   'tauntTurns',
   'healBlockTurns',
+  'embargoTurns',
   'lockOnTurns',
   'telekinesisTurns',
   'magnetRiseTurns',
@@ -538,6 +542,7 @@ export const BATON_PASS_KEYS = [
   'substituteHp',
   'tauntTurns',
   'healBlockTurns',
+  'embargoTurns',
   'perishCount',
   'telekinesisTurns',
   'magnetRiseTurns',

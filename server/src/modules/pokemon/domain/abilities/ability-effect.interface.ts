@@ -705,6 +705,13 @@ export interface IAbilityEffect {
   readonly preventsForcedSwitch?: boolean;
 
   /**
+   * 防御側: 持ち物をほかのポケモンに奪われない・入れ替えられない（例: ねんちゃく。本家の onTakeItem）
+   * トリック・すりかえは、持ち物がなくても失敗する（本家の onTryImmunity）。自分で手放す（ギフトパス）のは止めない。
+   * 相手の技なので、かたやぶりで無視される（takeItem・swapItems・blocksItemRemoval が判定する）
+   */
+  readonly preventsItemRemoval?: boolean;
+
+  /**
    * HP が最大 HP の半分以下になったとき、控えと交代する（例: ききかいひ、にげごし）
    * エンジンが、相手の技のダメージ（技のあと）・設置技・ターン終了時のダメージで、HP が半分より上から
    * 半分以下になったときに pendingChoice（emergencyExit）を書き、すぐに交代させる

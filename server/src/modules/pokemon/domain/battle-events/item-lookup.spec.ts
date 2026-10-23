@@ -1,12 +1,22 @@
-import { consumeItem, getItemEffect, resolveItemName } from './item-lookup';
+import {
+  consumeItem,
+  getItemEffect,
+  heldItemName,
+  isItemSuppressed,
+  resolveItemName,
+} from './item-lookup';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { PersistentPokemonState } from '@/modules/battle/domain/state/persistent-state';
+import { VolatileState } from '@/modules/battle/domain/state/volatile-state';
 import { BattleContext } from '../abilities/battle-context.interface';
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
 import { ItemRegistry } from '../items/item-registry';
 
 describe('item-lookup', () => {
-  const createPokemon = (persistentState: PersistentPokemonState): BattlePokemonStatus =>
+  const createPokemon = (
+    persistentState: PersistentPokemonState,
+    volatileState: VolatileState = {},
+  ): BattlePokemonStatus =>
     new BattlePokemonStatus(
       1,
       1,
@@ -23,7 +33,7 @@ describe('item-lookup', () => {
       0,
       0,
       null,
-      {},
+      volatileState,
       persistentState,
     );
 
@@ -46,6 +56,42 @@ describe('item-lookup', () => {
 
       // Assert
       expect(name).toBeUndefined();
+    });
+  });
+
+  describe('持ち物の効果を消す状態（さしおさえ）', () => {
+    it('さしおさえの間は、持ち物の名前を返さない', () => {
+      // Act
+      const name = resolveItemName(createPokemon({ item: 'たべのこし' }, { embargoTurns: 3 }));
+
+      // Assert
+      expect(name).toBeUndefined();
+    });
+
+    it('さしおさえの間は、持ち物の効果を返さない', () => {
+      // Act
+      const effect = getItemEffect(createPokemon({ item: 'たべのこし' }, { embargoTurns: 3 }));
+
+      // Assert
+      expect(effect).toBeUndefined();
+    });
+
+    it('heldItemName は、さしおさえの間も持っている持ち物の名前を返す', () => {
+      // Act
+      const name = heldItemName(createPokemon({ item: 'たべのこし' }, { embargoTurns: 3 }));
+
+      // Assert
+      expect(name).toBe('たべのこし');
+    });
+
+    it('isItemSuppressed は、さしおさえの間だけ true を返す', () => {
+      // Act
+      const suppressed = isItemSuppressed(createPokemon({}, { embargoTurns: 1 }));
+      const notSuppressed = isItemSuppressed(createPokemon({}));
+
+      // Assert
+      expect(suppressed).toBe(true);
+      expect(notSuppressed).toBe(false);
     });
   });
 

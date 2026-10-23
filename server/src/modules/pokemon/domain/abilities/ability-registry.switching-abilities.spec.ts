@@ -4,6 +4,7 @@ import { ShadowTagEffect } from './effects/other/shadow-tag-effect';
 import { MagnetPullEffect } from './effects/other/magnet-pull-effect';
 import { ArenaTrapEffect } from './effects/other/arena-trap-effect';
 import { EmergencyExitEffect } from './effects/other/emergency-exit-effect';
+import { StickyHoldEffect } from './effects/other/sticky-hold-effect';
 
 describe('AbilityRegistry（交代・逃げられなくする特性）', () => {
   beforeEach(() => {
@@ -18,6 +19,7 @@ describe('AbilityRegistry（交代・逃げられなくする特性）', () => {
     ['ありじごく', ArenaTrapEffect],
     ['にげごし', EmergencyExitEffect],
     ['ききかいひ', EmergencyExitEffect],
+    ['ねんちゃく', StickyHoldEffect],
   ])('%s が登録されている', (name, effectClass) => {
     // Act
     const effect = AbilityRegistry.get(name);

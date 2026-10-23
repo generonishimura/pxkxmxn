@@ -4,16 +4,34 @@ import { FieldTurnsTarget, IItemEffect } from '../items/item-effect.interface';
 import { ItemRegistry } from '../items/item-registry';
 
 /**
- * ポケモンが今持っている持ち物の名前
- * 注: 持ち物の効果を消す状態（マジックルーム・さしおさえ・ぶきよう）は、まだ見ていない
+ * ポケモンが持っている持ち物の名前（効果を消されていても返す。本家の pokemon.item）
+ * 持ち物を奪う・入れ替える技（トリック・ギフトパスなど）とメガシンカが読む。効果を見るときは resolveItemName を使う
  * @returns 持ち物の名前、持っていなければ undefined（状態を持たないテスト用のポケモンも undefined）
  */
-export const resolveItemName = (pokemon: BattlePokemonStatus): string | undefined =>
+export const heldItemName = (pokemon: BattlePokemonStatus): string | undefined =>
   pokemon.persistentState?.item;
 
 /**
+ * 持ち物の効果が消されているか（本家の ignoringItem）
+ *
+ * 今見ている理由: さしおさえ（volatileState.embargoTurns）
+ * 注: マジックルーム（GlobalFieldState.magicRoomTurns）・ぶきよう（特性）はまだ見ていない。
+ *     足すときはここに理由を足す（マジックルームは場の状態なので、バトルを受け取る形にする）
+ */
+export const isItemSuppressed = (pokemon: BattlePokemonStatus): boolean =>
+  pokemon.volatileState?.embargoTurns !== undefined;
+
+/**
+ * ポケモンの持ち物のうち、今効果のある持ち物の名前
+ * 持ち物の効果が消されている（isItemSuppressed）ときは、持っていても undefined を返す
+ * @returns 持ち物の名前、持っていない・効果が消されていれば undefined
+ */
+export const resolveItemName = (pokemon: BattlePokemonStatus): string | undefined =>
+  isItemSuppressed(pokemon) ? undefined : heldItemName(pokemon);
+
+/**
  * ポケモンが今持っている持ち物の効果
- * @returns 持ち物の効果、持っていない・登録していない持ち物なら undefined
+ * @returns 持ち物の効果、持っていない・登録していない持ち物・効果が消されていれば undefined
  */
 export const getItemEffect = (pokemon: BattlePokemonStatus): IItemEffect | undefined => {
   const itemName = resolveItemName(pokemon);

@@ -35,6 +35,7 @@ const FULL_VOLATILE_STATE: Required<VolatileState> = {
   disable: { moveId: 7, turns: 4 },
   torment: true,
   healBlockTurns: 5,
+  embargoTurns: 5,
   imprison: true,
   choiceLockedMoveId: 33,
   lockedInMove: { moveId: 253, turns: 2 },
@@ -103,6 +104,7 @@ const LOWER_BOUNDS: ReadonlyArray<readonly [keyof VolatileState, number, number]
   ['substituteHp', 1, 0],
   ['tauntTurns', 0, -1],
   ['healBlockTurns', 0, -1],
+  ['embargoTurns', 0, -1],
   ['choiceLockedMoveId', 1, 0],
   ['chargingMoveId', 1, 0],
   ['lastMoveId', 1, 0],
@@ -391,7 +393,12 @@ describe('VolatileState', () => {
 
     it('残りターン数が 1 のキーは消す', () => {
       // Arrange
-      const state: VolatileState = { healBlockTurns: 1, lockOnTurns: 1, laserFocusTurns: 2 };
+      const state: VolatileState = {
+        healBlockTurns: 1,
+        embargoTurns: 1,
+        lockOnTurns: 1,
+        laserFocusTurns: 2,
+      };
 
       // Act
       const ticked = tickVolatileStateAtTurnEnd(state);
@@ -616,6 +623,7 @@ describe('VolatileState', () => {
         perishCount: 2,
         critStageBoost: 2,
         tauntTurns: 2,
+        embargoTurns: 3,
         encore: { moveId: 3, turns: 2 },
         infatuatedWithStatusId: 4,
         lastMoveId: 5,
@@ -633,6 +641,7 @@ describe('VolatileState', () => {
         perishCount: 2,
         critStageBoost: 2,
         tauntTurns: 2,
+        embargoTurns: 3,
       });
     });
 

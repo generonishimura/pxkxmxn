@@ -549,6 +549,7 @@ getAdditionalHitDamageRatios(_p: BattlePokemonStatus, ctx?: BattleContext): read
 | `reversesDrainHeal` | `boolean` | `applyDrainHeal`（吸い取られた側。かたやぶりで無視されない） | ヘドロえき |
 | `reflectsStatDrops` | `boolean` | `applyStatChanges`（相手が起こした低下。相手の技ではかたやぶりで無視） | ミラーアーマー |
 | `sleepTurnMultiplier` | `number` | ターン終了時のねむりの解除判定（`shouldClearSleep` の `step`） | はやおき（`2`） |
+| `preventsItemRemoval` | `boolean` | `blocksItemRemoval`（`battle-events/item-transfer.ts`。ほかのポケモンが奪う・入れ替えるとき。かたやぶりで無視） | ねんちゃく（トリック・すりかえは、持ち物がなくても失敗する。自分で手放すギフトパスは止めない） |
 
 テラボルテージ・ターボブレイズは `MoldBreakerEffect` をそのまま登録します。
 
@@ -597,7 +598,9 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `StatusConditionProcessorService.processTurnEndAbilities` | ポケモンごとの処理の最後（特性の `onTurnEnd` のあと） |
 
 - 今の持ち物は `PersistentPokemonState.item`、使い切った持ち物は `consumedItem` にあります。バトル開始時に `TrainedPokemon.heldItem` を `item` に写します
-- 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます
+- 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます。持ち物の効果が消されている間（`isItemSuppressed`。さしおさえの `embargoTurns`）は、どちらも undefined を返します。エンジンの持ち物の読み取りはすべてこの 2 つを通るので、効果が消されている間は、持ち物のフックがどれも呼ばれず、ふうせん・くろいてっきゅうの地面の判定も持ち物なしになります
+- 効果を消されていても持っている持ち物を読むときは `heldItemName` を使います（持ち物を奪う・入れ替える技、メガシンカ）
+- 注: マジックルーム（`magicRoomTurns`）・ぶきよう（特性）は、まだ `isItemSuppressed` で見ていません。足すときは `isItemSuppressed` に理由を足します（マジックルームは場の状態なので、バトルを受け取る形に変えます）
 - きのみを食べたときなどは `consumeItem` で、`item` を消して `consumedItem` に残します
 - きのみ・ハーブ（`items/effects/`）が使うフック:
   - 状態異常を治すきのみ（`StatusCureBerryEffect`）: `onStatusInflicted` と `onUpdate`
@@ -610,6 +613,24 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 - 持ち物に新しいフックが要るときは、`IItemEffect` の `Pick` に足し、エンジンの呼ぶ場所もつなぎます
 - 決まったポケモンだけに効く持ち物（でんきだま・ながねぎ）は、`battleContext.attackerNationalDex`（技の使用者のもとの全国図鑑の番号）で判定します
 - 特性に同じ場面のフックがないときだけ、持ち物だけのフックを `ItemOnlyEffect`（`item-effect.interface.ts`）に足します
+
+#### 持ち物を奪う・渡す・入れ替える（`battle-events/item-transfer.ts`）
+
+持ち物を動かす効果は、`patchPersistentState` で `item` を直接書かず、次の関数を使います（本家の `takeItem` / `setItem` と、持ち物・特性の `onTakeItem`）。
+
+| 関数 | 用途 |
+| --- | --- |
+| `takeItem(holder, ctx, { source? })` | 持ち物を外して名前を返す。持っていない・外せないなら undefined（何も書かない）。`source` に持ち主以外を渡すと、ねんちゃく（`blocksItemRemoval`）で外せない |
+| `canGiveItem(receiver, itemName, ctx)` / `giveItem(receiver, itemName, ctx)` | 持ち物のないポケモンに持たせられるか / 持たせる。ひんし・すでに持ち物がある・その種族のメガストーンなら持たせない |
+| `swapItems(source, target, ctx)` | 2 体の持ち物を入れ替える（片方だけなら移す）。どちらも持っていない・どちらかの持ち物を動かせない・`target` のねんちゃくなら、何も書かずに undefined。入れ替えたら `{ sourceItem, targetItem }`（入れ替える前の持ち物）を返す |
+| `isItemBoundTo(pokemon, itemName, ctx)` | その種族のメガストーンか（もとの全国図鑑の番号で見る）。持ち主から外せず、その種族に渡せない |
+| `blocksItemRemoval(holder, source, ctx)` | 持ち主の特性の `preventsItemRemoval`（ねんちゃく）で、`source` に奪われないか。自分で手放すとき・ひんし・`source` のかたやぶりでは false |
+
+- 外した持ち物は `consumedItem` に残しません（本家と同じ。リサイクルで戻せない）
+- 持ち物が変わったポケモンは、こだわりの固定（`choiceLockedMoveId`）を解きます。特性の `locksMoveChoice`（ごりむちゅう）で固定しているときは解きません。こだわりの持ち物を受け取ったポケモンは、次に出した技に固定されます
+- 持ち物を受け取ったポケモンは、その持ち物の `onEntry` を呼びます（本家の `setItem` の `onStart`。エレキシードなど）。HP が減っているポケモンが受け取ったきのみは、技を出し終えたときの `onUpdate` で食べます
+- 注: 本家は、さしおさえの間はこだわりの固定が効かず、ほかの技も出せます。ここでは、さしおさえの間も固定が続きます（`choiceLockedMoveId` はごりむちゅうと共用で、持ち物による固定かを区別できないため）。さしおさえの間に、新しく固定されることはありません
+- 注: かるわざ（持ち物がなくなると素早さ 2 倍）は、まだありません。作るときは、`takeItem`・`swapItems` で持ち物がなくなったときも発動させてください
 
 #### 持ち物だけのフック（ItemOnlyEffect）
 
@@ -1203,6 +1224,9 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 | ねをはる | `ingrain: true`。回復・交代の制限・じめん技はエンジン |
 | おんねん | `grudge: true`。発動はエンジン |
 | かいふくふうじ | `healBlockTurns: 5`。回復技の制限・回復の防止はエンジン（`applyHeal`） |
+| さしおさえ | `tryApplyVolatile(defender, 'embargo', { embargoTurns: 5 })`。持ち物の効果をなくすのは `resolveItemName`・`getItemEffect`（`isItemSuppressed`） |
+| トリック・すりかえ | 相手の `blocksItemRemoval`（ねんちゃく）なら失敗。`swapItems(attacker, defender, ctx)`（3 章の「持ち物を奪う・渡す・入れ替える」）。みがわりに防がれるのはエンジン |
+| ギフトパス | `heldItemName(attacker)` と `canGiveItem(defender, item, ctx)` を確かめてから、`takeItem(attacker, ctx)` → `giveItem(defender, item, ctx)` |
 | アクアリング | `aquaRing: true`。回復はエンジン |
 | でんじふゆう | `magnetRiseTurns: 5`。じめん技の無効はエンジン |
 | テレキネシス | `telekinesisTurns: 3`。必中・じめん技の無効はエンジン |

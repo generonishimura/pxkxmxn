@@ -179,7 +179,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `protectCount` | `recordMoveUse` / `BeforeMoveChecker` / `MoveExecutorService`（まもる系） | まもる系（技の `protection`。トリックガード・たたみがえしを除く。`isProtectionMove` の技も）以外の技を出したら消す。技を出せなかったとき（ひるみ・まひ・ねむり・反動など）も消す（本家の stall は、次のターンにまもる系を成功させなければ切れる）。まもる系が成功したら 1 増やし、失敗したら消す。フェイントなどで守りを解かれたときも消す（`docs/battle-engine-hooks.md` の 13.5） |
 | `protection` | `MoveExecutorService`（まもる系） | 技の `protection` の `kind` の技が成功したら書く。フェイントなどで解かれたら消す（こらえるは消さない）。ターン終了時に消える（`VOLATILE_TURN_SCOPED_FLAGS`） |
 | `SideConditions.wideGuard`・`quickGuard`・`craftyShield`・`matBlock` | `MoveExecutorService`（まもる系） | 技の `protection` の `side` の技が成功したら、使用者の陣営に書く。フェイントなどで解かれたら消す。ターン終了時に消える（`SIDE_TURN_SCOPED_FLAGS`） |
-| `choiceLockedMoveId` | `recordMoveUse` | 特性の `locksMoveChoice`（ごりむちゅう）なら、最初に出した技（わるあがきを除く） |
+| `choiceLockedMoveId` | `recordMoveUse` | 特性・持ち物の `locksMoveChoice`（ごりむちゅう・こだわりスカーフ）なら、最初に出した技（わるあがきを除く）。持ち物が変わると、持ち物の補助関数（`takeItem`・`giveItem`・`swapItems`）が消す（特性で固定しているときは消さない） |
 | `chargingMoveId`・`semiInvulnerable` | `MoveLifecycle.handleChargeTurn` | ため技の 1 ターン目に書き、2 ターン目・技を出せなかったときに消す |
 | `mustRecharge` | `afterMove` / `BeforeMoveChecker` | 反動技（`MoveBehaviors` の `recharge`）が当たったら書き、次の行動で消す |
 | `lockedInMove`・`uproar` | `afterMove` | 出し続ける技の残りターン数（使ったターンを含まない）。終わり・失敗・技を出せなかったときに消す。`uproar` だけは、最後まで出したときはそのターンの終わりまで残す（本家の uproar は residual の最後で終わる） |
@@ -223,8 +223,9 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `disable` | `{ moveId, turns }` | かなしばりされた技と残りターン数 | かなしばり・のろわれボディ |
 | `torment` | 真偽値 | いちゃもんをつけられている | いちゃもん |
 | `healBlockTurns` | 0 以上の整数 | かいふくふうじの残りターン数 | かいふくふうじ |
+| `embargoTurns` | 0 以上の整数 | さしおさえの残りターン数。ある間は持ち物の効果がない（`resolveItemName`・`getItemEffect` が undefined を返す。`isItemSuppressed`）。ターン終了時に減らす。バトンタッチで引き継ぐ | さしおさえ |
 | `imprison` | 真偽値 | ふういんを使った | ふういん |
-| `choiceLockedMoveId` | 技 ID | こだわり系で固定された技（エンジンが書く） | ごりむちゅう |
+| `choiceLockedMoveId` | 技 ID | こだわり系で固定された技（エンジンが書く。持ち物が変わると消える） | ごりむちゅう・こだわりスカーフ |
 | `lockedInMove` | `{ moveId, turns }` | 出し続ける技と、使ったターンのあとの残りターン数（エンジンが書く） | さわぐ・あばれる・げきりん・はなびらのまい・ころがる・アイスボール |
 | `chargingMoveId` | 技 ID | ためている技（エンジンが書く） | ソーラービーム・そらをとぶ・ジオコントロールなどのため技 |
 | `throatChopTurns` | 0 以上の整数 | じごくづきの残りターン数（音技を出せない） | じごくづき |
@@ -410,7 +411,7 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `iceFaceBroken` | 真偽値 | アイスフェイスが壊れた（ゆきで戻る） | アイスフェイス |
 | `oncePerBattleAbilityUsed` | 真偽値 | 1 バトルに 1 回だけの特性を使った | ふとうのけん・ふくつのたて・きずなへんげ |
 | `revivalCount` | 1 以上の整数 | さいきのいのりで復活した回数（エンジンが書く）。ひんしになった延べ数を、今ひんしの数 + この回数で求める | さいきのいのり・そうだいしょう |
-| `item` | 空でない文字列 | 今持っている持ち物の名前。バトル開始時に育成ポケモンの持ち物を写す | 持ち物の効果すべて |
+| `item` | 空でない文字列 | 今持っている持ち物の名前。バトル開始時に育成ポケモンの持ち物を写す。効果を見るときは `resolveItemName`（さしおさえの間は undefined）、持っているものを見るときは `heldItemName` で読む。動かすときは `takeItem`・`giveItem`・`swapItems`（`battle-events/item-transfer.ts`）を使う | 持ち物の効果すべて・トリック・すりかえ・ギフトパス |
 | `consumedItem` | 空でない文字列 | 最後に使い切った持ち物の名前（`consumeItem` が書く） | リサイクル・しゅうかく・かるわざ |
 
 マイティチェンジは、引っ込むことでフォルムが変わります。特性の `onSwitchOut` で `changeForm(holder, 'hero', ctx, { persistent: true })` を呼んでください。
@@ -634,7 +635,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 `executeSwitch(battle, trainerId, trainedPokemonId, { transfer })` に `transfer` を渡すと、引っ込む前の状態から次のポケモンに書きます。
 
-- `'batonPass'`: `BATON_PASS_KEYS` のキー（`substituteHp`・`confusionTurns`・`leechSeed`・`cursed`・`ingrain`・`aquaRing`・`tauntTurns`・`healBlockTurns`・`perishCount`・`telekinesisTurns`・`magnetRiseTurns`・`tarShot`・`critStageBoost`・`laserFocusTurns`・`charged`・`abilitySuppressed`・`throatChopTurns`）と能力ランク（引っ込むポケモンの能力ランクを 0 に戻す前の値を書く）
+- `'batonPass'`: `BATON_PASS_KEYS` のキー（`substituteHp`・`confusionTurns`・`leechSeed`・`cursed`・`ingrain`・`aquaRing`・`tauntTurns`・`healBlockTurns`・`embargoTurns`・`perishCount`・`telekinesisTurns`・`magnetRiseTurns`・`tarShot`・`critStageBoost`・`laserFocusTurns`・`charged`・`abilitySuppressed`・`throatChopTurns`）と能力ランク（引っ込むポケモンの能力ランクを 0 に戻す前の値を書く）
 - `'shedTail'`: `substituteHp` だけ（`shedTailPatch`）
 
 技の `selfSwitch: 'batonPass'` / `'shedTail'` を使えば、エンジンが `transfer` を渡して交代させます（7 章の `pendingChoice`）。技から `executeSwitch` を直接呼ばないでください。
@@ -712,7 +713,7 @@ JSON のキーは文字列なので、`sides` のキーはトレーナー ID を
 
 メガシンカした姿は `persistentState.form` にあるので、交代しても、ひんしになっても戻りません。
 
-注: メガストーンを奪う・はたきおとす技はまだありません。作るときは、メガストーン（`isMegaStone`）を奪えないようにしてください。
+その種族のメガストーンは、トリック・すりかえ・ギフトパスで外せず、その種族に渡すこともできません（`isItemBoundTo`。`battle-events/item-transfer.ts`）。別の種族のメガストーンは動かせます（本家と同じ）。はたきおとす・どろぼうなどを作るときも、`takeItem` を使えば同じ決まりになります。
 
 ### 交代（`ExecuteTurnUseCase`）
 
