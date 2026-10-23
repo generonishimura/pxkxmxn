@@ -1,7 +1,7 @@
 import { IItemEffect } from '../item-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
-import { consumeItem } from '../../battle-events/item-lookup';
+import { eatItem } from '../../battle-events/eat-item';
 
 /**
  * 決まったタイプの技のダメージを、1 回だけ半分にするきのみ
@@ -48,9 +48,16 @@ export class ResistBerryEffect implements IItemEffect {
     if (hitsSubstitute) {
       return undefined;
     }
-    if (!(await consumeItem(holder, battleContext))) {
+    if (!(await eatItem(holder, battleContext))) {
       return undefined;
     }
     return damage * ResistBerryEffect.DAMAGE_MULTIPLIER;
+  }
+
+  /**
+   * 食べたときの効果はない（ダメージを半分にするのは modifyDamage。本家の onEat も何もしない）
+   */
+  onEat(): Promise<string | null> {
+    return Promise.resolve(null);
   }
 }

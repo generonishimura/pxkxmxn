@@ -2,7 +2,7 @@ import { IItemEffect } from '../item-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { StatusCondition } from '@/modules/battle/domain/entities/status-condition.enum';
 import { BattleContext } from '../../abilities/battle-context.interface';
-import { consumeItem } from '../../battle-events/item-lookup';
+import { eatItem, joinEatMessages } from '../../battle-events/eat-item';
 import { EffectSource } from '../../battle-events/effect-source';
 
 /**
@@ -55,24 +55,34 @@ export class StatusCureBerryEffect implements IItemEffect {
   }
 
   /**
-   * 治せる状態なら、きのみを食べて治す
+   * 治せる状態なら、きのみを食べる（治すのは onEat）
    */
   private async cure(
     holder: BattlePokemonStatus,
     battleContext: BattleContext,
   ): Promise<string | null> {
+    if (holder.currentHp <= 0 || !this.hasCurableCondition(holder)) {
+      return null;
+    }
+    return joinEatMessages(await eatItem(holder, battleContext));
+  }
+
+  /**
+   * 治せる状態異常・こんらんを治す（本家の onEat。はんすうで食べ直したときも、治せる状態があれば治す）
+   */
+  async onEat(
+    holder: BattlePokemonStatus,
+    itemName: string,
+    battleContext: BattleContext,
+  ): Promise<string | null> {
     const repository = battleContext.battleRepository;
-    if (!repository || holder.currentHp <= 0) {
+    if (!repository) {
       return null;
     }
     const status = holder.statusCondition;
     const curesStatus = status !== null && this.curableStatuses.includes(status);
     const curesConfusion = this.curesConfusion && holder.volatileState.confusionTurns !== undefined;
     if (!curesStatus && !curesConfusion) {
-      return null;
-    }
-    const itemName = await consumeItem(holder, battleContext);
-    if (!itemName) {
       return null;
     }
 
@@ -93,5 +103,16 @@ export class StatusCureBerryEffect implements IItemEffect {
       cured.push('confusion');
     }
     return `${itemName} cured its ${cured.join(' and ')}!`;
+  }
+
+  /**
+   * このきのみで治せる状態異常・こんらんか
+   */
+  private hasCurableCondition(holder: BattlePokemonStatus): boolean {
+    const status = holder.statusCondition;
+    return (
+      (status !== null && this.curableStatuses.includes(status)) ||
+      (this.curesConfusion && holder.volatileState.confusionTurns !== undefined)
+    );
   }
 }

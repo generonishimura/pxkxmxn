@@ -1,7 +1,7 @@
 import { IItemEffect } from '../item-effect.interface';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../abilities/battle-context.interface';
-import { consumeItem } from '../../battle-events/item-lookup';
+import { eatItem, joinEatMessages } from '../../battle-events/eat-item';
 import { applyHeal, fractionOfMaxHp, isHealBlocked } from '../../battle-events/heal';
 
 /**
@@ -25,10 +25,14 @@ export class HpRestoreBerryEffect implements IItemEffect {
     if (holder.currentHp <= 0 || holder.currentHp > holder.maxHp / 2 || isHealBlocked(holder)) {
       return null;
     }
-    const itemName = await consumeItem(holder, battleContext);
-    if (!itemName) {
-      return null;
-    }
+    return joinEatMessages(await eatItem(holder, battleContext));
+  }
+
+  async onEat(
+    holder: BattlePokemonStatus,
+    itemName: string,
+    battleContext: BattleContext,
+  ): Promise<string | null> {
     await applyHeal(holder, this.healAmountOf(holder), battleContext);
     return `${itemName} restored its HP!`;
   }
