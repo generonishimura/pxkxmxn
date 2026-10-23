@@ -1356,6 +1356,7 @@ export class MoveExecutorService {
     let substituteDamage = 0;
     let substituteBroke = false;
     let hitCount = 0;
+    let substituteHitCount = 0;
     let criticalHitCount = 0;
     let blockedHitCount = 0;
     let endured = false;
@@ -1437,6 +1438,7 @@ export class MoveExecutorService {
         substituteDamage += dealtToSubstitute;
         substituteBroke = substituteBroke || remaining <= 0;
         hitCount += 1;
+        substituteHitCount += 1;
         continue;
       }
 
@@ -1636,9 +1638,15 @@ export class MoveExecutorService {
       await defenderEventEffect.onAfterTakingDamage(updatedDefender, 0, battleContext);
     }
 
-    // 受けた技を記録する（テクスチャー２が読む）
-    if (damage > 0) {
-      await this.battleRepository.patchVolatileState(defender.id, { lastHitByMoveId: move.id });
+    // 受けた技（テクスチャー２が読む）と、攻撃を受けた回数（ふんどのこぶしが読む）を記録する。
+    // 回数は、ダメージを受けたヒットとばけのかわなどで防いだヒットを数える（本家の timesAttacked += hit - 1。
+    // みがわりに当たったヒットは数えない）
+    const attackedHitCount = hitCount - substituteHitCount;
+    if (landed && attackedHitCount > 0) {
+      await this.battleRepository.patchVolatileState(defender.id, {
+        ...(damage > 0 ? { lastHitByMoveId: move.id } : {}),
+        timesAttacked: (updatedDefender.volatileState.timesAttacked ?? 0) + attackedHitCount,
+      });
     }
 
     // 接触したときのメッセージ（くちばしキャノンのやけど）。せいでんき・ぬめぬめ・くだけるよろいなどの

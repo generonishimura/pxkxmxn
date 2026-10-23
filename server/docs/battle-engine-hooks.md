@@ -1115,6 +1115,7 @@ await tryApplyVolatile(defender, 'trap', { trappedByStatusId: attacker.id }, ctx
 | さきどり | `ctx.defenderPendingMoveId` の技（`failMeFirst` でないダメージ技）を `callMove({ powerMultiplier: 1.5 })` |
 | うっぷんばらし | `modifyMovePower`（使用者の `statsLoweredTurn === ctx.battle.turn` なら 2 倍）。`beforeDamage` を持たせて、威力の前に使用者を読み直させる |
 | しっとのほのお | `BaseStatusConditionEffect` の `onHit` を、相手の `statsRaisedTurn === ctx.battle.turn` のときだけ呼ぶ（確率 100% の追加効果。りんぷんで止まる） |
+| ふんどのこぶし | `modifyMovePower`（`min(350, 50 + 50 × timesAttacked)`）と `beforeDamage`。`timesAttacked` はエンジンが書き、交代で消える（チャンピオンズ） |
 | まねっこ | `getGlobalFieldState(battle.sideState).lastMoveId`（`failCopycat` でない）を `callMove` |
 | さいはい | 相手の `lastMoveId`（`failInstruct` でない）を `callMove({ user: defender, runBeforeMoveChecks: true, consumePp: true })` |
 | タールショット | 素早さ -1 と `tryApplyVolatile(defender, 'tarShot', { tarShot: true })` |

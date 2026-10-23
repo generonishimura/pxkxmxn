@@ -297,6 +297,14 @@ export type VolatileState = {
    */
   readonly statsLoweredTurn?: number;
 
+  // ---- 受けた攻撃（エンジンが書く） ----
+  /**
+   * 場に出てから攻撃技を受けた回数（1 以上。ふんどのこぶしが読む。本家の timesAttacked）
+   * 連続技はヒットごとに数える。みがわりに当たったヒットは数えない。
+   * チャンピオンズでは交代すると上乗せが消えるので volatileState に置く（SV は交代しても残る）
+   */
+  readonly timesAttacked?: number;
+
   // ---- 技の流れ（エンジンが書く） ----
   /** ため技でためている間の隠れ方。ため技を出すか、出せなかったときにエンジンが消す */
   readonly semiInvulnerable?: SemiInvulnerableKind;
@@ -423,6 +431,7 @@ export const VOLATILE_STATE_PARSERS: FieldParsers<VolatileState> = {
   slowStartTurn: nonNegativeInteger,
   statsRaisedTurn: nonNegativeInteger,
   statsLoweredTurn: nonNegativeInteger,
+  timesAttacked: positiveInteger,
   semiInvulnerable: oneOf(SEMI_INVULNERABLE_KINDS),
   mustRecharge: booleanValue,
   consecutiveMoveCount: positiveInteger,

@@ -7,6 +7,7 @@ import { BodyPressEffect } from './effects/body-press-effect';
 import { DireClawEffect } from './effects/dire-claw-effect';
 import { LashOutEffect } from './effects/lash-out-effect';
 import { BurningJealousyEffect } from './effects/burning-jealousy-effect';
+import { RageFistEffect } from './effects/rage-fist-effect';
 
 describe('MoveRegistry: Issue #268 の技', () => {
   beforeEach(() => {
@@ -22,6 +23,7 @@ describe('MoveRegistry: Issue #268 の技', () => {
     ['フェイタルクロー', DireClawEffect],
     ['うっぷんばらし', LashOutEffect],
     ['しっとのほのお', BurningJealousyEffect],
+    ['ふんどのこぶし', RageFistEffect],
   ])('%s が登録されている', (moveName, effectClass) => {
     // Act
     const effect = MoveRegistry.get(moveName);

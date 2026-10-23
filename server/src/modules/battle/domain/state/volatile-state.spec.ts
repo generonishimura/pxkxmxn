@@ -83,6 +83,7 @@ const FULL_VOLATILE_STATE: Required<VolatileState> = {
   slowStartTurn: 7,
   statsRaisedTurn: 3,
   statsLoweredTurn: 5,
+  timesAttacked: 2,
   semiInvulnerable: 'air',
   mustRecharge: true,
   consecutiveMoveCount: 2,
@@ -123,6 +124,7 @@ const LOWER_BOUNDS: ReadonlyArray<readonly [keyof VolatileState, number, number]
   ['slowStartTurn', 0, -1],
   ['statsRaisedTurn', 0, -1],
   ['statsLoweredTurn', 0, -1],
+  ['timesAttacked', 1, 0],
   ['consecutiveMoveCount', 1, 0],
   ['throatChopTurns', 0, -1],
 ];
