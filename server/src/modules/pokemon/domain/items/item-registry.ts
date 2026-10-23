@@ -16,6 +16,9 @@ import {
 import { LeekEffect, ScopeLensEffect } from './effects/critical-hit-item-effect';
 import { FocusSashEffect } from './effects/focus-sash-effect';
 import { FocusBandEffect } from './effects/focus-band-effect';
+import { RockyHelmetEffect } from './effects/rocky-helmet-effect';
+import { KingsRockEffect } from './effects/kings-rock-effect';
+import { ShellBellEffect } from './effects/shell-bell-effect';
 
 /**
  * 持ち物のレジストリ
@@ -52,6 +55,9 @@ export class ItemRegistry {
     this.registry.set('たべのこし', new LeftoversEffect());
     this.registry.set('きあいのタスキ', new FocusSashEffect());
     this.registry.set('きあいのハチマキ', new FocusBandEffect());
+    this.registry.set('ゴツゴツメット', new RockyHelmetEffect());
+    this.registry.set('おうじゃのしるし', new KingsRockEffect());
+    this.registry.set('かいがらのすず', new ShellBellEffect());
   }
 
   /**

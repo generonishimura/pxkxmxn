@@ -2235,6 +2235,7 @@ export class MoveExecutorService {
   /**
    * 技全体のあとの特性を呼ぶ
    * - 防御側の onAfterMoveHit: 合計ダメージが1以上のとき（いかりのこうら・ぎゃくじょう）
+   * - 攻撃側の持ち物の onSourceAfterMoveHit: 合計ダメージが1以上で、持ち主がひんしでないとき（かいがらのすず）
    * - 攻撃側の onKnockOut: 相手がひんしで、自分がひんしでないとき（じしんかじょうなど）
    * @returns 特性のメッセージ
    */
@@ -2248,10 +2249,6 @@ export class MoveExecutorService {
     battleContext: BattleContext;
   }): Promise<string[]> {
     const { attackerAbilityEffect, defenderEventEffect, battleContext } = params;
-    if (!defenderEventEffect?.onAfterMoveHit && !attackerAbilityEffect?.onKnockOut) {
-      return [];
-    }
-
     const messages: Array<string | null | undefined> = [];
     let attacker = await this.battleRepository.findBattlePokemonStatusById(params.attackerId);
     let defender = await this.battleRepository.findBattlePokemonStatusById(params.defenderId);
@@ -2264,6 +2261,21 @@ export class MoveExecutorService {
         await defenderEventEffect.onAfterMoveHit(
           defender,
           attacker,
+          params.createMoveHit(),
+          battleContext,
+        ),
+      );
+      attacker = (await this.battleRepository.findBattlePokemonStatusById(attacker.id)) ?? attacker;
+      defender = (await this.battleRepository.findBattlePokemonStatusById(defender.id)) ?? defender;
+    }
+
+    // 攻撃側の持ち物（かいがらのすず）。持ち主がひんしなら呼ばない
+    const attackerItemEffect = getItemEffect(attacker);
+    if (params.damage > 0 && !attacker.isFainted() && attackerItemEffect?.onSourceAfterMoveHit) {
+      messages.push(
+        await attackerItemEffect.onSourceAfterMoveHit(
+          attacker,
+          defender,
           params.createMoveHit(),
           battleContext,
         ),

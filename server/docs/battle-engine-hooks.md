@@ -31,6 +31,7 @@
 11. ヒットごとに急所を引き（13.1）、ダメージを計算して当てる（連続技・おやこあいの追加ヒット。相手にみがわりがあればみがわりに当て、追加効果は起きない。こらえるの相手は HP が 1 残る。防御側特性の `blockDamagingHit`（ばけのかわなど。14.10）が防いだヒットは 0 にする）。1以上減らしたヒット（と防いだヒット）ごとに、防御側特性の `onDamagingHit` → 防御側の持ち物の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` → 攻撃側の持ち物の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
 12. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
 13. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut` → 技が当たったなら攻撃側の特性 → 攻撃側の持ち物の `onAfterMoveSecondarySelf`（いのちのたまなど）→ 倒した相手のみちづれ・おんねん
+13. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 攻撃側の持ち物の `onSourceAfterMoveHit`（合計ダメージが1以上で、自分が無事なとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut` → 倒した相手のみちづれ・おんねん
 
 メッセージは `Used <技> and dealt <ダメージ> damage (hit N times) <A critical hit!> <It broke through the protection!> <The opponent endured the hit!> <接触時の特性> <11のメッセージ> <onHit・afterDamage> <13のメッセージ>` の順に並びます。
 
@@ -550,6 +551,7 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | フック | 呼ぶ場所 | 内容 |
 | --- | --- | --- |
 | `endureHit(holder, damage, ctx): Promise<string \| null>` | `MoveExecutorService.runMoveBody` のヒットのループ（防御側）。HP を減らす前 | ひんしになるダメージ（`damage >= holder.currentHp`）を受けるとき、メッセージを返すと HP が 1 残る。こらえるで残るヒット・みがわりに当たったヒット・特性で防いだヒットでは呼ばない（本家の `onDamage` と同じく、こらえるが先）。使う持ち物: きあいのタスキ、きあいのハチマキ |
+| `onSourceAfterMoveHit(holder, target, hit, ctx): Promise<string \| null>` | `MoveExecutorService.runAfterMoveHooks`（攻撃側）。技全体で 1 回 | 防御側の `onAfterMoveHit` の攻撃側版（本家の `onAfterMoveSecondarySelf`）。合計ダメージが 1 以上で、持ち主がひんしでないとき、防御側の特性の `onAfterMoveHit` のあと・攻撃側の特性の `onKnockOut` の前に呼ぶ。`hit.damage` は合計。みがわりにだけ当たったときは呼ばない。使う持ち物: かいがらのすず |
 
 ```ts
 // きあいのタスキ

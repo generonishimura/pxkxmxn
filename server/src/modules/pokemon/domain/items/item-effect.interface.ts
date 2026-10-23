@@ -1,6 +1,7 @@
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { IAbilityEffect } from '../abilities/ability-effect.interface';
 import { BattleContext } from '../abilities/battle-context.interface';
+import { HitResult } from '../battle-events/hit-result';
 
 /**
  * 持ち物の効果
@@ -46,6 +47,22 @@ export interface ItemOnlyEffect {
   endureHit?(
     holder: BattlePokemonStatus,
     damage: number,
+    battleContext: BattleContext,
+  ): Promise<string | null>;
+
+  /**
+   * 攻撃側: 攻撃技で相手の HP を減らしたあと、技全体で 1 回（かいがらのすず。本家の onAfterMoveSecondarySelf）
+   * 防御側の onAfterMoveHit の攻撃側版
+   * 呼ぶ場所: MoveExecutorService の技全体のあと（防御側の特性の onAfterMoveHit のあと、攻撃側の特性の onKnockOut の前）。
+   * 合計ダメージが 1 以上で、持ち主がひんしでないとき。みがわりにだけ当たったときは呼ばない
+   * @param holder 持ち主（攻撃側。最新の状態）
+   * @param target 技を受けた相手（最新の状態）
+   * @param hit 技全体の情報（damage は全ヒットの合計）
+   */
+  onSourceAfterMoveHit?(
+    holder: BattlePokemonStatus,
+    target: BattlePokemonStatus,
+    hit: HitResult,
     battleContext: BattleContext,
   ): Promise<string | null>;
 }
