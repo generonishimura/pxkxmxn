@@ -42,6 +42,7 @@ import {
   MistySeedEffect,
   PsychicSeedEffect,
 } from './effects/base-terrain-seed-item-effect';
+import { ShedShellEffect } from './effects/shed-shell-effect';
 
 /**
  * 持ち物のレジストリ
@@ -100,6 +101,7 @@ export class ItemRegistry {
     this.registry.set('グラスシード', new GrassySeedEffect());
     this.registry.set('ミストシード', new MistySeedEffect());
     this.registry.set('サイコシード', new PsychicSeedEffect());
+    this.registry.set('きれいなぬけがら', new ShedShellEffect());
   }
 
   /**

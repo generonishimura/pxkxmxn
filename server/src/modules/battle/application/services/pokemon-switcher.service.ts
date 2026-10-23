@@ -144,6 +144,7 @@ export class PokemonSwitcherService {
    * ねをはる・逃げられない状態・バインド状態・相手の特性（trapsOpponent）・フェアリーロックを見る。
    * ゴーストタイプは、どれでも交代できる。かけたポケモンがひんし・場にいない、逃げられない状態とバインド状態は見ない。
    * 交代しようとするポケモンがひんしなら、何があっても入れ替えられる（本家もひんしの後の入れ替えは逃げられなくしない）
+   * 持ち物の escapesTrapping（きれいなぬけがら）なら、どれでも交代できる
    * @param active 交代しようとしている場のポケモン
    * @param opponent 相手の場のポケモン（ひんしなら特性で逃げられなくしない）
    * @param battle バトル（フェアリーロック）
@@ -154,6 +155,10 @@ export class PokemonSwitcherService {
     battle?: Battle,
   ): Promise<SwitchBlocker | undefined> {
     if (active.isFainted()) {
+      return undefined;
+    }
+    // きれいなぬけがら（持ち物の escapesTrapping）なら、何があっても交代できる
+    if (getItemEffect(active)?.escapesTrapping === true) {
       return undefined;
     }
     const state = active.volatileState;

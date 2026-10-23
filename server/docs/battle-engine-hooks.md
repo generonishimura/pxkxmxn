@@ -601,6 +601,7 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `modifyFieldTurns(holder, target, turns)` | `setWeather` / `setTerrain`（`source` を渡したとき）、`BaseSideConditionMoveEffect.onUse` | 持ち主が出した天候・フィールド・陣営の守りの残りターン数を変える。`target` は `{ kind: 'weather', weather }` / `{ kind: 'terrain', field }` / `{ kind: 'sideCondition', key }`。補助関数 `resolveFieldTurns(source, target, turns)`（`item-lookup.ts`）（ひかりのねんど・あついいわ・つめたいいわ・さらさらいわ・しめったいわ・グランドコート） |
 | `modifyDrainHeal(holder, amount)` | `applyDrainHeal`（回復する側）、`VolatileResidualProcessor.applyBeforeStatusDamage`（アクアリング・ねをはる） | 吸い取って回復する量を変える。ヘドロえきのダメージも変わる。補助関数 `resolveDrainHealAmount(healer, amount)`（おおきなねっこ） |
 | `partialTrapDamageDivisor`（プロパティ） | `VolatileResidualProcessor.applyAfterStatusDamage` | しめつけたポケモン（`partialTrap.sourceStatusId`）の持ち物で、バインドのダメージの分母を変える（既定 8。しめつけバンドは 6） |
+| `escapesTrapping`（プロパティ） | `PokemonSwitcherService.findSwitchBlocker` | `true` なら、逃げられない状態・バインド状態・ねをはる・相手の `trapsOpponent`・フェアリーロックでも交代できる（きれいなぬけがら） |
 
 ```ts
 // きあいのタスキ
@@ -1401,6 +1402,7 @@ trapsOpponent(_holder: BattlePokemonStatus, target: TrapTarget): boolean {
 ```
 
 - くろいまなざし・とおせんぼう・クモのすは `trappedByStatusId`（9.7）
+- 持ち物の `escapesTrapping`（きれいなぬけがら）を持つポケモンは、特性・状態にかかわらず交代できる（`findSwitchBlocker` が先に判定する）
 
 ### 11.7 手持ちの数（attackerFaintedAllyCount / countFaintedAllies）
 

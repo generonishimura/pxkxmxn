@@ -30,7 +30,7 @@ const TRAP_IMMUNE_TYPE_NAME = 'ゴースト';
  * ゴーストタイプは、ねをはる・逃げられない状態・バインド状態・相手の特性・フェアリーロックでも交代できる
  * （本家の ingrain・fairylock・かげふみなども tryTrap を呼ぶので、trapped を受けないゴーストタイプは交代できる。
  *  ねをはる・きゅうばんで、ふきとばしなどで引っ込まなくなる効果は、技の forceSwitch でエンジンが判定する）
- * 注: とんぼがえり・ほえるなどの技・特性による交代は、この判定を受けない（本家と同じ）。持ち物（きれいなぬけがら）はない
+ * 注: とんぼがえり・ほえるなどの技・特性による交代は、この判定を受けない（本家と同じ）。持ち物（きれいなぬけがら）は PokemonSwitcherService.findSwitchBlocker が先に判定する
  * @param state 交代しようとしているポケモンの volatileState
  * @param typeNames そのポケモンのタイプ名
  */

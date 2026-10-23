@@ -127,4 +127,10 @@ export interface ItemOnlyEffect {
    * VolatileResidualProcessor が、しめつけたポケモン（partialTrap.sourceStatusId）の持ち物で読む
    */
   readonly partialTrapDamageDivisor?: number;
+
+  /**
+   * 持ち主は、逃げられない状態・バインド状態・ねをはる・相手の特性（かげふみなど）・フェアリーロックでも交代できる（きれいなぬけがら）
+   * PokemonSwitcherService.findSwitchBlocker が読む
+   */
+  readonly escapesTrapping?: boolean;
 }
