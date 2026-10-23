@@ -83,6 +83,63 @@ describe('MoveExecutorService - 技を出す前の判定（BeforeMoveChecker）'
     expect(statuses.get(DEFENDER_ID).currentHp).toBe(100);
   });
 
+  it('こおりで動けなかった回数を persistentState.freezeTurns に数える', async () => {
+    // Arrange: 解除判定は毎回外れる
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    const { execute, statuses } = setupMoveExecutor({
+      attacker: { statusCondition: StatusCondition.Freeze },
+    });
+
+    // Act
+    await execute();
+    const afterFirst = statuses.get(ATTACKER_ID).persistentState.freezeTurns;
+    await execute();
+
+    // Assert
+    expect(afterFirst).toBe(1);
+    expect(statuses.get(ATTACKER_ID).persistentState.freezeTurns).toBe(2);
+    expect(statuses.get(ATTACKER_ID).statusCondition).toBe(StatusCondition.Freeze);
+  });
+
+  it('こおりは、3回目の行動で乱数が外れても必ず溶けて技を出し、回数を消す', async () => {
+    // Arrange
+    jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    const { execute, statuses } = setupMoveExecutor({
+      attacker: { statusCondition: StatusCondition.Freeze },
+    });
+
+    // Act
+    const first = await execute();
+    const second = await execute();
+    const third = await execute();
+
+    // Assert
+    expect(first).toBe('Cannot act due to freeze');
+    expect(second).toBe('Cannot act due to freeze');
+    expect(third).toContain('Pokemon thawed out!');
+    expect(statuses.get(ATTACKER_ID).statusCondition).toBe(StatusCondition.None);
+    expect(statuses.get(ATTACKER_ID).persistentState.freezeTurns).toBeUndefined();
+  });
+
+  it('ねむる（Rest）のねむりは、3回動けず、4回目の行動で起きて技を出す', async () => {
+    // Arrange
+    const { execute, statuses } = setupMoveExecutor({
+      attacker: { statusCondition: StatusCondition.Sleep, persistentState: { sleepTurns: 3 } },
+    });
+
+    // Act
+    const results = [await execute(), await execute(), await execute()];
+    const afterThree = statuses.get(ATTACKER_ID).statusCondition;
+    await execute();
+
+    // Assert
+    expect(results).toEqual(Array(3).fill('Cannot act due to sleep'));
+    expect(afterThree).toBe(StatusCondition.Sleep);
+    expect(statuses.get(ATTACKER_ID).statusCondition).toBe(StatusCondition.None);
+    expect(statuses.get(ATTACKER_ID).persistentState.sleepTurns).toBeUndefined();
+    expect(statuses.get(DEFENDER_ID).currentHp).toBeLessThan(100);
+  });
+
   it('こおりでも、かえんぐるまは溶かして出せる', async () => {
     // Arrange
     jest.spyOn(StatusConditionHandler, 'shouldClearFreeze').mockReturnValue(false);

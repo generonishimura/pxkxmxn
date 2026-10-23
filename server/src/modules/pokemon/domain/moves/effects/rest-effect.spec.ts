@@ -23,6 +23,17 @@ describe('RestEffect（ねむる）', () => {
     expect(message).toBe('user slept and recovered HP!');
   });
 
+  it('3ターン眠る（persistentState.sleepTurns に 3 を書く）', async () => {
+    // Arrange
+    const { context, get } = createInMemoryBattle({ status: { currentHp: 40 } });
+
+    // Act
+    await new RestEffect().onUse(get(1), get(2), context({ attacker: get(1) }));
+
+    // Assert
+    expect(get(1).persistentState.sleepTurns).toBe(3);
+  });
+
   it('すでにねむっていれば、HP が減っていても失敗する', async () => {
     // Arrange
     const { context, get } = createInMemoryBattle({

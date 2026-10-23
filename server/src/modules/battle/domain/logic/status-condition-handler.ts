@@ -29,25 +29,40 @@ export interface StatusConditionProcessResult {
  *
  * 各状態異常の効果:
  * - やけど（Burn）: 物理攻撃0.5倍、ターン終了時に最大HPの1/16ダメージ
- * - こおり（Freeze）: 行動不能（20%の確率で解除）
+ * - こおり（Freeze）: 行動不能（毎ターン25%の確率で解除。3回目の行動では必ず解除）
  * - どく（Poison）: ターン終了時に最大HPの1/8ダメージ
  * - もうどく（BadPoison）: ターン終了時に最大HPの1/16から始まり、毎ターン増加（最大1/2）
- * - ねむり（Sleep）: 行動不能（1-3ターン後に自動解除）
- * - まひ（Paralysis）: 素早さ0.5倍（既存実装あり）、25%の確率で行動不能
+ * - ねむり（Sleep）: 行動不能（1-3ターン後に自動解除。ねむるは固定で3ターン）
+ * - まひ（Paralysis）: 素早さ0.5倍（既存実装あり）、12.5%の確率で行動不能
  *
  * ひるみ・こんらんは状態異常の欄ではなく volatileState に置く（volatile-status-condition.ts）。
  * ひるみの行動不能・こんらんの自傷は、MoveExecutorService が技を出そうとしたときに判定する
  */
 export class StatusConditionHandler {
   /**
-   * こおりの解除確率（20%）
+   * こおりの解除確率（25%）
+   * チャンピオンズの値。SV は20%
    */
-  private static readonly FREEZE_THAW_CHANCE = 0.2;
+  private static readonly FREEZE_THAW_CHANCE = 0.25;
 
   /**
-   * まひによる行動不能の確率（25%）
+   * こおりで動けない回数の上限（2回）。3回目の行動では必ず解ける
+   * チャンピオンズの値。SV は上限なし（20%の判定を続ける）
    */
-  private static readonly PARALYSIS_IMMOBILIZE_CHANCE = 0.25;
+  static readonly FREEZE_MAX_IMMOBILE_TURNS = 2;
+
+  /**
+   * まひによる行動不能の確率（12.5%）
+   * チャンピオンズの値。SV は25%
+   */
+  private static readonly PARALYSIS_IMMOBILIZE_CHANCE = 0.125;
+
+  /**
+   * ねむる（Rest）で眠る、動けないターン数（3ターン）
+   * チャンピオンズの値。SV は2ターン
+   * 通常のねむりは最大でも3回目のターン終了時に必ず解除される（shouldClearSleepAt）ので、ここは変えない
+   */
+  static readonly REST_SLEEP_TURNS = 3;
 
   /**
    * ねむり1ターン目の解除確率（33%）
@@ -106,7 +121,7 @@ export class StatusConditionHandler {
 
     switch (status.statusCondition) {
       case StatusCondition.Freeze:
-        // こおり: FREEZE_THAW_CHANCEの確率で解除して行動可能
+        // こおり: FREEZE_THAW_CHANCEの確率で解除して行動可能（動けない回数は数えない。数える判定は shouldClearFreeze）
         return Math.random() < StatusConditionHandler.FREEZE_THAW_CHANCE;
       case StatusCondition.Sleep:
         // ねむり: 行動不能（自動解除は別処理で行う）
@@ -226,10 +241,15 @@ export class StatusConditionHandler {
 
   /**
    * こおりの自動解除判定
+   * @param immobileTurns ここまでにこおりで動けなかった回数（0から始まる）
    * @returns 解除されるかどうか
    */
-  static shouldClearFreeze(): boolean {
-    // こおりはFREEZE_THAW_CHANCEの確率で解除（行動前に判定）
+  static shouldClearFreeze(immobileTurns: number = 0): boolean {
+    // 動けなかった回数が上限に達していたら、乱数を引かずに必ず解除する
+    if (immobileTurns >= StatusConditionHandler.FREEZE_MAX_IMMOBILE_TURNS) {
+      return true;
+    }
+    // それまでは FREEZE_THAW_CHANCE の確率で解除（行動前に判定）
     return Math.random() < StatusConditionHandler.FREEZE_THAW_CHANCE;
   }
 

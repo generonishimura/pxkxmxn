@@ -153,6 +153,58 @@ describe('StatusConditionProcessorService - 状態異常の特性フック', () 
     });
   });
 
+  describe('ねむりのターン数の扱い', () => {
+    it('通常のねむりは、乱数が毎回外れても3回目のターン終了時に必ず起きる', async () => {
+      // Arrange
+      jest.spyOn(Math, 'random').mockReturnValue(0.99);
+      const { processTurnEnd, get } = setup({ status: { statusCondition: StatusCondition.Sleep } });
+
+      // Act
+      await processTurnEnd();
+      await processTurnEnd();
+      const afterTwo = get(1).statusCondition;
+      await processTurnEnd();
+
+      // Assert
+      expect(afterTwo).toBe(StatusCondition.Sleep);
+      expect(get(1).statusCondition).toBe(StatusCondition.None);
+    });
+
+    it('ねむる（Rest）の固定ターンのねむりは、ターン終了時の確率では起きない', async () => {
+      // Arrange: 通常なら起きる乱数
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      const { processTurnEnd, get } = setup({
+        status: { statusCondition: StatusCondition.Sleep, persistentState: { sleepTurns: 3 } },
+      });
+
+      // Act
+      await processTurnEnd();
+      await processTurnEnd();
+      await processTurnEnd();
+
+      // Assert
+      expect(get(1).statusCondition).toBe(StatusCondition.Sleep);
+      expect(get(1).persistentState.sleepTurns).toBe(3);
+    });
+
+    it('ねむり・こおりでなくなっていたら、残ったターン数を捨てる', async () => {
+      // Arrange
+      const { processTurnEnd, get } = setup({
+        status: {
+          statusCondition: StatusCondition.Burn,
+          persistentState: { sleepTurns: 1, freezeTurns: 1 },
+        },
+      });
+
+      // Act
+      await processTurnEnd();
+
+      // Assert
+      expect(get(1).persistentState.sleepTurns).toBeUndefined();
+      expect(get(1).persistentState.freezeTurns).toBeUndefined();
+    });
+  });
+
   describe('ターン終了時の特性に渡すコンテキスト', () => {
     it('育成ポケモンリポジトリを渡す（相手の特性を調べる効果のため）', async () => {
       // Arrange

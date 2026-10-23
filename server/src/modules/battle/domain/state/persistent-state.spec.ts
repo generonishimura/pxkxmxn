@@ -12,6 +12,7 @@ import {
  */
 const FULL_PERSISTENT_STATE: Required<PersistentPokemonState> = {
   sleepTurns: 2,
+  freezeTurns: 1,
   form: 'hero',
   disguiseBusted: true,
   iceFaceBroken: true,

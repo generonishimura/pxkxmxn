@@ -334,6 +334,18 @@ export class PokemonSwitcherService {
         volatileState: clearVolatileOnSwitchOut(),
       });
 
+      // 解除したねむり・こおりのターン数（persistentState）も消す
+      const { sleepTurns, freezeTurns } = currentActive.persistentState;
+      if (
+        statusCondition === StatusCondition.None &&
+        (sleepTurns !== undefined || freezeTurns !== undefined)
+      ) {
+        await this.battleRepository.patchPersistentState(currentActive.id, {
+          sleepTurns: null,
+          freezeTurns: null,
+        });
+      }
+
       // 注: もうどく・ねむりのターン数はStatusConditionProcessorServiceで管理されているが、
       // 交代時に状態異常が解除されるため、ターン数の追跡自体が不要となる
     }
