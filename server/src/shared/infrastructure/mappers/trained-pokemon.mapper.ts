@@ -5,18 +5,27 @@ import { PokemonMapper } from './pokemon.mapper';
 import { AbilityMapper } from './ability.mapper';
 
 /**
+ * TrainedPokemon を読むときの include（TrainedPokemonMapper に渡すデータを取るクエリは、これを使う）
+ * 技は slot の順に読む
+ */
+export const TRAINED_POKEMON_INCLUDE = {
+  pokemon: {
+    include: {
+      primaryType: true,
+      secondaryType: true,
+    },
+  },
+  ability: true,
+  moves: {
+    orderBy: { slot: 'asc' },
+  },
+} as const satisfies Prisma.TrainedPokemonInclude;
+
+/**
  * TrainedPokemonのPrismaクエリ結果型（include付き）
  */
 export type TrainedPokemonWithRelations = Prisma.TrainedPokemonGetPayload<{
-  include: {
-    pokemon: {
-      include: {
-        primaryType: true;
-        secondaryType: true;
-      };
-    };
-    ability: true;
-  };
+  include: typeof TRAINED_POKEMON_INCLUDE;
 }>;
 
 /**
@@ -51,6 +60,10 @@ export class TrainedPokemonMapper {
       trainedPokemonData.spSpecialDefense,
       trainedPokemonData.spSpeed,
       trainedPokemonData.heldItem,
+      // クエリの並びに頼らず、ここでも slot の順に並べる
+      [...trainedPokemonData.moves]
+        .sort((a, b) => a.slot - b.slot)
+        .map(trainedPokemonMove => trainedPokemonMove.moveId),
     );
   }
 }

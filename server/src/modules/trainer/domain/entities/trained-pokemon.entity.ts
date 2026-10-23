@@ -38,6 +38,17 @@ export class TrainedPokemon {
   static readonly MAX_STAT_POINTS_TOTAL = 66;
 
   /**
+   * バトルで使える技の最大の数
+   */
+  static readonly MAX_MOVES = 4;
+
+  /**
+   * バトルで使う技の ID（slot の順。最大 4 つで、同じ技は入らない）
+   * 空なら、バトルを始めるときに種族の覚える技から作る（技を選ぶ前のデータのための代わり）
+   */
+  public readonly moveIds: readonly number[];
+
+  /**
    * チャンピオンズにない性格（補正なしの性格のうち、まじめ以外の 4 つ）
    */
   private static readonly UNAVAILABLE_NATURES: ReadonlySet<Nature> = new Set([
@@ -66,7 +77,27 @@ export class TrainedPokemon {
      * バトルが始まると、バトル中の状態（persistentState.item）に写す
      */
     public readonly heldItem: string | null = null,
+    /**
+     * バトルで使う技の ID（slot の順）。省略すると空
+     */
+    moveIds: readonly number[] = [],
   ) {
+    // 技のバリデーション（4 つまで・同じ技を重ねない）
+    if (moveIds.length > TrainedPokemon.MAX_MOVES) {
+      throw new ValidationException(
+        `A pokemon can have at most ${TrainedPokemon.MAX_MOVES} moves. Got: ${moveIds.length}`,
+        'moveIds',
+      );
+    }
+    const duplicateMoveId = moveIds.find((moveId, index) => moveIds.indexOf(moveId) !== index);
+    if (duplicateMoveId !== undefined) {
+      throw new ValidationException(
+        `A pokemon cannot have the same move twice: ${duplicateMoveId}`,
+        'moveIds',
+      );
+    }
+    this.moveIds = [...moveIds];
+
     // 能力補正（性格）のバリデーション。null は補正なしとして扱う
     if (nature !== null && TrainedPokemon.UNAVAILABLE_NATURES.has(nature)) {
       throw new ValidationException(

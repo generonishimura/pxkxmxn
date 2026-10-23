@@ -164,4 +164,67 @@ describe('TrainedPokemon', () => {
       }
     });
   });
+
+  describe('技のバリデーション', () => {
+    const createWithMoves = (moveIds?: readonly number[]): TrainedPokemon =>
+      new TrainedPokemon(
+        1,
+        1,
+        pokemon,
+        null,
+        Gender.Male,
+        Nature.Jolly,
+        null,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        moveIds,
+      );
+
+    it('技を渡さなければ、技は空になる', () => {
+      // Act
+      const trainedPokemon = createWithMoves();
+
+      // Assert
+      expect(trainedPokemon.moveIds).toEqual([]);
+    });
+
+    it('技を 4 つまで持てる（渡した順に並ぶ）', () => {
+      // Act
+      const trainedPokemon = createWithMoves([4, 1, 3, 2]);
+
+      // Assert
+      expect(trainedPokemon.moveIds).toEqual([4, 1, 3, 2]);
+    });
+
+    it('技が 5 つなら ValidationException を投げる', () => {
+      // Act & Assert
+      expect(() => createWithMoves([1, 2, 3, 4, 5])).toThrow(
+        new ValidationException('A pokemon can have at most 4 moves. Got: 5', 'moveIds'),
+      );
+    });
+
+    it('同じ技が 2 つあれば ValidationException を投げる', () => {
+      // Act & Assert
+      expect(() => createWithMoves([1, 2, 1])).toThrow(
+        new ValidationException('A pokemon cannot have the same move twice: 1', 'moveIds'),
+      );
+    });
+
+    it('渡した配列をあとから書き換えても、持っている技は変わらない', () => {
+      // Arrange
+      const moveIds = [1, 2];
+      const trainedPokemon = createWithMoves(moveIds);
+
+      // Act
+      moveIds.push(3);
+
+      // Assert
+      expect(trainedPokemon.moveIds).toEqual([1, 2]);
+    });
+  });
 });

@@ -9,7 +9,11 @@ import {
 } from '../../domain/trainer.repository.interface';
 import { Trainer } from '../../domain/entities/trainer.entity';
 import { TrainedPokemon } from '../../domain/entities/trained-pokemon.entity';
-import { TrainedPokemonMapper, TrainedPokemonWithRelations } from '@/shared/infrastructure/mappers';
+import {
+  TRAINED_POKEMON_INCLUDE,
+  TrainedPokemonMapper,
+  TrainedPokemonWithRelations,
+} from '@/shared/infrastructure/mappers';
 
 /**
  * TrainerのPrismaクエリ結果型
@@ -130,15 +134,7 @@ export class TrainedPokemonPrismaRepository implements ITrainedPokemonRepository
   async findById(id: number): Promise<TrainedPokemon | null> {
     const trainedPokemonData = await this.prisma.trainedPokemon.findUnique({
       where: { id },
-      include: {
-        pokemon: {
-          include: {
-            primaryType: true,
-            secondaryType: true,
-          },
-        },
-        ability: true,
-      },
+      include: TRAINED_POKEMON_INCLUDE,
     });
 
     if (!trainedPokemonData) {
@@ -151,15 +147,7 @@ export class TrainedPokemonPrismaRepository implements ITrainedPokemonRepository
   async findByTrainerId(trainerId: number): Promise<TrainedPokemon[]> {
     const trainedPokemonList = await this.prisma.trainedPokemon.findMany({
       where: { trainerId },
-      include: {
-        pokemon: {
-          include: {
-            primaryType: true,
-            secondaryType: true,
-          },
-        },
-        ability: true,
-      },
+      include: TRAINED_POKEMON_INCLUDE,
     });
 
     return trainedPokemonList.map(tp => this.toDomainEntity(tp));
@@ -185,15 +173,7 @@ export class TeamPrismaRepository implements ITeamRepository {
       where: { teamId },
       include: {
         trainedPokemon: {
-          include: {
-            pokemon: {
-              include: {
-                primaryType: true,
-                secondaryType: true,
-              },
-            },
-            ability: true,
-          },
+          include: TRAINED_POKEMON_INCLUDE,
         },
       },
       orderBy: { position: 'asc' },
