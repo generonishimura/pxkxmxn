@@ -55,7 +55,7 @@ describe.each([
       new Pokemon(id, id, 'テスト', 'Test', NORMAL, null, 100, 100, 100, 100, 100, baseSpeed),
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       abilityName
         ? new Ability(
             id,

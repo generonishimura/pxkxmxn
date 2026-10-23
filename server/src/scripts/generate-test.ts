@@ -1165,7 +1165,7 @@ function generateHelpers(baseClass: string): string {
       pokemon,
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       ability,
       0,
       0,

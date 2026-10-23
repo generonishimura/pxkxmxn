@@ -59,7 +59,7 @@ describe('追加効果の判定（rollSecondaryEffect への接続）', () => {
       pokemon,
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       null,
       0,
       0,

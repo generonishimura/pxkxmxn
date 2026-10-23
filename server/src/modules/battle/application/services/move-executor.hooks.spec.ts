@@ -76,7 +76,7 @@ describe('MoveExecutorService - ダメージ前後のフック', () => {
       new Pokemon(id, id, 'テスト', 'Test', NORMAL, null, 100, 100, 100, 100, 100, 100),
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       abilityName
         ? new Ability(
             id,

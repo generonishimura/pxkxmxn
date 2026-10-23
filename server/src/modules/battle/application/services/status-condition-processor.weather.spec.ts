@@ -41,7 +41,7 @@ describe('StatusConditionProcessorService - ターン終了時の天候', () => 
       ),
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       new Ability(
         id,
         abilityName,

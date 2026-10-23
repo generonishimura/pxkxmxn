@@ -45,7 +45,7 @@ describe('PokemonSwitcherService - バトンタッチ・しっぽきりの引き
       new Pokemon(1, 1, 'テスト', 'Test', type, null, 100, 100, 100, 100, 100, 100),
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       null,
       0,
       0,

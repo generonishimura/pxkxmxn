@@ -44,7 +44,7 @@ describe('EffectSporeEffect', () => {
       pokemon,
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       abilityName
         ? new Ability(
             1,

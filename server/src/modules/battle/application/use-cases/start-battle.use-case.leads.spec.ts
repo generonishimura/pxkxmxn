@@ -78,7 +78,7 @@ const toTrainedPokemon = (spec: LeadSpec): TrainedPokemon => {
     ),
     null,
     Gender.Male,
-    Nature.Hardy,
+    Nature.Serious,
     spec.ability
       ? new Ability(
           spec.id,

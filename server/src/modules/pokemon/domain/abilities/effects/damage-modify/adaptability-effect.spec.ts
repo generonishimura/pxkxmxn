@@ -85,7 +85,7 @@ describe('AdaptabilityEffect', () => {
       pokemon,
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       ability,
       0,
       0,

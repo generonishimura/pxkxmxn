@@ -99,7 +99,7 @@ const toTrainedPokemon = (id: number, pokemon: InMemoryPokemon): TrainedPokemon 
     ),
     null,
     pokemon.gender ?? Gender.Male,
-    Nature.Hardy,
+    Nature.Serious,
     pokemon.ability
       ? new Ability(
           id,

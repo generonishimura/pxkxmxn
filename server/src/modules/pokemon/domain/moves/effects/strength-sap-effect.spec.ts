@@ -32,7 +32,7 @@ describe('StrengthSapEffect', () => {
    */
   const defenderTrainedPokemon = {
     id: 2,
-    nature: Nature.Hardy,
+    nature: Nature.Serious,
     ability: null,
     pokemon: {
       baseHp: 100,

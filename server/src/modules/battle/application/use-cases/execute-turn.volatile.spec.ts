@@ -85,7 +85,7 @@ describe('ExecuteTurnUseCase - 一時的な状態による行動の決定', () =
       new Pokemon(id, id, 'テスト', 'Test', type, null, 100, 100, 100, 100, 100, 100),
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       null,
       0,
       0,

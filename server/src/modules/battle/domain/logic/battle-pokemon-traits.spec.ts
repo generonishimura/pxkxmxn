@@ -45,7 +45,7 @@ const trained = (params: {
     ),
     null,
     Gender.Male,
-    Nature.Hardy,
+    Nature.Serious,
     params.ability
       ? new Ability(
           1,

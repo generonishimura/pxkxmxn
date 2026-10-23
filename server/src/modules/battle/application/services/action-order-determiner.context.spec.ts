@@ -56,7 +56,7 @@ describe.each([
       ),
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       new Ability(
         id,
         abilityName,

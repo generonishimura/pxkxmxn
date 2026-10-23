@@ -26,7 +26,7 @@ describe('RivalryEffect（とうそうしん）', () => {
       ),
       null,
       gender,
-      Nature.Hardy,
+      Nature.Serious,
       null,
       0,
       0,

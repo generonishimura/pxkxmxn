@@ -94,7 +94,7 @@ export const createTrainedPokemon = (
     ),
     null,
     Gender.Male,
-    Nature.Hardy,
+    Nature.Serious,
     abilityName
       ? new Ability(
           id,

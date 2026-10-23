@@ -65,7 +65,7 @@ describe('StatusConditionProcessorService', () => {
       ),
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       new Ability(
         1,
         abilityName,

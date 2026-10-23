@@ -113,7 +113,7 @@ describe('ExecuteTurnUseCase - はらぺこスイッチ・マイティチェン�
       // Act
       const stats = battleStatsOf(trainedPokemon!, engine.status(1));
 
-      // Assert: 能力ポイント 0・がんばりや（補正なし）。種族値 + 20
+      // Assert: 能力ポイント 0・まじめ（補正なし）。種族値 + 20
       expect(stats).toEqual({
         attack: 180,
         defense: 117,

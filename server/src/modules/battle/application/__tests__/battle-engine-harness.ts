@@ -212,7 +212,7 @@ const toTrainedPokemon = (pokemon: HarnessPokemon): TrainedPokemon => {
     ),
     null,
     Gender.Male,
-    Nature.Hardy,
+    Nature.Serious,
     pokemon.ability
       ? new Ability(
           pokemon.id,

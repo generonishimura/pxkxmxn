@@ -97,7 +97,7 @@ describe('calculateBattleStats', () => {
       pokemon,
       null,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       null,
       0,
       0,
