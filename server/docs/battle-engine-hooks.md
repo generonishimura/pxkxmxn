@@ -48,7 +48,7 @@
 `DamageCalculator.calculate`（`src/modules/battle/domain/logic/damage-calculator.ts`）の中は次の順です。
 
 1. タイプ一致・タイプ相性（攻撃側特性の `ignoresTypeImmunity` で相性0を等倍にできる。じゅうりょく・らんきりゅうも反映する）
-2. 防御側特性の `isImmuneToType`（じゅうりょくの間は、ふゆうのじめん技の無効を無視する）→ 防御側の持ち物の `isImmuneToType`
+2. 防御側特性の `isImmuneToType`（じゅうりょくの間は、ふゆう・Eelevate のじめん技の無効を無視する）→ 防御側の持ち物の `isImmuneToType`
 3. 威力補正（攻撃側特性の `modifyBasePower` → 場の特性の `modifyAnyBasePower` → じゅうでん → フィールド・どろあそび・みずあそび）
 4. 能力値とランク（`attackStatOverride`、無視するランク、やけど半減。ワンダールームなら防御と特防の実数値を入れ替える）
 5. 基本ダメージ（急所なら 1.5 倍で切り捨て。13.1）→ 攻撃側特性の `modifyDamageDealt` → 防御側特性の `modifyDamage` → 天候補正 → 隠れている相手への 2 倍 → 壁（リフレクター・ひかりのかべ・オーロラベール。急所には効かない）
@@ -251,7 +251,7 @@ modifyAnyBasePower(_h: BattlePokemonStatus, power: number, ctx?: BattleContext):
 
 - シグネチャ: `modifyMoveType?(pokemon, typeName, battleContext): string | undefined`
 - 呼ばれる場所: `executeMove`。技の `modifyMoveType` のあと
-- 使う特性: うるおいボイス、-スキン系（フェアリースキンなど）、ノーマルスキン
+- 使う特性: うるおいボイス、-スキン系（フェアリースキン・ドラゴンスキンなど）、ノーマルスキン
 - 返したタイプが、タイプ一致・タイプ相性・天候補正・ふんじん・ゲンシ天候の判定に使われる（ダメージ計算は、決まったタイプの ID を使う）。このあとプラズマシャワー・そうでんがタイプを変える（14.3）
 - `battleContext.moveTypeName` は技の `modifyMoveType` のあとのタイプです。技本来のタイプは `battleContext.baseMoveTypeName` に入っています。-スキン系の1.2倍は、`modifyBasePower` で `baseMoveTypeName === 'ノーマル'` かつ `moveTypeName` が変わったかで判定します。
 
@@ -393,7 +393,7 @@ async onAfterMoveHit(holder: BattlePokemonStatus, _a: BattlePokemonStatus, hit: 
 
 - シグネチャ: `onKnockOut?(holder, fainted, battleContext): Promise<string | null>`
 - 呼ばれる場所: `executeMove`。技の処理がすべて終わったあと（`onAfterMoveHit` のあと）、相手がひんしで自分がひんしでないとき
-- 使う特性: じしんかじょう、しろのいななき、くろのいななき、ビーストブースト
+- 使う特性: じしんかじょう、しろのいななき、くろのいななき、ビーストブースト、Eelevate
 - ビーストブーストの「最も高い能力」は、ランク補正前の実数値 `ctx.attackerStats` から選びます（本家と同じ）。
 
 ```ts
@@ -539,6 +539,7 @@ getAdditionalHitDamageRatios(_p: BattlePokemonStatus, ctx?: BattleContext): read
 | プロパティ | 型 | 参照する場所 | 使う特性 |
 | --- | --- | --- | --- |
 | `suppressesWeather` | `boolean` | `resolveEffectiveWeather`（技の実行・行動順・ターン終了時） | ノーてんき、エアロック |
+| `ownMoveWeather` | `Weather` | `resolveMoveWeather`（使用者の特性。技の `BattleContext.weather` をこの天候にする。場の天候・ノーてんきより優先） | メガソーラー（`Weather.Sun`。ため技・ウェザーボール・天候のダメージ補正が晴れとして動く） |
 | `breaksMold` | `boolean` | `AbilityRegistry.hasMoldBreaker` | かたやぶり、テラボルテージ、ターボブレイズ |
 | `unaffectedByMoldBreaker` | `boolean` | `AbilityRegistry.isIgnoredByMoldBreaker` | プリズムアーマー |
 | `secondaryEffectChanceMultiplier` | `number` | `rollSecondaryEffect`（攻撃側） | てんのめぐみ（`2`） |
@@ -786,7 +787,7 @@ const healed = await applyDrainHeal(attacker, defender, calculateDrainAmount(dam
 | びびり | `onDamagingHit`（むし・ゴースト・あくで素早さ+1）+ `onStatChanged`（`source?.name === 'いかく'` で素早さ+1） |
 | せいぎのこころ・じきゅうりょく・みずがため・じょうききかん・わたげ・すなはき・こぼれダネ・ねつこうかん | `onDamagingHit`（タイプは `hit.moveTypeName`。わたげは攻撃側に `applyStatChanges`、すなはき・こぼれダネは天候・フィールドを書き込む） |
 | いかりのこうら・ぎゃくじょう（作成済み） | `onAfterMoveHit`（`hit.hpBefore > maxHp / 2` かつ今のHPが半分以下。ぎゃくじょうは特攻+1を `applyStatChanges` で行う） |
-| じしんかじょう・しろのいななき・くろのいななき・ビーストブースト | `onKnockOut` |
+| じしんかじょう・しろのいななき・くろのいななき・ビーストブースト・Eelevate | `onKnockOut` |
 | ソウルハート | `onAnyFaint`（原因・陣営を問わず、場のポケモンがひんしになるたびに特攻+1） |
 | はりこみ | `modifyBasePower`（相手の `volatileState.switchedInTurn === battle.turn` なら威力2倍。ボディプレスは対象外。近似は7章） |
 | とうそうしん | `modifyDamageDealt`（`trainedPokemonRepository` で両方の性別を引き、同じなら1.25倍・違えば0.75倍。性別不明なら補正しない。近似は7章） |
@@ -1690,7 +1691,7 @@ const guard = findBlockingGuard({ protection: defender.volatileState.protection,
 
 - シグネチャ: `bypassesProtection?(holder, battleContext?): boolean | undefined`
 - 呼ばれる場所: `MoveExecutorService` の守りの判定。`true` なら、トリックガード以外の守りを通り抜ける（接触したときの効果も起きない）
-- 使う特性: ふかしのこぶし（接触技なら `true`）
+- 使う特性: ふかしのこぶし・かんつうドリル（接触技なら `true`）
 
 ```ts
 bypassesProtection(_holder: BattlePokemonStatus, ctx?: BattleContext): boolean {
@@ -1788,7 +1789,7 @@ export class MagicBounceEffect implements IAbilityEffect {
 | スナイパー | 作成済み（`modifyDamageDealt` で `ctx.isCriticalHit` を見る。急所が出るようになったので効く） |
 | ミラクルスキン | `modifyBaseAccuracy`（防御側で変化技なら 50。13.2） |
 | ノーガード | `ensuresMoveHit = true`（乗せ換え済み。13.2） |
-| ふかしのこぶし | `bypassesProtection`（接触技なら `true`。13.5） |
+| ふかしのこぶし・かんつうドリル | `bypassesProtection`（接触技なら `true`。13.5） |
 | きんしのちから | `breaksMoldFor`（変化技なら `true`。13.4）と `modifyFractionalPriority`（変化技なら -0.1。13.3） |
 
 ## 14. タイプ変更・フォルムチェンジ・特性の書き換えの仕組み
@@ -2028,7 +2029,7 @@ async onFoeEntry(holder: BattlePokemonStatus, entered: BattlePokemonStatus, ctx?
 | へんしょく | `onAfterMoveHit` で、ひんしでなく、`hit.moveTypeName` を持っていなければ `setTypes(holder, [type], ctx)` |
 | へんげんじざい・リベロ | `onPrepareHit`（14.9） |
 | ぎたい | `onEntry`・`onTerrainChange`（14.11） |
-| ノーマルスキン・フェアリースキン・フリーズスキン・スカイスキン・エレキスキン | `modifyMoveType`（14.3）と `modifyBasePower`（`ctx.moveTypeChangedByAbility` なら 1.2 倍） |
+| ノーマルスキン・フェアリースキン・フリーズスキン・スカイスキン・エレキスキン・ドラゴンスキン | `modifyMoveType`（14.3）と `modifyBasePower`（`ctx.moveTypeChangedByAbility` なら 1.2 倍） |
 | へんしん・かわりもの | `transformInto`（14.7） |
 | イリュージョン | `onEntry` で `findIllusionTarget`、`onDamagingHit` で `illusionStatusId: null`（14.8） |
 | バトルスイッチ | `onPrepareHit` と `changeForm`（14.9） |

@@ -1,12 +1,13 @@
 import { PixilateEffect } from './pixilate-effect';
 import { AerilateEffect } from './aerilate-effect';
 import { GalvanizeEffect } from './galvanize-effect';
+import { DragonizeEffect } from './dragonize-effect';
 import { BattlePokemonStatus } from '@/modules/battle/domain/entities/battle-pokemon-status.entity';
 import { BattleContext } from '../../battle-context.interface';
 import { Battle, BattleStatus } from '@/modules/battle/domain/entities/battle.entity';
 import { IAbilityEffect } from '../../ability-effect.interface';
 
-describe('-スキン系の特性（フェアリースキン・スカイスキン・エレキスキン）', () => {
+describe('-スキン系の特性（フェアリースキン・スカイスキン・エレキスキン・ドラゴンスキン）', () => {
   const pokemon = new BattlePokemonStatus(1, 1, 1, 1, true, 100, 100, 0, 0, 0, 0, 0, 0, 0, null);
 
   const createCtx = (overrides: Partial<BattleContext> = {}): BattleContext => ({
@@ -19,6 +20,7 @@ describe('-スキン系の特性（フェアリースキン・スカイスキン
     ['フェアリースキン', new PixilateEffect(), 'フェアリー'],
     ['スカイスキン', new AerilateEffect(), 'ひこう'],
     ['エレキスキン', new GalvanizeEffect(), 'でんき'],
+    ['ドラゴンスキン', new DragonizeEffect(), 'ドラゴン'],
   ];
 
   describe.each(cases)('%s', (_name, effect, typeName) => {

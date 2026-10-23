@@ -29,6 +29,18 @@ describe('isGrounded', () => {
     expect(grounded).toBe(false);
   });
 
+  it('Eelevate のポケモンは地面にいない', () => {
+    // Act
+    const grounded = isGrounded({
+      typeNames: ['でんき'],
+      abilityName: 'Eelevate',
+      volatileState: {},
+    });
+
+    // Assert
+    expect(grounded).toBe(false);
+  });
+
   it.each([
     ['でんじふゆう', { magnetRiseTurns: 3 }],
     ['テレキネシス', { telekinesisTurns: 2 }],

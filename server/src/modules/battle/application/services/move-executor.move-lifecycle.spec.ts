@@ -242,6 +242,51 @@ describe('MoveExecutorService - 技の流れでエンジンが書く状態（Mov
       },
     );
 
+    it('メガソーラーのポケモンは、雨でもソーラービームをためずに出す', async () => {
+      // Arrange
+      const { service, statuses } = setupMoveExecutor({
+        move: createMove('ソーラービーム', MoveCategory.Special, 120),
+        attackerAbility: 'メガソーラー',
+      });
+      const battle = new Battle(1, 1, 2, 1, 2, 1, Weather.Rain, null, BattleStatus.Active, null);
+
+      // Act
+      await service.executeMove(
+        battle,
+        ATTACKER_ID,
+        1,
+        statuses.get(ATTACKER_ID),
+        statuses.get(DEFENDER_ID),
+        1,
+      );
+
+      // Assert
+      expect(statuses.get(DEFENDER_ID).currentHp).toBe(90);
+      expect(statuses.get(ATTACKER_ID).volatileState.chargingMoveId).toBeUndefined();
+    });
+
+    it('相手がメガソーラーでも、自分のソーラービームは晴れでなければ 1 ターンためる', async () => {
+      // Arrange
+      const { service, statuses } = setupMoveExecutor({
+        move: createMove('ソーラービーム', MoveCategory.Special, 120),
+        defenderAbility: 'メガソーラー',
+      });
+      const battle = new Battle(1, 1, 2, 1, 2, 1, Weather.Rain, null, BattleStatus.Active, null);
+
+      // Act
+      const message = await service.executeMove(
+        battle,
+        ATTACKER_ID,
+        1,
+        statuses.get(ATTACKER_ID),
+        statuses.get(DEFENDER_ID),
+        1,
+      );
+
+      // Assert
+      expect(message).toBe('Used ソーラービーム and began charging');
+    });
+
     it('ソーラービームは、晴れでなければ 1 ターンためる', async () => {
       // Arrange
       const { service, statuses } = setupMoveExecutor({

@@ -9,6 +9,7 @@ import type { StatChange } from '../battle-events/stat-change';
 import type { VolatileKind } from '../battle-events/volatile-infliction';
 // 場の状態・設置技・交代の仕組み（Issue #102 #103 #135 一部）
 import type { PrimalWeather } from '@/modules/battle/domain/state/side-state';
+import type { Weather } from '@/modules/battle/domain/entities/battle.entity';
 import type { TrapTarget } from '../battle-events/switching';
 
 /**
@@ -553,6 +554,13 @@ export interface IAbilityEffect {
    * 場にいる間、天候の効果をなくす特性かどうか（例: ノーてんき、エアロック）
    */
   readonly suppressesWeather?: boolean;
+
+  /**
+   * この特性のポケモンが使う技を、この天候のもとで出したものとして扱う（例: メガソーラーは晴れ）
+   * 使用者の技の BattleContext.weather がこの天候になる（resolveMoveWeather）。ため技・ウェザーボール・
+   * 天候のダメージ補正など、ctx の天候を読む処理すべてに効く。場の天候・ノーてんきより優先する
+   */
+  readonly ownMoveWeather?: Weather;
 
   /**
    * 相手の特性を無視して攻撃する特性かどうか（例: かたやぶり、テラボルテージ、ターボブレイズ）

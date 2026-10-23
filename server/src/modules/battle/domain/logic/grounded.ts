@@ -7,9 +7,9 @@ import { SideState, getGlobalFieldState } from '../state/side-state';
 const AIRBORNE_TYPE_NAME = 'ひこう';
 
 /**
- * 地面にいない特性（本家の isGrounded と同じく、ふゆうだけ）
+ * 地面にいない特性（本家の isGrounded と同じく、ふゆう・Eelevate）
  */
-const AIRBORNE_ABILITY_NAMES: readonly string[] = ['ふゆう'];
+const AIRBORNE_ABILITY_NAMES: readonly string[] = ['ふゆう', 'Eelevate'];
 
 /**
  * 地面にいない持ち物（本家の isGrounded と同じく、ふうせんだけ）
@@ -29,7 +29,7 @@ export const isGroundingItem = (itemName: string | undefined): boolean =>
   itemName !== undefined && GROUNDING_ITEM_NAMES.includes(itemName);
 
 /**
- * 地面にいない特性か（ふゆう）
+ * 地面にいない特性か（ふゆう・Eelevate）
  * じゅうりょくの間は、この特性のじめん技の無効を DamageCalculator が無視する
  */
 export const isAirborneAbility = (abilityName: string | undefined): boolean =>
@@ -56,7 +56,7 @@ export interface GroundedParams {
  * フィールドの効果・まきびし・どくびし・ねばねばネット・ありじごくが、地面にいるポケモンにだけ効く
  *
  * 1. じゅうりょくの間・ねをはっている間・くろいてっきゅうを持っている間は地面にいる
- * 2. ひこうタイプ（はねやすめをしたターンを除く）・ふゆう・でんじふゆう・テレキネシス・ふうせんなら地面にいない
+ * 2. ひこうタイプ（はねやすめをしたターンを除く）・ふゆう・Eelevate・でんじふゆう・テレキネシス・ふうせんなら地面にいない
  *
  * 注: タイプは育成ポケモンのタイプで判定する（みずびたしなどのタイプの上書きは見ない。ダメージ計算と同じ）。
  *     うちおとすはまだない

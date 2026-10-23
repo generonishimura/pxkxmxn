@@ -268,6 +268,14 @@ import { MummyEffect } from './effects/other/mummy-effect';
 import { LingeringAromaEffect } from './effects/other/lingering-aroma-effect';
 import { WanderingSpiritEffect } from './effects/other/wandering-spirit-effect';
 import { NeutralizingGasEffect } from './effects/other/neutralizing-gas-effect';
+// レジェンズ Z-A・チャンピオンズのメガシンカの特性（Issue #263）
+import { MegaSolEffect } from './effects/weather/mega-sol-effect';
+import { DragonizeEffect } from './effects/other/dragonize-effect';
+import { PiercingDrillEffect } from './effects/other/piercing-drill-effect';
+import { SpicySprayEffect } from './effects/stat-change/spicy-spray-effect';
+import { EelevateEffect } from './effects/immunity/eelevate-effect';
+import { FireManeEffect } from './effects/damage-modify/fire-mane-effect';
+import { AuraGuardEffect } from './effects/damage-modify/aura-guard-effect';
 // フォルムを変える特性（Issue #135 一部）
 import { ForecastEffect } from './effects/form-change/forecast-effect';
 import { ZenModeEffect } from './effects/form-change/zen-mode-effect';
@@ -700,6 +708,14 @@ export class AbilityRegistry {
       this.registry.set('エレキスキン', new GalvanizeEffect());
       this.registry.set('リベロ', new LiberoEffect());
       this.registry.set('ぎたい', new MimicryEffect());
+      // レジェンズ Z-A・チャンピオンズのメガシンカの特性（Issue #263）。英語名だけの 3 件は DB の name が英語名
+      this.registry.set('メガソーラー', new MegaSolEffect());
+      this.registry.set('ドラゴンスキン', new DragonizeEffect());
+      this.registry.set('かんつうドリル', new PiercingDrillEffect());
+      this.registry.set('とびだすハバネロ', new SpicySprayEffect());
+      this.registry.set('Eelevate', new EelevateEffect());
+      this.registry.set('Fire Mane', new FireManeEffect());
+      this.registry.set('Aura Guard', new AuraGuardEffect());
     } catch (error) {
       throw new Error(
         `Failed to initialize AbilityRegistry: ${error instanceof Error ? error.message : String(error)}`,
