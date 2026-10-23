@@ -21,4 +21,7 @@ export type IItemEffect = Pick<
   | 'modifyEvasion'
   | 'modifyCritRatio'
   | 'onAfterMoveSecondarySelf'
+  | 'isImmuneToType'
+  | 'onDamagingHit'
+  | 'onSourceDamagingHit'
 >;

@@ -42,6 +42,7 @@ import { MoveBehaviors } from '@/modules/pokemon/domain/moves/move-behaviors';
 import { CalledMoveRequest } from '@/modules/pokemon/domain/battle-events/called-move';
 import { tryInflictStatus } from '@/modules/pokemon/domain/battle-events/status-infliction';
 import { applyIndirectDamage } from '@/modules/pokemon/domain/battle-events/indirect-damage';
+import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { getGlobalFieldState, getSideConditions } from '../../domain/state/side-state';
 import {
   STRUGGLE_MOVE_NAME,
@@ -1460,14 +1461,17 @@ export class MoveExecutorService {
         hitCount += 1;
       }
 
-      // ヒットごとの技の追加効果と特性（技の onDamagingHit → 防御側の onDamagingHit → 攻撃側の onSourceDamagingHit）。
+      // ヒットごとの技の追加効果と特性・持ち物（技の onDamagingHit → 防御側の特性・持ち物の onDamagingHit →
+      // 攻撃側の特性・持ち物の onSourceDamagingHit）。
       // 本家の spreadMoveHit と同じく、技の追加効果（secondaries）を DamagingHit より先にする。
       // 防いだヒットでも呼ぶ（hit.damage は 0。本家の DamagingHit もダメージ 0 で呼ばれる）
       if (
         (dealtDamage > 0 || blockMessage) &&
         (moveEffect?.onDamagingHit ||
           defenderEventEffect?.onDamagingHit ||
-          attackerAbilityEffect?.onSourceDamagingHit)
+          attackerAbilityEffect?.onSourceDamagingHit ||
+          getItemEffect(updatedDefender)?.onDamagingHit ||
+          getItemEffect(currentAttacker)?.onSourceDamagingHit)
       ) {
         // 特性で能力ランク・HP・状態異常が変わるため、そのたびに両者の状態を取り直す
         const refreshStatuses = async (): Promise<void> => {
@@ -1503,6 +1507,18 @@ export class MoveExecutorService {
           // 攻撃側の特性に、防御側の特性で変わったあとの状態を渡す（わたげの素早さ低下など）
           await refreshStatuses();
         }
+        // 防御側の持ち物（ゴツゴツメット・ふうせん など）。持ち物はかたやぶりで無視されない
+        const defenderItemEffect = getItemEffect(updatedDefender);
+        let defenderItemMessage: string | null = null;
+        if (defenderItemEffect?.onDamagingHit) {
+          defenderItemMessage = await defenderItemEffect.onDamagingHit(
+            updatedDefender,
+            currentAttacker,
+            hit,
+            battleContext,
+          );
+          await refreshStatuses();
+        }
         let attackerMessage: string | null = null;
         if (attackerAbilityEffect?.onSourceDamagingHit) {
           attackerMessage = await attackerAbilityEffect.onSourceDamagingHit(
@@ -1514,8 +1530,26 @@ export class MoveExecutorService {
           // 次のヒットのために取り直す
           await refreshStatuses();
         }
+        // 攻撃側の持ち物（おうじゃのしるし など）
+        const attackerItemEffect = getItemEffect(currentAttacker);
+        let attackerItemMessage: string | null = null;
+        if (attackerItemEffect?.onSourceDamagingHit) {
+          attackerItemMessage = await attackerItemEffect.onSourceDamagingHit(
+            currentAttacker,
+            updatedDefender,
+            hit,
+            battleContext,
+          );
+          await refreshStatuses();
+        }
         hitEventMessages.push(
-          ...[moveMessage, defenderMessage, attackerMessage].filter((m): m is string => Boolean(m)),
+          ...[
+            moveMessage,
+            defenderMessage,
+            defenderItemMessage,
+            attackerMessage,
+            attackerItemMessage,
+          ].filter((m): m is string => Boolean(m)),
         );
       }
 

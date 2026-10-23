@@ -121,4 +121,68 @@ describe('DamageCalculator - 持ち物', () => {
     // Assert
     expect(damage).toBe(base);
   });
+  describe('防御側の持ち物の isImmuneToType', () => {
+    it('防御側の持ち物が技のタイプを無効にすると、ダメージは 0', async () => {
+      // Arrange
+      ItemRegistry.register('テストのかくとう無効', {
+        isImmuneToType: (_pokemon, typeName) => typeName === 'かくとう',
+      });
+
+      // Act
+      const damage = await DamageCalculator.calculate(
+        createParams({ defender: createStatus(2, 'テストのかくとう無効') }),
+      );
+
+      // Assert
+      expect(damage).toBe(0);
+    });
+
+    it('防御側の持ち物で無効になる技は、技全体のタイプ相性も 0 になる', () => {
+      // Arrange
+      ItemRegistry.register('テストのかくとう無効', {
+        isImmuneToType: (_pokemon, typeName) => typeName === 'かくとう',
+      });
+
+      // Act
+      const effectiveness = DamageCalculator.calculateMoveEffectiveness(
+        createParams({ defender: createStatus(2, 'テストのかくとう無効') }),
+      );
+
+      // Assert
+      expect(effectiveness).toBe(0);
+    });
+
+    it('攻撃側がかたやぶりでも、防御側の持ち物の無効は働く', async () => {
+      // Arrange
+      ItemRegistry.register('テストのかくとう無効', {
+        isImmuneToType: (_pokemon, typeName) => typeName === 'かくとう',
+      });
+
+      // Act
+      const damage = await DamageCalculator.calculate(
+        createParams({
+          attackerAbilityName: 'かたやぶり',
+          defender: createStatus(2, 'テストのかくとう無効'),
+        }),
+      );
+
+      // Assert
+      expect(damage).toBe(0);
+    });
+
+    it('攻撃側の持ち物の isImmuneToType は使わない', async () => {
+      // Arrange
+      ItemRegistry.register('テストのかくとう無効', {
+        isImmuneToType: (_pokemon, typeName) => typeName === 'かくとう',
+      });
+
+      // Act
+      const damage = await DamageCalculator.calculate(
+        createParams({ attacker: createStatus(1, 'テストのかくとう無効') }),
+      );
+
+      // Assert
+      expect(damage).toBeGreaterThan(0);
+    });
+  });
 });

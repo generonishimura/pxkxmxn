@@ -28,7 +28,7 @@
 8. 技のタイプを決める（技の `modifyMoveType` → 攻撃側特性の `modifyMoveType` → プラズマシャワー → そうでん。14.3）。技全体のタイプ相性を `moveTypeEffectiveness` に入れる。タイプ一致・相性には、両者の実効のタイプ（14.1）を使う
 9. 技の `beforeDamage`（連続技の回数決定）。このあと攻撃側・防御側の状態を取り直す
 10. 技の威力を決める（技の `modifyMovePower`）
-11. ヒットごとに急所を引き（13.1）、ダメージを計算して当てる（連続技・おやこあいの追加ヒット。相手にみがわりがあればみがわりに当て、追加効果は起きない。こらえるの相手は HP が 1 残る。防御側特性の `blockDamagingHit`（ばけのかわなど。14.10）が防いだヒットは 0 にする）。1以上減らしたヒット（と防いだヒット）ごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
+11. ヒットごとに急所を引き（13.1）、ダメージを計算して当てる（連続技・おやこあいの追加ヒット。相手にみがわりがあればみがわりに当て、追加効果は起きない。こらえるの相手は HP が 1 残る。防御側特性の `blockDamagingHit`（ばけのかわなど。14.10）が防いだヒットは 0 にする）。1以上減らしたヒット（と防いだヒット）ごとに、防御側特性の `onDamagingHit` → 防御側の持ち物の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` → 攻撃側の持ち物の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
 12. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
 13. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut` → 技が当たったなら攻撃側の特性 → 攻撃側の持ち物の `onAfterMoveSecondarySelf`（いのちのたまなど）→ 倒した相手のみちづれ・おんねん
 
@@ -47,7 +47,7 @@
 `DamageCalculator.calculate`（`src/modules/battle/domain/logic/damage-calculator.ts`）の中は次の順です。
 
 1. タイプ一致・タイプ相性（攻撃側特性の `ignoresTypeImmunity` で相性0を等倍にできる。じゅうりょく・らんきりゅうも反映する）
-2. 防御側特性の `isImmuneToType`（じゅうりょくの間は、ふゆうのじめん技の無効を無視する）
+2. 防御側特性の `isImmuneToType`（じゅうりょくの間は、ふゆうのじめん技の無効を無視する）→ 防御側の持ち物の `isImmuneToType`
 3. 威力補正（攻撃側特性の `modifyBasePower` → 場の特性の `modifyAnyBasePower` → じゅうでん → フィールド・どろあそび・みずあそび）
 4. 能力値とランク（`attackStatOverride`、無視するランク、やけど半減。ワンダールームなら防御と特防の実数値を入れ替える）
 5. 基本ダメージ（急所なら 1.5 倍で切り捨て。13.1）→ 攻撃側特性の `modifyDamageDealt` → 防御側特性の `modifyDamage` → 天候補正 → 隠れている相手への 2 倍 → 壁（リフレクター・ひかりのかべ・オーロラベール。急所には効かない）
@@ -534,6 +534,9 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `modifyEvasion` | `AccuracyCalculator.checkHit`（防御側） | 防御側の特性の `modifyEvasion` のあと。かたやぶりで無視されない |
 | `modifyCritRatio` | `MoveExecutorService.resolveCriticalHitStage`（攻撃側） | 攻撃側の特性の `modifyCritRatio` のあと。返した値は 0〜3 に収める |
 | `onAfterMoveSecondarySelf` | `MoveExecutorService.runMoveBody`（攻撃側） | 攻撃側の特性の `onAfterMoveSecondarySelf` のあと |
+| `isImmuneToType` | `DamageCalculator.calculate` / `calculateMoveEffectiveness`（防御側） | 防御側の特性のあと。特性がかたやぶりで無視されても、持ち物は見る |
+| `onDamagingHit` | `MoveExecutorService.runMoveBody` のヒットのループ（防御側） | 防御側の特性の `onDamagingHit` のあと、攻撃側の特性の `onSourceDamagingHit` の前。みがわりに当たったヒットでは呼ばない |
+| `onSourceDamagingHit` | `MoveExecutorService.runMoveBody` のヒットのループ（攻撃側） | 攻撃側の特性の `onSourceDamagingHit` のあと |
 
 - 今の持ち物は `PersistentPokemonState.item`、使い切った持ち物は `consumedItem` にあります。バトル開始時に `TrainedPokemon.heldItem` を `item` に写します
 - 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます
