@@ -176,6 +176,8 @@ model TrainedPokemon {
   spSpecialAttack     Int                   @default(0) @map("sp_special_attack")
   spSpecialDefense    Int                   @default(0) @map("sp_special_defense")
   spSpeed             Int                   @default(0) @map("sp_speed")
+  /// 持ち物の名前（PokeAPI の ja-Hrkt 名）。持っていなければ null
+  heldItem            String?               @map("held_item")
   createdAt           DateTime              @default(now()) @map("created_at")
   updatedAt           DateTime              @updatedAt @map("updated_at")
   battlePokemonStatus BattlePokemonStatus[]

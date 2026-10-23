@@ -511,6 +511,23 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 
 - マジックガードは今の `MagicGuardEffect` に `readonly preventsIndirectDamage = true;` を足します（`preventsRecoil` は残してよい）。いしあたまは `preventsRecoil` だけで本家どおりです（とびげりの自傷とわるあがきの反動は受ける）。
 
+### 持ち物のフック（IItemEffect）
+
+持ち物の効果（`pokemon/domain/items/`）は、特性と同じ名前・同じ引数のフックで書きます。1 つ目の引数は持ち物を持っているポケモンです。エンジンは、特性のフックを呼ぶ場所のあとで、持ち主の持ち物の同じフックを呼びます。持ち物はかたやぶりで無視されません。
+
+| フック | 呼ぶ場所 | 呼ぶ順番 |
+| --- | --- | --- |
+| `modifyBasePower` | `DamageCalculator.resolveBasePower`（攻撃側） | 攻撃側の特性のあと、場の特性（`modifyAnyBasePower`）の前 |
+| `modifyDamageDealt` | `DamageCalculator.calculate`（攻撃側） | 攻撃側の特性のあと |
+| `modifyDamage` | `DamageCalculator.calculate`（防御側） | 防御側の特性のあと |
+| `modifySpeed` | `ActionOrderDeterminerService.determine` | 特性の素早さ補正のあと、おいかぜの前 |
+| `onTurnEnd` | `StatusConditionProcessorService.processTurnEndAbilities` | ポケモンごとの処理の最初（アクアリング・状態異常のダメージより前。本家のたべのこしの順番） |
+
+- 今の持ち物は `PersistentPokemonState.item`、使い切った持ち物は `consumedItem` にあります。バトル開始時に `TrainedPokemon.heldItem` を `item` に写します
+- 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます
+- きのみを食べたときなどは `consumeItem` で、`item` を消して `consumedItem` に残します
+- 持ち物に新しいフックが要るときは、`IItemEffect` の `Pick` に足し、エンジンの呼ぶ場所もつなぎます
+
 ## 4. コンテキストの項目（BattleContext）
 
 | 項目 | 内容 | 入る場所 |

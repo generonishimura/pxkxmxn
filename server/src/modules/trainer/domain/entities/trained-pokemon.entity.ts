@@ -61,6 +61,11 @@ export class TrainedPokemon {
     public readonly spSpecialAttack: number,
     public readonly spSpecialDefense: number,
     public readonly spSpeed: number,
+    /**
+     * 持ち物の名前（PokeAPI の ja-Hrkt 名）。持っていなければ null
+     * バトルが始まると、バトル中の状態（persistentState.item）に写す
+     */
+    public readonly heldItem: string | null = null,
   ) {
     // 能力補正（性格）のバリデーション。null は補正なしとして扱う
     if (nature !== null && TrainedPokemon.UNAVAILABLE_NATURES.has(nature)) {

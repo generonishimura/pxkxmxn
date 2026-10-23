@@ -35,6 +35,7 @@ describe('TrainedPokemonMapper', () => {
         spSpecialAttack: 0,
         spSpecialDefense: 0,
         spSpeed: 2,
+        heldItem: 'たべのこし',
         createdAt: new Date(),
         updatedAt: new Date(),
         pokemon: {
@@ -90,6 +91,7 @@ describe('TrainedPokemonMapper', () => {
       expect(result.spSpecialAttack).toBe(0);
       expect(result.spSpecialDefense).toBe(0);
       expect(result.spSpeed).toBe(2);
+      expect(result.heldItem).toBe('たべのこし');
     });
 
     it('should convert Prisma TrainedPokemon data without ability to domain entity', () => {
@@ -120,6 +122,7 @@ describe('TrainedPokemonMapper', () => {
         spSpecialAttack: 0,
         spSpecialDefense: 0,
         spSpeed: 0,
+        heldItem: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         pokemon: {

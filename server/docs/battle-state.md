@@ -388,6 +388,8 @@ const spikes = getSideConditions(battle.sideState, opponentTrainerId).spikesLaye
 | `iceFaceBroken` | 真偽値 | アイスフェイスが壊れた（ゆきで戻る） | アイスフェイス |
 | `oncePerBattleAbilityUsed` | 真偽値 | 1 バトルに 1 回だけの特性を使った | ふとうのけん・ふくつのたて・きずなへんげ |
 | `revivalCount` | 1 以上の整数 | さいきのいのりで復活した回数（エンジンが書く）。ひんしになった延べ数を、今ひんしの数 + この回数で求める | さいきのいのり・そうだいしょう |
+| `item` | 空でない文字列 | 今持っている持ち物の名前。バトル開始時に育成ポケモンの持ち物を写す | 持ち物の効果すべて |
+| `consumedItem` | 空でない文字列 | 最後に使い切った持ち物の名前（`consumeItem` が書く） | リサイクル・しゅうかく・かるわざ |
 
 マイティチェンジは、引っ込むことでフォルムが変わります。特性の `onSwitchOut` で `changeForm(holder, 'hero', ctx, { persistent: true })` を呼んでください。
 
