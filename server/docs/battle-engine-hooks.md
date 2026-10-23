@@ -30,7 +30,7 @@
 10. 技の威力を決める（技の `modifyMovePower`）
 11. ヒットごとに急所を引き（13.1）、ダメージを計算して当てる（連続技・おやこあいの追加ヒット。相手にみがわりがあればみがわりに当て、追加効果は起きない。こらえるの相手は HP が 1 残る。防御側特性の `blockDamagingHit`（ばけのかわなど。14.10）が防いだヒットは 0 にする）。1以上減らしたヒット（と防いだヒット）ごとに、防御側特性の `onDamagingHit` → 攻撃側特性の `onSourceDamagingHit` を呼ぶ。どちらも呼んだあとに両者の状態を取り直すので、`onSourceDamagingHit` には `onDamagingHit` で変わったあとの状態が渡る。ダメージ0・どちらかがひんしで止まる
 12. 接触時の特性（`applyContactStatusCondition`）→ 技の `onHit` → 技の `afterDamage`（実際に減らしたHPの合計）
-13. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut` → 倒した相手のみちづれ・おんねん
+13. 防御側特性の `onAfterMoveHit`（合計ダメージが1以上のとき）→ 相手がひんしで自分が無事なら攻撃側特性の `onKnockOut` → 技が当たったなら攻撃側の特性 → 攻撃側の持ち物の `onAfterMoveSecondarySelf`（いのちのたまなど）→ 倒した相手のみちづれ・おんねん
 
 メッセージは `Used <技> and dealt <ダメージ> damage (hit N times) <A critical hit!> <It broke through the protection!> <The opponent endured the hit!> <接触時の特性> <11のメッセージ> <onHit・afterDamage> <13のメッセージ>` の順に並びます。
 
@@ -362,6 +362,14 @@ async onKnockOut(holder: BattlePokemonStatus, _fainted: BattlePokemonStatus, ctx
 }
 ```
 
+### onAfterMoveSecondarySelf（攻撃側）
+
+- シグネチャ: `onAfterMoveSecondarySelf?(holder, target, hit, battleContext): Promise<string | null>`
+- 呼ばれる場所: `MoveExecutorService.runMoveBody`。技が相手かみがわりに当たったとき（ばけのかわで防がれたときを含む）、`onAfterMoveHit`・`onKnockOut` のあとに技全体で 1 回。攻撃側の特性 → 攻撃側の持ち物の順（本家の `onAfterMoveSecondarySelf`）
+- 外れた・効かなかった・変化技のときは呼ばない。持ち主がひんしでも呼ぶ（HP を減らす処理は `applyIndirectDamage` が、ひんしなら何もしない）
+- `hit.damage` は、相手とみがわりに与えたダメージの合計
+- 使う持ち物: いのちのたま（反動）、ノーマルジュエル（使い切る）。今は使う特性はない
+
 ### onAnyFaint（場のどのポケモンでも）
 
 - シグネチャ: `onAnyFaint?(holder, fainted, battleContext): Promise<string | null>`
@@ -522,11 +530,16 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `modifyDamage` | `DamageCalculator.calculate`（防御側） | 防御側の特性のあと |
 | `modifySpeed` | `ActionOrderDeterminerService.determine` | 特性の素早さ補正のあと、おいかぜの前 |
 | `onTurnEnd` | `StatusConditionProcessorService.processTurnEndAbilities` | ポケモンごとの処理の最初（アクアリング・状態異常のダメージより前。本家のたべのこしの順番） |
+| `modifyAccuracy` | `AccuracyCalculator.checkHit`（攻撃側） | 攻撃側の特性の `modifyAccuracy` のあと、防御側の特性の `modifyEvasion` の前 |
+| `modifyEvasion` | `AccuracyCalculator.checkHit`（防御側） | 防御側の特性の `modifyEvasion` のあと。かたやぶりで無視されない |
+| `modifyCritRatio` | `MoveExecutorService.resolveCriticalHitStage`（攻撃側） | 攻撃側の特性の `modifyCritRatio` のあと。返した値は 0〜3 に収める |
+| `onAfterMoveSecondarySelf` | `MoveExecutorService.runMoveBody`（攻撃側） | 攻撃側の特性の `onAfterMoveSecondarySelf` のあと |
 
 - 今の持ち物は `PersistentPokemonState.item`、使い切った持ち物は `consumedItem` にあります。バトル開始時に `TrainedPokemon.heldItem` を `item` に写します
 - 持ち物の名前と効果は `resolveItemName` / `getItemEffect`（`battle-events/item-lookup.ts`）で引きます
 - きのみを食べたときなどは `consumeItem` で、`item` を消して `consumedItem` に残します
 - 持ち物に新しいフックが要るときは、`IItemEffect` の `Pick` に足し、エンジンの呼ぶ場所もつなぎます
+- 決まったポケモンだけに効く持ち物（でんきだま・ながねぎ）は、`battleContext.attackerNationalDex`（技の使用者のもとの全国図鑑の番号）で判定します
 
 ## 4. コンテキストの項目（BattleContext）
 
@@ -550,6 +563,7 @@ export class EarlyBirdEffect implements IAbilityEffect { readonly sleepTurnMulti
 | `moveTypeEffectiveness` | 技全体のタイプ相性（0〜4）。防御側特性の `isImmuneToType` で無効なら0 | ダメージ技の `beforeDamage` 以降 |
 | `weather` | 効果のある天候（ノーてんき等がいれば `None`） | 技の実行・行動順・ターン終了時・ダメージ計算 |
 | `isLastToMove` | このターン最後に行動するか | 技の実行・ダメージ計算 |
+| `attackerNationalDex` | 技の使用者のもとの全国図鑑の番号（へんしんしても変わらない） | 技の実行・ダメージ計算 |
 | `hasRecoil` | 反動・外したときの自傷がある技か（技の `hasRecoil`） | 技の実行・ダメージ計算 |
 | `multiHitCount` / `hitIndex` | 総ヒット数 / 何回目のヒットか（0始まり） | 技の実行・ダメージ計算 |
 | `ignoredAttackerRanks` / `ignoredDefenderRanks` | 0として扱うランク | 技の実行・命中判定・ダメージ計算 |
@@ -1388,7 +1402,7 @@ return grounded; // ありじごく（trapsOpponent では target.grounded が�
 エンジンは、攻撃技のヒットごとに急所を引きます（本家の getDamage）。
 
 1. 急所ランクを決める（`baseCriticalHitStage`）: 急所に当たりやすい技（`MoveBehaviors` の `highCritRatio`）は +1、使用者の `critStageBoost`（きあいだめ）を足す。必ず急所になる技（`alwaysCrit`）と使用者の `laserFocusTurns`（とぎすます）は必ず急所（ランク 3）
-2. 攻撃側特性の `modifyCritRatio` でランクを変える。0〜3 に収める
+2. 攻撃側特性の `modifyCritRatio` → 攻撃側の持ち物の `modifyCritRatio`（ピントレンズ・ながねぎ）でランクを変える。0〜3 に収める
 3. 防御側特性の `preventsCriticalHit`（かたやぶりで無視される）か、防御側の陣営の `luckyChantTurns`（おまじない）があれば急所にしない
 4. ランクごとの確率で引く（ランク 0 = 1/24、1 = 1/8、2 = 1/2、3 以上 = 必ず。第 9 世代）
 5. 急所なら、`battleContext.isCriticalHit` を `true` にしてダメージを計算する。基礎ダメージを 1.5 倍（切り捨て）し、攻撃側の下がったランクと防御側の上がったランクを 0 として扱い、壁を無視する。メッセージに `A critical hit!` が付く

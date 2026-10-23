@@ -192,9 +192,15 @@ export interface BattleContext {
   moveTypeEffectiveness?: number;
 
   /**
-   * このターン、技の使用者が最後に行動するかどうか（アナライズ）
+   * このターン、技の使用者が最後に行動するかどうか（アナライズ・フォーカスレンズ）
    */
   isLastToMove?: boolean;
+
+  /**
+   * 技の使用者の全国図鑑の番号（育成ポケモンのもとの種類。へんしんしても変わらない。本家の baseSpecies）
+   * 技の実行で入る。でんきだま・ながねぎなど、決まったポケモンだけに効く持ち物が読む
+   */
+  attackerNationalDex?: number;
 
   /**
    * 何回目のヒットか（0始まり）。連続技・おやこあいの2発目以降で1以上になる

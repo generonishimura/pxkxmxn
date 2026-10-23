@@ -378,6 +378,23 @@ export interface IAbilityEffect {
   ): Promise<string | null>;
 
   /**
+   * 攻撃側: 攻撃技を当てたあとに、技全体で 1 回だけ発動する効果（例: いのちのたまの反動。本家の onAfterMoveSecondarySelf）
+   * 技が相手かみがわりに当たったとき（ばけのかわで防がれたときを含む）、技の afterDamage と onAfterMoveHit・onKnockOut の
+   * あとに、攻撃側の特性 → 攻撃側の持ち物の順に呼ばれる。外れた・効かなかった・変化技のときは呼ばれない。
+   * 持ち主がひんしでも呼ぶ（HP を減らす処理は applyIndirectDamage が、ひんしなら何もしない）
+   * @param holder この特性・持ち物を持つ攻撃側のポケモン（最新の状態）
+   * @param target 技を受けた防御側のポケモン（最新の状態）
+   * @param hit 技全体の情報（damage は相手とみがわりに与えたダメージの合計）
+   * @returns メッセージ（nullの場合は何も起こらない）
+   */
+  onAfterMoveSecondarySelf?(
+    _holder: BattlePokemonStatus,
+    _target: BattlePokemonStatus,
+    _hit: HitResult,
+    _battleContext?: BattleContext,
+  ): Promise<string | null>;
+
+  /**
    * 場のどれかのポケモンがひんしになったとき（例: ソウルハート。本家の onAnyFaint）
    * ひんしの原因（技・反動・状態異常・接触特性など）と陣営は問わない。ExecuteTurnUseCase が、技・交代・
    * みらいよち・ターン終了時の処理のあとに、新しくひんしになったポケモンごとに notifyFaint で呼ぶ。
