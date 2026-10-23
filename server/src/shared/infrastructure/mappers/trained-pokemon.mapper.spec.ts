@@ -29,6 +29,12 @@ describe('TrainedPokemonMapper', () => {
         evSpecialAttack: 0,
         evSpecialDefense: 0,
         evSpeed: 6,
+        spHp: 32,
+        spAttack: 32,
+        spDefense: 0,
+        spSpecialAttack: 0,
+        spSpecialDefense: 0,
+        spSpeed: 2,
         createdAt: new Date(),
         updatedAt: new Date(),
         pokemon: {
@@ -78,8 +84,12 @@ describe('TrainedPokemonMapper', () => {
       expect(result.gender).toBe(Gender.Male);
       expect(result.ability).toBeInstanceOf(Ability);
       expect(result.ability?.name).toBe('せいでんき');
-      expect(result.ivHp).toBe(31);
-      expect(result.evHp).toBe(252);
+      expect(result.spHp).toBe(32);
+      expect(result.spAttack).toBe(32);
+      expect(result.spDefense).toBe(0);
+      expect(result.spSpecialAttack).toBe(0);
+      expect(result.spSpecialDefense).toBe(0);
+      expect(result.spSpeed).toBe(2);
     });
 
     it('should convert Prisma TrainedPokemon data without ability to domain entity', () => {
@@ -104,6 +114,12 @@ describe('TrainedPokemonMapper', () => {
         evSpecialAttack: 0,
         evSpecialDefense: 0,
         evSpeed: 0,
+        spHp: 0,
+        spAttack: 0,
+        spDefense: 0,
+        spSpecialAttack: 0,
+        spSpecialDefense: 0,
+        spSpeed: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
         pokemon: {

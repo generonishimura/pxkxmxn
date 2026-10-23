@@ -108,7 +108,7 @@ const baseStatsOf = (trainedPokemon: TrainedPokemon, form: PokemonForm | undefin
   };
 
 /**
- * 種族値と育成ポケモンの個体値・努力値・性格から、実数値（HP を含む）を計算する
+ * 種族値と育成ポケモンの能力ポイント・性格から、実数値（HP を含む）を計算する
  */
 const calculateStatsWith = (trainedPokemon: TrainedPokemon, base: BaseStatValues) =>
   StatCalculator.calculate({
@@ -118,19 +118,12 @@ const calculateStatsWith = (trainedPokemon: TrainedPokemon, base: BaseStatValues
     baseSpecialAttack: base.specialAttack,
     baseSpecialDefense: base.specialDefense,
     baseSpeed: base.speed,
-    level: trainedPokemon.level,
-    ivHp: trainedPokemon.ivHp,
-    ivAttack: trainedPokemon.ivAttack,
-    ivDefense: trainedPokemon.ivDefense,
-    ivSpecialAttack: trainedPokemon.ivSpecialAttack,
-    ivSpecialDefense: trainedPokemon.ivSpecialDefense,
-    ivSpeed: trainedPokemon.ivSpeed,
-    evHp: trainedPokemon.evHp,
-    evAttack: trainedPokemon.evAttack,
-    evDefense: trainedPokemon.evDefense,
-    evSpecialAttack: trainedPokemon.evSpecialAttack,
-    evSpecialDefense: trainedPokemon.evSpecialDefense,
-    evSpeed: trainedPokemon.evSpeed,
+    spHp: trainedPokemon.spHp,
+    spAttack: trainedPokemon.spAttack,
+    spDefense: trainedPokemon.spDefense,
+    spSpecialAttack: trainedPokemon.spSpecialAttack,
+    spSpecialDefense: trainedPokemon.spSpecialDefense,
+    spSpeed: trainedPokemon.spSpeed,
     nature: trainedPokemon.nature,
   });
 

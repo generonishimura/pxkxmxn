@@ -18,104 +18,79 @@ export enum Gender {
  */
 export class TrainedPokemon {
   /**
-   * レベルの最小値
+   * レベル。チャンピオンズではすべてのポケモンがレベル 50 に固定される
    */
-  private static readonly MIN_LEVEL = 1;
+  static readonly LEVEL = 50;
 
   /**
-   * レベルの最大値
+   * レベル（常に 50）
    */
-  private static readonly MAX_LEVEL = 100;
+  public readonly level: number = TrainedPokemon.LEVEL;
 
   /**
-   * 個体値（IV）の最小値
+   * 能力ポイントの 1 つの能力あたりの最大値
    */
-  private static readonly MIN_IV = 0;
+  static readonly MAX_STAT_POINTS_PER_STAT = 32;
 
   /**
-   * 個体値（IV）の最大値
+   * 能力ポイントの 6 つの能力の合計の最大値
    */
-  private static readonly MAX_IV = 31;
+  static readonly MAX_STAT_POINTS_TOTAL = 66;
 
   /**
-   * 努力値（EV）の最小値
+   * チャンピオンズにない性格（補正なしの性格のうち、まじめ以外の 4 つ）
    */
-  private static readonly MIN_EV = 0;
-
-  /**
-   * 努力値（EV）の最大値（1つのステータスあたり）
-   */
-  private static readonly MAX_EV_PER_STAT = 255;
-
-  /**
-   * 努力値（EV）の合計最大値
-   */
-  private static readonly MAX_EV_TOTAL = 510;
+  private static readonly UNAVAILABLE_NATURES: ReadonlySet<Nature> = new Set([
+    Nature.Hardy,
+    Nature.Docile,
+    Nature.Bashful,
+    Nature.Quirky,
+  ]);
 
   constructor(
     public readonly id: number,
     public readonly trainerId: number,
     public readonly pokemon: Pokemon,
     public readonly nickname: string | null,
-    public readonly level: number,
     public readonly gender: Gender | null,
     public readonly nature: Nature | null,
     public readonly ability: Ability | null,
-    public readonly ivHp: number,
-    public readonly ivAttack: number,
-    public readonly ivDefense: number,
-    public readonly ivSpecialAttack: number,
-    public readonly ivSpecialDefense: number,
-    public readonly ivSpeed: number,
-    public readonly evHp: number,
-    public readonly evAttack: number,
-    public readonly evDefense: number,
-    public readonly evSpecialAttack: number,
-    public readonly evSpecialDefense: number,
-    public readonly evSpeed: number,
+    public readonly spHp: number,
+    public readonly spAttack: number,
+    public readonly spDefense: number,
+    public readonly spSpecialAttack: number,
+    public readonly spSpecialDefense: number,
+    public readonly spSpeed: number,
   ) {
-    // レベルのバリデーション
-    if (level < TrainedPokemon.MIN_LEVEL || level > TrainedPokemon.MAX_LEVEL) {
+    // 能力補正（性格）のバリデーション。null は補正なしとして扱う
+    if (nature !== null && TrainedPokemon.UNAVAILABLE_NATURES.has(nature)) {
       throw new ValidationException(
-        `Level must be between ${TrainedPokemon.MIN_LEVEL} and ${TrainedPokemon.MAX_LEVEL}. Got: ${level}`,
-        'level',
+        `Nature ${nature} is not available in Champions. Use Serious for no stat change.`,
+        'nature',
       );
     }
 
-    // 個体値（IV）のバリデーション
-    const ivs = [ivHp, ivAttack, ivDefense, ivSpecialAttack, ivSpecialDefense, ivSpeed];
-    const ivNames = ['HP', 'Attack', 'Defense', 'SpecialAttack', 'SpecialDefense', 'Speed'];
-    for (let i = 0; i < ivs.length; i++) {
-      const iv = ivs[i];
-      const ivName = ivNames[i];
-      if (iv < TrainedPokemon.MIN_IV || iv > TrainedPokemon.MAX_IV) {
+    // 能力ポイントのバリデーション（1 つの能力あたり）
+    const statPoints = { spHp, spAttack, spDefense, spSpecialAttack, spSpecialDefense, spSpeed };
+    for (const [field, value] of Object.entries(statPoints)) {
+      if (
+        !Number.isInteger(value) ||
+        value < 0 ||
+        value > TrainedPokemon.MAX_STAT_POINTS_PER_STAT
+      ) {
         throw new ValidationException(
-          `${ivName} IV must be between ${TrainedPokemon.MIN_IV} and ${TrainedPokemon.MAX_IV}. Got: ${iv}`,
-          `iv${ivName}`,
+          `Stat points for ${field} must be an integer between 0 and ${TrainedPokemon.MAX_STAT_POINTS_PER_STAT}. Got: ${value}`,
+          field,
         );
       }
     }
 
-    // 努力値（EV）のバリデーション（1つのステータスあたり）
-    const evs = [evHp, evAttack, evDefense, evSpecialAttack, evSpecialDefense, evSpeed];
-    const evNames = ['HP', 'Attack', 'Defense', 'SpecialAttack', 'SpecialDefense', 'Speed'];
-    for (let i = 0; i < evs.length; i++) {
-      const ev = evs[i];
-      const evName = evNames[i];
-      if (ev < TrainedPokemon.MIN_EV || ev > TrainedPokemon.MAX_EV_PER_STAT) {
-        throw new ValidationException(
-          `${evName} EV must be between ${TrainedPokemon.MIN_EV} and ${TrainedPokemon.MAX_EV_PER_STAT}. Got: ${ev}`,
-          `ev${evName}`,
-        );
-      }
-    }
-
-    // 努力値（EV）の合計バリデーション
-    const evTotal = evs.reduce((sum, ev) => sum + ev, 0);
-    if (evTotal > TrainedPokemon.MAX_EV_TOTAL) {
+    // 能力ポイントの合計のバリデーション
+    const total = Object.values(statPoints).reduce((sum, value) => sum + value, 0);
+    if (total > TrainedPokemon.MAX_STAT_POINTS_TOTAL) {
       throw new ValidationException(
-        `Total EV must not exceed ${TrainedPokemon.MAX_EV_TOTAL}. Got: ${evTotal}`,
-        'evTotal',
+        `Total stat points must not exceed ${TrainedPokemon.MAX_STAT_POINTS_TOTAL}. Got: ${total}`,
+        'spTotal',
       );
     }
   }

@@ -98,9 +98,8 @@ const toTrainedPokemon = (id: number, pokemon: InMemoryPokemon): TrainedPokemon 
       100,
     ),
     null,
-    50,
     pokemon.gender ?? Gender.Male,
-    Nature.Hardy,
+    Nature.Serious,
     pokemon.ability
       ? new Ability(
           id,
@@ -111,12 +110,6 @@ const toTrainedPokemon = (id: number, pokemon: InMemoryPokemon): TrainedPokemon 
           AbilityCategory.Other,
         )
       : null,
-    31,
-    31,
-    31,
-    31,
-    31,
-    31,
     0,
     0,
     0,

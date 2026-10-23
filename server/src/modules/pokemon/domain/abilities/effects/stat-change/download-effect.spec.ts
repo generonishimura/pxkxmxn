@@ -9,7 +9,7 @@ import { Nature } from '@/modules/battle/domain/logic/stat-calculator';
 
 describe('DownloadEffect（ダウンロード）', () => {
   /**
-   * 防御・特防の種族値だけを決めた育成ポケモン（レベル50・個体値31・努力値0・性格補正なしなので、実数値は種族値 + 20）
+   * 防御・特防の種族値だけを決めた育成ポケモン（能力ポイント0・性格補正なしなので、実数値は種族値 + 20）
    */
   const createTrainedPokemon = (
     id: number,
@@ -34,16 +34,9 @@ describe('DownloadEffect（ダウンロード）', () => {
         100,
       ),
       null,
-      50,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       null,
-      31,
-      31,
-      31,
-      31,
-      31,
-      31,
       0,
       0,
       0,

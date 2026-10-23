@@ -116,9 +116,7 @@ describe('ActionOrderDeterminer', () => {
     id: number,
     pokemon: Pokemon,
     ability: Ability | null = null,
-    level: number = 50,
-    ivSpeed: number = 31,
-    evSpeed: number = 252,
+    spSpeed: number = 32,
     nature: Nature | null = null,
   ): TrainedPokemon => {
     return new TrainedPokemon(
@@ -126,22 +124,15 @@ describe('ActionOrderDeterminer', () => {
       1,
       pokemon,
       null,
-      level,
       Gender.Male,
       nature,
       ability,
-      31, // ivHp
-      31, // ivAttack
-      31, // ivDefense
-      31, // ivSpecialAttack
-      31, // ivSpecialDefense
-      ivSpeed, // ivSpeed
-      0, // evHp
-      0, // evAttack
-      0, // evDefense
-      0, // evSpecialAttack
-      0, // evSpecialDefense
-      evSpeed, // evSpeed
+      0, // spHp
+      0, // spAttack
+      0, // spDefense
+      0, // spSpecialAttack
+      0, // spSpecialDefense
+      spSpeed, // spSpeed
     );
   };
 

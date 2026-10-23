@@ -43,9 +43,8 @@ describe('EffectSporeEffect', () => {
       1,
       pokemon,
       null,
-      50,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       abilityName
         ? new Ability(
             1,
@@ -56,12 +55,6 @@ describe('EffectSporeEffect', () => {
             AbilityCategory.Immunity,
           )
         : null,
-      31,
-      31,
-      31,
-      31,
-      31,
-      31,
       0,
       0,
       0,

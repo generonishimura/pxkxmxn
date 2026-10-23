@@ -19,7 +19,7 @@ describe('TeraShiftEffect（テラスチェンジ）', () => {
   });
 
   it('HP の種族値が 90 から 95 に上がり、減った HP を保ったまま最大 HP が増える', async () => {
-    // Arrange: レベル 50・個体値 31・努力値 0 で、HP の種族値 90 は 165、95 は 170
+    // Arrange: 能力ポイント 0 で（HP = 種族値 + 75）、HP の種族値 90 は 165、95 は 170
     const battle = createInMemoryBattle({
       nationalDex: TERAPAGOS,
       status: { currentHp: 150, maxHp: 165 },

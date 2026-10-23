@@ -151,10 +151,12 @@ model TrainedPokemon {
   trainerId           Int                   @map("trainer_id")
   pokemonId           Int                   @map("pokemon_id")
   nickname            String?
+  /// 使わない。チャンピオンズではレベルを 50 に固定する（データを消さないために列は残す）
   level               Int                   @default(50)
-  gender              Gender?
+  gender             Gender?
   nature              Nature?
   abilityId           Int?                  @map("ability_id")
+  /// iv_* と ev_* は使わない。チャンピオンズには個体値・努力値がなく、能力値は sp_* で計算する（データを消さないために列は残す）
   ivHp                Int                   @default(31) @map("iv_hp")
   ivAttack            Int                   @default(31) @map("iv_attack")
   ivDefense           Int                   @default(31) @map("iv_defense")
@@ -167,6 +169,13 @@ model TrainedPokemon {
   evSpecialAttack     Int                   @default(0) @map("ev_special_attack")
   evSpecialDefense    Int                   @default(0) @map("ev_special_defense")
   evSpeed             Int                   @default(0) @map("ev_speed")
+  /// 能力ポイント（Stat Points）。1 つの能力に 0〜32、6 つの合計は 66 まで
+  spHp                Int                   @default(0) @map("sp_hp")
+  spAttack            Int                   @default(0) @map("sp_attack")
+  spDefense           Int                   @default(0) @map("sp_defense")
+  spSpecialAttack     Int                   @default(0) @map("sp_special_attack")
+  spSpecialDefense    Int                   @default(0) @map("sp_special_defense")
+  spSpeed             Int                   @default(0) @map("sp_speed")
   createdAt           DateTime              @default(now()) @map("created_at")
   updatedAt           DateTime              @updatedAt @map("updated_at")
   battlePokemonStatus BattlePokemonStatus[]

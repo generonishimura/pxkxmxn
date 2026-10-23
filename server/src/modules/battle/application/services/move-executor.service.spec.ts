@@ -89,9 +89,8 @@ describe('MoveExecutorService', () => {
       id,
       pokemon,
       null,
-      50,
       Gender.Male,
-      Nature.Hardy,
+      Nature.Serious,
       abilityName
         ? new Ability(
             id,
@@ -102,12 +101,6 @@ describe('MoveExecutorService', () => {
             AbilityCategory.Immunity,
           )
         : null,
-      31,
-      31,
-      31,
-      31,
-      31,
-      31,
       0,
       0,
       0,

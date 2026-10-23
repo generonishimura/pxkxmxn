@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "trained_pokemon" ADD COLUMN     "sp_attack" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "sp_defense" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "sp_hp" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "sp_special_attack" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "sp_special_defense" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "sp_speed" INTEGER NOT NULL DEFAULT 0;

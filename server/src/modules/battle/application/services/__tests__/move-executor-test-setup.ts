@@ -93,9 +93,8 @@ export const createTrainedPokemon = (
       100,
     ),
     null,
-    50,
     Gender.Male,
-    Nature.Hardy,
+    Nature.Serious,
     abilityName
       ? new Ability(
           id,
@@ -106,12 +105,6 @@ export const createTrainedPokemon = (
           AbilityCategory.Other,
         )
       : null,
-    31,
-    31,
-    31,
-    31,
-    31,
-    31,
     0,
     0,
     0,

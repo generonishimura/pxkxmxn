@@ -211,9 +211,8 @@ const toTrainedPokemon = (pokemon: HarnessPokemon): TrainedPokemon => {
       pokemon.baseSpeed ?? speed,
     ),
     null,
-    50,
     Gender.Male,
-    Nature.Hardy,
+    Nature.Serious,
     pokemon.ability
       ? new Ability(
           pokemon.id,
@@ -224,12 +223,6 @@ const toTrainedPokemon = (pokemon: HarnessPokemon): TrainedPokemon => {
           AbilityCategory.Other,
         )
       : null,
-    31,
-    31,
-    31,
-    31,
-    31,
-    31,
     0,
     0,
     0,
