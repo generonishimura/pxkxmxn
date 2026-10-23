@@ -1,5 +1,6 @@
 import { Type } from '@/modules/pokemon/domain/entities/type.entity';
 import { AbilityRegistry } from '@/modules/pokemon/domain/abilities/ability-registry';
+import { getItemEffect } from '@/modules/pokemon/domain/battle-events/item-lookup';
 import { BattlePokemonStatus } from '../entities/battle-pokemon-status.entity';
 import { Weather, Field, Battle } from '../entities/battle.entity';
 import { StatusConditionHandler } from './status-condition-handler';
@@ -316,6 +317,18 @@ export class DamageCalculator {
       }
     }
 
+    // 攻撃側の持ち物によるダメージ修正（いのちのたま・たつじんのおび など）
+    const attackerItemEffect = getItemEffect(attacker);
+    if (attackerItemEffect?.modifyDamageDealt) {
+      const currentDamage = baseDamage * damageMultiplier;
+      const modifiedDamage = await Promise.resolve(
+        attackerItemEffect.modifyDamageDealt(attacker, currentDamage, hookContext),
+      );
+      if (modifiedDamage !== undefined) {
+        damageMultiplier = modifiedDamage / baseDamage;
+      }
+    }
+
     // 防御側の特性効果によるダメージ修正
     // 攻撃側がかたやぶりを持っている場合は、防御側の特性効果を無視
     if (
@@ -333,6 +346,16 @@ export class DamageCalculator {
         if (modifiedDamage !== undefined) {
           damageMultiplier = modifiedDamage / baseDamage;
         }
+      }
+    }
+
+    // 防御側の持ち物によるダメージ修正（半減きのみ など）。持ち物はかたやぶりで無視されない
+    const defenderItemEffect = getItemEffect(defender);
+    if (defenderItemEffect?.modifyDamage) {
+      const currentDamage = baseDamage * damageMultiplier;
+      const modifiedDamage = defenderItemEffect.modifyDamage(defender, currentDamage, hookContext);
+      if (modifiedDamage !== undefined) {
+        damageMultiplier = modifiedDamage / baseDamage;
       }
     }
 
@@ -494,9 +517,10 @@ export class DamageCalculator {
   }
 
   /**
-   * 特性による威力補正を適用した威力を返す
+   * 特性・持ち物による威力補正を適用した威力を返す
    * 1. 攻撃側特性の modifyBasePower
-   * 2. 場の特性（攻撃側・防御側）の modifyAnyBasePower（同じ特性は1回だけ）
+   * 2. 攻撃側の持ち物の modifyBasePower
+   * 3. 場の特性（攻撃側・防御側）の modifyAnyBasePower（同じ特性は1回だけ）
    */
   private static resolveBasePower(
     basePower: number,
@@ -514,6 +538,16 @@ export class DamageCalculator {
       if (modified !== undefined) {
         power = modified;
       }
+    }
+
+    // 攻撃側の持ち物の威力補正（もくたん・ちからのハチマキ など）
+    const itemModified = getItemEffect(params.attacker)?.modifyBasePower?.(
+      params.attacker,
+      power,
+      hookContext,
+    );
+    if (itemModified !== undefined) {
+      power = itemModified;
     }
 
     const holders: Array<{ abilityName: string; holder: BattlePokemonStatus }> = [];

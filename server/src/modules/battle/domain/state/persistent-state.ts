@@ -42,6 +42,12 @@ export type PersistentPokemonState = {
    * 陣営でひんしになった延べ数（そうだいしょう）を、今ひんしの数 + 復活した回数で求めるのに使う
    */
   readonly revivalCount?: number;
+
+  // ---- 持ち物（Issue #245） ----
+  /** 今持っている持ち物の名前（DB の持ち物の日本語名）。持っていなければキーがない */
+  readonly item?: string;
+  /** 最後に使い切った持ち物の名前（きのみを食べた など）。リサイクル・しゅうかく・かるわざが読む */
+  readonly consumedItem?: string;
 };
 
 /**
@@ -56,6 +62,8 @@ export const PERSISTENT_POKEMON_STATE_PARSERS: FieldParsers<PersistentPokemonSta
   iceFaceBroken: booleanValue,
   oncePerBattleAbilityUsed: booleanValue,
   revivalCount: positiveInteger,
+  item: nonEmptyString,
+  consumedItem: nonEmptyString,
 };
 
 /**
